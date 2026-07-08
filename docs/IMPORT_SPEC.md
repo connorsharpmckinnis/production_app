@@ -164,23 +164,23 @@ Plain-text tolerance (future): line is ALL CAPS with optional `(REPRISE)` / `(N)
 ^####\s+(.+)$
 ```
 
-When `current_song` is set OR line appears before next non-song construct, classify the captured content:
+When `current_song` is set, classify the captured content:
 
 | Content pattern | Action |
 |---|---|
 | Empty / whitespace only | Skip |
 | `^\*(.+)\*$` or contains lowercase letters (sentence case) | Append to `current_song.description`; no Moment |
-| Performer pattern (see below) | **Moment** `song_attribution`; increment sequence |
+| ALL CAPS line matching known singers (see below) | **Moment** `song_attribution`; increment sequence |
 | All caps, substantial lyric text | **Moment** `lyric`; increment sequence |
 | Otherwise | **Error**: `"Cannot classify H4 line in song block"` |
 
-**Performer pattern:**
+**Singer recognition (Phase 1):**
 
-```text
-^(ALL|[A-Z][A-Z0-9' ]+(?:\s*&\s*[A-Z][A-Z0-9' ]+)*(?:,\s*[A-Z][A-Z0-9' ]+)*)$
-```
+1. Pre-scan the script for character names from dialogue speaker labels.
+2. Always include built-in names **`ALL`** and **`ENSEMBLE`** (created as Character records on import; `ENSEMBLE` is reserved for a future Character Group).
+3. An ALL CAPS line is `song_attribution` when every comma/`and`-separated segment matches a name from that set.
 
-Examples: `ALL`, `SHACKLETON`, `VERA & MOM`, `SHACKLETON, WORSLEY, CREAN`
+Examples: `ALL`, `SHACKLETON`, `SHACKLETON, WORSLEY`, `ENSEMBLE`
 
 ### 8. Plain ALL CAPS line (song context)
 
@@ -190,7 +190,7 @@ When `current_song` is set and line does not match dialogue or stage direction:
 ^[A-Z0-9' &,…\.]+(?:\s+[A-Z0-9' &,…\.]+)*\s*$
 ```
 
-* If performer pattern → **Moment** `song_attribution`
+* If line matches known singers (dialogue characters + `ALL` + `ENSEMBLE`) → **Moment** `song_attribution`
 * Else if length ≥ 4 characters → **Moment** `lyric`
 * Else → **Error**
 
