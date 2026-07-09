@@ -10,7 +10,8 @@ Companion documents:
 - [SCRIPT_FORMAT.md](SCRIPT_FORMAT.md) — standard script format for import
 - [IMPORT_SPEC.md](IMPORT_SPEC.md) — importer line classification and error policy
 - [PHASE_0.md](PHASE_0.md) — Phase 0 tasks (complete)
-- [PHASE_1.md](PHASE_1.md) — Phase 1 execution plan
+- [PHASE_1.md](PHASE_1.md) — Phase 1 execution plan (complete)
+- [PHASE_2.md](PHASE_2.md) — Phase 2 execution plan
 - [ROLES.md](ROLES.md) — MVP role permissions
 - [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](../.agents/skills/DEVELOPMENT_GUIDE/SKILL.md) — coding standards for humans and AI
 
@@ -774,14 +775,18 @@ Summary:
 
 ## Phase 2 — Character Workflow
 
-- Character verification
-- Casting
-- Groups
-- Actor view
-- Highlight lines
+See [PHASE_2.md](PHASE_2.md) for the execution plan.
+
+Summary:
+
+- Character and song verification (soft checklist, P1)
+- Casting (one actor per character)
+- Groups (late Phase 2)
+- Actor-filtered timeline view and line highlighting
+- Timeline search
 - Cue-only rehearsal mode
-- Notes
-- Bookmarks
+- Notes and bookmarks
+- Production list filtering by casting (Actors see only cast productions)
 
 ---
 

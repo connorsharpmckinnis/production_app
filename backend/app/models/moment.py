@@ -43,7 +43,11 @@ class Moment(Base):
     scene: Mapped["Scene"] = relationship(back_populates="moments")
     moment_type: Mapped["MomentType"] = relationship(back_populates="moments")
     song: Mapped["Song | None"] = relationship(back_populates="moments")
-    dialogue_lines: Mapped[list["Dialogue"]] = relationship(back_populates="moment")
+    dialogue_lines: Mapped[list["Dialogue"]] = relationship(
+        back_populates="moment",
+        cascade="all, delete-orphan",
+    )
     stage_directions: Mapped[list["StageDirection"]] = relationship(
         back_populates="moment",
+        cascade="all, delete-orphan",
     )

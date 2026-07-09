@@ -18,4 +18,7 @@ class Act(Base):
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False)
 
     production: Mapped["Production"] = relationship(back_populates="acts")
-    scenes: Mapped[list["Scene"]] = relationship(back_populates="act")
+    scenes: Mapped[list["Scene"]] = relationship(
+        back_populates="act",
+        cascade="all, delete-orphan",
+    )

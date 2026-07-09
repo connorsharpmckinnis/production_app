@@ -31,6 +31,15 @@ class Production(Base):
     )
 
     organization: Mapped["Organization"] = relationship(back_populates="productions")
-    acts: Mapped[list["Act"]] = relationship(back_populates="production")
-    characters: Mapped[list["Character"]] = relationship(back_populates="production")
-    songs: Mapped[list["Song"]] = relationship(back_populates="production")
+    acts: Mapped[list["Act"]] = relationship(
+        back_populates="production",
+        cascade="all, delete-orphan",
+    )
+    characters: Mapped[list["Character"]] = relationship(
+        back_populates="production",
+        cascade="all, delete-orphan",
+    )
+    songs: Mapped[list["Song"]] = relationship(
+        back_populates="production",
+        cascade="all, delete-orphan",
+    )

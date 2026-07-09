@@ -18,4 +18,7 @@ class Scene(Base):
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False)
 
     act: Mapped["Act"] = relationship(back_populates="scenes")
-    moments: Mapped[list["Moment"]] = relationship(back_populates="scene")
+    moments: Mapped[list["Moment"]] = relationship(
+        back_populates="scene",
+        cascade="all, delete-orphan",
+    )

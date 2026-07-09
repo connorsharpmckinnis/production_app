@@ -19,4 +19,8 @@ class Song(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     production: Mapped["Production"] = relationship(back_populates="songs")
-    moments: Mapped[list["Moment"]] = relationship(back_populates="song")
+    # Moments own the FK; do not cascade-delete lyrics when a song row is removed.
+    moments: Mapped[list["Moment"]] = relationship(
+        back_populates="song",
+        passive_deletes=True,
+    )

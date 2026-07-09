@@ -1,5 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { api, ApiError } from "@/lib/api";
 import type { ActSummary, MomentDetailResponse, MomentSummary, SceneSummary } from "@/lib/types";
 import { cn, momentTypeLabel, truncate } from "@/lib/utils";
@@ -19,9 +27,27 @@ function momentBadgeClass(type: string): string {
   }
 }
 
+function useIsLargeScreen() {
+  const [isLarge, setIsLarge] = useState(() =>
+    typeof window !== "undefined"
+      ? window.matchMedia("(min-width: 1024px)").matches
+      : true,
+  );
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(min-width: 1024px)");
+    const onChange = () => setIsLarge(mediaQuery.matches);
+    mediaQuery.addEventListener("change", onChange);
+    return () => mediaQuery.removeEventListener("change", onChange);
+  }, []);
+
+  return isLarge;
+}
+
 export default function TimelinePage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
+  const isLargeScreen = useIsLargeScreen();
 
   const [acts, setActs] = useState<ActSummary[]>([]);
   const [selectedActId, setSelectedActId] = useState<number | null>(null);
@@ -175,94 +201,77 @@ export default function TimelinePage() {
 
       <p className="text-sm font-medium text-muted-foreground">{sceneLabel}</p>
 
-      <div className="flex min-h-0 flex-1 gap-4">
-        <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
-          {momentsLoading ? (
-            <p className="p-4 text-sm text-muted-foreground">Loading moments…</p>
-          ) : moments.length === 0 ? (
-            <p className="p-4 text-sm text-muted-foreground">No moments in this scene.</p>
-          ) : (
-            <ul className="h-full overflow-y-auto divide-y divide-border">
-              {moments.map((moment) => (
-                <li key={moment.id}>
-                  <button
-                    type="button"
-                    onClick={() => setSelectedMomentId(moment.id)}
-                    className={cn(
-                      "flex w-full items-start gap-3 px-4 py-3 text-left text-sm hover:bg-muted/50",
-                      selectedMomentId === moment.id && "bg-muted",
-                    )}
+      <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
+        {momentsLoading ? (
+          <p className="p-4 text-sm text-muted-foreground">Loading moments…</p>
+        ) : moments.length === 0 ? (
+          <p className="p-4 text-sm text-muted-foreground">No moments in this scene.</p>
+        ) : (
+          <ul className="h-full overflow-y-auto divide-y divide-border">
+            {moments.map((moment) => (
+              <li key={moment.id}>
+                <button
+                  type="button"
+                  onClick={() => setSelectedMomentId(moment.id)}
+                  className={cn(
+                    "flex w-full items-start gap-3 px-4 py-3 text-left text-sm hover:bg-muted/50",
+                    selectedMomentId === moment.id && "bg-muted",
+                  )}
+                >
+                  <span className="w-8 shrink-0 font-mono text-muted-foreground">
+                    {moment.sequence_number}
+                  </span>
+                  <span className="min-w-0 flex-1">{truncate(moment.original_text)}</span>
+                  <Badge
+                    className={cn("shrink-0 capitalize", momentBadgeClass(moment.moment_type))}
                   >
-                    <span className="w-8 shrink-0 font-mono text-muted-foreground">
-                      {moment.sequence_number}
-                    </span>
-                    <span className="min-w-0 flex-1">{truncate(moment.original_text)}</span>
-                    <span
-                      className={cn(
-                        "shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-                        momentBadgeClass(moment.moment_type),
-                      )}
-                    >
-                      {momentTypeLabel(moment.moment_type)}
-                    </span>
-                  </button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-
-        {momentDetail && (
-          <aside className="hidden w-96 shrink-0 overflow-y-auto rounded-lg border border-border bg-card p-4 lg:block">
-            <MomentDetailPanel detail={momentDetail} onClose={() => setSelectedMomentId(null)} />
-          </aside>
+                    {momentTypeLabel(moment.moment_type)}
+                  </Badge>
+                </button>
+              </li>
+            ))}
+          </ul>
         )}
       </div>
 
-      {momentDetail && (
-        <div className="fixed inset-0 z-40 bg-black/40 lg:hidden" onClick={() => setSelectedMomentId(null)}>
-          <div
-            className="absolute bottom-0 left-0 right-0 max-h-[70vh] overflow-y-auto rounded-t-lg border border-border bg-card p-4"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <MomentDetailPanel detail={momentDetail} onClose={() => setSelectedMomentId(null)} />
-          </div>
-        </div>
-      )}
+      <Sheet
+        open={selectedMomentId !== null}
+        onOpenChange={(open) => {
+          if (!open) setSelectedMomentId(null);
+        }}
+      >
+        <SheetContent
+          side={isLargeScreen ? "right" : "bottom"}
+          className={cn(
+            "overflow-y-auto",
+            isLargeScreen ? "w-96 sm:max-w-md" : "max-h-[70vh]",
+          )}
+        >
+          {momentDetail ? (
+            <MomentDetailPanel detail={momentDetail} />
+          ) : (
+            <p className="p-4 text-sm text-muted-foreground">Loading moment detail…</p>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
 
-function MomentDetailPanel({
-  detail,
-  onClose,
-}: {
-  detail: MomentDetailResponse;
-  onClose: () => void;
-}) {
+function MomentDetailPanel({ detail }: { detail: MomentDetailResponse }) {
   return (
-    <div className="space-y-4">
-      <div className="flex items-start justify-between gap-2">
-        <div>
-          <p className="text-xs text-muted-foreground">Moment #{detail.sequence_number}</p>
-          <span
-            className={cn(
-              "mt-1 inline-block rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-              momentBadgeClass(detail.moment_type),
-            )}
-          >
+    <div className="space-y-4 pt-2">
+      <SheetHeader className="p-0">
+        <SheetDescription>Moment #{detail.sequence_number}</SheetDescription>
+        <div className="flex items-center gap-2">
+          <SheetTitle className="sr-only">
+            Moment {detail.sequence_number}
+          </SheetTitle>
+          <Badge className={cn("capitalize", momentBadgeClass(detail.moment_type))}>
             {momentTypeLabel(detail.moment_type)}
-          </span>
+          </Badge>
         </div>
-        <button
-          type="button"
-          onClick={onClose}
-          className="rounded-md p-1 text-muted-foreground hover:bg-muted"
-          aria-label="Close detail panel"
-        >
-          ✕
-        </button>
-      </div>
+      </SheetHeader>
 
       <div>
         <h3 className="text-sm font-medium">Original text</h3>
