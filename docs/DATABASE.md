@@ -426,11 +426,6 @@ Fields
 * name
 * description
 * created_at
-* is_verified (Phase 2 — boolean, default false)
-* verified_at (Phase 2 — nullable timestamp)
-* verified_by_user_id (Phase 2 — optional FK → users)
-
-**Decision (Phase 2):** Verification is a soft import-review checklist on the character record — not per-moment. Un-verifying is always allowed. Does not gate casting. See [PHASE_2.md](PHASE_2.md).
 
 Relationships
 
@@ -510,11 +505,7 @@ Fields
 * title
 * composer
 * lyricist
-* is_verified (Phase 2 — boolean, default false)
-* verified_at (Phase 2 — nullable timestamp)
-* verified_by_user_id (Phase 2 — optional FK → users)
-
-**Decision (Phase 2):** Same verification semantics as characters. See [PHASE_2.md](PHASE_2.md).
+* description
 
 Derived
 

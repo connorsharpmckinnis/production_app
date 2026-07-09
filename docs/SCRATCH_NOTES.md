@@ -8,6 +8,11 @@ I'll be using this document to store temporary notes relating to the project. St
 
 
 ## Little Things
-Moment pop-out sidebar doesn't have a buffer between the boundary and the moment detail text. The text is too close to the boundary. Could be a buffer missing, but also could be a screen size thing (I'm on a 13" laptop today). Either way, needs to be better. 
-Animations could/should be a little faster. whatever they are now, maybe cut them to 0.6 the current speed? 
-In the setup wizard (and in the timeline view I think) the production name isn't displayed in top-left, just 'Production #X'
+
+- The My Bookmarks experience is odd right now. It pops up a screen-wide banner-looking thing with the bookmarks listed there. Not a terrible instinct, but I think I'd like it to show in its own dedicated timeline-like view with '...'s between bookmarks to show it's not the whole timeline view. And then clicking on a bookmark will open it up in the 'main' timeline view. Or something like that. I'm not sure how I want bookmarks to work yet, so we'll leave it be for the time being and come back to it when I know how I want it to work. 
+
+## Done (Phase 2 close-out)
+
+- ~~Groups: add actors/users in UI~~ — shipped on Groups page
+- ~~Timeline filter by group~~ — shipped for Director/Admin
+- ~~Act filter "Act 1: Act 1" duplicate~~ — fixed via `formatActLabel`

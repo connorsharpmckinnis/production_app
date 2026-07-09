@@ -1,5 +1,7 @@
 from pydantic import BaseModel
 
+from app.schemas.notes import NoteResponse
+
 
 class SceneSummary(BaseModel):
     id: int
@@ -21,6 +23,7 @@ class ActSummary(BaseModel):
 
 
 class DialogueLineResponse(BaseModel):
+    character_id: int
     character_name: str
     dialogue_text: str
 
@@ -31,6 +34,7 @@ class MomentSummary(BaseModel):
     moment_type: str
     original_text: str
     song_id: int | None
+    speaking_character_ids: list[int]
 
     model_config = {"from_attributes": True}
 
@@ -45,6 +49,8 @@ class MomentDetailResponse(BaseModel):
     song_title: str | None
     dialogue: list[DialogueLineResponse]
     stage_direction: str | None
+    notes: list[NoteResponse]
+    is_bookmarked: bool
 
 
 class CharacterResponse(BaseModel):

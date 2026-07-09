@@ -11,7 +11,7 @@ erDiagram
 
     users }o--o{ app_roles : "user_app_roles"
     users }o--o{ characters : "user_character_assignments"
-    users }o--o{ groups : "group_users"
+    users }o--o{ groups : "user_groups"
     users ||--o{ notes : writes
     users ||--o{ tasks : "assigned_user_id"
     users ||--o{ bookmarks : has
@@ -83,7 +83,7 @@ These are computed from Timeline data, not foreign keys:
 | `user_app_roles` | users ↔ app_roles |
 | `user_character_assignments` | users ↔ characters (casting) |
 | `group_characters` | groups ↔ characters |
-| `group_users` | groups ↔ users |
+| `user_groups` | groups ↔ users |
 
 ---
 

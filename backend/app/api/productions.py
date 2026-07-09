@@ -1,10 +1,10 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import require_admin, require_authenticated
+from app.auth.dependencies import require_admin, require_authenticated, user_has_role
 from app.config import get_settings
 from app.db.session import get_db
-from app.models import Act, Organization, Production, User
+from app.models import Act, Character, Organization, Production, User, UserCharacterAssignment
 from app.schemas.production import (
     ImportErrorResponse,
     ImportSuccessResponse,
@@ -25,10 +25,24 @@ def _get_production_or_404(db: Session, production_id: int) -> Production:
 
 @router.get("", response_model=list[ProductionResponse])
 def list_productions(
-    _user: User = Depends(require_authenticated),
+    user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> list[Production]:
-    return db.query(Production).order_by(Production.created_at.desc()).all()
+    query = db.query(Production).order_by(Production.created_at.desc())
+
+    # Actors only see productions where they have at least one casting assignment.
+    if user_has_role(user, "Actor") and not user_has_role(user, "Admin") and not user_has_role(user, "Director"):
+        query = (
+            query.join(Character, Character.production_id == Production.id)
+            .join(
+                UserCharacterAssignment,
+                UserCharacterAssignment.character_id == Character.id,
+            )
+            .filter(UserCharacterAssignment.user_id == user.id)
+            .distinct()
+        )
+
+    return query.all()
 
 
 @router.post("", response_model=ProductionResponse, status_code=status.HTTP_201_CREATED)

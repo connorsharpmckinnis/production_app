@@ -76,11 +76,25 @@ export interface MomentSummary {
   moment_type: MomentType;
   original_text: string;
   song_id: number | null;
+  speaking_character_ids: number[];
 }
 
 export interface DialogueLineResponse {
+  character_id: number;
   character_name: string;
   dialogue_text: string;
+}
+
+export interface NoteResponse {
+  id: number;
+  user_id: number;
+  author_display_name: string;
+  visibility: "public" | "private";
+  moment_id: number | null;
+  character_id: number | null;
+  content: string;
+  created_at: string;
+  is_mine: boolean;
 }
 
 export interface MomentDetailResponse {
@@ -93,6 +107,48 @@ export interface MomentDetailResponse {
   song_title: string | null;
   dialogue: DialogueLineResponse[];
   stage_direction: string | null;
+  notes: NoteResponse[];
+  is_bookmarked: boolean;
+}
+
+export interface CharacterDetailResponse {
+  id: number;
+  name: string;
+  description: string | null;
+  scene_count: number;
+  assigned_actor: { user_id: number; display_name: string } | null;
+}
+
+export interface CastableUserResponse {
+  id: number;
+  display_name: string;
+}
+
+export interface BookmarkResponse {
+  id: number;
+  moment_id: number;
+  label: string | null;
+  created_at: string;
+  production_id: number;
+  production_title: string;
+  scene_id: number;
+  sequence_number: number;
+  moment_preview: string;
+}
+
+export interface GroupResponse {
+  id: number;
+  name: string;
+  description: string | null;
+  character_ids: number[];
+  user_ids: number[];
+}
+
+export interface MomentListFilters {
+  characterIds?: number[];
+  groupId?: number;
+  search?: string;
+  cueOnly?: boolean;
 }
 
 export interface CreateUserRequest {

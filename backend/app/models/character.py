@@ -25,3 +25,12 @@ class Character(Base):
 
     production: Mapped["Production"] = relationship(back_populates="characters")
     dialogue_lines: Mapped[list["Dialogue"]] = relationship(back_populates="character")
+    actor_assignment: Mapped["UserCharacterAssignment | None"] = relationship(
+        back_populates="character",
+        uselist=False,
+    )
+    notes: Mapped[list["Note"]] = relationship(back_populates="character")
+    groups: Mapped[list["Group"]] = relationship(
+        secondary="character_groups",
+        back_populates="characters",
+    )

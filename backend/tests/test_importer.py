@@ -42,6 +42,17 @@ CREAN: That\u00e2\u20ac\u2122ll work \u00e2\u20ac\u201c sure.
         assert "That'll" in moment.original_text
         assert "–" in moment.original_text
 
+    def test_mojibake_repair_modifier_tilde_quotes(self, seeded_db, production):
+        script = """# Act One
+## Scene One - Test
+*Music freezes on \u00e2\u20ac\u02dcTom. Danger. Crean.\u00e2\u20ac\u2122*
+"""
+        result = _import(seeded_db, production, script)
+        assert result.moments_created == 1
+        moment = seeded_db.query(Moment).first()
+        assert "'Tom. Danger. Crean.'" in moment.original_text
+        assert "\u00e2" not in moment.original_text
+
 
 class TestStructure:
     def test_act_and_scene(self, seeded_db, production):

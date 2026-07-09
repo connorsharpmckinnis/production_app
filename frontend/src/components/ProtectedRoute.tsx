@@ -3,10 +3,14 @@ import { useAuth } from "@/context/AuthContext";
 
 interface ProtectedRouteProps {
   adminOnly?: boolean;
+  directorOnly?: boolean;
 }
 
-export default function ProtectedRoute({ adminOnly = false }: ProtectedRouteProps) {
-  const { user, loading, isAdmin } = useAuth();
+export default function ProtectedRoute({
+  adminOnly = false,
+  directorOnly = false,
+}: ProtectedRouteProps) {
+  const { user, loading, isAdmin, canManagePreparation } = useAuth();
 
   if (loading) {
     return (
@@ -21,6 +25,10 @@ export default function ProtectedRoute({ adminOnly = false }: ProtectedRouteProp
   }
 
   if (adminOnly && !isAdmin) {
+    return <Navigate to="/productions" replace />;
+  }
+
+  if (directorOnly && !canManagePreparation) {
     return <Navigate to="/productions" replace />;
   }
 

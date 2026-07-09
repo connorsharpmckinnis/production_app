@@ -6,7 +6,7 @@ import { useAuth } from "@/context/AuthContext";
 import { formatDate } from "@/lib/utils";
 
 export default function ProductionListPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isActorOnly } = useAuth();
   const [productions, setProductions] = useState<ProductionResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -67,7 +67,9 @@ export default function ProductionListPage() {
 
       {productions.length === 0 ? (
         <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
-          No productions yet.
+          {isActorOnly
+            ? "No productions yet — ask your director to cast you."
+            : "No productions yet."}
           {isAdmin && " Create one to get started."}
         </div>
       ) : (
@@ -102,7 +104,7 @@ export default function ProductionListPage() {
                           to={`/productions/${production.id}/timeline`}
                           className="rounded-md border border-border px-3 py-1 text-xs hover:bg-muted"
                         >
-                          Timeline
+                          Open
                         </Link>
                       ) : isAdmin ? (
                         <Link

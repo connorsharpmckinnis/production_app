@@ -65,6 +65,28 @@ Import rules and line classification are defined in [docs/IMPORT_SPEC.md](../doc
 
 The import API endpoint is `POST /api/productions/{id}/import` (Admin only).
 
+## Phase 2 Features
+
+Phase 2 adds casting, actor-filtered production lists, timeline search and filters, notes, bookmarks, and groups.
+
+| Area | Endpoints |
+|------|-----------|
+| Casting | `GET/PUT /api/productions/{id}/characters/{character_id}/cast`, `GET .../casting`, `GET .../castable-users` |
+| Characters | `GET/PATCH/POST/DELETE /api/productions/{id}/characters` |
+| Songs | `GET/PATCH/POST /api/productions/{id}/songs` |
+| Timeline filters | `GET .../scenes/{scene_id}/moments?character_ids=&search=&cue_only=` |
+| Notes | `POST/PATCH/DELETE /api/productions/{id}/notes` |
+| Bookmarks | `POST/DELETE /api/bookmarks`, `GET /api/users/me/bookmarks` |
+| Groups | `GET/POST/PATCH/DELETE /api/productions/{id}/groups`, `PUT .../groups/{id}/members` |
+
+Dev users (seeded in `ENVIRONMENT=dev`): `admin`/`admin`, `director`/`director`, `actor`/`actor`.
+
+Smoke test (requires running API):
+
+```bash
+uv run python scripts/smoke_test.py
+```
+
 ## Environment Variables
 
 Configured via `.env` in the project root or environment. See [`app/config.py`](app/config.py).

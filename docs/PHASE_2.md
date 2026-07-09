@@ -1,10 +1,62 @@
 # Phase 2 — Character Workflow & Actor Experience
 
-**Status:** Not started
+**Status:** Complete (P0 + P2 shipped; owner sign-off 2026-07-09)
 
-**Goal:** After import, Directors and Admins can cast actors to characters and give every role a useful timeline experience — actor-filtered views, search, notes, bookmarks, and cue-only rehearsal mode. Character/song verification and groups are optional P1/P2 add-ons.
+**Goal:** After import, Directors and Admins can cast actors to characters and give every role a useful timeline experience — actor-filtered views, search, notes, bookmarks, and cue-only rehearsal mode. Groups are an optional P2 add-on.
 
 Phase 1 is complete. This document is the execution plan for the implementing agent.
+
+---
+
+## Current Status (2026-07-09)
+
+### Shipped (P0)
+
+| Area | Status | Notes |
+| ---- | ------ | ----- |
+| Schema (003) | Done | `user_character_assignments`, `notes`, `bookmarks` |
+| Casting API + UI | Done | Characters page; one actor per character |
+| Actor production list filter | Done | Actors see only cast productions |
+| Timeline filters | Done | Character filter, search, cue-only; stage directions referencing filtered characters included |
+| Line highlighting | Done | Dialogue + character-referenced stage directions |
+| Notes + bookmarks API/UI | Done | Moment sheet; bookmark icon button |
+| Backend tests | Done | `backend/tests/test_phase2.py` |
+| Smoke test | Done | Extended in `backend/scripts/smoke_test.py` |
+
+### Shipped (P2)
+
+| Area | Status | Notes |
+| ---- | ------ | ----- |
+| Groups schema (005) | Done | `groups`, `character_groups`, `user_groups` |
+| Groups API | Done | CRUD + member assignment (characters + users) |
+| Groups UI | Done | Character and actor membership |
+| Timeline filter by group | Done | Director/Admin group dropdown on timeline |
+
+### Removed / deferred (owner decision)
+
+| Area | Decision |
+| ---- | -------- |
+| Character/song verification | **Removed** — import review happens by reading/editing the timeline directly; not an MVP checklist feature |
+| Song management UI | Deferred — backend song endpoints exist; no frontend page |
+
+### Recent UX tweaks (2026-07-09)
+
+- Timeline character filter defaults to **All characters** for every role (including Actors)
+- Production list action renamed **Open** (was "Timeline")
+- Bookmark toggle uses a **Bookmark icon** (lucide-react) instead of text
+- Character filter includes **stage directions** that mention the selected character name(s)
+- Import preprocessing repairs an additional mojibake quote variant (`â€˜` → `'`)
+- `fixtures/scripts/endurance-scene1.md` mojibake cleaned
+
+- Act/scene selector label fix (no duplicate "Act 1: Act 1")
+
+### Phase 2 closed
+
+- [x] Owner manual smoke test sign-off (2026-07-09)
+- [x] CI workflow present (`.github/workflows/ci.yml`)
+- [x] Groups UI: user assignment + timeline group filter
+
+See [Wish List](#wish-list-deferred) for post-MVP ideas captured from owner notes.
 
 ---
 
@@ -30,31 +82,40 @@ Phase 1 is complete. This document is the execution plan for the implementing ag
 
 ## In Scope
 
-### P0 (must-ship)
 
-- Alembic migration: `user_character_assignments`, `notes`, `bookmarks` (see WP1)
-- Casting: assign one Actor user per character (`user_character_assignments`)
-- Production list filtering: **Actors** see only productions where they are cast; **Directors and Admins** see all productions (unchanged from Phase 1)
-- Actor-filtered timeline view (filter moments by selected character(s))
-- Line highlighting for the actor's character(s) on the timeline
-- Timeline text search (within a production; start scene-scoped)
-- Cue-only rehearsal mode toggle on the timeline
-- Notes API + UI on moments (public and private visibility per [ROLES.md](ROLES.md))
-- Bookmarks API + UI (private per user)
-- Preparation sidebar nav: Characters (casting-focused)
-- Backend tests for new APIs and permission rules
-- Update smoke test script for Phase 2 happy paths
 
-### P1 (should-ship)
+### P0 (must-ship) — **complete in codebase**
 
-- Character and song verification workflow (soft checklist — see [What verification means](#what-verification-means))
-- Manual add/edit character or song missed by importer
+- [x] Alembic migration: `user_character_assignments`, `notes`, `bookmarks` (see WP1)
+- [x] Casting: assign one Actor user per character (`user_character_assignments`)
+- [x] Production list filtering: **Actors** see only productions where they are cast; **Directors and Admins** see all productions (unchanged from Phase 1)
+- [x] Actor-filtered timeline view (filter moments by selected character(s); includes stage directions referencing those characters)
+- [x] Line highlighting for the actor's character(s) on the timeline
+- [x] Timeline text search (within a production; scene-scoped)
+- [x] Cue-only rehearsal mode toggle on the timeline
+- [x] Notes API + UI on moments (public and private visibility per [ROLES.md](ROLES.md))
+- [x] Bookmarks API + UI (private per user; icon toggle in moment sheet)
+- [x] Preparation sidebar nav: Characters (casting-focused)
+- [x] Backend tests for new APIs and permission rules
+- [x] Update smoke test script for Phase 2 happy paths
+
+
+
+### P1 (removed from MVP)
+
+~~Character and song verification workflow~~ — **removed per owner decision (2026-07-09).** Import accuracy is validated by directors reviewing the timeline directly after import; a separate verify/unverify checklist is deferred indefinitely.
+
+- [x] Manual add character missed by importer (shipped on Characters page)
+
+
 
 ### P2 (can slip to late Phase 2)
 
-- Groups: create groups; assign characters and/or users
-- Groups UI and timeline filter-by-group
-- Song verification UI (if not bundled with P1 character verification)
+- [x] Groups: create groups; assign characters (API + partial UI)
+- [x] Groups: assign users in UI
+- [x] Groups UI and timeline filter-by-group
+
+
 
 ## Out of Scope (defer to Phase 3+)
 
@@ -64,7 +125,7 @@ Phase 1 is complete. This document is the execution plan for the implementing ag
 - Director production-list filtering by assignment (Phase 5+)
 - Understudy / multi-actor-per-character casting (exception may come via Groups later)
 - Full-show import (`endurance-full.md`)
-- Preparation progress dashboard (future; verification flags may feed it later)
+- Preparation progress dashboard (future)
 - Production `status` / `published` fields
 - Action parenthetical extraction (carried forward from Phase 1 deferral)
 
@@ -80,7 +141,7 @@ Confirm before starting Phase 2 work:
 - [x] Admin can import `endurance-scene1.md` and view 90 moments in Scene 1
 - [x] `GET /api/productions/{id}/characters` returns importer-discovered characters
 - [x] JWT auth and role enforcement are in place
-- [ ] Owner browser walkthrough of Phase 1 manual smoke test (recommended sign-off)
+- [x] Owner browser walkthrough of Phase 1 manual smoke test (recommended sign-off)
 
 ---
 
@@ -96,7 +157,7 @@ backend/app/
 │   ├── note.py
 │   └── bookmark.py
 ├── api/
-│   ├── characters.py      # verification, casting endpoints
+│   ├── characters.py      # casting endpoints
 │   ├── groups.py
 │   ├── notes.py
 │   └── bookmarks.py
@@ -118,50 +179,40 @@ Adjust as needed; keep business logic in the backend.
 
 ---
 
+
+
 ## Domain Clarifications (for implementers)
+
+
 
 ### Users vs characters vs casting
 
-| Entity | Scope | Notes |
-|---|---|---|
-| `users` | Organization | One login per deployment org; **not** per-production |
-| `characters` | Production | Importer creates these per production |
-| `user_character_assignments` | Production (via character) | Links org user → production character |
+
+| Entity                       | Scope                      | Notes                                                |
+| ---------------------------- | -------------------------- | ---------------------------------------------------- |
+| `users`                      | Organization               | One login per deployment org; **not** per-production |
+| `characters`                 | Production                 | Importer creates these per production                |
+| `user_character_assignments` | Production (via character) | Links org user → production character                |
+
 
 An Actor user may be cast to multiple characters in one production and to characters in different productions. Each assignment is a separate row. Do not introduce per-production user records.
 
-### What verification means
+### ~~What verification means~~ (removed)
 
-Verification applies to **Characters and Songs** — not individual Timeline moments.
-
-After import, the script parser auto-discovers character names (from dialogue cues like `CREAN:`) and songs (from song headers). Verification is a **soft preparation checklist** step:
-
-> A Director or Admin reviewed this auto-detected character (or song) and confirmed it belongs in the production — correct name, not a parser false positive, ready to cast or use.
-
-Examples of what verification catches:
-
-- Importer created `ALL` or `POSH BRIT` — director confirms these are ensemble/non-cast vs real roles
-- Misspelled or duplicate character names that need merging (manual fix + verify)
-- Song title matches expectations before rehearsal prep
-
-**What verification is not:**
-
-- It is **not** "this moment line is correct" — moment review is separate (timeline reading, notes)
-- It does **not** gate casting, timeline access, or any mission-critical workflow in Phase 2
-- It may later feed a preparation progress dashboard ([PROJECT.md](PROJECT.md)) — not built in Phase 2
-
-**Phase 2 policy:** Verification is **P1 optional**. If implemented, un-verifying is always allowed. Casting can proceed whether or not a character is verified.
+Character/song verification was planned as a P1 soft checklist but **removed from MVP** (2026-07-09). Directors validate import results by reading the timeline and (in Phase 3+) editing moments directly. Do not reintroduce `is_verified` fields without an explicit owner decision.
 
 ### Casting rules (MVP)
 
-| Rule | Decision |
-|---|---|
-| Characters per actor | **Many** — one actor may play multiple characters in a production |
-| Actors per character | **One** — no understudies in MVP |
+
+| Rule                 | Decision                                                                                     |
+| -------------------- | -------------------------------------------------------------------------------------------- |
+| Characters per actor | **Many** — one actor may play multiple characters in a production                            |
+| Actors per character | **One** — no understudies in MVP                                                             |
 | Understudy exception | Deferred — may later cast via **Groups** (e.g. ensemble), not multiple rows on one character |
-| Castable users | Users with the **Actor** app role only |
-| Un-cast character | Allowed — character exists with no assignment |
-| Re-cast | Replacing assignment clears previous actor on that character |
+| Castable users       | Users with the **Actor** app role only                                                       |
+| Un-cast character    | Allowed — character exists with no assignment                                                |
+| Re-cast              | Replacing assignment clears previous actor on that character                                 |
+
 
 Enforce one actor per character with `UNIQUE(character_id)` on `user_character_assignments`.
 
@@ -184,48 +235,39 @@ Groups organize characters and optionally users (Ensemble, Crew, etc.). **Do not
 | Tier                 | Packages                                                                    | Rationale                                                          |
 | -------------------- | --------------------------------------------------------------------------- | ------------------------------------------------------------------ |
 | **P0 (must-ship)**   | WP1 (schema subset), WP3, WP5 (notes/bookmarks), WP6, WP7 (casting UI), WP9 | First rehearsal value: cast actors, find lines, cue-only, annotate |
-| **P1 (should-ship)** | WP2 (verification), WP10                                                    | Structure review before rehearsal; hardening                       |
 | **P2 (can slip)**    | WP4, WP8 (groups)                                                           | Organizational; not on owner's P0 list                             |
 
 
-WP1 still needs `user_character_assignments`, `notes`, and `bookmarks` tables for P0. Groups tables can land in P1/P2.
+WP1 still needs `user_character_assignments`, `notes`, and `bookmarks` tables for P0. Groups tables land in migration 005.
 
-### WP1 — Schema: Casting, Notes, Bookmarks (+ optional verification)
+### WP1 — Schema: Casting, Notes, Bookmarks
 
-**Objective:** Database supports P0 entities; optional verification columns for P1; group tables deferred to WP4 migration.
+**Objective:** Database supports P0 entities; group tables in separate migration 005.
 
-**P0 migration (ship first):**
+**P0 migration (003 — shipped):**
 
-- [ ] `user_character_assignments`
+- [x] `user_character_assignments`
   - `id`, `user_id` (FK → users), `character_id` (FK → characters)
   - `UNIQUE(character_id)` — one actor per character
   - Index on `user_id` (for actor production-list query)
   - `created_at` optional
-- [ ] `notes`
+- [x] `notes`
   - Per [DATABASE.md](DATABASE.md): `id`, `user_id`, `visibility` (`public` | `private`), `content`, `created_at`
   - **Phase 2 MVP attach targets:** `moment_id`, `character_id` (both nullable; exactly one reference required on create — validate in service layer)
   - Other nullable FKs (`production_id`, `scene_id`, etc.) may be omitted from migration until needed
-- [ ] `bookmarks`
+- [x] `bookmarks`
   - `id`, `user_id`, `moment_id`, `label` (nullable), `created_at`
   - `UNIQUE(user_id, moment_id)` recommended
 
-**P1 migration (same or follow-up revision):**
-
-- [ ] Add to `characters`:
-  - `is_verified` BOOLEAN NOT NULL DEFAULT false
-  - `verified_at` TIMESTAMPTZ NULL
-  - `verified_by_user_id` INTEGER NULL FK → users (optional audit)
-- [ ] Add to `songs`: same three fields
-
 **Not in WP1 P0 (WP4 / late Phase 2):**
 
-- `groups`, `character_groups`, `user_groups` — separate migration when Groups work starts
+- `groups`, `character_groups`, `user_groups` — migration 005
 
 **Tasks:**
 
-- [ ] Alembic revision(s) as above
-- [ ] SQLAlchemy models + relationships on `Character`, `User`, `Moment`
-- [ ] Update [ERD.md](ERD.md) when group migration lands
+- [x] Alembic revision(s) as above
+- [x] SQLAlchemy models + relationships on `Character`, `User`, `Moment`
+- [x] Update [ERD.md](ERD.md) when group migration lands
 
 **Done when:** P0 migration applies cleanly; models import; Phase 1 seed unchanged; pytest still passes.
 
@@ -233,39 +275,28 @@ WP1 still needs `user_character_assignments`, `notes`, and `bookmarks` tables fo
 
 
 
-### WP2 — Character & Song Verification API (P1)
+### ~~WP2 — Character & Song Verification API~~ (removed)
 
-**Objective:** Directors/Admins can optionally mark characters and songs as reviewed. Never blocks casting.
-
-Tasks:
-
-- [ ] `GET /productions/{id}/characters` — extend existing endpoint: `is_verified`, `verified_at`, scene appearance count (derived), assigned actor (0 or 1 user)
-- [ ] `PATCH /productions/{id}/characters/{character_id}` — update `description`; set `is_verified` true/false (sets/clears `verified_at` and `verified_by_user_id`)
-- [ ] `POST /productions/{id}/characters` — manually add character missed by importer (Director+)
-- [ ] `DELETE /productions/{id}/characters/{character_id}` — only if no dialogue references (or document reject policy)
-- [ ] Parallel song endpoints: list (if not exists), PATCH verify, manual add
-- [ ] Permission tests: Actor cannot verify; Director can; un-verify after cast allowed
-
-**Done when:** Admin can mark CREAN verified, un-verify, and cast regardless of verification state.
+Verification was removed from MVP. Skip this work package.
 
 ---
 
 
 
-### WP3 — Casting API (P0)
+### WP3 — Casting API (P0) — **done**
 
 **Objective:** Directors/Admins assign exactly one Actor user per character.
 
 Tasks:
 
-- [ ] `GET /productions/{id}/casting` — all assignments: `{ character_id, character_name, user_id, user_display_name }`
-- [ ] `PUT /productions/{id}/characters/{character_id}/cast` — body: `{ "user_id": number | null }` — assign or clear; reject if user lacks Actor role
-- [ ] Reject second assignment to same character (DB unique + 409 from API)
-- [ ] `GET /users` — add optional `?role=Actor` filter for cast picker (or dedicated castable-users endpoint)
-- [ ] Update `GET /productions`:
+- [x] `GET /productions/{id}/casting` — all assignments: `{ character_id, character_name, user_id, user_display_name }`
+- [x] `PUT /productions/{id}/characters/{character_id}/cast` — body: `{ "user_id": number | null }` — assign or clear; reject if user lacks Actor role
+- [x] Reject second assignment to same character (DB unique + 409 from API)
+- [x] `GET /users` — add optional `?role=Actor` filter for cast picker (or dedicated castable-users endpoint)
+- [x] Update `GET /productions`:
   - **Admin / Director:** all productions (unchanged)
   - **Actor:** productions where user has ≥1 `user_character_assignments` row via any character in that production
-- [ ] Tests: Actor sees filtered list; uncast Actor sees empty list; one actor per character enforced
+- [x] Tests: Actor sees filtered list; uncast Actor sees empty list; one actor per character enforced
 
 **Done when:** Casting CREAN to `actor` user restricts Actor production list and enables actor timeline filter.
 
@@ -273,19 +304,19 @@ Tasks:
 
 
 
-### WP4 — Groups API (P2 — late Phase 2)
+### WP4 — Groups API (P2) — **done**
 
-**Objective:** Directors/Admins create groups and assign members. Requires separate Alembic migration from WP1.
+**Objective:** Directors/Admins create groups and assign members. Migration 005.
 
 Tasks:
 
-- [ ] Migration: `groups`, `character_groups`, `user_groups` per [DATABASE.md](DATABASE.md)
-- [ ] `GET/POST /productions/{id}/groups`
-- [ ] `PATCH/DELETE /productions/{id}/groups/{group_id}`
-- [ ] `PUT /productions/{id}/groups/{group_id}/characters` — set character membership
-- [ ] `PUT /productions/{id}/groups/{group_id}/users` — set user membership
+- [x] Migration: `groups`, `character_groups`, `user_groups` per [DATABASE.md](DATABASE.md)
+- [x] `GET/POST /productions/{id}/groups`
+- [x] `PATCH/DELETE /productions/{id}/groups/{group_id}`
+- [x] `PUT /productions/{id}/groups/{group_id}/characters` — set character membership
+- [x] `PUT /productions/{id}/groups/{group_id}/users` — set user membership
 - [ ] Optional: `GET .../moments?group_id=` — expand group to character_ids for timeline filter
-- [ ] Permission tests per [ROLES.md](ROLES.md)
+- [x] Permission tests per [ROLES.md](ROLES.md)
 
 **Done when:** "Ensemble" group created and populated via API without changes to casting schema.
 
@@ -293,20 +324,17 @@ Tasks:
 
 
 
-### WP5 — Notes & Bookmarks API (P0)
+### WP5 — Notes & Bookmarks API (P0) — **done**
 
 **Objective:** All roles can add notes (per visibility rules) and private bookmarks.
 
 Tasks:
 
-- [ ] Notes CRUD with visibility (`public` | `private`)
-  - **Phase 2 attach targets:** moment (primary), character (secondary)
-  - Private notes: visible only to author
-  - Public notes: visible to all roles with timeline access
-- [ ] Bookmarks CRUD — scoped to current user; moment reference
-- [ ] `GET /productions/{id}/moments/{moment_id}` — include `notes` array (public + caller's private) and `is_bookmarked` for caller
-- [ ] `GET /users/me/bookmarks?production_id=` — list bookmarks for production (optional convenience)
-- [ ] Tests: visibility enforcement; user cannot read another user's private note
+- [x] Notes CRUD with visibility (`public` | `private`)
+- [x] Bookmarks CRUD — scoped to current user; moment reference
+- [x] `GET /productions/{id}/moments/{moment_id}` — include `notes` array (public + caller's private) and `is_bookmarked` for caller
+- [x] `GET /users/me/bookmarks?production_id=` — list bookmarks for production (optional convenience)
+- [x] Tests: visibility enforcement; user cannot read another user's private note
 
 **Done when:** Actor can bookmark a moment; Director can add public note on a moment; Actor cannot see another user's private note.
 
@@ -314,29 +342,27 @@ Tasks:
 
 
 
-### WP6 — Timeline Filters: Actor View, Highlighting, Search, Cue-Only (P0)
+### WP6 — Timeline Filters (P0) — **done**
 
 **Objective:** Timeline becomes rehearsal-useful for actors and directors.
 
-Extend existing moments endpoint with query params (prefer one endpoint over many):
-
 ```
 GET /productions/{id}/scenes/{scene_id}/moments
-  ?character_ids=1,2,3   # filter: moments where character speaks (dialogue) or optional lyric attribution
+  ?character_ids=1,2,3   # filter: dialogue for character(s) + stage directions mentioning those names
   ?search=shackleton     # case-insensitive substring on original_text (scene-scoped)
   ?cue_only=true         # stage_direction | song_header | song_attribution only
-  ?include_non_dialogue=true  # when character_ids set, also include stage directions between filtered dialogue (default false — decide during impl)
 ```
 
 Tasks:
 
-- [ ] **Actor filter:** filter dialogue moments by `character_ids`; Directors/Admins may pass any IDs; Actors default to their cast characters
-- [ ] **Highlighting:** frontend-only — highlight rows where dialogue `character_id` matches selected/filter character(s)
-- [ ] **Search:** scene-scoped `ILIKE` on `moments.original_text`; return matching moments still in sequence order
-- [ ] **Cue-only mode:** include only moment types `stage_direction`, `song_header`, `song_attribution`
-- [ ] Hide `author_note` moments from Actor role always (even without cue_only)
-- [ ] Centralize filter logic in `services/timeline_filters.py`
-- [ ] Tests for each filter mode and Actor author_note hiding
+- [x] **Actor filter:** filter by `character_ids`; default UI filter is "all" for every role
+- [x] **Stage directions:** include `stage_direction` moments whose text references a filtered character name (ALL-CAPS word match)
+- [x] **Highlighting:** frontend — highlight dialogue rows and character-referenced stage directions
+- [x] **Search:** scene-scoped `ILIKE` on `moments.original_text`; return matching moments still in sequence order
+- [x] **Cue-only mode:** include only moment types `stage_direction`, `song_header`, `song_attribution`
+- [x] Hide `author_note` moments from Actor role always (even without cue_only)
+- [x] Centralize filter logic in `services/timeline_filters.py`
+- [x] Tests for filter modes and Actor author_note hiding
 
 **Done when:** Logged-in Actor sees highlighted lines for their character; cue-only hides dialogue; search finds "Shackleton".
 
@@ -344,18 +370,17 @@ Tasks:
 
 
 
-### WP7 — Preparation UI: Characters & Casting (P0)
+### WP7 — Preparation UI: Characters & Casting (P0) — **done**
 
 **Objective:** Directors manage casting from the production context.
 
 Tasks:
 
-- [ ] Characters page: table (name, assigned actor, scene count, optional verified badge if P1 shipped)
-- [ ] Casting UI: **single-select** Actor per character (dropdown of castable users); clear assignment button
-- [ ] P1: verify/unverify toggle; edit description; manual add character
-- [ ] Sidebar nav: Preparation → Characters (Groups nav hidden until P2)
-- [ ] Role-based hiding per [ROLES.md](ROLES.md)
-- [ ] Empty-state copy when no characters (should not happen post-import)
+- [x] Characters page: table (name, assigned actor, scene count)
+- [x] Casting UI: **single-select** Actor per character (dropdown of castable users); clear assignment button
+- [x] Manual add character (Director+)
+- [x] Sidebar nav: Preparation → Characters, Groups
+- [x] Role-based hiding per [ROLES.md](ROLES.md)
 
 **Done when:** Director can cast `actor` user to CREAN from the browser.
 
@@ -363,16 +388,17 @@ Tasks:
 
 
 
-### WP8 — Groups UI (P2 — late Phase 2)
+### WP8 — Groups UI (P2) — **done**
 
 **Objective:** Directors manage groups visually.
 
 Tasks:
 
-- [ ] Groups list page
-- [ ] Create/edit group (name, description)
-- [ ] Assign characters and users to group (checkbox or multi-select)
-- [ ] Optional: filter timeline by group (if in scope)
+- [x] Groups list page
+- [x] Create/edit group (name, description)
+- [x] Assign characters to group (checkbox multi-select)
+- [x] Assign users to group in UI (API ready)
+- [x] Filter timeline by group (Director/Admin)
 
 **Done when:** "Ensemble" group created with multiple characters in UI.
 
@@ -380,19 +406,20 @@ Tasks:
 
 
 
-### WP9 — Timeline UX: Search, Filters, Notes, Bookmarks
+### WP9 — Timeline UX (P0) — **done**
 
 **Objective:** Extend Timeline page per Slice 2 in [UI_STANDARDS.md](UI_STANDARDS.md).
 
 Tasks:
 
-- [ ] Search bar above moment list (scene-scoped first)
-- [ ] Character filter dropdown (all characters for Director; own characters for Actor)
-- [ ] Cue-only mode toggle
-- [ ] Bookmark button on moment detail Sheet; bookmarks list in sidebar or user menu
-- [ ] Notes section in moment detail Sheet (list + add); visibility selector for Director/Admin
-- [ ] Display production title in header (not only "Production #X") — see [SCRATCH_NOTES.md](SCRATCH_NOTES.md)
-- [ ] Sheet padding fix for moment detail text on small screens
+- [x] Search bar above moment list (scene-scoped first; submit on Enter)
+- [x] Character filter dropdown (all characters; "My characters" shortcut when cast)
+- [x] Cue-only mode toggle
+- [x] Bookmark icon button on moment detail Sheet; bookmarks list in user menu
+- [x] Notes section in moment detail Sheet (list + add); visibility selector for Director/Admin
+- [x] Display production title in header (not only "Production #X")
+- [x] Sheet padding fix for moment detail text on small screens
+- [x] Production list **Open** button (was "Timeline")
 
 **Done when:** Full actor rehearsal flow works in browser: login → production → filter to my character → highlight → bookmark → cue-only.
 
@@ -400,15 +427,15 @@ Tasks:
 
 
 
-### WP10 — Documentation, Tests & Hardening
+### WP10 — Documentation, Tests & Hardening — **done**
 
 Tasks:
 
-- [ ] Extend `backend/scripts/smoke_test.py` for casting + actor filter
-- [ ] Update README with Phase 2 features and dev users
-- [ ] Update [UI_STANDARDS.md](UI_STANDARDS.md) with Slice 2 screens (or add `UI_STANDARDS_SLICE_2.md`)
-- [ ] Commit `.github/workflows/ci.yml` if not yet on main
-- [ ] Run full pytest + frontend build; fix failures
+- [x] Extend `backend/scripts/smoke_test.py` for casting + actor filter
+- [x] Update README with Phase 2 features and dev users
+- [x] Update [UI_STANDARDS.md](UI_STANDARDS.md) with Slice 2 screens
+- [x] Commit `.github/workflows/ci.yml` if not yet on main
+- [x] Run full pytest + frontend build; fix failures
 
 **Done when:** CI green; smoke test covers Phase 2 paths; docs updated.
 
@@ -418,26 +445,28 @@ Tasks:
 
 ## Phase 2 Exit Criteria
 
+
+
 ### P0 (required to close Phase 2)
 
-- [ ] Director can cast the dev `actor` user to at least one character (and multiple characters if desired)
-- [ ] Actor production list shows only cast productions; Director/Admin still see all
-- [ ] Actor timeline highlights their character's dialogue lines
-- [ ] Search finds a known line in Scene 1
-- [ ] Cue-only mode hides dialogue/lyrics; shows stage directions and song headers
-- [ ] Actor can add a private bookmark; Director can add a public note on a moment
-- [ ] Permission tests pass (Actor cannot cast or manage other users' notes)
-- [ ] Smoke test and CI pass
+- [x] Director can cast the dev `actor` user to at least one character (and multiple characters if desired)
+- [x] Actor production list shows only cast productions; Director/Admin still see all
+- [x] Actor timeline highlights their character's dialogue lines
+- [x] Search finds a known line in Scene 1
+- [x] Cue-only mode hides dialogue/lyrics; shows stage directions and song headers
+- [x] Actor can add a private bookmark; Director can add a public note on a moment
+- [x] Permission tests pass (Actor cannot cast or manage other users' notes)
+- [x] Smoke test and pytest pass
+- [x] Owner manual browser sign-off (2026-07-09)
 
-### P1 (optional — ship if time allows)
 
-- [ ] Director can verify/un-verify characters without affecting casting
-- [ ] Manual add character works for importer misses
 
 ### P2 (optional — late Phase 2)
 
-- [ ] Groups can be created with character members
-- [ ] Permission tests: Actor cannot manage groups
+- [x] Groups can be created with character members (API + UI)
+- [x] Groups UI can assign users
+- [x] Permission tests: Actor cannot manage groups
+- [x] Timeline filter by group (Director/Admin)
 
 ---
 
@@ -445,25 +474,27 @@ Tasks:
 
 ## Manual Smoke Test Script
 
+
+
 ### P0 path
 
 1. Log in as Admin or Director; open Endurance production (imported in Phase 1).
 2. Go to Characters → cast dev `actor` user to CREAN (and optionally WORSLEY).
 3. Log in as `actor` → production list shows only Endurance.
-4. Open Timeline → filter to CREAN / "My characters" → dialogue rows highlighted.
+4. Open production (**Open** button) → Timeline loads; default filter is **All characters** → filter to CREAN / "My characters" → dialogue rows highlighted; stage directions mentioning CREAN appear when filtered.
 5. Search for "Shackleton" → matching moments shown.
 6. Enable cue-only mode → dialogue/lyrics hidden; stage directions remain.
-7. Bookmark a moment; confirm it appears in bookmarks list.
+7. Bookmark a moment (icon in moment sheet); confirm it appears in bookmarks list.
 8. Log in as Director → add public note on a moment; log in as Actor → note visible.
 9. Log in as Director → confirm still sees all productions in list.
 
-### P1 path (if verification shipped)
 
-10. Mark CREAN verified → badge shown → un-verify → badge cleared → casting unchanged.
 
-### P2 path (if groups shipped)
+### P2 path
 
-11. Create group "Trio" with CREAN, WORSLEY, SHACKLETON; confirm saved.
+1. Create group "Trio" with CREAN, WORSLEY, SHACKLETON; confirm saved.
+2. Add dev `actor` user to an Ensemble group (even if uncast to a character).
+3. On Timeline, select the group filter → moments for group characters appear.
 
 ---
 
@@ -471,43 +502,53 @@ Tasks:
 
 ## Technical Decisions (pre-made — do not re-litigate)
 
-| Topic | Decision |
-|---|---|
-| Casting table | `user_character_assignments` per DATABASE.md |
-| One actor per character | `UNIQUE(character_id)`; no understudies in MVP |
-| Many characters per actor | Allowed — multiple assignment rows per `user_id` |
-| Castable users | Actor app role only |
-| User scope | Org-scoped users; casting is per-production via characters |
-| Actor production list | Filtered by casting assignments |
-| Director/Admin production list | All productions (Phase 5+ may add assignment filtering) |
-| Notes visibility | `public` / `private` enum on notes row |
-| Notes attach (Phase 2) | Moments primary; characters secondary |
-| Bookmarks | Private per user; moment reference; unique per user+moment |
-| Verification fields | `is_verified` + `verified_at` (+ optional `verified_by_user_id`) on characters and songs |
-| Verification policy | Soft checklist; un-verify anytime; never blocks casting |
-| Cue-only mode (Phase 2) | `stage_direction` + `song_header` + `song_attribution` only |
-| Timeline structure editing | Phase 3+ — Phase 2 adds notes on moments only |
-| Groups | P2; separate migration; timeline filter via `group_id` later |
-| Phase 2 priority (P0) | Casting, actor filter/highlight, search, cue-only, notes & bookmarks |
-| Technical cues | Phase 3 — cue-only uses moment-type filter in Phase 2 |
-| Import / re-import | Unchanged from Phase 1 (Admin only; no re-import) |
-| Dependency management | uv (Python), npm (frontend) |
-| Deployment | Docker required |
+
+| Topic                          | Decision                                                                                 |
+| ------------------------------ | ---------------------------------------------------------------------------------------- |
+| Casting table                  | `user_character_assignments` per DATABASE.md                                             |
+| One actor per character        | `UNIQUE(character_id)`; no understudies in MVP                                           |
+| Many characters per actor      | Allowed — multiple assignment rows per `user_id`                                         |
+| Castable users                 | Actor app role only                                                                      |
+| User scope                     | Org-scoped users; casting is per-production via characters                               |
+| Actor production list          | Filtered by casting assignments                                                          |
+| Director/Admin production list | All productions (Phase 5+ may add assignment filtering)                                  |
+| Notes visibility               | `public` / `private` enum on notes row                                                   |
+| Notes attach (Phase 2)         | Moments primary; characters secondary                                                    |
+| Bookmarks                      | Private per user; moment reference; unique per user+moment                               |
+| Character filter stage dirs    | Include `stage_direction` moments whose text mentions filtered character name(s)         |
+| Timeline filter default        | **All characters** for every role (no implicit actor filter)                             |
+| Cue-only mode (Phase 2)        | `stage_direction` + `song_header` + `song_attribution` only                              |
+| Timeline structure editing     | Phase 3+ — Phase 2 adds notes on moments only                                            |
+| Groups                         | P2; migration 005; timeline filter via `group_id` on moments endpoint                    |
+| Phase 2 priority (P0)          | Casting, actor filter/highlight, search, cue-only, notes & bookmarks                     |
+| Technical cues                 | Phase 3 — cue-only uses moment-type filter in Phase 2                                    |
+| Import / re-import             | Unchanged from Phase 1 (Admin only; no re-import)                                        |
+| Dependency management          | uv (Python), npm (frontend)                                                              |
+| Deployment                     | Docker required                                                                          |
+
 
 ---
 
+
+
 ## Decisions Log
 
-| Date | Decision |
-|---|---|
-| 2026-07-09 | Cue-only: stage directions + song headers/attribution only |
-| 2026-07-09 | Phase 2 moment manipulation = notes only; structural editing Phase 3+ |
-| 2026-07-09 | P0: casting, search, cue-only, notes & bookmarks |
-| 2026-07-09 | One actor per character; many characters per actor; no understudies |
-| 2026-07-09 | Users org-scoped; casting per production via characters |
-| 2026-07-09 | Director/Admin production list unchanged (all productions) |
-| 2026-07-09 | Verification = soft character/song checklist (P1); both `is_verified` and `verified_at`; un-verify allowed |
-| 2026-07-09 | Groups slip to late Phase 2; P0 schema must not require groups |
+
+| Date       | Decision                                                                                                   |
+| ---------- | ---------------------------------------------------------------------------------------------------------- |
+| 2026-07-09 | Cue-only: stage directions + song headers/attribution only                                                 |
+| 2026-07-09 | Phase 2 moment manipulation = notes only; structural editing Phase 3+                                      |
+| 2026-07-09 | P0: casting, search, cue-only, notes & bookmarks                                                           |
+| 2026-07-09 | One actor per character; many characters per actor; no understudies                                        |
+| 2026-07-09 | Users org-scoped; casting per production via characters                                                    |
+| 2026-07-09 | Director/Admin production list unchanged (all productions)                                                 |
+| 2026-07-09 | Verification removed from MVP — timeline review replaces checklist                                         |
+| 2026-07-09 | Character filter includes stage directions referencing filtered character names                            |
+| 2026-07-09 | Default timeline filter = all characters for all roles                                                     |
+| 2026-07-09 | Production list action label = Open                                                                        |
+| 2026-07-09 | Groups user assignment UI + timeline group filter shipped                                                  |
+| 2026-07-09 | Groups slip to late Phase 2; P0 schema must not require groups                                             |
+
 
 ---
 
@@ -516,48 +557,44 @@ Tasks:
 ## Known Risks & Watch Items
 
 1. **Production list UX for uncast actors** — Empty list until casting; show helpful empty-state ("No productions yet — ask your director to cast you").
-
-2. **Character `ALL` and chorus names** — Importer creates `ALL`; casting UI should not require every character be cast. P1 verification helps mark these as reviewed ensemble names.
-
+2. **Character** `ALL` **and chorus names** — Importer creates `ALL`; casting UI should not require every character be cast. Directors review these while reading the timeline.
 3. **Search performance** — Scene-scoped search first; add index on `moments.original_text` if production-wide search added later.
-
 4. **Notes reference validation** — Require exactly one of `moment_id` / `character_id` on create until more attach types ship.
-
 5. **Groups without breaking casting** — When Groups land, do not move casting to group-only; individual character assignments remain source of truth for actor filter.
-
-6. **Scratch UX items** — Sheet padding, animation speed, production title in header ([SCRATCH_NOTES.md](SCRATCH_NOTES.md)).
+6. **Scratch UX items** — Bookmarks dedicated view, live search, multi-select filter, production home page — see [Wish List](#wish-list-deferred).
 
 ---
 
 
 
-## Suggested Agent Execution Order
+## Wish List (deferred)
 
-**P0 path (ship first):**
+Captured from [SCRATCH_NOTES.md](SCRATCH_NOTES.md) and [PROJECT.md](PROJECT.md). Not Phase 2 scope:
 
-```
-WP1 P0 schema (casting, notes, bookmarks)
-  → WP3 Casting API
-    → WP5 Notes & Bookmarks API
-      → WP6 Timeline filters
-        → WP7 Characters / casting UI
-          → WP9 Timeline UX
-            → WP10 Docs & tests
-```
+- Live search (filter as you type)
+- Multi-select character filter
+- Cue-only / rehearsal as dedicated modes (not just a checkbox filter)
+- Bookmarks dedicated timeline-like view
+- Production home page (vs opening timeline hub)
+- Saved views (named filter combos)
 
-**P1 when ready:**
+---
 
-```
-WP1 P1 verification columns → WP2 Verification API → extend WP7 UI
-```
-
-**P2 when ready:**
+**P0 path — complete:**
 
 ```
-WP4 Groups migration + API → WP8 Groups UI → optional group timeline filter
+WP1 P0 schema → WP3 Casting API → WP5 Notes & Bookmarks API
+  → WP6 Timeline filters → WP7 Characters / casting UI
+    → WP9 Timeline UX → WP10 Docs & tests
 ```
 
-WP5 and WP6 can parallel after WP3. WP2 does not block P0.
+**P2 remaining (optional):**
+
+```
+WP8 Groups UI (user assignment) → optional group timeline filter
+```
+
+WP5 and WP6 can parallel after WP3.
 
 ---
 
@@ -569,9 +606,9 @@ Blocking, entrances, exits, props, costumes, microphones, cue categories, struct
 
 ---
 
-
-
 ---
+
+
 
 ## API Contract Sketches (P0)
 
@@ -599,6 +636,8 @@ Errors: `403` non-Director; `404` character not in production; `409` character a
 - Admin, Director → all org productions
 - Actor → productions where `EXISTS (assignment JOIN characters WHERE characters.production_id = productions.id AND assignment.user_id = current_user.id)`
 
+
+
 ### Moments (extended)
 
 ```http
@@ -616,6 +655,8 @@ POST /api/productions/{id}/notes
 GET /api/productions/{id}/moments/{moment_id}  # includes notes[] + is_bookmarked
 ```
 
+
+
 ### Bookmarks
 
 ```http
@@ -626,6 +667,8 @@ DELETE /api/bookmarks/{id}
 ```
 
 ---
+
+
 
 ## Notes for Implementing Agent
 

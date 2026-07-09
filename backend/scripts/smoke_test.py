@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Phase 1 API smoke test — validates manual checklist items via HTTP.
+"""Phase 1–2 API smoke test — validates manual checklist items via HTTP.
 
 Usage (from backend/):
     uv run python scripts/smoke_test.py
@@ -106,7 +106,7 @@ def delete_production_if_exists(
 
 def run_smoke_test(base_url: str = BASE_URL) -> SmokeTestReport:
     report = SmokeTestReport()
-    print(f"Phase 1 API smoke test against {base_url}\n")
+    print(f"Phase 1–2 API smoke test against {base_url}\n")
 
     with httpx.Client(base_url=base_url, timeout=60.0) as client:
         # Health
@@ -376,6 +376,143 @@ def run_smoke_test(base_url: str = BASE_URL) -> SmokeTestReport:
                 report.record("8. Actor can GET timeline", False, str(exc))
         else:
             report.record("8. Actor can GET timeline", False, "skipped — no production id")
+
+        # --- Phase 2 checks ---
+        crean_id: int | None = None
+        actor_user_id: int | None = None
+
+        if production_id is not None:
+            try:
+                director_token = login(client, "director", "director")
+                characters = client.get(
+                    f"{API_PREFIX}/productions/{production_id}/characters",
+                    headers=_auth_headers(director_token),
+                )
+                characters.raise_for_status()
+                crean = next(
+                    (c for c in characters.json() if c["name"] == "CREAN"),
+                    None,
+                )
+                crean_id = crean["id"] if crean else None
+
+                actor_me = client.get(
+                    f"{API_PREFIX}/auth/me",
+                    headers=_auth_headers(login(client, "actor", "actor")),
+                )
+                actor_user_id = actor_me.json().get("id") if actor_me.status_code == 200 else None
+
+                report.record(
+                    "9. Characters list includes CREAN",
+                    crean_id is not None,
+                    f"crean_id={crean_id}",
+                )
+            except httpx.HTTPError as exc:
+                report.record("9. Characters list includes CREAN", False, str(exc))
+
+        if production_id is not None and crean_id is not None and actor_user_id is not None:
+            try:
+                director_token = login(client, "director", "director")
+                cast = client.put(
+                    f"{API_PREFIX}/productions/{production_id}/characters/{crean_id}/cast",
+                    headers=_auth_headers(director_token),
+                    json={"user_id": actor_user_id},
+                )
+                report.record(
+                    "10. Director casts actor to CREAN",
+                    cast.status_code == 200,
+                    f"status={cast.status_code}",
+                )
+            except httpx.HTTPError as exc:
+                report.record("10. Director casts actor to CREAN", False, str(exc))
+
+            try:
+                actor_token = login(client, "actor", "actor")
+                actor_productions = client.get(
+                    f"{API_PREFIX}/productions",
+                    headers=_auth_headers(actor_token),
+                )
+                actor_productions.raise_for_status()
+                actor_ids = [p["id"] for p in actor_productions.json()]
+                report.record(
+                    "11. Actor production list filtered to cast shows",
+                    production_id in actor_ids,
+                    f"ids={actor_ids}",
+                )
+            except httpx.HTTPError as exc:
+                report.record("11. Actor production list filtered to cast shows", False, str(exc))
+
+            if scene_id is not None:
+                try:
+                    director_token = login(client, "director", "director")
+                    search = client.get(
+                        f"{API_PREFIX}/productions/{production_id}/scenes/{scene_id}/moments",
+                        headers=_auth_headers(director_token),
+                        params={"search": "Shackleton"},
+                    )
+                    search.raise_for_status()
+                    results = search.json()
+                    report.record(
+                        "12. Timeline search finds Shackleton",
+                        len(results) > 0,
+                        f"matches={len(results)}",
+                    )
+
+                    cue_only = client.get(
+                        f"{API_PREFIX}/productions/{production_id}/scenes/{scene_id}/moments",
+                        headers=_auth_headers(director_token),
+                        params={"cue_only": True},
+                    )
+                    cue_only.raise_for_status()
+                    cue_moments = cue_only.json()
+                    cue_types = {m["moment_type"] for m in cue_moments}
+                    allowed = {"stage_direction", "song_header", "song_attribution"}
+                    report.record(
+                        "13. Cue-only mode excludes dialogue",
+                        cue_types.issubset(allowed) and "dialogue" not in cue_types,
+                        f"types={sorted(cue_types)}",
+                    )
+                except httpx.HTTPError as exc:
+                    report.record("12. Timeline search finds Shackleton", False, str(exc))
+                    report.record("13. Cue-only mode excludes dialogue", False, str(exc))
+
+                if moments:
+                    try:
+                        director_token = login(client, "director", "director")
+                        moment_id = moments[0]["id"]
+                        note = client.post(
+                            f"{API_PREFIX}/productions/{production_id}/notes",
+                            headers=_auth_headers(director_token),
+                            json={
+                                "moment_id": moment_id,
+                                "visibility": "public",
+                                "content": "Smoke test note",
+                            },
+                        )
+                        bookmark = client.post(
+                            f"{API_PREFIX}/bookmarks",
+                            headers=_auth_headers(login(client, "actor", "actor")),
+                            json={"moment_id": moment_id, "label": "Smoke bookmark"},
+                        )
+                        report.record(
+                            "14. Public note on moment",
+                            note.status_code == 201,
+                            f"status={note.status_code}",
+                        )
+                        report.record(
+                            "15. Actor bookmark on moment",
+                            bookmark.status_code == 201,
+                            f"status={bookmark.status_code}",
+                        )
+                    except httpx.HTTPError as exc:
+                        report.record("14. Public note on moment", False, str(exc))
+                        report.record("15. Actor bookmark on moment", False, str(exc))
+        else:
+            report.record("10. Director casts actor to CREAN", False, "skipped — missing ids")
+            report.record("11. Actor production list filtered to cast shows", False, "skipped")
+            report.record("12. Timeline search finds Shackleton", False, "skipped")
+            report.record("13. Cue-only mode excludes dialogue", False, "skipped")
+            report.record("14. Public note on moment", False, "skipped")
+            report.record("15. Actor bookmark on moment", False, "skipped")
 
     return report
 

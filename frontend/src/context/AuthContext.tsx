@@ -17,6 +17,9 @@ interface AuthContextValue {
   logout: () => void;
   hasRole: (role: AppRole) => boolean;
   isAdmin: boolean;
+  isDirector: boolean;
+  isActorOnly: boolean;
+  canManagePreparation: boolean;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -73,6 +76,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       logout,
       hasRole,
       isAdmin: hasRole("Admin"),
+      isDirector: hasRole("Director"),
+      isActorOnly:
+        hasRole("Actor") && !hasRole("Admin") && !hasRole("Director"),
+      canManagePreparation: hasRole("Admin") || hasRole("Director"),
     }),
     [user, loading, login, logout, hasRole],
   );

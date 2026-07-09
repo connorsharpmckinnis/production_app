@@ -1,8 +1,8 @@
-# UI Standards (Phase 1 — Slice 1)
+# UI Standards
 
-**Version:** 0.1
+**Version:** 0.2 (Phase 2 — Slice 2)
 
-Minimum UI conventions for the first vertical slice: create production → upload script → import → review timeline.
+Minimum UI conventions for the Theater App. Slice 1 covers import and read-only timeline; Slice 2 adds casting, filters, notes, and bookmarks.
 
 Product context: [PROJECT.md](PROJECT.md). Role visibility: [ROLES.md](ROLES.md).
 
@@ -12,7 +12,7 @@ Product context: [PROJECT.md](PROJECT.md). Role visibility: [ROLES.md](ROLES.md)
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ Header: Theater App          [User menu]                │
+│ Header: Theater App   [Production title]   [User menu]  │
 ├──────────┬──────────────────────────────────────────────┤
 │ Sidebar  │ Main content area                            │
 │ (nav)    │                                              │
@@ -21,79 +21,82 @@ Product context: [PROJECT.md](PROJECT.md). Role visibility: [ROLES.md](ROLES.md)
 ```
 
 * **Sidebar:** Collapsible on mobile. Shows only items the current role may access.
-* **Header:** App name, production context (when inside a production), user menu (logout, profile).
-* **Main content:** One primary task at a time for Slice 1.
+* **Header:** App name, production title (when inside a production), user menu (bookmarks, logout).
+* **Main content:** One primary task at a time.
 
-Slice 1 sidebar items:
+### Sidebar (inside a production)
 
-* Productions (list)
-* Settings (Admin only — user management stub)
+| Item | Admin | Director | Actor |
+| --- | --- | --- | --- |
+| Timeline | Yes | Yes | Yes |
+| Characters | Yes | Yes | Yes (read-only) |
+| Groups | Yes | Yes | Hidden |
+
+Global nav: Productions; User Management (Admin only).
 
 ---
 
-## Slice 1 Screens
+## Slice 1 Screens (Phase 1)
 
-### 1. Production List
+### Production List
 
-* Table or card list of productions (title, season, created date).
-* **Admin:** "New Production" button.
-* **Director / Actor:** No create button. Directors see productions they can edit; Actors see productions they are cast in (Phase 1: may show all productions read-only for testing until casting exists in Phase 2).
+* Table of productions (title, season, author, created date).
+* **Admin:** "New Production" button; Delete action.
+* **All roles:** **Open** button for imported productions (Admin: Import for unimported).
+* **Actor empty state:** "No productions yet — ask your director to cast you."
 
-### 2. Create Production Form
+### Create Production / Upload & Import
 
-Fields: title, season (optional).
+Unchanged from Phase 1 — Admin-only import with line-level error reporting.
 
-Submit → production detail / upload screen.
+### Timeline Review (read-only baseline)
 
-### 3. Upload & Import (Admin only)
+Moments listed in sequence order; click row → read-only detail in a `Sheet`.
 
-* File picker accepting `.md` only.
-* "Import Script" button.
-* On success → Timeline Review.
-* On failure → error panel:
+---
 
-  ```
-  Import failed at line 200
-  Line content: "Therefore, since we are surrounded..."
-  Reason: Unrecognized format
-  ```
+## Slice 2 Screens (Phase 2)
 
-* No partial timeline shown after failure.
+### Characters (Preparation)
 
-### 4. Timeline Review (primary screen)
+* Table: name, scene count, assigned actor.
+* **Director/Admin:** cast dropdown (Actor users only), manual add character.
+* **Actor:** read-only actor column for their cast characters.
 
-The main view after import.
+### Groups (Preparation — Director/Admin)
 
-**Layout:**
+* Create named groups (Ensemble, Trio, etc.).
+* Edit members: checkbox lists for **characters** and **actors** (uncast ensemble members).
+* Member counts shown on each group card.
 
-```
-┌─────────────────────────────────────────────────────────┐
-│ Act 1 › Scene 1 — Welcome to the Age of Adventure       │
-├─────────────────────────────────────────────────────────┤
-│ [Scrollable moment list]                                │
-│                                                         │
-│  1  *LIGHTS UP on a haggard trio...*     stage dir     │
-│  2  CREAN: This is the edge...           dialogue       │
-│  3  WORSLEY: – That'll take...           dialogue       │
-│  ...                                                    │
-└─────────────────────────────────────────────────────────┘
-```
+### Timeline (rehearsal view)
 
-**Behavior:**
+**Filters (above moment list):**
 
-* Moments listed in `sequence_number` order within the selected scene.
-* Each row shows: sequence number, original text (truncated), moment type badge.
-* Click moment → read-only detail in a side panel (Slice 1); editing deferred to later slices.
-* Act/Scene selector at top (dropdown or tabs) to navigate structure.
-* **Actor:** Same view, read-only. No edit controls.
-* **Director:** Read-only in Slice 1 (editing in later slices).
+| Control | Behavior |
+| --- | --- |
+| Act / Scene | Navigate structure; act label avoids duplicate "Act 1: Act 1" |
+| Group (Director+) | Filter to group's character members; disables character filter |
+| Character | All / My characters / single character; includes stage directions referencing that name |
+| Search | Scene-scoped substring match; submit on Enter |
+| Cue-only | Shows stage directions and song headers only |
 
-**Not in Slice 1:**
+**Moment list:**
 
-* Side-panel editing
-* Search
-* Character highlighting
-* Preparation progress dashboard
+* Sequence number, truncated text, type badge.
+* Highlighted rows (blue left border) for filtered character dialogue and referenced stage directions.
+* Click row → moment detail sheet.
+
+**Moment detail sheet:**
+
+* Full original text, parsed fields, dialogue breakdown.
+* **Bookmark** icon button (lucide `Bookmark`; filled when active).
+* **Notes** list + add form; Director/Admin can choose public/private visibility.
+
+**Bookmarks (user menu):**
+
+* List of saved moments with production title and preview text.
+* Deferred: dedicated timeline-like bookmarks view (see [PROJECT.md](PROJECT.md) Wish List).
 
 ---
 
@@ -102,43 +105,48 @@ The main view after import.
 Use shadcn/ui throughout ([DEVELOPMENT_GUIDE](../.agents/skills/DEVELOPMENT_GUIDE/SKILL.md)):
 
 | Need | Component |
-|---|---|
-| Production list | `Table` or `Card` |
-| Forms | `Form`, `Input`, `Button` |
+| --- | --- |
+| Production list | `Table` |
+| Forms | `Input`, `Button`, native `select` |
 | File upload | `Input type="file"` + `Button` |
-| Errors | `Alert` (destructive variant) |
-| Timeline rows | `ScrollArea` + custom row |
+| Errors | bordered alert div (destructive colors) |
+| Timeline rows | scrollable list + custom row |
 | Moment type badge | `Badge` |
-| Side panel | `Sheet` (read-only detail) |
-| Navigation | `Sidebar` or simple `nav` links |
+| Side panel | `Sheet` |
+| Bookmark toggle | `Button` (icon-sm) + lucide icon |
+| Navigation | sidebar `nav` links |
 
 ---
 
-## Role-Based UI (Slice 1)
+## Role-Based UI (Slice 2)
 
 | Element | Admin | Director | Actor |
-|---|---|---|---|
-| New Production button | Yes | Hidden | Hidden |
-| Upload / Import | Yes | Hidden | Hidden |
-| User management nav | Yes | Hidden | Hidden |
-| Timeline view | Yes | Yes | Yes (read-only) |
-| Edit controls on timeline | Hidden (Slice 1) | Hidden (Slice 1) | Hidden |
+| --- | --- | --- | --- |
+| New Production | Yes | Hidden | Hidden |
+| Import | Yes | Hidden | Hidden |
+| User management | Yes | Hidden | Hidden |
+| Casting controls | Yes | Yes | Hidden |
+| Groups management | Yes | Yes | Hidden |
+| Timeline filters | All | All + group filter | All (no group filter) |
+| Public notes on moments | Yes | Yes | Hidden (private only) |
+| Bookmarks | Yes | Yes | Yes |
 
 ---
 
 ## Responsive Notes
 
-* Timeline list must scroll on mobile; act/scene selector stacks above the list.
+* Timeline filters stack on mobile; moment list scrolls independently.
+* Moment detail sheet slides from bottom on small screens, right side on large screens.
 * Sidebar collapses to hamburger menu on small screens.
 
 ---
 
 ## Deferred to Later Slices
 
-Documented here to avoid re-deciding later:
-
-* Timeline inline editing (Slice 2+)
-* Character filter / actor view (Slice 2)
-* Side panel create/edit for entities (Slice 2+)
-* Search bar on timeline (Slice 2)
-* Preparation progress UI (post-MVP)
+* Timeline inline / structural editing (Phase 3+)
+* Live search (filter as you type)
+* Multi-select character filter
+* Bookmarks dedicated view
+* Production home page
+* Saved filter views / rehearsal modes
+* Preparation progress dashboard

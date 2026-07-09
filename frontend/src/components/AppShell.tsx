@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useParams } from "react-router-dom";
 import { useAuth } from "@/context/AuthContext";
+import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -12,10 +13,32 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   );
 
 export default function AppShell() {
-  const { user, logout, isAdmin } = useAuth();
+  const { user, logout, isAdmin, canManagePreparation } = useAuth();
   const { id: productionId } = useParams();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [productionTitle, setProductionTitle] = useState<string | null>(null);
+  const [bookmarksOpen, setBookmarksOpen] = useState(false);
+  const [bookmarks, setBookmarks] = useState<
+    Awaited<ReturnType<typeof api.listBookmarks>>
+  >([]);
+
+  useEffect(() => {
+    if (!productionId) {
+      setProductionTitle(null);
+      return;
+    }
+
+    void api
+      .getProduction(Number(productionId))
+      .then((production) => setProductionTitle(production.title))
+      .catch(() => setProductionTitle(null));
+  }, [productionId]);
+
+  useEffect(() => {
+    if (!bookmarksOpen) return;
+    void api.listBookmarks().then(setBookmarks).catch(() => setBookmarks([]));
+  }, [bookmarksOpen]);
 
   return (
     <div className="flex min-h-screen flex-col bg-background">
@@ -36,7 +59,7 @@ export default function AppShell() {
           </Link>
           {productionId && (
             <span className="hidden text-sm text-muted-foreground sm:inline">
-              Production #{productionId}
+              {productionTitle ?? `Production #${productionId}`}
             </span>
           )}
         </div>
@@ -60,10 +83,20 @@ export default function AppShell() {
                 aria-label="Close menu"
                 onClick={() => setMenuOpen(false)}
               />
-              <div className="absolute right-0 z-20 mt-1 w-48 rounded-md border border-border bg-card py-1 shadow-md">
+              <div className="absolute right-0 z-20 mt-1 w-56 rounded-md border border-border bg-card py-1 shadow-md">
                 <div className="border-b border-border px-3 py-2 text-xs text-muted-foreground">
                   @{user?.username}
                 </div>
+                <button
+                  type="button"
+                  className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setBookmarksOpen((open) => !open);
+                  }}
+                >
+                  My bookmarks
+                </button>
                 <button
                   type="button"
                   className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
@@ -80,6 +113,46 @@ export default function AppShell() {
         </div>
       </header>
 
+      {bookmarksOpen && (
+        <div className="border-b border-border bg-muted/30 px-4 py-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-sm font-medium">My bookmarks</h2>
+            <button
+              type="button"
+              onClick={() => setBookmarksOpen(false)}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              Close
+            </button>
+          </div>
+          {bookmarks.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">No bookmarks yet.</p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {bookmarks.map((bookmark) => (
+                <li key={bookmark.id} className="text-sm">
+                  <Link
+                    to={`/productions/${bookmark.production_id}/timeline`}
+                    className="font-medium hover:underline"
+                    onClick={() => setBookmarksOpen(false)}
+                  >
+                    {bookmark.production_title}
+                  </Link>
+                  <span className="text-muted-foreground">
+                    {" "}
+                    — Moment {bookmark.sequence_number}
+                    {bookmark.label ? ` (${bookmark.label})` : ""}
+                  </span>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {bookmark.moment_preview}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+
       <div className="flex flex-1 overflow-hidden">
         <aside
           className={cn(
@@ -92,6 +165,42 @@ export default function AppShell() {
             <NavLink to="/productions" className={navLinkClass} onClick={() => setSidebarOpen(false)}>
               Productions
             </NavLink>
+
+            {productionId && (
+              <>
+                <div className="pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Production
+                </div>
+                <NavLink
+                  to={`/productions/${productionId}/timeline`}
+                  className={navLinkClass}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  Timeline
+                </NavLink>
+
+                <div className="pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Preparation
+                </div>
+                <NavLink
+                  to={`/productions/${productionId}/characters`}
+                  className={navLinkClass}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  Characters
+                </NavLink>
+                {canManagePreparation && (
+                  <NavLink
+                    to={`/productions/${productionId}/groups`}
+                    className={navLinkClass}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    Groups
+                  </NavLink>
+                )}
+              </>
+            )}
+
             {isAdmin && (
               <NavLink to="/users" className={navLinkClass} onClick={() => setSidebarOpen(false)}>
                 User Management

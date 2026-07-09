@@ -3,8 +3,9 @@
 # UTF-8 mojibake from Google Docs / Windows-1252 double-encoding.
 # Sequences appear as three Unicode chars: U+00E2 U+20AC U+XXXX
 MOJIBAKE_REPLACEMENTS: list[tuple[str, str]] = [
-    ("\u00e2\u20ac\u2122", "'"),       # â€™ -> apostrophe
+    ("\u00e2\u20ac\u2122", "'"),       # â€™ -> apostrophe / closing quote
     ("\u00e2\u20ac\u2018", "'"),       # â€˜ -> left single quote
+    ("\u00e2\u20ac\u02dc", "'"),       # â€˜ -> left single quote (modifier tilde variant)
     ("\u00e2\u20ac\u201c", "\u2013"),  # â€" -> en dash
     ("\u00e2\u20ac\u201d", "\u2014"),  # â€" -> em dash
     ("\u00e2\u20ac\u00a6", "\u2026"),  # â€¦ -> ellipsis

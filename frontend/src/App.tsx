@@ -1,7 +1,9 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "@/components/AppShell";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import CharactersPage from "@/pages/CharactersPage";
 import CreateProductionPage from "@/pages/CreateProductionPage";
+import GroupsPage from "@/pages/GroupsPage";
 import ImportPage from "@/pages/ImportPage";
 import LoginPage from "@/pages/LoginPage";
 import ProductionListPage from "@/pages/ProductionListPage";
@@ -18,6 +20,11 @@ export default function App() {
           <Route index element={<Navigate to="/productions" replace />} />
           <Route path="productions" element={<ProductionListPage />} />
           <Route path="productions/:id/timeline" element={<TimelinePage />} />
+          <Route path="productions/:id/characters" element={<CharactersPage />} />
+
+          <Route element={<ProtectedRoute directorOnly />}>
+            <Route path="productions/:id/groups" element={<GroupsPage />} />
+          </Route>
 
           <Route element={<ProtectedRoute adminOnly />}>
             <Route path="productions/new" element={<CreateProductionPage />} />

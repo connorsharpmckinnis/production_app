@@ -51,3 +51,5 @@ class Moment(Base):
         back_populates="moment",
         cascade="all, delete-orphan",
     )
+    notes: Mapped[list["Note"]] = relationship(back_populates="moment")
+    bookmarks: Mapped[list["Bookmark"]] = relationship(back_populates="moment")

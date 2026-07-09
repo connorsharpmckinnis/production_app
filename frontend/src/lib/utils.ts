@@ -21,3 +21,11 @@ export function truncate(text: string, maxLength = 80): string {
 export function momentTypeLabel(type: string): string {
   return type.replace(/_/g, " ");
 }
+
+export function formatActLabel(act: { number: number; title: string }): string {
+  const defaultTitle = `Act ${act.number}`;
+  if (!act.title || act.title === defaultTitle) {
+    return defaultTitle;
+  }
+  return act.title;
+}

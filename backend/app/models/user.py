@@ -38,3 +38,12 @@ class User(Base):
         secondary="user_app_roles",
         back_populates="users",
     )
+    character_assignments: Mapped[list["UserCharacterAssignment"]] = relationship(
+        back_populates="user",
+    )
+    notes: Mapped[list["Note"]] = relationship(back_populates="user")
+    bookmarks: Mapped[list["Bookmark"]] = relationship(back_populates="user")
+    groups: Mapped[list["Group"]] = relationship(
+        secondary="user_groups",
+        back_populates="users",
+    )

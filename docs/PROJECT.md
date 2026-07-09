@@ -779,14 +779,16 @@ See [PHASE_2.md](PHASE_2.md) for the execution plan.
 
 Summary:
 
-- Character and song verification (soft checklist, P1)
 - Casting (one actor per character)
-- Groups (late Phase 2)
-- Actor-filtered timeline view and line highlighting
+- Groups (late Phase 2 — API shipped; UI partial)
+- Actor-filtered timeline view and line highlighting (includes stage directions referencing filtered characters)
 - Timeline search
 - Cue-only rehearsal mode
 - Notes and bookmarks
 - Production list filtering by casting (Actors see only cast productions)
+- Manual add character (Director+)
+
+Import review (marking characters/songs as "verified") is **deferred** — directors will comb through imported timeline data directly once editing ships.
 
 ---
 
@@ -910,6 +912,26 @@ See [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](../.agents/skills/DEVELOPMENT_GU
 
 
 
+---
+
+
+
+## Wish List (post-MVP ideas)
+
+These are not committed scope — captured here so good ideas are not lost:
+
+- **Saved views** — save a timeline filter/search combination (character selection, cue-only, search terms) as a named view for quick recall. May evolve into role-specific modes (rehearsal mode, tech night mode).
+- **Production home page** — a dedicated landing page per production instead of opening straight into the timeline hub.
+- **Bookmarks timeline view** — a dedicated timeline-like view for bookmarks with gaps (`…`) between non-adjacent moments; click through to the main timeline.
+- **Live search** — filter timeline results as you type (no Enter required).
+- **Multi-select character filter** — show moments for any of several selected characters at once.
+
+See also [SCRATCH_NOTES.md](SCRATCH_NOTES.md) for transient owner notes.
+
+---
+
+
+
 # Success Criteria (MVP)
 
 A successful MVP should allow a Director or Admin to:
@@ -917,7 +939,6 @@ A successful MVP should allow a Director or Admin to:
 - Create a Production.
 - Import a script in the Theater App standard format (`.md`).
 - Review and edit the imported Timeline.
-- Verify production structure.
 - Assign actors to characters.
 - Organize groups.
 - Search the script.
