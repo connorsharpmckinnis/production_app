@@ -506,6 +506,108 @@ def run_smoke_test(base_url: str = BASE_URL) -> SmokeTestReport:
                     except httpx.HTTPError as exc:
                         report.record("14. Public note on moment", False, str(exc))
                         report.record("15. Actor bookmark on moment", False, str(exc))
+
+                # --- Phase 3 checks ---
+                if production_id is not None and scene_id is not None and moments:
+                    try:
+                        director_token = login(client, "director", "director")
+                        actor_token = login(client, "actor", "actor")
+                        dialogue_moment = next(
+                            (m for m in moments if m.get("moment_type") == "dialogue"),
+                            moments[0],
+                        )
+                        moment_id = dialogue_moment["id"]
+                        original_text = dialogue_moment["original_text"]
+
+                        moment_types = client.get(
+                            f"{API_PREFIX}/moment-types",
+                            headers=_auth_headers(director_token),
+                        )
+                        report.record(
+                            "16. Moment types list available",
+                            moment_types.status_code == 200 and len(moment_types.json()) >= 1,
+                            f"count={len(moment_types.json()) if moment_types.status_code == 200 else 0}",
+                        )
+
+                        actor_patch = client.patch(
+                            f"{API_PREFIX}/productions/{production_id}/moments/{moment_id}",
+                            headers=_auth_headers(actor_token),
+                            json={"parsed_text": "blocked"},
+                        )
+                        report.record(
+                            "17. Actor cannot PATCH moment",
+                            actor_patch.status_code == 403,
+                            f"status={actor_patch.status_code}",
+                        )
+
+                        director_patch = client.patch(
+                            f"{API_PREFIX}/productions/{production_id}/moments/{moment_id}",
+                            headers=_auth_headers(director_token),
+                            json={"parsed_text": "Smoke test correction"},
+                        )
+                        patch_ok = (
+                            director_patch.status_code == 200
+                            and director_patch.json().get("original_text") == original_text
+                            and director_patch.json().get("parsed_text") == "Smoke test correction"
+                        )
+                        report.record(
+                            "18. Director PATCH preserves original_text",
+                            patch_ok,
+                            f"status={director_patch.status_code}",
+                        )
+
+                        prop = client.post(
+                            f"{API_PREFIX}/productions/{production_id}/props",
+                            headers=_auth_headers(director_token),
+                            json={"name": "Smoke Sextant"},
+                        )
+                        prop_ok = prop.status_code == 201
+                        if prop_ok:
+                            attach = client.post(
+                                f"{API_PREFIX}/productions/{production_id}/moments/{moment_id}/props",
+                                headers=_auth_headers(director_token),
+                                json={"prop_id": prop.json()["id"]},
+                            )
+                            prop_ok = attach.status_code == 201
+                        report.record(
+                            "19. Prop attach to moment",
+                            prop_ok,
+                            f"prop_status={prop.status_code}",
+                        )
+
+                        category = client.post(
+                            f"{API_PREFIX}/productions/{production_id}/cue-categories",
+                            headers=_auth_headers(director_token),
+                            json={"name": "Smoke Lighting"},
+                        )
+                        cue_ok = category.status_code == 201
+                        if cue_ok:
+                            cue = client.post(
+                                f"{API_PREFIX}/productions/{production_id}/moments/{moment_id}/cues",
+                                headers=_auth_headers(director_token),
+                                json={
+                                    "cue_category_id": category.json()["id"],
+                                    "title": "Smoke fade",
+                                },
+                            )
+                            cue_ok = cue.status_code == 201
+                        report.record(
+                            "20. Cue on moment",
+                            cue_ok,
+                            f"category_status={category.status_code}",
+                        )
+                    except httpx.HTTPError as exc:
+                        report.record("16. Moment types list available", False, str(exc))
+                        report.record("17. Actor cannot PATCH moment", False, str(exc))
+                        report.record("18. Director PATCH preserves original_text", False, str(exc))
+                        report.record("19. Prop attach to moment", False, str(exc))
+                        report.record("20. Cue on moment", False, str(exc))
+                else:
+                    report.record("16. Moment types list available", False, "skipped")
+                    report.record("17. Actor cannot PATCH moment", False, "skipped")
+                    report.record("18. Director PATCH preserves original_text", False, "skipped")
+                    report.record("19. Prop attach to moment", False, "skipped")
+                    report.record("20. Cue on moment", False, "skipped")
         else:
             report.record("10. Director casts actor to CREAN", False, "skipped — missing ids")
             report.record("11. Actor production list filtered to cast shows", False, "skipped")
@@ -513,6 +615,11 @@ def run_smoke_test(base_url: str = BASE_URL) -> SmokeTestReport:
             report.record("13. Cue-only mode excludes dialogue", False, "skipped")
             report.record("14. Public note on moment", False, "skipped")
             report.record("15. Actor bookmark on moment", False, "skipped")
+            report.record("16. Moment types list available", False, "skipped")
+            report.record("17. Actor cannot PATCH moment", False, "skipped")
+            report.record("18. Director PATCH preserves original_text", False, "skipped")
+            report.record("19. Prop attach to moment", False, "skipped")
+            report.record("20. Cue on moment", False, "skipped")
 
     return report
 

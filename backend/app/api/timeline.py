@@ -2,24 +2,52 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.notes import notes_visible_to_user
-from app.auth.dependencies import require_authenticated, user_has_role
+from app.auth.dependencies import require_authenticated, require_director_or_admin, user_has_role
 from app.db.session import get_db
-from app.models import Act, Bookmark, Character, Dialogue, Group, Moment, Note, Production, Scene, User
+from app.models import (
+    Act,
+    Bookmark,
+    Character,
+    Cue,
+    Dialogue,
+    Group,
+    Moment,
+    MomentProp,
+    MomentType,
+    Note,
+    Production,
+    Scene,
+    Song,
+    StageDirection,
+    User,
+)
+from app.schemas.cues import CueResponse
 from app.schemas.notes import NoteResponse
+from app.schemas.props import MomentPropResponse
 from app.schemas.timeline import (
     ActSummary,
     DialogueLineResponse,
     MomentDetailResponse,
     MomentSummary,
 )
+from app.schemas.timeline_editing import (
+    DialogueUpdate,
+    MomentTypeResponse,
+    MomentUpdate,
+    StageDirectionUpdate,
+)
 from app.services.timeline_filters import (
     apply_timeline_filters,
     load_scene_moments,
+    moment_ids_with_cue_category,
+    moment_ids_with_cues,
+    moment_ids_with_prop,
     moment_speaking_character_ids,
     parse_character_ids,
 )
 
 router = APIRouter(prefix="/productions", tags=["timeline"])
+lookup_router = APIRouter(tags=["timeline"])
 
 
 def _get_production_or_404(db: Session, production_id: int) -> Production:
@@ -27,6 +55,23 @@ def _get_production_or_404(db: Session, production_id: int) -> Production:
     if production is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Production not found")
     return production
+
+
+def _get_moment_in_production_or_404(
+    db: Session,
+    production_id: int,
+    moment_id: int,
+) -> Moment:
+    moment = (
+        db.query(Moment)
+        .join(Scene)
+        .join(Act)
+        .filter(Moment.id == moment_id, Act.production_id == production_id)
+        .first()
+    )
+    if moment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Moment not found")
+    return moment
 
 
 def _user_display_name(user: User) -> str:
@@ -45,6 +90,39 @@ def _note_response(note: Note, current_user_id: int) -> NoteResponse:
         created_at=note.created_at,
         is_mine=note.user_id == current_user_id,
     )
+
+
+def _moment_prop_response(moment_prop: MomentProp) -> MomentPropResponse:
+    character_name = None
+    if moment_prop.character is not None:
+        character_name = moment_prop.character.name
+    return MomentPropResponse(
+        id=moment_prop.id,
+        prop_id=moment_prop.prop_id,
+        prop_name=moment_prop.prop.name,
+        character_id=moment_prop.character_id,
+        character_name=character_name,
+        notes=moment_prop.notes,
+    )
+
+
+def _cue_response(cue: Cue) -> CueResponse:
+    return CueResponse(
+        id=cue.id,
+        cue_category_id=cue.cue_category_id,
+        cue_category_name=cue.cue_category.name,
+        title=cue.title,
+        notes=cue.notes,
+        payload=cue.payload,
+    )
+
+
+@lookup_router.get("/moment-types", response_model=list[MomentTypeResponse])
+def list_moment_types(
+    _user: User = Depends(require_authenticated),
+    db: Session = Depends(get_db),
+) -> list[MomentTypeResponse]:
+    return db.query(MomentType).order_by(MomentType.name).all()
 
 
 @router.get("/{production_id}/acts", response_model=list[ActSummary])
@@ -71,6 +149,9 @@ def list_scene_moments(
     group_id: int | None = Query(default=None),
     search: str | None = Query(default=None),
     cue_only: bool = Query(default=False),
+    song_id: int | None = Query(default=None),
+    prop_id: int | None = Query(default=None),
+    cue_category_id: int | None = Query(default=None),
     user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> list[MomentSummary]:
@@ -109,6 +190,53 @@ def list_scene_moments(
         )
         character_names = [row[0] for row in rows]
 
+    if song_id is not None:
+        song = (
+            db.query(Song)
+            .filter(Song.id == song_id, Song.production_id == production_id)
+            .first()
+        )
+        if song is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Song not found")
+
+    if prop_id is not None:
+        from app.models import Prop
+
+        prop = (
+            db.query(Prop)
+            .filter(Prop.id == prop_id, Prop.production_id == production_id)
+            .first()
+        )
+        if prop is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prop not found")
+
+    if cue_category_id is not None:
+        from app.models import CueCategory
+
+        category = (
+            db.query(CueCategory)
+            .filter(
+                CueCategory.id == cue_category_id,
+                CueCategory.production_id == production_id,
+            )
+            .first()
+        )
+        if category is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Cue category not found",
+            )
+
+    cued_moment_ids = moment_ids_with_cues(db, scene_id)
+    prop_moment_ids = (
+        moment_ids_with_prop(db, scene_id, prop_id) if prop_id is not None else None
+    )
+    category_moment_ids = (
+        moment_ids_with_cue_category(db, scene_id, cue_category_id)
+        if cue_category_id is not None
+        else None
+    )
+
     moments = load_scene_moments(db, scene_id)
     filtered = apply_timeline_filters(
         moments,
@@ -117,6 +245,12 @@ def list_scene_moments(
         character_names=character_names,
         search=search,
         cue_only=cue_only,
+        song_id=song_id,
+        prop_id=prop_id,
+        cue_category_id=cue_category_id,
+        moment_ids_with_cues=cued_moment_ids,
+        moment_ids_with_prop=prop_moment_ids,
+        moment_ids_with_cue_category=category_moment_ids,
     )
 
     return [
@@ -127,6 +261,8 @@ def list_scene_moments(
             original_text=moment.original_text,
             song_id=moment.song_id,
             speaking_character_ids=moment_speaking_character_ids(moment),
+            has_props=len(moment.moment_props) > 0,
+            has_cues=len(moment.cues) > 0,
         )
         for moment in filtered
     ]
@@ -148,6 +284,9 @@ def get_moment_detail(
             joinedload(Moment.stage_directions),
             joinedload(Moment.song),
             joinedload(Moment.notes).joinedload(Note.user),
+            joinedload(Moment.moment_props).joinedload(MomentProp.prop),
+            joinedload(Moment.moment_props).joinedload(MomentProp.character),
+            joinedload(Moment.cues).joinedload(Cue.cue_category),
         )
         .join(Scene)
         .join(Act)
@@ -181,6 +320,7 @@ def get_moment_detail(
         song_title=moment.song.title if moment.song else None,
         dialogue=[
             DialogueLineResponse(
+                id=line.id,
                 character_id=line.character_id,
                 character_name=line.character.name,
                 dialogue_text=line.dialogue_text,
@@ -188,6 +328,137 @@ def get_moment_detail(
             for line in moment.dialogue_lines
         ],
         stage_direction=stage_direction,
+        props=[_moment_prop_response(moment_prop) for moment_prop in moment.moment_props],
+        cues=[_cue_response(cue) for cue in moment.cues],
         notes=[_note_response(note, user.id) for note in visible_notes],
         is_bookmarked=is_bookmarked,
     )
+
+
+@router.patch("/{production_id}/moments/{moment_id}", response_model=MomentDetailResponse)
+def update_moment(
+    production_id: int,
+    moment_id: int,
+    body: MomentUpdate,
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> MomentDetailResponse:
+    moment = _get_moment_in_production_or_404(db, production_id, moment_id)
+
+    if "moment_type_id" in body.model_fields_set:
+        moment_type = db.query(MomentType).filter(MomentType.id == body.moment_type_id).first()
+        if moment_type is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid moment type",
+            )
+        moment.moment_type_id = body.moment_type_id
+
+    if "parsed_text" in body.model_fields_set:
+        moment.parsed_text = body.parsed_text
+
+    if "song_id" in body.model_fields_set:
+        if body.song_id is not None:
+            song = (
+                db.query(Song)
+                .filter(Song.id == body.song_id, Song.production_id == production_id)
+                .first()
+            )
+            if song is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Song is not in this production",
+                )
+        moment.song_id = body.song_id
+
+    db.commit()
+    return get_moment_detail(production_id, moment_id, _director, db)
+
+
+@router.patch(
+    "/{production_id}/moments/{moment_id}/dialogue/{line_id}",
+    response_model=MomentDetailResponse,
+)
+def update_dialogue(
+    production_id: int,
+    moment_id: int,
+    line_id: int,
+    body: DialogueUpdate,
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> MomentDetailResponse:
+    _get_moment_in_production_or_404(db, production_id, moment_id)
+    line = (
+        db.query(Dialogue)
+        .filter(Dialogue.id == line_id, Dialogue.moment_id == moment_id)
+        .first()
+    )
+    if line is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dialogue line not found")
+
+    if "character_id" in body.model_fields_set:
+        if body.character_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="character_id cannot be null",
+            )
+        character = (
+            db.query(Character)
+            .filter(
+                Character.id == body.character_id,
+                Character.production_id == production_id,
+            )
+            .first()
+        )
+        if character is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Character is not in this production",
+            )
+        line.character_id = body.character_id
+
+    if "dialogue_text" in body.model_fields_set:
+        if body.dialogue_text is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="dialogue_text cannot be null",
+            )
+        line.dialogue_text = body.dialogue_text
+
+    db.commit()
+    return get_moment_detail(production_id, moment_id, _director, db)
+
+
+@router.patch(
+    "/{production_id}/moments/{moment_id}/stage-direction",
+    response_model=MomentDetailResponse,
+)
+def update_stage_direction(
+    production_id: int,
+    moment_id: int,
+    body: StageDirectionUpdate,
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> MomentDetailResponse:
+    _get_moment_in_production_or_404(db, production_id, moment_id)
+    stage_direction = (
+        db.query(StageDirection)
+        .filter(StageDirection.moment_id == moment_id)
+        .first()
+    )
+    if stage_direction is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Stage direction not found",
+        )
+
+    if "direction_text" in body.model_fields_set:
+        if body.direction_text is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="direction_text cannot be null",
+            )
+        stage_direction.direction_text = body.direction_text
+
+    db.commit()
+    return get_moment_detail(production_id, moment_id, _director, db)

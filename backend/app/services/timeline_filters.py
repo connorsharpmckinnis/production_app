@@ -5,7 +5,7 @@ import re
 from sqlalchemy.orm import Session, joinedload
 
 from app.auth.dependencies import user_has_role
-from app.models import Dialogue, Moment, User
+from app.models import Cue, Dialogue, Moment, MomentProp, User
 
 # Moment types shown in cue-only rehearsal mode (Phase 2).
 CUE_ONLY_TYPES = frozenset({"stage_direction", "song_header", "song_attribution"})
@@ -44,17 +44,58 @@ def get_actor_character_ids(db: Session, user: User, production_id: int) -> list
 
 
 def load_scene_moments(db: Session, scene_id: int) -> list[Moment]:
-    """Load all moments for a scene with types and dialogue characters."""
+    """Load all moments for a scene with types, dialogue, props, and cues."""
     return (
         db.query(Moment)
         .options(
             joinedload(Moment.moment_type),
             joinedload(Moment.dialogue_lines).joinedload(Dialogue.character),
+            joinedload(Moment.moment_props),
+            joinedload(Moment.cues),
         )
         .filter(Moment.scene_id == scene_id)
         .order_by(Moment.sequence_number)
         .all()
     )
+
+
+def moment_ids_with_cues(db: Session, scene_id: int) -> set[int]:
+    """Return moment IDs in this scene that have at least one technical cue."""
+    rows = (
+        db.query(Cue.moment_id)
+        .join(Moment, Moment.id == Cue.moment_id)
+        .filter(Moment.scene_id == scene_id)
+        .distinct()
+        .all()
+    )
+    return {row[0] for row in rows}
+
+
+def moment_ids_with_prop(db: Session, scene_id: int, prop_id: int) -> set[int]:
+    """Return moment IDs in this scene that have the given prop attached."""
+    rows = (
+        db.query(MomentProp.moment_id)
+        .join(Moment, Moment.id == MomentProp.moment_id)
+        .filter(Moment.scene_id == scene_id, MomentProp.prop_id == prop_id)
+        .all()
+    )
+    return {row[0] for row in rows}
+
+
+def moment_ids_with_cue_category(
+    db: Session,
+    scene_id: int,
+    cue_category_id: int,
+) -> set[int]:
+    """Return moment IDs in this scene that have a cue in the given category."""
+    rows = (
+        db.query(Cue.moment_id)
+        .join(Moment, Moment.id == Cue.moment_id)
+        .filter(Moment.scene_id == scene_id, Cue.cue_category_id == cue_category_id)
+        .distinct()
+        .all()
+    )
+    return {row[0] for row in rows}
 
 
 def moment_speaking_character_ids(moment: Moment) -> list[int]:
@@ -104,6 +145,12 @@ def apply_timeline_filters(
     character_names: list[str] | None = None,
     search: str | None = None,
     cue_only: bool = False,
+    song_id: int | None = None,
+    prop_id: int | None = None,
+    cue_category_id: int | None = None,
+    moment_ids_with_cues: set[int] | None = None,
+    moment_ids_with_prop: set[int] | None = None,
+    moment_ids_with_cue_category: set[int] | None = None,
 ) -> list[Moment]:
     """Filter moments for timeline display while preserving sequence order."""
     filtered = moments
@@ -116,11 +163,23 @@ def apply_timeline_filters(
         ]
 
     if cue_only:
+        cued_ids = moment_ids_with_cues or set()
         filtered = [
             moment
             for moment in filtered
-            if moment.moment_type.name in CUE_ONLY_TYPES
+            if moment.moment_type.name in CUE_ONLY_TYPES or moment.id in cued_ids
         ]
+
+    if song_id is not None:
+        filtered = [moment for moment in filtered if moment.song_id == song_id]
+
+    if prop_id is not None:
+        prop_ids = moment_ids_with_prop or set()
+        filtered = [moment for moment in filtered if moment.id in prop_ids]
+
+    if cue_category_id is not None:
+        category_ids = moment_ids_with_cue_category or set()
+        filtered = [moment for moment in filtered if moment.id in category_ids]
 
     if character_ids:
         filtered = [

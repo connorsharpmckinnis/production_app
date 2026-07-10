@@ -539,6 +539,24 @@ Characters
 
 ---
 
+# MOMENT_PROPS
+
+Purpose
+
+Attach props to moments (Phase 3 junction table).
+
+Fields
+
+* id
+* moment_id
+* prop_id
+* character_id (nullable — carrier)
+* notes (nullable)
+
+**Decision:** Unique `(moment_id, prop_id)` — one attachment row per prop per moment. See [PHASE_3.md](PHASE_3.md).
+
+---
+
 # COSTUMES
 
 Fields

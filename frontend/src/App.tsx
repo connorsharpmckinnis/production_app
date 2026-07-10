@@ -3,10 +3,13 @@ import AppShell from "@/components/AppShell";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import CharactersPage from "@/pages/CharactersPage";
 import CreateProductionPage from "@/pages/CreateProductionPage";
+import CueCategoriesPage from "@/pages/CueCategoriesPage";
 import GroupsPage from "@/pages/GroupsPage";
 import ImportPage from "@/pages/ImportPage";
 import LoginPage from "@/pages/LoginPage";
 import ProductionListPage from "@/pages/ProductionListPage";
+import PropsPage from "@/pages/PropsPage";
+import SongsPage from "@/pages/SongsPage";
 import TimelinePage from "@/pages/TimelinePage";
 import UsersPage from "@/pages/UsersPage";
 
@@ -21,6 +24,9 @@ export default function App() {
           <Route path="productions" element={<ProductionListPage />} />
           <Route path="productions/:id/timeline" element={<TimelinePage />} />
           <Route path="productions/:id/characters" element={<CharactersPage />} />
+          <Route path="productions/:id/songs" element={<SongsPage />} />
+          <Route path="productions/:id/props" element={<PropsPage />} />
+          <Route path="productions/:id/cue-categories" element={<CueCategoriesPage />} />
 
           <Route element={<ProtectedRoute directorOnly />}>
             <Route path="productions/:id/groups" element={<GroupsPage />} />

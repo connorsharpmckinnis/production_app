@@ -63,6 +63,7 @@ def require_role(*role_names: str):
 
 
 require_admin = require_role("Admin")
+require_director_or_admin = require_role("Admin", "Director")
 
 
 def require_authenticated(user: User = Depends(get_current_user)) -> User:

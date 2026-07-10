@@ -796,14 +796,15 @@ Import review (marking characters/songs as "verified") is **deferred** — direc
 
 ## Phase 3 — Production Preparation
 
-- Blocking
-- Entrances
-- Exits
-- Props
-- Costumes
-- Microphones
-- Cue Categories
-- Cue management
+See [PHASE_3.md](PHASE_3.md) for the execution plan.
+
+Summary:
+
+- Timeline import-review editing (Director/Admin; `original_text` immutable)
+- Songs page and timeline song filter
+- Props catalog and moment attachments
+- Cue categories and technical cues on moments
+- Extended timeline filters (prop, cue category; upgraded cue-only mode)
 
 ---
 

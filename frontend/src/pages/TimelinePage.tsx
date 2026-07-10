@@ -15,11 +15,15 @@ import { api, ApiError } from "@/lib/api";
 import type {
   ActSummary,
   CharacterDetailResponse,
+  CueCategoryResponse,
   GroupResponse,
   MomentDetailResponse,
   MomentListFilters,
   MomentSummary,
+  MomentTypeResponse,
+  PropResponse,
   SceneSummary,
+  SongDetailResponse,
 } from "@/lib/types";
 import { cn, formatActLabel, momentTypeLabel, truncate } from "@/lib/utils";
 
@@ -57,6 +61,7 @@ function useIsLargeScreen() {
 
 type CharacterFilterValue = "all" | "mine" | string;
 type GroupFilterValue = "all" | string;
+type ResourceFilterValue = "all" | string;
 
 export default function TimelinePage() {
   const { id } = useParams<{ id: string }>();
@@ -68,6 +73,10 @@ export default function TimelinePage() {
   const [acts, setActs] = useState<ActSummary[]>([]);
   const [characters, setCharacters] = useState<CharacterDetailResponse[]>([]);
   const [groups, setGroups] = useState<GroupResponse[]>([]);
+  const [songs, setSongs] = useState<SongDetailResponse[]>([]);
+  const [propsCatalog, setPropsCatalog] = useState<PropResponse[]>([]);
+  const [cueCategories, setCueCategories] = useState<CueCategoryResponse[]>([]);
+  const [momentTypes, setMomentTypes] = useState<MomentTypeResponse[]>([]);
   const [selectedActId, setSelectedActId] = useState<number | null>(null);
   const [selectedSceneId, setSelectedSceneId] = useState<number | null>(null);
   const [moments, setMoments] = useState<MomentSummary[]>([]);
@@ -82,6 +91,10 @@ export default function TimelinePage() {
   const [cueOnly, setCueOnly] = useState(false);
   const [characterFilter, setCharacterFilter] = useState<CharacterFilterValue>("all");
   const [groupFilter, setGroupFilter] = useState<GroupFilterValue>("all");
+  const [songFilter, setSongFilter] = useState<ResourceFilterValue>("all");
+  const [propFilter, setPropFilter] = useState<ResourceFilterValue>("all");
+  const [cueCategoryFilter, setCueCategoryFilter] = useState<ResourceFilterValue>("all");
+  const [momentsRefreshKey, setMomentsRefreshKey] = useState(0);
 
   const myCharacterIds = useMemo(() => {
     if (!user) return [];
@@ -106,8 +119,19 @@ export default function TimelinePage() {
       groupId: groupFilter === "all" ? undefined : Number(groupFilter),
       search: searchQuery || undefined,
       cueOnly: cueOnly || undefined,
+      songId: songFilter === "all" ? undefined : Number(songFilter),
+      propId: propFilter === "all" ? undefined : Number(propFilter),
+      cueCategoryId: cueCategoryFilter === "all" ? undefined : Number(cueCategoryFilter),
     }),
-    [activeCharacterIds, groupFilter, searchQuery, cueOnly],
+    [
+      activeCharacterIds,
+      groupFilter,
+      searchQuery,
+      cueOnly,
+      songFilter,
+      propFilter,
+      cueCategoryFilter,
+    ],
   );
 
   const selectedAct = useMemo(
@@ -125,11 +149,19 @@ export default function TimelinePage() {
       ReturnType<typeof api.getProduction>,
       ReturnType<typeof api.listActs>,
       ReturnType<typeof api.listCharacters>,
+      ReturnType<typeof api.listSongs>,
+      ReturnType<typeof api.listProps>,
+      ReturnType<typeof api.listCueCategories>,
+      ReturnType<typeof api.listMomentTypes>,
       Promise<GroupResponse[]>?,
     ] = [
       api.getProduction(productionId),
       api.listActs(productionId),
       api.listCharacters(productionId),
+      api.listSongs(productionId),
+      api.listProps(productionId),
+      api.listCueCategories(productionId),
+      api.listMomentTypes(),
     ];
     if (canManagePreparation) {
       requests.push(api.listGroups(productionId));
@@ -137,10 +169,23 @@ export default function TimelinePage() {
 
     void Promise.all(requests)
       .then((results) => {
-        const [production, actData, characterData, groupData] = results;
+        const [
+          production,
+          actData,
+          characterData,
+          songData,
+          propData,
+          categoryData,
+          typeData,
+          groupData,
+        ] = results;
         setProductionTitle(production.title);
         setActs(actData);
         setCharacters(characterData);
+        setSongs(songData);
+        setPropsCatalog(propData);
+        setCueCategories(categoryData);
+        setMomentTypes(typeData);
         setGroups(groupData ?? []);
         if (actData.length > 0) {
           const firstAct = actData[0];
@@ -173,7 +218,7 @@ export default function TimelinePage() {
         setError(err instanceof ApiError ? String(err.detail) : "Failed to load moments");
       })
       .finally(() => setMomentsLoading(false));
-  }, [productionId, selectedSceneId, momentFilters]);
+  }, [productionId, selectedSceneId, momentFilters, momentsRefreshKey]);
 
   useEffect(() => {
     if (selectedMomentId === null) {
@@ -225,6 +270,10 @@ export default function TimelinePage() {
     if (selectedMomentId === null) return;
     const detail = await api.getMoment(productionId, selectedMomentId);
     setMomentDetail(detail);
+  }
+
+  function refreshMomentsList() {
+    setMomentsRefreshKey((key) => key + 1);
   }
 
   if (loading) {
@@ -371,6 +420,53 @@ export default function TimelinePage() {
             />
             Cue-only mode
           </label>
+
+          {songs.length > 0 && (
+            <select
+              value={songFilter}
+              onChange={(e) => setSongFilter(e.target.value as ResourceFilterValue)}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="all">All songs</option>
+              {songs.map((song) => (
+                <option key={song.id} value={String(song.id)}>
+                  {song.title}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {canManagePreparation && propsCatalog.length > 0 && (
+            <select
+              value={propFilter}
+              onChange={(e) => setPropFilter(e.target.value as ResourceFilterValue)}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="all">All props</option>
+              {propsCatalog.map((prop) => (
+                <option key={prop.id} value={String(prop.id)}>
+                  {prop.name}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {canManagePreparation && cueCategories.length > 0 && (
+            <select
+              value={cueCategoryFilter}
+              onChange={(e) =>
+                setCueCategoryFilter(e.target.value as ResourceFilterValue)
+              }
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="all">All cue categories</option>
+              {cueCategories.map((category) => (
+                <option key={category.id} value={String(category.id)}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -398,11 +494,23 @@ export default function TimelinePage() {
                     {moment.sequence_number}
                   </span>
                   <span className="min-w-0 flex-1">{truncate(moment.original_text)}</span>
-                  <Badge
-                    className={cn("shrink-0 capitalize", momentBadgeClass(moment.moment_type))}
-                  >
-                    {momentTypeLabel(moment.moment_type)}
-                  </Badge>
+                  <div className="flex shrink-0 flex-col items-end gap-1">
+                    {moment.has_props && (
+                      <Badge variant="outline" className="text-xs">
+                        Prop
+                      </Badge>
+                    )}
+                    {moment.has_cues && (
+                      <Badge variant="outline" className="text-xs">
+                        Cue
+                      </Badge>
+                    )}
+                    <Badge
+                      className={cn("capitalize", momentBadgeClass(moment.moment_type))}
+                    >
+                      {momentTypeLabel(moment.moment_type)}
+                    </Badge>
+                  </div>
                 </button>
               </li>
             ))}
@@ -412,7 +520,7 @@ export default function TimelinePage() {
 
       <Sheet
         open={selectedMomentId !== null}
-        onOpenChange={(open) => {
+        onOpenChange={(open: boolean) => {
           if (!open) setSelectedMomentId(null);
         }}
       >
@@ -427,8 +535,17 @@ export default function TimelinePage() {
             <MomentDetailPanel
               productionId={productionId}
               detail={momentDetail}
+              canEdit={canManagePreparation}
               canChooseVisibility={canManagePreparation}
-              onChanged={() => void refreshMomentDetail()}
+              characters={characters}
+              songs={songs}
+              propsCatalog={propsCatalog}
+              cueCategories={cueCategories}
+              momentTypes={momentTypes}
+              onChanged={() => {
+                void refreshMomentDetail();
+                refreshMomentsList();
+              }}
             />
           ) : (
             <p className="text-sm text-muted-foreground">Loading moment detail…</p>
@@ -442,17 +559,55 @@ export default function TimelinePage() {
 function MomentDetailPanel({
   productionId,
   detail,
+  canEdit,
   canChooseVisibility,
+  characters,
+  songs,
+  propsCatalog,
+  cueCategories,
+  momentTypes,
   onChanged,
 }: {
   productionId: number;
   detail: MomentDetailResponse;
+  canEdit: boolean;
   canChooseVisibility: boolean;
+  characters: CharacterDetailResponse[];
+  songs: SongDetailResponse[];
+  propsCatalog: PropResponse[];
+  cueCategories: CueCategoryResponse[];
+  momentTypes: MomentTypeResponse[];
   onChanged: () => void;
 }) {
   const [noteContent, setNoteContent] = useState("");
   const [noteVisibility, setNoteVisibility] = useState<"public" | "private">("private");
   const [saving, setSaving] = useState(false);
+
+  const [parsedText, setParsedText] = useState(detail.parsed_text ?? "");
+  const [stageDirectionText, setStageDirectionText] = useState(detail.stage_direction ?? "");
+  const [selectedTypeId, setSelectedTypeId] = useState(
+    () => momentTypes.find((type) => type.name === detail.moment_type)?.id ?? "",
+  );
+  const [selectedSongId, setSelectedSongId] = useState(
+    detail.song_id !== null ? String(detail.song_id) : "",
+  );
+
+  const [attachPropId, setAttachPropId] = useState("");
+  const [attachPropCharacterId, setAttachPropCharacterId] = useState("");
+  const [attachPropNotes, setAttachPropNotes] = useState("");
+
+  const [newCueCategoryId, setNewCueCategoryId] = useState("");
+  const [newCueTitle, setNewCueTitle] = useState("");
+  const [newCueNotes, setNewCueNotes] = useState("");
+
+  useEffect(() => {
+    setParsedText(detail.parsed_text ?? "");
+    setStageDirectionText(detail.stage_direction ?? "");
+    setSelectedTypeId(
+      momentTypes.find((type) => type.name === detail.moment_type)?.id ?? "",
+    );
+    setSelectedSongId(detail.song_id !== null ? String(detail.song_id) : "");
+  }, [detail, momentTypes]);
 
   async function handleBookmarkToggle() {
     setSaving(true);
@@ -506,6 +661,116 @@ function MomentDetailPanel({
     }
   }
 
+  async function handleSaveMomentFields() {
+    setSaving(true);
+    try {
+      await api.updateMoment(productionId, detail.id, {
+        moment_type_id: selectedTypeId ? Number(selectedTypeId) : undefined,
+        parsed_text: parsedText.trim() || null,
+        song_id: selectedSongId ? Number(selectedSongId) : null,
+      });
+      onChanged();
+    } catch (err) {
+      alert(err instanceof ApiError ? String(err.detail) : "Failed to save moment");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleSaveStageDirection() {
+    if (!detail.stage_direction && !stageDirectionText.trim()) return;
+    setSaving(true);
+    try {
+      await api.updateStageDirection(productionId, detail.id, {
+        direction_text: stageDirectionText,
+      });
+      onChanged();
+    } catch (err) {
+      alert(err instanceof ApiError ? String(err.detail) : "Failed to save stage direction");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDialogueCharacterChange(lineId: number, characterId: number) {
+    setSaving(true);
+    try {
+      await api.updateDialogue(productionId, detail.id, lineId, { character_id: characterId });
+      onChanged();
+    } catch (err) {
+      alert(err instanceof ApiError ? String(err.detail) : "Failed to update dialogue");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleAttachProp(event: React.FormEvent) {
+    event.preventDefault();
+    if (!attachPropId) return;
+
+    setSaving(true);
+    try {
+      await api.attachMomentProp(productionId, detail.id, {
+        prop_id: Number(attachPropId),
+        character_id: attachPropCharacterId ? Number(attachPropCharacterId) : null,
+        notes: attachPropNotes.trim() || null,
+      });
+      setAttachPropId("");
+      setAttachPropCharacterId("");
+      setAttachPropNotes("");
+      onChanged();
+    } catch (err) {
+      alert(err instanceof ApiError ? String(err.detail) : "Failed to attach prop");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDetachProp(momentPropId: number) {
+    setSaving(true);
+    try {
+      await api.detachMomentProp(productionId, detail.id, momentPropId);
+      onChanged();
+    } catch (err) {
+      alert(err instanceof ApiError ? String(err.detail) : "Failed to detach prop");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleAddCue(event: React.FormEvent) {
+    event.preventDefault();
+    if (!newCueCategoryId || !newCueTitle.trim()) return;
+
+    setSaving(true);
+    try {
+      await api.createMomentCue(productionId, detail.id, {
+        cue_category_id: Number(newCueCategoryId),
+        title: newCueTitle.trim(),
+        notes: newCueNotes.trim() || null,
+      });
+      setNewCueTitle("");
+      setNewCueNotes("");
+      onChanged();
+    } catch (err) {
+      alert(err instanceof ApiError ? String(err.detail) : "Failed to add cue");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function handleDeleteCue(cueId: number) {
+    setSaving(true);
+    try {
+      await api.deleteMomentCue(productionId, detail.id, cueId);
+      onChanged();
+    } catch (err) {
+      alert(err instanceof ApiError ? String(err.detail) : "Failed to delete cue");
+    } finally {
+      setSaving(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <SheetHeader className="p-0">
@@ -532,10 +797,68 @@ function MomentDetailPanel({
 
       <div>
         <h3 className="text-sm font-medium">Original text</h3>
-        <p className="mt-1 whitespace-pre-wrap text-sm">{detail.original_text}</p>
+        <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
+          {detail.original_text}
+        </p>
       </div>
 
-      {detail.parsed_text && (
+      {canEdit && (
+        <div className="space-y-3 rounded-md border border-border p-3">
+          <h3 className="text-sm font-medium">Edit parsed data</h3>
+
+          <label className="block text-xs text-muted-foreground">
+            Moment type
+            <select
+              value={selectedTypeId}
+              onChange={(e) => setSelectedTypeId(e.target.value)}
+              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              {momentTypes.map((type) => (
+                <option key={type.id} value={type.id}>
+                  {momentTypeLabel(type.name as MomentDetailResponse["moment_type"])}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block text-xs text-muted-foreground">
+            Linked song
+            <select
+              value={selectedSongId}
+              onChange={(e) => setSelectedSongId(e.target.value)}
+              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">None</option>
+              {songs.map((song) => (
+                <option key={song.id} value={String(song.id)}>
+                  {song.title}
+                </option>
+              ))}
+            </select>
+          </label>
+
+          <label className="block text-xs text-muted-foreground">
+            Parsed text
+            <textarea
+              value={parsedText}
+              onChange={(e) => setParsedText(e.target.value)}
+              rows={3}
+              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+          </label>
+
+          <button
+            type="button"
+            disabled={saving}
+            onClick={() => void handleSaveMomentFields()}
+            className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+          >
+            Save moment fields
+          </button>
+        </div>
+      )}
+
+      {!canEdit && detail.parsed_text && (
         <div>
           <h3 className="text-sm font-medium">Parsed text</h3>
           <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
@@ -544,10 +867,29 @@ function MomentDetailPanel({
         </div>
       )}
 
-      {detail.stage_direction && (
+      {(detail.stage_direction || canEdit) && (
         <div>
           <h3 className="text-sm font-medium">Stage direction</h3>
-          <p className="mt-1 text-sm">{detail.stage_direction}</p>
+          {canEdit ? (
+            <div className="mt-2 space-y-2">
+              <textarea
+                value={stageDirectionText}
+                onChange={(e) => setStageDirectionText(e.target.value)}
+                rows={3}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+              <button
+                type="button"
+                disabled={saving || !detail.stage_direction}
+                onClick={() => void handleSaveStageDirection()}
+                className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
+              >
+                Save stage direction
+              </button>
+            </div>
+          ) : (
+            <p className="mt-1 text-sm">{detail.stage_direction}</p>
+          )}
         </div>
       )}
 
@@ -556,21 +898,179 @@ function MomentDetailPanel({
           <h3 className="text-sm font-medium">Dialogue</h3>
           <ul className="mt-2 space-y-2">
             {detail.dialogue.map((line) => (
-              <li key={`${line.character_id}-${line.dialogue_text}`} className="text-sm">
-                <span className="font-medium">{line.character_name}:</span>{" "}
-                {line.dialogue_text}
+              <li key={line.id} className="text-sm">
+                {canEdit ? (
+                  <div className="flex flex-col gap-1">
+                    <select
+                      value={line.character_id}
+                      disabled={saving}
+                      onChange={(e) =>
+                        void handleDialogueCharacterChange(line.id, Number(e.target.value))
+                      }
+                      className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+                    >
+                      {characters.map((character) => (
+                        <option key={character.id} value={character.id}>
+                          {character.name}
+                        </option>
+                      ))}
+                    </select>
+                    <span>{line.dialogue_text}</span>
+                  </div>
+                ) : (
+                  <>
+                    <span className="font-medium">{line.character_name}:</span>{" "}
+                    {line.dialogue_text}
+                  </>
+                )}
               </li>
             ))}
           </ul>
         </div>
       )}
 
-      {detail.song_title && (
+      {detail.song_title && !canEdit && (
         <div>
           <h3 className="text-sm font-medium">Song</h3>
           <p className="mt-1 text-sm">{detail.song_title}</p>
         </div>
       )}
+
+      <div className="border-t border-border pt-4">
+        <h3 className="text-sm font-medium">Props</h3>
+        {detail.props.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">No props attached.</p>
+        ) : (
+          <ul className="mt-2 space-y-2">
+            {detail.props.map((prop) => (
+              <li key={prop.id} className="rounded-md border border-border p-2 text-sm">
+                <span className="font-medium">{prop.prop_name}</span>
+                {prop.character_name && (
+                  <span className="text-muted-foreground"> — {prop.character_name}</span>
+                )}
+                {prop.notes && <p className="mt-1 text-muted-foreground">{prop.notes}</p>}
+                {canEdit && (
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => void handleDetachProp(prop.id)}
+                    className="mt-1 text-xs text-destructive hover:underline disabled:opacity-50"
+                  >
+                    Remove
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {canEdit && propsCatalog.length > 0 && (
+          <form onSubmit={(e) => void handleAttachProp(e)} className="mt-3 space-y-2">
+            <select
+              value={attachPropId}
+              onChange={(e) => setAttachPropId(e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">Select prop…</option>
+              {propsCatalog.map((prop) => (
+                <option key={prop.id} value={String(prop.id)}>
+                  {prop.name}
+                </option>
+              ))}
+            </select>
+            <select
+              value={attachPropCharacterId}
+              onChange={(e) => setAttachPropCharacterId(e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">No carrier character</option>
+              {characters.map((character) => (
+                <option key={character.id} value={String(character.id)}>
+                  {character.name}
+                </option>
+              ))}
+            </select>
+            <input
+              value={attachPropNotes}
+              onChange={(e) => setAttachPropNotes(e.target.value)}
+              placeholder="Notes (optional)"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+            <button
+              type="submit"
+              disabled={saving || !attachPropId}
+              className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
+            >
+              Attach prop
+            </button>
+          </form>
+        )}
+      </div>
+
+      <div className="border-t border-border pt-4">
+        <h3 className="text-sm font-medium">Cues</h3>
+        {detail.cues.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">No cues attached.</p>
+        ) : (
+          <ul className="mt-2 space-y-2">
+            {detail.cues.map((cue) => (
+              <li key={cue.id} className="rounded-md border border-border p-2 text-sm">
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium">{cue.title}</span>
+                  <Badge variant="secondary">{cue.cue_category_name}</Badge>
+                </div>
+                {cue.notes && <p className="mt-1 text-muted-foreground">{cue.notes}</p>}
+                {canEdit && (
+                  <button
+                    type="button"
+                    disabled={saving}
+                    onClick={() => void handleDeleteCue(cue.id)}
+                    className="mt-1 text-xs text-destructive hover:underline disabled:opacity-50"
+                  >
+                    Delete
+                  </button>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+
+        {canEdit && cueCategories.length > 0 && (
+          <form onSubmit={(e) => void handleAddCue(e)} className="mt-3 space-y-2">
+            <select
+              value={newCueCategoryId}
+              onChange={(e) => setNewCueCategoryId(e.target.value)}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="">Select category…</option>
+              {cueCategories.map((category) => (
+                <option key={category.id} value={String(category.id)}>
+                  {category.name}
+                </option>
+              ))}
+            </select>
+            <input
+              value={newCueTitle}
+              onChange={(e) => setNewCueTitle(e.target.value)}
+              placeholder="Cue title"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+            <input
+              value={newCueNotes}
+              onChange={(e) => setNewCueNotes(e.target.value)}
+              placeholder="Notes (optional)"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+            />
+            <button
+              type="submit"
+              disabled={saving || !newCueCategoryId || !newCueTitle.trim()}
+              className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
+            >
+              Add cue
+            </button>
+          </form>
+        )}
+      </div>
 
       <div className="border-t border-border pt-4">
         <h3 className="text-sm font-medium">Notes</h3>

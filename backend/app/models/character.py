@@ -34,3 +34,4 @@ class Character(Base):
         secondary="character_groups",
         back_populates="characters",
     )
+    moment_props: Mapped[list["MomentProp"]] = relationship(back_populates="character")

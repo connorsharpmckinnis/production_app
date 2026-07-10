@@ -77,12 +77,60 @@ export interface MomentSummary {
   original_text: string;
   song_id: number | null;
   speaking_character_ids: number[];
+  has_props: boolean;
+  has_cues: boolean;
 }
 
 export interface DialogueLineResponse {
+  id: number;
   character_id: number;
   character_name: string;
   dialogue_text: string;
+}
+
+export interface MomentTypeResponse {
+  id: number;
+  name: string;
+  description: string | null;
+}
+
+export interface SongDetailResponse {
+  id: number;
+  title: string;
+  composer: string | null;
+  lyricist: string | null;
+  description: string | null;
+}
+
+export interface PropResponse {
+  id: number;
+  name: string;
+  description: string | null;
+  notes: string | null;
+}
+
+export interface MomentPropResponse {
+  id: number;
+  prop_id: number;
+  prop_name: string;
+  character_id: number | null;
+  character_name: string | null;
+  notes: string | null;
+}
+
+export interface CueCategoryResponse {
+  id: number;
+  name: string;
+  description: string | null;
+}
+
+export interface CueResponse {
+  id: number;
+  cue_category_id: number;
+  cue_category_name: string;
+  title: string;
+  notes: string | null;
+  payload: Record<string, unknown> | null;
 }
 
 export interface NoteResponse {
@@ -107,6 +155,8 @@ export interface MomentDetailResponse {
   song_title: string | null;
   dialogue: DialogueLineResponse[];
   stage_direction: string | null;
+  props: MomentPropResponse[];
+  cues: CueResponse[];
   notes: NoteResponse[];
   is_bookmarked: boolean;
 }
@@ -149,6 +199,9 @@ export interface MomentListFilters {
   groupId?: number;
   search?: string;
   cueOnly?: boolean;
+  songId?: number;
+  propId?: number;
+  cueCategoryId?: number;
 }
 
 export interface CreateUserRequest {

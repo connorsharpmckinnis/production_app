@@ -4,6 +4,8 @@ import type {
   CastableUserResponse,
   CharacterDetailResponse,
   CreateUserRequest,
+  CueCategoryResponse,
+  CueResponse,
   GroupResponse,
   ImportLineErrorDetail,
   ImportSuccessResponse,
@@ -11,10 +13,14 @@ import type {
   MomentDetailResponse,
   MomentListFilters,
   MomentSummary,
+  MomentPropResponse,
+  MomentTypeResponse,
   NoteResponse,
   ProductionCreate,
   ProductionResponse,
+  PropResponse,
   ResetPasswordRequest,
+  SongDetailResponse,
   TokenResponse,
   UserResponse,
 } from "./types";
@@ -106,6 +112,15 @@ function momentQuery(filters?: MomentListFilters): string {
   }
   if (filters.cueOnly) {
     params.set("cue_only", "true");
+  }
+  if (filters.songId) {
+    params.set("song_id", String(filters.songId));
+  }
+  if (filters.propId) {
+    params.set("prop_id", String(filters.propId));
+  }
+  if (filters.cueCategoryId) {
+    params.set("cue_category_id", String(filters.cueCategoryId));
   }
   const query = params.toString();
   return query ? `?${query}` : "";
@@ -304,5 +319,178 @@ export const api = {
     return request<UserResponse>(`/users/${userId}/deactivate`, {
       method: "POST",
     });
+  },
+
+  listMomentTypes() {
+    return request<MomentTypeResponse[]>("/moment-types");
+  },
+
+  updateMoment(
+    productionId: number,
+    momentId: number,
+    body: { moment_type_id?: number; parsed_text?: string | null; song_id?: number | null },
+  ) {
+    return request<MomentDetailResponse>(
+      `/productions/${productionId}/moments/${momentId}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    );
+  },
+
+  updateDialogue(
+    productionId: number,
+    momentId: number,
+    lineId: number,
+    body: { character_id?: number; dialogue_text?: string },
+  ) {
+    return request<MomentDetailResponse>(
+      `/productions/${productionId}/moments/${momentId}/dialogue/${lineId}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    );
+  },
+
+  updateStageDirection(
+    productionId: number,
+    momentId: number,
+    body: { direction_text: string },
+  ) {
+    return request<MomentDetailResponse>(
+      `/productions/${productionId}/moments/${momentId}/stage-direction`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    );
+  },
+
+  listSongs(productionId: number) {
+    return request<SongDetailResponse[]>(`/productions/${productionId}/songs`);
+  },
+
+  createSong(
+    productionId: number,
+    body: { title: string; composer?: string | null; lyricist?: string | null; description?: string | null },
+  ) {
+    return request<SongDetailResponse>(`/productions/${productionId}/songs`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  updateSong(
+    productionId: number,
+    songId: number,
+    body: { composer?: string | null; lyricist?: string | null; description?: string | null },
+  ) {
+    return request<SongDetailResponse>(`/productions/${productionId}/songs/${songId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  },
+
+  listProps(productionId: number) {
+    return request<PropResponse[]>(`/productions/${productionId}/props`);
+  },
+
+  createProp(
+    productionId: number,
+    body: { name: string; description?: string | null; notes?: string | null },
+  ) {
+    return request<PropResponse>(`/productions/${productionId}/props`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  updateProp(
+    productionId: number,
+    propId: number,
+    body: { name?: string; description?: string | null; notes?: string | null },
+  ) {
+    return request<PropResponse>(`/productions/${productionId}/props/${propId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  },
+
+  deleteProp(productionId: number, propId: number) {
+    return request<void>(`/productions/${productionId}/props/${propId}`, {
+      method: "DELETE",
+    });
+  },
+
+  attachMomentProp(
+    productionId: number,
+    momentId: number,
+    body: { prop_id: number; character_id?: number | null; notes?: string | null },
+  ) {
+    return request<MomentPropResponse>(
+      `/productions/${productionId}/moments/${momentId}/props`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
+  },
+
+  detachMomentProp(productionId: number, momentId: number, momentPropId: number) {
+    return request<void>(
+      `/productions/${productionId}/moments/${momentId}/props/${momentPropId}`,
+      { method: "DELETE" },
+    );
+  },
+
+  listCueCategories(productionId: number) {
+    return request<CueCategoryResponse[]>(`/productions/${productionId}/cue-categories`);
+  },
+
+  createCueCategory(
+    productionId: number,
+    body: { name: string; description?: string | null },
+  ) {
+    return request<CueCategoryResponse>(`/productions/${productionId}/cue-categories`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  updateCueCategory(
+    productionId: number,
+    categoryId: number,
+    body: { name?: string; description?: string | null },
+  ) {
+    return request<CueCategoryResponse>(
+      `/productions/${productionId}/cue-categories/${categoryId}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    );
+  },
+
+  deleteCueCategory(productionId: number, categoryId: number) {
+    return request<void>(`/productions/${productionId}/cue-categories/${categoryId}`, {
+      method: "DELETE",
+    });
+  },
+
+  createMomentCue(
+    productionId: number,
+    momentId: number,
+    body: { cue_category_id: number; title: string; notes?: string | null; payload?: Record<string, unknown> | null },
+  ) {
+    return request<CueResponse>(`/productions/${productionId}/moments/${momentId}/cues`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  updateMomentCue(
+    productionId: number,
+    momentId: number,
+    cueId: number,
+    body: { cue_category_id?: number; title?: string; notes?: string | null; payload?: Record<string, unknown> | null },
+  ) {
+    return request<CueResponse>(
+      `/productions/${productionId}/moments/${momentId}/cues/${cueId}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    );
+  },
+
+  deleteMomentCue(productionId: number, momentId: number, cueId: number) {
+    return request<void>(
+      `/productions/${productionId}/moments/${momentId}/cues/${cueId}`,
+      { method: "DELETE" },
+    );
   },
 };

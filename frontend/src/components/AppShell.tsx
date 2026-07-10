@@ -189,14 +189,37 @@ export default function AppShell() {
                 >
                   Characters
                 </NavLink>
+                <NavLink
+                  to={`/productions/${productionId}/songs`}
+                  className={navLinkClass}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  Songs
+                </NavLink>
+                <NavLink
+                  to={`/productions/${productionId}/props`}
+                  className={navLinkClass}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  Props
+                </NavLink>
                 {canManagePreparation && (
-                  <NavLink
-                    to={`/productions/${productionId}/groups`}
-                    className={navLinkClass}
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    Groups
-                  </NavLink>
+                  <>
+                    <NavLink
+                      to={`/productions/${productionId}/groups`}
+                      className={navLinkClass}
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      Groups
+                    </NavLink>
+                    <NavLink
+                      to={`/productions/${productionId}/cue-categories`}
+                      className={navLinkClass}
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      Cue Categories
+                    </NavLink>
+                  </>
                 )}
               </>
             )}

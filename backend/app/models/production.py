@@ -47,3 +47,11 @@ class Production(Base):
         back_populates="production",
         cascade="all, delete-orphan",
     )
+    props: Mapped[list["Prop"]] = relationship(
+        back_populates="production",
+        cascade="all, delete-orphan",
+    )
+    cue_categories: Mapped[list["CueCategory"]] = relationship(
+        back_populates="production",
+        cascade="all, delete-orphan",
+    )

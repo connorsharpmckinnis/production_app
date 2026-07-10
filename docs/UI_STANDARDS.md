@@ -1,8 +1,8 @@
 # UI Standards
 
-**Version:** 0.2 (Phase 2 — Slice 2)
+**Version:** 0.3 (Phase 3 — Slice 3)
 
-Minimum UI conventions for the Theater App. Slice 1 covers import and read-only timeline; Slice 2 adds casting, filters, notes, and bookmarks.
+Minimum UI conventions for the Theater App. Slice 1 covers import and read-only timeline; Slice 2 adds casting, filters, notes, and bookmarks; Slice 3 adds import-review editing, songs, props, and cues.
 
 Product context: [PROJECT.md](PROJECT.md). Role visibility: [ROLES.md](ROLES.md).
 
@@ -30,7 +30,10 @@ Product context: [PROJECT.md](PROJECT.md). Role visibility: [ROLES.md](ROLES.md)
 | --- | --- | --- | --- |
 | Timeline | Yes | Yes | Yes |
 | Characters | Yes | Yes | Yes (read-only) |
+| Songs | Yes | Yes | Yes (read-only) |
+| Props | Yes | Yes | Yes (read-only) |
 | Groups | Yes | Yes | Hidden |
+| Cue Categories | Yes | Yes | Hidden |
 
 Global nav: Productions; User Management (Admin only).
 
@@ -79,17 +82,18 @@ Moments listed in sequence order; click row → read-only detail in a `Sheet`.
 | Group (Director+) | Filter to group's character members; disables character filter |
 | Character | All / My characters / single character; includes stage directions referencing that name |
 | Search | Scene-scoped substring match; submit on Enter |
-| Cue-only | Shows stage directions and song headers only |
+| Cue-only | Stage directions, song headers, and moments with attached technical cues |
 
 **Moment list:**
 
 * Sequence number, truncated text, type badge.
+* Optional **Prop** / **Cue** outline badges when attachments exist.
 * Highlighted rows (blue left border) for filtered character dialogue and referenced stage directions.
 * Click row → moment detail sheet.
 
 **Moment detail sheet:**
 
-* Full original text, parsed fields, dialogue breakdown.
+* Full **original text** (always read-only — sacred script).
 * **Bookmark** icon button (lucide `Bookmark`; filled when active).
 * **Notes** list + add form; Director/Admin can choose public/private visibility.
 
@@ -97,6 +101,51 @@ Moments listed in sequence order; click row → read-only detail in a `Sheet`.
 
 * List of saved moments with production title and preview text.
 * Deferred: dedicated timeline-like bookmarks view (see [PROJECT.md](PROJECT.md) Wish List).
+
+---
+
+## Slice 3 Screens (Phase 3)
+
+### Songs (Preparation)
+
+* Table: title, composer, lyricist.
+* **Director/Admin:** add song, edit metadata (composer, lyricist, description).
+* **Actor:** read-only list.
+* Songs can be linked to moments from the timeline moment sheet.
+
+### Props (Preparation)
+
+* Table: name, description, notes.
+* **Director/Admin:** CRUD prop catalog.
+* Attach props to moments from the timeline moment sheet (optional carrier character, notes).
+
+### Cue Categories (Preparation — Director/Admin)
+
+* Table: name, description.
+* CRUD categories (Lighting, Sound, etc.).
+* Cues are added per-moment from the timeline moment sheet.
+
+### Timeline editing (moment sheet — Director/Admin)
+
+Edit through the side panel; timeline list stays visible.
+
+| Section | Editable fields |
+| --- | --- |
+| Moment fields | Type, linked song, parsed text |
+| Stage direction | Direction text (when moment has stage direction) |
+| Dialogue | Speaker (character dropdown per line) |
+| Props | Attach / detach; carrier character; notes |
+| Cues | Add / delete; category, title, notes |
+
+**Actor:** all Slice 3 data is read-only except notes (private) and bookmarks.
+
+**Additional timeline filters (Slice 3):**
+
+| Control | Behavior |
+| --- | --- |
+| Song | Filter to moments linked to selected song |
+| Prop (Director+) | Filter to moments with prop attached |
+| Cue category (Director+) | Filter to moments with cue in category |
 
 ---
 
@@ -112,13 +161,14 @@ Use shadcn/ui throughout ([DEVELOPMENT_GUIDE](../.agents/skills/DEVELOPMENT_GUID
 | Errors | bordered alert div (destructive colors) |
 | Timeline rows | scrollable list + custom row |
 | Moment type badge | `Badge` |
+| Prop/Cue indicator | `Badge variant="outline"` |
 | Side panel | `Sheet` |
 | Bookmark toggle | `Button` (icon-sm) + lucide icon |
 | Navigation | sidebar `nav` links |
 
 ---
 
-## Role-Based UI (Slice 2)
+## Role-Based UI (Slice 3)
 
 | Element | Admin | Director | Actor |
 | --- | --- | --- | --- |
@@ -126,8 +176,10 @@ Use shadcn/ui throughout ([DEVELOPMENT_GUIDE](../.agents/skills/DEVELOPMENT_GUID
 | Import | Yes | Hidden | Hidden |
 | User management | Yes | Hidden | Hidden |
 | Casting controls | Yes | Yes | Hidden |
-| Groups management | Yes | Yes | Hidden |
-| Timeline filters | All | All + group filter | All (no group filter) |
+| Groups / Cue Categories | Yes | Yes | Hidden |
+| Songs / Props catalog edit | Yes | Yes | Hidden (read-only) |
+| Timeline content editing | Yes | Yes | Hidden |
+| Timeline filters | All + song/prop/cue | All + song/prop/cue | All + song (no group/prop/cue category) |
 | Public notes on moments | Yes | Yes | Hidden (private only) |
 | Bookmarks | Yes | Yes | Yes |
 
@@ -143,10 +195,11 @@ Use shadcn/ui throughout ([DEVELOPMENT_GUIDE](../.agents/skills/DEVELOPMENT_GUID
 
 ## Deferred to Later Slices
 
-* Timeline inline / structural editing (Phase 3+)
+* Timeline structural editing (add/delete/reorder/split/merge moments) — Phase 4
 * Live search (filter as you type)
 * Multi-select character filter
 * Bookmarks dedicated view
 * Production home page
 * Saved filter views / rehearsal modes
 * Preparation progress dashboard
+* Costumes, microphones, blocking, entrances, exits
