@@ -55,3 +55,15 @@ class Production(Base):
         back_populates="production",
         cascade="all, delete-orphan",
     )
+    costumes: Mapped[list["Costume"]] = relationship(
+        back_populates="production",
+        cascade="all, delete-orphan",
+    )
+    microphones: Mapped[list["Microphone"]] = relationship(
+        back_populates="production",
+        cascade="all, delete-orphan",
+    )
+    set_pieces: Mapped[list["SetPiece"]] = relationship(
+        back_populates="production",
+        cascade="all, delete-orphan",
+    )

@@ -12,10 +12,14 @@ Companion documents:
 - [PHASE_0.md](PHASE_0.md) — Phase 0 tasks (complete)
 - [PHASE_1.md](PHASE_1.md) — Phase 1 execution plan (complete)
 - [PHASE_2.md](PHASE_2.md) — Phase 2 execution plan
+- [PHASE_3.md](PHASE_3.md) — Phase 3 execution plan (complete)
+- [PHASE_4.md](PHASE_4.md) — Phase 4 execution plan (complete)
 - [ROLES.md](ROLES.md) — MVP role permissions
 - [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](../.agents/skills/DEVELOPMENT_GUIDE/SKILL.md) — coding standards for humans and AI
 
 ---
+
+
 
 # Vision
 
@@ -448,7 +452,9 @@ Belongs to:
 
 Assigned to:
 
-- Scene (MVP: one scene per costume; multiple scenes post-MVP)
+- Scene (Phase 4 MVP: one scene per costume via `scene_id`; see [PHASE_4.md](PHASE_4.md))
+
+Future: event-driven add/remove of costume pieces on the timeline, with derived current state (like props). Deferred to post-MVP wish list.
 
 ---
 
@@ -810,14 +816,17 @@ Summary:
 
 
 
-## Phase 4 — Reports & Management
+## Phase 4 — Timeline Polish, Structural Editing & Prep Objects
 
-- Production reports
-- Prop sheets
-- Cue sheets
-- Character reports
-- Scene reports
-- Search improvements
+See [PHASE_4.md](PHASE_4.md) for the execution plan.
+
+Summary:
+
+- Timeline editing UX completion (auto-save, unified detail panel, global App Settings)
+- Structural timeline editing (add, delete, reorder — split/merge deferred)
+- Costumes (scene-level), microphones, and set pieces — after structural editing is stable
+- Minimal reports (prop sheet, cue sheet, one simple third view) by phase exit
+- Admin navigation restructure (production prep vs administration)
 
 ---
 
@@ -911,8 +920,6 @@ See [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](../.agents/skills/DEVELOPMENT_GU
 
 ---
 
-
-
 ---
 
 
@@ -923,9 +930,14 @@ These are not committed scope — captured here so good ideas are not lost:
 
 - **Saved views** — save a timeline filter/search combination (character selection, cue-only, search terms) as a named view for quick recall. May evolve into role-specific modes (rehearsal mode, tech night mode).
 - **Production home page** — a dedicated landing page per production instead of opening straight into the timeline hub.
-- **Bookmarks timeline view** — a dedicated timeline-like view for bookmarks with gaps (`…`) between non-adjacent moments; click through to the main timeline.
+- **Bookmarks timeline view** — a dedicated timeline-like view for bookmarks with gaps (`…`) between non-adjacent moments; click through to the main timeline. Owner undecided on interaction design — leave as-is until settled.
 - **Live search** — filter timeline results as you type (no Enter required).
 - **Multi-select character filter** — show moments for any of several selected characters at once.
+- **Character colors** — assign colors to characters for auto-highlighting (Actors and other roles).
+- **Split / merge moments** — divide one moment into two or combine adjacent moments during structural editing.
+- **Costume event-driven model** — track costume piece add/remove events on the timeline and derive current costume state (replacing scene-level assignment over time).
+- **Rich reports** — PDF export, print layouts, cross-production analytics, preparation progress dashboards.
+- **Production-level settings** — per-production overrides for display and workflow flags (if global App Settings prove insufficient).
 
 See also [SCRATCH_NOTES.md](SCRATCH_NOTES.md) for transient owner notes.
 
@@ -939,13 +951,16 @@ A successful MVP should allow a Director or Admin to:
 
 - Create a Production.
 - Import a script in the Theater App standard format (`.md`).
-- Review and edit the imported Timeline.
+- Review and edit the imported Timeline (including structural fixes: add, delete, reorder moments).
 - Assign actors to characters.
 - Organize groups.
 - Search the script.
 - View actor-specific highlighted dialogue.
 - Use cue-only rehearsal mode.
 - Add notes and bookmarks.
+- Manage songs, props, cues, costumes, microphones, and set pieces.
+- Generate basic prop and cue sheet reports from timeline data.
+- Configure global display settings (e.g. hide import-review fields after verification).
 - Create and manage user accounts (Admin).
 
-At this point, the application should already provide meaningful value during rehearsal preparation while establishing the architectural foundation for future production management features.
+At this point, the application should provide meaningful value during rehearsal and technical preparation while establishing the architectural foundation for future production management features.

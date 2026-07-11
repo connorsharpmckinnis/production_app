@@ -22,3 +22,4 @@ class Scene(Base):
         back_populates="scene",
         cascade="all, delete-orphan",
     )
+    costumes: Mapped[list["Costume"]] = relationship(back_populates="scene")

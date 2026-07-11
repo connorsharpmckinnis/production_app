@@ -2,7 +2,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.password import hash_password
 from app.config import Settings
-from app.models import AppRole, MomentType, Organization, User, UserAppRole
+from app.models import AppRole, AppSetting, MomentType, Organization, User, UserAppRole
 APP_ROLES = [
     ("Admin", "Full system access; import scripts; manage users"),
     ("Director", "Edit timeline; cast actors; no create/delete production, import, or user management"),
@@ -101,10 +101,24 @@ def _create_user(
     return user
 
 
+def _seed_app_settings(db: Session) -> None:
+    settings = db.query(AppSetting).filter(AppSetting.id == 1).first()
+    if settings is None:
+        db.add(
+            AppSetting(
+                id=1,
+                show_original_text=True,
+                show_parsed_text=True,
+            )
+        )
+        db.flush()
+
+
 def seed_database(db: Session, settings: Settings) -> None:
     organization = _get_or_create_organization(db, settings.ORG_NAME)
     roles_by_name = _seed_app_roles(db)
     _seed_moment_types(db)
+    _seed_app_settings(db)
 
     user_count = db.query(User).count()
     if user_count == 0:

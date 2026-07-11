@@ -75,10 +75,14 @@ export interface MomentSummary {
   sequence_number: number;
   moment_type: MomentType;
   original_text: string;
+  display_text: string;
   song_id: number | null;
   speaking_character_ids: number[];
   has_props: boolean;
   has_cues: boolean;
+  has_microphone: boolean;
+  has_set_piece: boolean;
+  has_costume: boolean;
 }
 
 export interface DialogueLineResponse {
@@ -145,6 +149,22 @@ export interface NoteResponse {
   is_mine: boolean;
 }
 
+export interface MomentMicrophoneResponse {
+  id: number;
+  microphone_id: number;
+  microphone_identifier: string;
+  character_id: number | null;
+  character_name: string | null;
+  notes: string | null;
+}
+
+export interface MomentSetPieceResponse {
+  id: number;
+  set_piece_id: number;
+  set_piece_name: string;
+  notes: string | null;
+}
+
 export interface MomentDetailResponse {
   id: number;
   sequence_number: number;
@@ -156,9 +176,90 @@ export interface MomentDetailResponse {
   dialogue: DialogueLineResponse[];
   stage_direction: string | null;
   props: MomentPropResponse[];
+  microphones: MomentMicrophoneResponse[];
+  set_pieces: MomentSetPieceResponse[];
   cues: CueResponse[];
   notes: NoteResponse[];
   is_bookmarked: boolean;
+}
+
+export interface AppSettingsResponse {
+  show_original_text: boolean;
+  show_parsed_text: boolean;
+}
+
+export interface MicrophoneResponse {
+  id: number;
+  identifier: string;
+}
+
+export interface SetPieceResponse {
+  id: number;
+  name: string;
+  mobile: boolean;
+  description: string | null;
+}
+
+export interface CostumeResponse {
+  id: number;
+  character_id: number;
+  character_name: string;
+  scene_id: number;
+  scene_number: number;
+  scene_title: string | null;
+  name: string;
+  description: string | null;
+}
+
+export interface PropSheetMomentReference {
+  moment_id: number;
+  sequence_number: number;
+  act_number: number;
+  scene_number: number;
+  scene_title: string | null;
+  character_name: string | null;
+  notes: string | null;
+}
+
+export interface PropSheetEntry {
+  prop_id: number;
+  prop_name: string;
+  description: string | null;
+  moments: PropSheetMomentReference[];
+}
+
+export interface CueSheetMomentReference {
+  moment_id: number;
+  sequence_number: number;
+  act_number: number;
+  scene_number: number;
+  scene_title: string | null;
+  cue_id: number;
+  title: string;
+  notes: string | null;
+  payload: Record<string, unknown> | null;
+}
+
+export interface CueSheetCategory {
+  cue_category_id: number;
+  cue_category_name: string;
+  cues: CueSheetMomentReference[];
+}
+
+export interface CostumeBySceneEntry {
+  costume_id: number;
+  character_id: number;
+  character_name: string;
+  name: string;
+  description: string | null;
+}
+
+export interface CostumesBySceneGroup {
+  scene_id: number;
+  act_number: number;
+  scene_number: number;
+  scene_title: string | null;
+  costumes: CostumeBySceneEntry[];
 }
 
 export interface CharacterDetailResponse {
@@ -202,6 +303,9 @@ export interface MomentListFilters {
   songId?: number;
   propId?: number;
   cueCategoryId?: number;
+  microphoneId?: number;
+  setPieceId?: number;
+  costumeOnly?: boolean;
 }
 
 export interface CreateUserRequest {

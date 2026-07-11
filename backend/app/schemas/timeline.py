@@ -1,8 +1,10 @@
 from pydantic import BaseModel
 
 from app.schemas.cues import CueResponse
+from app.schemas.microphones import MomentMicrophoneResponse
 from app.schemas.notes import NoteResponse
 from app.schemas.props import MomentPropResponse
+from app.schemas.set_pieces import MomentSetPieceResponse
 
 
 class SceneSummary(BaseModel):
@@ -36,10 +38,14 @@ class MomentSummary(BaseModel):
     sequence_number: int
     moment_type: str
     original_text: str
+    display_text: str
     song_id: int | None
     speaking_character_ids: list[int]
     has_props: bool
     has_cues: bool
+    has_microphone: bool
+    has_set_piece: bool
+    has_costume: bool
 
     model_config = {"from_attributes": True}
 
@@ -55,6 +61,8 @@ class MomentDetailResponse(BaseModel):
     dialogue: list[DialogueLineResponse]
     stage_direction: str | None
     props: list[MomentPropResponse]
+    microphones: list[MomentMicrophoneResponse]
+    set_pieces: list[MomentSetPieceResponse]
     cues: list[CueResponse]
     notes: list[NoteResponse]
     is_bookmarked: bool

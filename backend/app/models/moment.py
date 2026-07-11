@@ -61,3 +61,11 @@ class Moment(Base):
         back_populates="moment",
         cascade="all, delete-orphan",
     )
+    moment_microphones: Mapped[list["MomentMicrophone"]] = relationship(
+        back_populates="moment",
+        cascade="all, delete-orphan",
+    )
+    moment_set_pieces: Mapped[list["MomentSetPiece"]] = relationship(
+        back_populates="moment",
+        cascade="all, delete-orphan",
+    )

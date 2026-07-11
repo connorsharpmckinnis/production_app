@@ -557,6 +557,41 @@ Fields
 
 ---
 
+# MOMENT_MICROPHONES
+
+Purpose
+
+Attach microphones to moments (Phase 4 junction table).
+
+Fields
+
+* id
+* moment_id
+* microphone_id
+* character_id (nullable — wearer)
+* notes (nullable)
+
+**Decision:** Unique `(moment_id, microphone_id)` — one attachment row per microphone per moment.
+
+---
+
+# MOMENT_SET_PIECES
+
+Purpose
+
+Attach set pieces to moments (Phase 4 junction table).
+
+Fields
+
+* id
+* moment_id
+* set_piece_id
+* notes (nullable)
+
+**Decision:** Unique `(moment_id, set_piece_id)` — one attachment row per set piece per moment.
+
+---
+
 # COSTUMES
 
 Fields

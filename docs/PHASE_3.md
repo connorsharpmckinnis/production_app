@@ -2,6 +2,8 @@
 
 **Status:** Complete (P0 + P1 shipped; 2026-07-10)
 
+**Post-close hotfixes (2026-07-10):** Timeline list `display_text`, sheet persistence on edit, props/cues UX polish, resizable detail panel — see [PHASE_4.md](PHASE_4.md) WP1 (partial).
+
 **Goal:** Directors and Admins can review and correct imported timeline data (without changing sacred `original_text`), manage songs, and attach props and technical cues to moments — completing the production-preparation workflow on top of the Phase 2 rehearsal experience.
 
 Phase 2 is complete. This document is the execution plan for the implementing agent.
@@ -33,11 +35,13 @@ Phase 2 is complete. This document is the execution plan for the implementing ag
 
 ### Deferred (P2 / Phase 4)
 
-| Area | Decision |
-| ---- | -------- |
-| Costumes, microphones, set pieces | Phase 4+ |
-| Structural timeline editing | Phase 4 (owner decision) |
-| Prop/cue filter UX polish | Post-MVP |
+| Area | Status | Notes |
+| ---- | ------ | ----- |
+| Timeline list reflects edits | Done | `display_text` on `MomentSummary` (2026-07-10 hotfix) |
+| Detail panel persistence | Done | Sheet stays open on save/attach (2026-07-10 hotfix) |
+| Costumes, microphones, set pieces | Phase 4 | See [PHASE_4.md](PHASE_4.md) |
+| Structural timeline editing | Phase 4 | See [PHASE_4.md](PHASE_4.md) |
+| Prop/cue filter UX polish | Phase 4 P2 | Multi-select, list badges |
 
 ---
 
@@ -514,4 +518,4 @@ cd backend && uv run python scripts/smoke_test.py
 
 ## Phase 4 Preview (context only — do not implement)
 
-Structural timeline editing (add/delete/reorder/split/merge moments), blocking, entrances, exits, costumes, microphones, reports (prop sheets, cue sheets). See [PROJECT.md](PROJECT.md).
+See [PHASE_4.md](PHASE_4.md). Structural editing, prep objects, App Settings, minimal reports.

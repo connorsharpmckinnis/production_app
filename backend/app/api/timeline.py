@@ -11,19 +11,25 @@ from app.models import (
     Cue,
     Dialogue,
     Group,
+    Microphone,
     Moment,
+    MomentMicrophone,
     MomentProp,
+    MomentSetPiece,
     MomentType,
     Note,
     Production,
     Scene,
+    SetPiece,
     Song,
     StageDirection,
     User,
 )
 from app.schemas.cues import CueResponse
+from app.schemas.microphones import MomentMicrophoneResponse
 from app.schemas.notes import NoteResponse
 from app.schemas.props import MomentPropResponse
+from app.schemas.set_pieces import MomentSetPieceResponse
 from app.schemas.timeline import (
     ActSummary,
     DialogueLineResponse,
@@ -32,16 +38,28 @@ from app.schemas.timeline import (
 )
 from app.schemas.timeline_editing import (
     DialogueUpdate,
+    MomentCreate,
+    MomentSequenceUpdate,
     MomentTypeResponse,
     MomentUpdate,
     StageDirectionUpdate,
 )
+from app.services.moment_sequence import (
+    move_moment_sequence,
+    renumber_moments_after_delete,
+    shift_moments_from,
+)
 from app.services.timeline_filters import (
+    costume_character_ids_for_scene,
+    moment_display_text,
+    moment_has_costume,
     apply_timeline_filters,
     load_scene_moments,
     moment_ids_with_cue_category,
     moment_ids_with_cues,
+    moment_ids_with_microphone,
     moment_ids_with_prop,
+    moment_ids_with_set_piece,
     moment_speaking_character_ids,
     parse_character_ids,
 )
@@ -106,6 +124,31 @@ def _moment_prop_response(moment_prop: MomentProp) -> MomentPropResponse:
     )
 
 
+def _moment_microphone_response(
+    moment_microphone: MomentMicrophone,
+) -> MomentMicrophoneResponse:
+    character_name = None
+    if moment_microphone.character is not None:
+        character_name = moment_microphone.character.name
+    return MomentMicrophoneResponse(
+        id=moment_microphone.id,
+        microphone_id=moment_microphone.microphone_id,
+        microphone_identifier=moment_microphone.microphone.identifier,
+        character_id=moment_microphone.character_id,
+        character_name=character_name,
+        notes=moment_microphone.notes,
+    )
+
+
+def _moment_set_piece_response(moment_set_piece: MomentSetPiece) -> MomentSetPieceResponse:
+    return MomentSetPieceResponse(
+        id=moment_set_piece.id,
+        set_piece_id=moment_set_piece.set_piece_id,
+        set_piece_name=moment_set_piece.set_piece.name,
+        notes=moment_set_piece.notes,
+    )
+
+
 def _cue_response(cue: Cue) -> CueResponse:
     return CueResponse(
         id=cue.id,
@@ -152,6 +195,9 @@ def list_scene_moments(
     song_id: int | None = Query(default=None),
     prop_id: int | None = Query(default=None),
     cue_category_id: int | None = Query(default=None),
+    microphone_id: int | None = Query(default=None),
+    set_piece_id: int | None = Query(default=None),
+    costume_only: bool = Query(default=False),
     user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> list[MomentSummary]:
@@ -227,6 +273,33 @@ def list_scene_moments(
                 detail="Cue category not found",
             )
 
+    if microphone_id is not None:
+        microphone = (
+            db.query(Microphone)
+            .filter(
+                Microphone.id == microphone_id,
+                Microphone.production_id == production_id,
+            )
+            .first()
+        )
+        if microphone is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Microphone not found",
+            )
+
+    if set_piece_id is not None:
+        set_piece = (
+            db.query(SetPiece)
+            .filter(SetPiece.id == set_piece_id, SetPiece.production_id == production_id)
+            .first()
+        )
+        if set_piece is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Set piece not found",
+            )
+
     cued_moment_ids = moment_ids_with_cues(db, scene_id)
     prop_moment_ids = (
         moment_ids_with_prop(db, scene_id, prop_id) if prop_id is not None else None
@@ -236,6 +309,17 @@ def list_scene_moments(
         if cue_category_id is not None
         else None
     )
+    microphone_moment_ids = (
+        moment_ids_with_microphone(db, scene_id, microphone_id)
+        if microphone_id is not None
+        else None
+    )
+    set_piece_moment_ids = (
+        moment_ids_with_set_piece(db, scene_id, set_piece_id)
+        if set_piece_id is not None
+        else None
+    )
+    costume_char_ids = costume_character_ids_for_scene(db, scene_id)
 
     moments = load_scene_moments(db, scene_id)
     filtered = apply_timeline_filters(
@@ -248,9 +332,15 @@ def list_scene_moments(
         song_id=song_id,
         prop_id=prop_id,
         cue_category_id=cue_category_id,
+        microphone_id=microphone_id,
+        set_piece_id=set_piece_id,
+        costume_only=costume_only,
         moment_ids_with_cues=cued_moment_ids,
         moment_ids_with_prop=prop_moment_ids,
         moment_ids_with_cue_category=category_moment_ids,
+        moment_ids_with_microphone=microphone_moment_ids,
+        moment_ids_with_set_piece=set_piece_moment_ids,
+        costume_character_ids=costume_char_ids,
     )
 
     return [
@@ -259,10 +349,14 @@ def list_scene_moments(
             sequence_number=moment.sequence_number,
             moment_type=moment.moment_type.name,
             original_text=moment.original_text,
+            display_text=moment_display_text(moment),
             song_id=moment.song_id,
             speaking_character_ids=moment_speaking_character_ids(moment),
             has_props=len(moment.moment_props) > 0,
             has_cues=len(moment.cues) > 0,
+            has_microphone=len(moment.moment_microphones) > 0,
+            has_set_piece=len(moment.moment_set_pieces) > 0,
+            has_costume=moment_has_costume(moment, costume_char_ids),
         )
         for moment in filtered
     ]
@@ -286,6 +380,9 @@ def get_moment_detail(
             joinedload(Moment.notes).joinedload(Note.user),
             joinedload(Moment.moment_props).joinedload(MomentProp.prop),
             joinedload(Moment.moment_props).joinedload(MomentProp.character),
+            joinedload(Moment.moment_microphones).joinedload(MomentMicrophone.microphone),
+            joinedload(Moment.moment_microphones).joinedload(MomentMicrophone.character),
+            joinedload(Moment.moment_set_pieces).joinedload(MomentSetPiece.set_piece),
             joinedload(Moment.cues).joinedload(Cue.cue_category),
         )
         .join(Scene)
@@ -329,6 +426,12 @@ def get_moment_detail(
         ],
         stage_direction=stage_direction,
         props=[_moment_prop_response(moment_prop) for moment_prop in moment.moment_props],
+        microphones=[
+            _moment_microphone_response(item) for item in moment.moment_microphones
+        ],
+        set_pieces=[
+            _moment_set_piece_response(item) for item in moment.moment_set_pieces
+        ],
         cues=[_cue_response(cue) for cue in moment.cues],
         notes=[_note_response(note, user.id) for note in visible_notes],
         is_bookmarked=is_bookmarked,
@@ -352,6 +455,23 @@ def update_moment(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Invalid moment type",
             )
+        if body.moment_type_id != moment.moment_type_id and not body.force_type_change:
+            current_type = moment.moment_type.name
+            new_type = moment_type.name
+            orphaned: list[str] = []
+            if moment.dialogue_lines and new_type != "dialogue":
+                orphaned.append("dialogue lines")
+            if moment.stage_directions and new_type != "stage_direction":
+                orphaned.append("stage direction")
+            if orphaned:
+                raise HTTPException(
+                    status_code=status.HTTP_409_CONFLICT,
+                    detail=(
+                        f"Changing moment type from {current_type} to {new_type} would "
+                        f"orphan {' and '.join(orphaned)}. "
+                        "Send force_type_change: true to proceed."
+                    ),
+                )
         moment.moment_type_id = body.moment_type_id
 
     if "parsed_text" in body.model_fields_set:
@@ -460,5 +580,170 @@ def update_stage_direction(
             )
         stage_direction.direction_text = body.direction_text
 
+    db.commit()
+    return get_moment_detail(production_id, moment_id, _director, db)
+
+
+def _get_scene_in_production_or_404(
+    db: Session,
+    production_id: int,
+    scene_id: int,
+) -> Scene:
+    scene = (
+        db.query(Scene)
+        .join(Act)
+        .filter(Scene.id == scene_id, Act.production_id == production_id)
+        .first()
+    )
+    if scene is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scene not found")
+    return scene
+
+
+def _create_moment_child_rows(
+    db: Session,
+    moment: Moment,
+    moment_type_name: str,
+    original_text: str,
+    character_id: int | None,
+    production_id: int,
+) -> None:
+    if moment_type_name == "dialogue":
+        if character_id is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="character_id is required for dialogue moments",
+            )
+        character = (
+            db.query(Character)
+            .filter(Character.id == character_id, Character.production_id == production_id)
+            .first()
+        )
+        if character is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Character is not in this production",
+            )
+        db.add(
+            Dialogue(
+                moment_id=moment.id,
+                character_id=character_id,
+                dialogue_text=original_text,
+            )
+        )
+    elif moment_type_name == "stage_direction":
+        db.add(
+            StageDirection(
+                moment_id=moment.id,
+                direction_text=original_text,
+            )
+        )
+
+
+@router.post(
+    "/{production_id}/scenes/{scene_id}/moments",
+    response_model=MomentDetailResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def insert_moment(
+    production_id: int,
+    scene_id: int,
+    body: MomentCreate,
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> MomentDetailResponse:
+    _get_production_or_404(db, production_id)
+    _get_scene_in_production_or_404(db, production_id, scene_id)
+
+    moment_type = db.query(MomentType).filter(MomentType.id == body.moment_type_id).first()
+    if moment_type is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Invalid moment type",
+        )
+
+    max_sequence = (
+        db.query(Moment.sequence_number)
+        .filter(Moment.scene_id == scene_id)
+        .order_by(Moment.sequence_number.desc())
+        .first()
+    )
+    if body.sequence_number > (max_sequence[0] if max_sequence else 0) + 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="sequence_number is out of range for this scene",
+        )
+
+    shift_moments_from(db, scene_id, body.sequence_number, 1)
+
+    moment = Moment(
+        scene_id=scene_id,
+        moment_type_id=body.moment_type_id,
+        sequence_number=body.sequence_number,
+        original_text=body.original_text,
+        parsed_text=body.original_text,
+    )
+    db.add(moment)
+    db.flush()
+
+    _create_moment_child_rows(
+        db,
+        moment,
+        moment_type.name,
+        body.original_text,
+        body.character_id,
+        production_id,
+    )
+
+    db.commit()
+    return get_moment_detail(production_id, moment.id, _director, db)
+
+
+@router.delete(
+    "/{production_id}/moments/{moment_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_moment(
+    production_id: int,
+    moment_id: int,
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> None:
+    moment = _get_moment_in_production_or_404(db, production_id, moment_id)
+    scene_id = moment.scene_id
+    deleted_sequence = moment.sequence_number
+
+    db.query(Bookmark).filter(Bookmark.moment_id == moment_id).delete()
+    db.delete(moment)
+    db.flush()
+    renumber_moments_after_delete(db, scene_id, deleted_sequence)
+    db.commit()
+
+
+@router.patch(
+    "/{production_id}/moments/{moment_id}/sequence",
+    response_model=MomentDetailResponse,
+)
+def update_moment_sequence(
+    production_id: int,
+    moment_id: int,
+    body: MomentSequenceUpdate,
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> MomentDetailResponse:
+    moment = _get_moment_in_production_or_404(db, production_id, moment_id)
+
+    max_sequence = (
+        db.query(Moment.sequence_number)
+        .filter(Moment.scene_id == moment.scene_id)
+        .count()
+    )
+    if body.sequence_number > max_sequence:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="sequence_number is out of range for this scene",
+        )
+
+    move_moment_sequence(db, moment, body.sequence_number)
     db.commit()
     return get_moment_detail(production_id, moment_id, _director, db)

@@ -35,3 +35,7 @@ class Character(Base):
         back_populates="characters",
     )
     moment_props: Mapped[list["MomentProp"]] = relationship(back_populates="character")
+    moment_microphones: Mapped[list["MomentMicrophone"]] = relationship(
+        back_populates="character",
+    )
+    costumes: Mapped[list["Costume"]] = relationship(back_populates="character")

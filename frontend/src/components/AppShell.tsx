@@ -203,6 +203,27 @@ export default function AppShell() {
                 >
                   Props
                 </NavLink>
+                <NavLink
+                  to={`/productions/${productionId}/costumes`}
+                  className={navLinkClass}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  Costumes
+                </NavLink>
+                <NavLink
+                  to={`/productions/${productionId}/microphones`}
+                  className={navLinkClass}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  Microphones
+                </NavLink>
+                <NavLink
+                  to={`/productions/${productionId}/set-pieces`}
+                  className={navLinkClass}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  Set Pieces
+                </NavLink>
                 {canManagePreparation && (
                   <>
                     <NavLink
@@ -221,13 +242,40 @@ export default function AppShell() {
                     </NavLink>
                   </>
                 )}
+
+                {canManagePreparation && (
+                  <>
+                    <div className="pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      Reports
+                    </div>
+                    <NavLink
+                      to={`/productions/${productionId}/reports`}
+                      className={navLinkClass}
+                      onClick={() => setSidebarOpen(false)}
+                    >
+                      Reports
+                    </NavLink>
+                  </>
+                )}
               </>
             )}
 
             {isAdmin && (
-              <NavLink to="/users" className={navLinkClass} onClick={() => setSidebarOpen(false)}>
-                User Management
-              </NavLink>
+              <>
+                <div className="pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                  Administration
+                </div>
+                <NavLink to="/users" className={navLinkClass} onClick={() => setSidebarOpen(false)}>
+                  User Management
+                </NavLink>
+                <NavLink
+                  to="/settings"
+                  className={navLinkClass}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  App Settings
+                </NavLink>
+              </>
             )}
           </nav>
         </aside>

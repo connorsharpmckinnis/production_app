@@ -1,25 +1,34 @@
 import type {
   ActSummary,
+  AppSettingsResponse,
   BookmarkResponse,
   CastableUserResponse,
   CharacterDetailResponse,
+  CostumeResponse,
+  CostumesBySceneGroup,
   CreateUserRequest,
   CueCategoryResponse,
   CueResponse,
+  CueSheetCategory,
   GroupResponse,
   ImportLineErrorDetail,
   ImportSuccessResponse,
   LoginRequest,
+  MicrophoneResponse,
   MomentDetailResponse,
   MomentListFilters,
-  MomentSummary,
+  MomentMicrophoneResponse,
   MomentPropResponse,
+  MomentSetPieceResponse,
+  MomentSummary,
   MomentTypeResponse,
   NoteResponse,
   ProductionCreate,
   ProductionResponse,
   PropResponse,
+  PropSheetEntry,
   ResetPasswordRequest,
+  SetPieceResponse,
   SongDetailResponse,
   TokenResponse,
   UserResponse,
@@ -121,6 +130,15 @@ function momentQuery(filters?: MomentListFilters): string {
   }
   if (filters.cueCategoryId) {
     params.set("cue_category_id", String(filters.cueCategoryId));
+  }
+  if (filters.microphoneId) {
+    params.set("microphone_id", String(filters.microphoneId));
+  }
+  if (filters.setPieceId) {
+    params.set("set_piece_id", String(filters.setPieceId));
+  }
+  if (filters.costumeOnly) {
+    params.set("costume_only", "true");
   }
   const query = params.toString();
   return query ? `?${query}` : "";
@@ -328,7 +346,12 @@ export const api = {
   updateMoment(
     productionId: number,
     momentId: number,
-    body: { moment_type_id?: number; parsed_text?: string | null; song_id?: number | null },
+    body: {
+      moment_type_id?: number;
+      parsed_text?: string | null;
+      song_id?: number | null;
+      force_type_change?: boolean;
+    },
   ) {
     return request<MomentDetailResponse>(
       `/productions/${productionId}/moments/${momentId}`,
@@ -491,6 +514,199 @@ export const api = {
     return request<void>(
       `/productions/${productionId}/moments/${momentId}/cues/${cueId}`,
       { method: "DELETE" },
+    );
+  },
+
+  getAppSettings() {
+    return request<AppSettingsResponse>("/settings");
+  },
+
+  updateAppSettings(body: Partial<AppSettingsResponse>) {
+    return request<AppSettingsResponse>("/settings", {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  },
+
+  createMoment(
+    productionId: number,
+    sceneId: number,
+    body: {
+      sequence_number: number;
+      moment_type_id: number;
+      original_text: string;
+      character_id?: number | null;
+    },
+  ) {
+    return request<MomentDetailResponse>(
+      `/productions/${productionId}/scenes/${sceneId}/moments`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
+  },
+
+  deleteMoment(productionId: number, momentId: number) {
+    return request<void>(`/productions/${productionId}/moments/${momentId}`, {
+      method: "DELETE",
+    });
+  },
+
+  reorderMoment(productionId: number, momentId: number, sequenceNumber: number) {
+    return request<MomentDetailResponse>(
+      `/productions/${productionId}/moments/${momentId}/sequence`,
+      { method: "PATCH", body: JSON.stringify({ sequence_number: sequenceNumber }) },
+    );
+  },
+
+  listCostumes(productionId: number) {
+    return request<CostumeResponse[]>(`/productions/${productionId}/costumes`);
+  },
+
+  createCostume(
+    productionId: number,
+    body: { character_id: number; scene_id: number; name: string; description?: string | null },
+  ) {
+    return request<CostumeResponse>(`/productions/${productionId}/costumes`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  updateCostume(
+    productionId: number,
+    costumeId: number,
+    body: {
+      character_id?: number;
+      scene_id?: number;
+      name?: string;
+      description?: string | null;
+    },
+  ) {
+    return request<CostumeResponse>(`/productions/${productionId}/costumes/${costumeId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  },
+
+  deleteCostume(productionId: number, costumeId: number) {
+    return request<void>(`/productions/${productionId}/costumes/${costumeId}`, {
+      method: "DELETE",
+    });
+  },
+
+  listMicrophones(productionId: number) {
+    return request<MicrophoneResponse[]>(`/productions/${productionId}/microphones`);
+  },
+
+  createMicrophone(productionId: number, body: { identifier: string }) {
+    return request<MicrophoneResponse>(`/productions/${productionId}/microphones`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  updateMicrophone(
+    productionId: number,
+    microphoneId: number,
+    body: { identifier?: string },
+  ) {
+    return request<MicrophoneResponse>(
+      `/productions/${productionId}/microphones/${microphoneId}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    );
+  },
+
+  deleteMicrophone(productionId: number, microphoneId: number) {
+    return request<void>(`/productions/${productionId}/microphones/${microphoneId}`, {
+      method: "DELETE",
+    });
+  },
+
+  attachMomentMicrophone(
+    productionId: number,
+    momentId: number,
+    body: { microphone_id: number; character_id?: number | null; notes?: string | null },
+  ) {
+    return request<MomentMicrophoneResponse>(
+      `/productions/${productionId}/moments/${momentId}/microphones`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
+  },
+
+  detachMomentMicrophone(
+    productionId: number,
+    momentId: number,
+    momentMicrophoneId: number,
+  ) {
+    return request<void>(
+      `/productions/${productionId}/moments/${momentId}/microphones/${momentMicrophoneId}`,
+      { method: "DELETE" },
+    );
+  },
+
+  listSetPieces(productionId: number) {
+    return request<SetPieceResponse[]>(`/productions/${productionId}/set-pieces`);
+  },
+
+  createSetPiece(
+    productionId: number,
+    body: { name: string; mobile?: boolean; description?: string | null },
+  ) {
+    return request<SetPieceResponse>(`/productions/${productionId}/set-pieces`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  updateSetPiece(
+    productionId: number,
+    setPieceId: number,
+    body: { name?: string; mobile?: boolean; description?: string | null },
+  ) {
+    return request<SetPieceResponse>(
+      `/productions/${productionId}/set-pieces/${setPieceId}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    );
+  },
+
+  deleteSetPiece(productionId: number, setPieceId: number) {
+    return request<void>(`/productions/${productionId}/set-pieces/${setPieceId}`, {
+      method: "DELETE",
+    });
+  },
+
+  attachMomentSetPiece(
+    productionId: number,
+    momentId: number,
+    body: { set_piece_id: number; notes?: string | null },
+  ) {
+    return request<MomentSetPieceResponse>(
+      `/productions/${productionId}/moments/${momentId}/set-pieces`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
+  },
+
+  detachMomentSetPiece(
+    productionId: number,
+    momentId: number,
+    momentSetPieceId: number,
+  ) {
+    return request<void>(
+      `/productions/${productionId}/moments/${momentId}/set-pieces/${momentSetPieceId}`,
+      { method: "DELETE" },
+    );
+  },
+
+  getPropSheetReport(productionId: number) {
+    return request<PropSheetEntry[]>(`/productions/${productionId}/reports/prop-sheet`);
+  },
+
+  getCueSheetReport(productionId: number) {
+    return request<CueSheetCategory[]>(`/productions/${productionId}/reports/cue-sheet`);
+  },
+
+  getCostumesBySceneReport(productionId: number) {
+    return request<CostumesBySceneGroup[]>(
+      `/productions/${productionId}/reports/costumes-by-scene`,
     );
   },
 };

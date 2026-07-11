@@ -161,7 +161,7 @@ Use shadcn/ui throughout ([DEVELOPMENT_GUIDE](../.agents/skills/DEVELOPMENT_GUID
 | Errors | bordered alert div (destructive colors) |
 | Timeline rows | scrollable list + custom row |
 | Moment type badge | `Badge` |
-| Prop/Cue indicator | `Badge variant="outline"` |
+| Prop/Cue/Mic/Set/Costume indicator | `Badge variant="outline"` |
 | Side panel | `Sheet` |
 | Bookmark toggle | `Button` (icon-sm) + lucide icon |
 | Navigation | sidebar `nav` links |
@@ -177,9 +177,13 @@ Use shadcn/ui throughout ([DEVELOPMENT_GUIDE](../.agents/skills/DEVELOPMENT_GUID
 | User management | Yes | Hidden | Hidden |
 | Casting controls | Yes | Yes | Hidden |
 | Groups / Cue Categories | Yes | Yes | Hidden |
+| Costumes / Microphones / Set Pieces catalog | Yes | Yes | Read-only |
+| App Settings | Yes | Hidden | Hidden |
+| Reports | Yes | Yes | Hidden |
 | Songs / Props catalog edit | Yes | Yes | Hidden (read-only) |
 | Timeline content editing | Yes | Yes | Hidden |
-| Timeline filters | All + song/prop/cue | All + song/prop/cue | All + song (no group/prop/cue category) |
+| Structural editing (add/delete/reorder) | Yes | Yes | Hidden |
+| Timeline filters | All + song/prop/cue/mic/set/costume | All + song/prop/cue/mic/set/costume | All + song (no group/prep filters) |
 | Public notes on moments | Yes | Yes | Hidden (private only) |
 | Bookmarks | Yes | Yes | Yes |
 
@@ -193,13 +197,28 @@ Use shadcn/ui throughout ([DEVELOPMENT_GUIDE](../.agents/skills/DEVELOPMENT_GUID
 
 ---
 
+## Slice 4 (Phase 4 — shipped)
+
+* Moment detail auto-save on blur; flush pending saves on panel close
+* Parsed-data correction collapsed behind pencil toggle; global App Settings for original/parsed text visibility
+* Prose-like timeline rows with optional dialogue character column
+* Structural editing: insert (inline form), delete (confirm), move up/down
+* Prep catalog pages: Costumes (scene+character), Microphones, Set Pieces
+* Moment detail sections for microphones and set pieces (mirror props)
+* Timeline filters: microphone, set piece, `costume_only` checkbox
+* Reports page: prop sheet, cue sheet, costumes-by-scene
+* Administration sidebar section (Users, App Settings)
+
+---
+
 ## Deferred to Later Slices
 
-* Timeline structural editing (add/delete/reorder/split/merge moments) — Phase 4
 * Live search (filter as you type)
-* Multi-select character filter
+* Multi-select character / prop / cue filters
 * Bookmarks dedicated view
 * Production home page
 * Saved filter views / rehearsal modes
 * Preparation progress dashboard
-* Costumes, microphones, blocking, entrances, exits
+* Split/merge moments
+* Costume event-driven model (moment-attached costume events)
+* Blocking, entrances, exits

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Phase 1–2 API smoke test — validates manual checklist items via HTTP.
+"""Phase 1–4 API smoke test — validates manual checklist items via HTTP.
 
 Usage (from backend/):
     uv run python scripts/smoke_test.py
@@ -596,18 +596,91 @@ def run_smoke_test(base_url: str = BASE_URL) -> SmokeTestReport:
                             cue_ok,
                             f"category_status={category.status_code}",
                         )
+
+                        # --- Phase 4 checks ---
+                        settings = client.get(
+                            f"{API_PREFIX}/settings",
+                            headers=_auth_headers(director_token),
+                        )
+                        report.record(
+                            "21. App settings readable",
+                            settings.status_code == 200
+                            and settings.json().get("show_original_text") is not None,
+                            f"status={settings.status_code}",
+                        )
+
+                        admin_token = login(client, "admin", "admin")
+                        settings_patch = client.patch(
+                            f"{API_PREFIX}/settings",
+                            json={"show_parsed_text": True},
+                            headers=_auth_headers(admin_token),
+                        )
+                        report.record(
+                            "22. Admin can PATCH app settings",
+                            settings_patch.status_code == 200,
+                            f"status={settings_patch.status_code}",
+                        )
+
+                        stage_types = client.get(
+                            f"{API_PREFIX}/moment-types",
+                            headers=_auth_headers(director_token),
+                        )
+                        sd_type_id = next(
+                            t["id"]
+                            for t in stage_types.json()
+                            if t["name"] == "stage_direction"
+                        )
+                        structural = client.post(
+                            f"{API_PREFIX}/productions/{production_id}/scenes/{scene_id}/moments",
+                            headers=_auth_headers(director_token),
+                            json={
+                                "sequence_number": 1,
+                                "moment_type_id": sd_type_id,
+                                "original_text": "Smoke test stage direction.",
+                            },
+                        )
+                        structural_ok = structural.status_code == 201
+                        if structural_ok:
+                            new_id = structural.json()["id"]
+                            client.delete(
+                                f"{API_PREFIX}/productions/{production_id}/moments/{new_id}",
+                                headers=_auth_headers(director_token),
+                            )
+                        report.record(
+                            "23. Structural moment insert/delete",
+                            structural_ok,
+                            f"status={structural.status_code}",
+                        )
+
+                        prop_sheet = client.get(
+                            f"{API_PREFIX}/productions/{production_id}/reports/prop-sheet",
+                            headers=_auth_headers(director_token),
+                        )
+                        report.record(
+                            "24. Prop sheet report",
+                            prop_sheet.status_code == 200,
+                            f"entries={len(prop_sheet.json()) if prop_sheet.status_code == 200 else 0}",
+                        )
                     except httpx.HTTPError as exc:
                         report.record("16. Moment types list available", False, str(exc))
                         report.record("17. Actor cannot PATCH moment", False, str(exc))
                         report.record("18. Director PATCH preserves original_text", False, str(exc))
                         report.record("19. Prop attach to moment", False, str(exc))
                         report.record("20. Cue on moment", False, str(exc))
+                        report.record("21. App settings readable", False, str(exc))
+                        report.record("22. Admin can PATCH app settings", False, str(exc))
+                        report.record("23. Structural moment insert/delete", False, str(exc))
+                        report.record("24. Prop sheet report", False, str(exc))
                 else:
                     report.record("16. Moment types list available", False, "skipped")
                     report.record("17. Actor cannot PATCH moment", False, "skipped")
                     report.record("18. Director PATCH preserves original_text", False, "skipped")
                     report.record("19. Prop attach to moment", False, "skipped")
                     report.record("20. Cue on moment", False, "skipped")
+                    report.record("21. App settings readable", False, "skipped")
+                    report.record("22. Admin can PATCH app settings", False, "skipped")
+                    report.record("23. Structural moment insert/delete", False, "skipped")
+                    report.record("24. Prop sheet report", False, "skipped")
         else:
             report.record("10. Director casts actor to CREAN", False, "skipped — missing ids")
             report.record("11. Actor production list filtered to cast shows", False, "skipped")
@@ -620,6 +693,10 @@ def run_smoke_test(base_url: str = BASE_URL) -> SmokeTestReport:
             report.record("18. Director PATCH preserves original_text", False, "skipped")
             report.record("19. Prop attach to moment", False, "skipped")
             report.record("20. Cue on moment", False, "skipped")
+            report.record("21. App settings readable", False, "skipped")
+            report.record("22. Admin can PATCH app settings", False, "skipped")
+            report.record("23. Structural moment insert/delete", False, "skipped")
+            report.record("24. Prop sheet report", False, "skipped")
 
     return report
 

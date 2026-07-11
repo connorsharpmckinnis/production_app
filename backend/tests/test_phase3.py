@@ -130,6 +130,63 @@ def test_original_text_unchanged_after_patch(
     assert db_moment.original_text == original_text
 
 
+def test_moment_list_display_text_reflects_edits(
+    seeded_client: TestClient, db_session: Session
+) -> None:
+    production_id = _imported_production(seeded_client, db_session)
+    director_headers = _login(seeded_client, "director", "director")
+    scene_id = _first_scene_id(seeded_client, production_id, director_headers)
+    moment = _first_dialogue_moment(seeded_client, production_id, scene_id, director_headers)
+
+    corrected = "Director corrected parsing"
+    patched = seeded_client.patch(
+        f"/api/productions/{production_id}/moments/{moment['id']}",
+        json={"parsed_text": corrected},
+        headers=director_headers,
+    )
+    assert patched.status_code == 200
+
+    listed = seeded_client.get(
+        f"/api/productions/{production_id}/scenes/{scene_id}/moments",
+        headers=director_headers,
+    ).json()
+    listed_moment = next(item for item in listed if item["id"] == moment["id"])
+    assert listed_moment["display_text"] == corrected
+    assert listed_moment["original_text"] == moment["original_text"]
+
+
+def test_moment_list_display_text_reflects_dialogue_speaker_change(
+    seeded_client: TestClient, db_session: Session
+) -> None:
+    production_id = _imported_production(seeded_client, db_session)
+    director_headers = _login(seeded_client, "director", "director")
+    scene_id = _first_scene_id(seeded_client, production_id, director_headers)
+    moment = _first_dialogue_moment(seeded_client, production_id, scene_id, director_headers)
+
+    detail = seeded_client.get(
+        f"/api/productions/{production_id}/moments/{moment['id']}",
+        headers=director_headers,
+    ).json()
+    line = detail["dialogue"][0]
+    worsley_id = _character_id_by_name(seeded_client, production_id, "WORSLEY", director_headers)
+
+    updated = seeded_client.patch(
+        f"/api/productions/{production_id}/moments/{moment['id']}/dialogue/{line['id']}",
+        json={"character_id": worsley_id},
+        headers=director_headers,
+    )
+    assert updated.status_code == 200
+    updated_line = updated.json()["dialogue"][0]
+
+    listed = seeded_client.get(
+        f"/api/productions/{production_id}/scenes/{scene_id}/moments",
+        headers=director_headers,
+    ).json()
+    listed_moment = next(item for item in listed if item["id"] == moment["id"])
+    assert updated_line["character_name"] in listed_moment["display_text"]
+    assert updated_line["dialogue_text"] in listed_moment["display_text"]
+
+
 def test_props_attach_and_detach(seeded_client: TestClient, db_session: Session) -> None:
     production_id = _imported_production(seeded_client, db_session)
     director_headers = _login(seeded_client, "director", "director")

@@ -1,31 +1,34 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Bookmark } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Sheet,
   SheetContent,
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
 } from "@/components/ui/sheet";
+import MomentDetailPanel, {
+  type MomentDetailPanelHandle,
+} from "@/components/MomentDetailPanel";
 import { useAuth } from "@/context/AuthContext";
 import { api, ApiError } from "@/lib/api";
 import type {
   ActSummary,
+  AppSettingsResponse,
   CharacterDetailResponse,
   CueCategoryResponse,
   GroupResponse,
+  MicrophoneResponse,
   MomentDetailResponse,
   MomentListFilters,
   MomentSummary,
   MomentTypeResponse,
   PropResponse,
   SceneSummary,
+  SetPieceResponse,
   SongDetailResponse,
 } from "@/lib/types";
-import { cn, formatActLabel, momentTypeLabel, truncate } from "@/lib/utils";
+import { cn, formatActLabel, momentTypeLabel } from "@/lib/utils";
 
 function momentBadgeClass(type: string): string {
   switch (type) {
@@ -63,10 +66,34 @@ type CharacterFilterValue = "all" | "mine" | string;
 type GroupFilterValue = "all" | string;
 type ResourceFilterValue = "all" | string;
 
+const DETAIL_PANEL_WIDTH_KEY = "timelineDetailPanelWidth";
+const DEFAULT_DETAIL_PANEL_WIDTH = 384;
+const MIN_DETAIL_PANEL_WIDTH = 320;
+const MAX_DETAIL_PANEL_WIDTH = 720;
+
+function useDetailPanelWidth() {
+  const [width, setWidth] = useState(() => {
+    if (typeof window === "undefined") return DEFAULT_DETAIL_PANEL_WIDTH;
+    const stored = sessionStorage.getItem(DETAIL_PANEL_WIDTH_KEY);
+    const parsed = stored ? Number(stored) : DEFAULT_DETAIL_PANEL_WIDTH;
+    return Number.isFinite(parsed) ? parsed : DEFAULT_DETAIL_PANEL_WIDTH;
+  });
+
+  function persistWidth(nextWidth: number) {
+    const clamped = Math.min(MAX_DETAIL_PANEL_WIDTH, Math.max(MIN_DETAIL_PANEL_WIDTH, nextWidth));
+    setWidth(clamped);
+    sessionStorage.setItem(DETAIL_PANEL_WIDTH_KEY, String(clamped));
+  }
+
+  return { width, persistWidth };
+}
+
 export default function TimelinePage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
   const isLargeScreen = useIsLargeScreen();
+  const { width: detailPanelWidth, persistWidth: persistDetailPanelWidth } =
+    useDetailPanelWidth();
   const { user, canManagePreparation } = useAuth();
 
   const [productionTitle, setProductionTitle] = useState<string | null>(null);
@@ -75,8 +102,14 @@ export default function TimelinePage() {
   const [groups, setGroups] = useState<GroupResponse[]>([]);
   const [songs, setSongs] = useState<SongDetailResponse[]>([]);
   const [propsCatalog, setPropsCatalog] = useState<PropResponse[]>([]);
+  const [microphonesCatalog, setMicrophonesCatalog] = useState<MicrophoneResponse[]>([]);
+  const [setPiecesCatalog, setSetPiecesCatalog] = useState<SetPieceResponse[]>([]);
   const [cueCategories, setCueCategories] = useState<CueCategoryResponse[]>([]);
   const [momentTypes, setMomentTypes] = useState<MomentTypeResponse[]>([]);
+  const [appSettings, setAppSettings] = useState<AppSettingsResponse>({
+    show_original_text: true,
+    show_parsed_text: true,
+  });
   const [selectedActId, setSelectedActId] = useState<number | null>(null);
   const [selectedSceneId, setSelectedSceneId] = useState<number | null>(null);
   const [moments, setMoments] = useState<MomentSummary[]>([]);
@@ -89,12 +122,24 @@ export default function TimelinePage() {
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
   const [cueOnly, setCueOnly] = useState(false);
+  const [costumeOnly, setCostumeOnly] = useState(false);
   const [characterFilter, setCharacterFilter] = useState<CharacterFilterValue>("all");
   const [groupFilter, setGroupFilter] = useState<GroupFilterValue>("all");
   const [songFilter, setSongFilter] = useState<ResourceFilterValue>("all");
   const [propFilter, setPropFilter] = useState<ResourceFilterValue>("all");
   const [cueCategoryFilter, setCueCategoryFilter] = useState<ResourceFilterValue>("all");
+  const [microphoneFilter, setMicrophoneFilter] = useState<ResourceFilterValue>("all");
+  const [setPieceFilter, setSetPieceFilter] = useState<ResourceFilterValue>("all");
   const [momentsRefreshKey, setMomentsRefreshKey] = useState(0);
+
+  const [insertAfterSequence, setInsertAfterSequence] = useState<number | null>(null);
+  const [insertAtEnd, setInsertAtEnd] = useState(false);
+  const [insertTypeId, setInsertTypeId] = useState("");
+  const [insertText, setInsertText] = useState("");
+  const [insertCharacterId, setInsertCharacterId] = useState("");
+  const [structuralSaving, setStructuralSaving] = useState(false);
+
+  const detailPanelRef = useRef<MomentDetailPanelHandle>(null);
 
   const myCharacterIds = useMemo(() => {
     if (!user) return [];
@@ -119,18 +164,24 @@ export default function TimelinePage() {
       groupId: groupFilter === "all" ? undefined : Number(groupFilter),
       search: searchQuery || undefined,
       cueOnly: cueOnly || undefined,
+      costumeOnly: costumeOnly || undefined,
       songId: songFilter === "all" ? undefined : Number(songFilter),
       propId: propFilter === "all" ? undefined : Number(propFilter),
       cueCategoryId: cueCategoryFilter === "all" ? undefined : Number(cueCategoryFilter),
+      microphoneId: microphoneFilter === "all" ? undefined : Number(microphoneFilter),
+      setPieceId: setPieceFilter === "all" ? undefined : Number(setPieceFilter),
     }),
     [
       activeCharacterIds,
       groupFilter,
       searchQuery,
       cueOnly,
+      costumeOnly,
       songFilter,
       propFilter,
       cueCategoryFilter,
+      microphoneFilter,
+      setPieceFilter,
     ],
   );
 
@@ -151,8 +202,11 @@ export default function TimelinePage() {
       ReturnType<typeof api.listCharacters>,
       ReturnType<typeof api.listSongs>,
       ReturnType<typeof api.listProps>,
+      ReturnType<typeof api.listMicrophones>,
+      ReturnType<typeof api.listSetPieces>,
       ReturnType<typeof api.listCueCategories>,
       ReturnType<typeof api.listMomentTypes>,
+      ReturnType<typeof api.getAppSettings>,
       Promise<GroupResponse[]>?,
     ] = [
       api.getProduction(productionId),
@@ -160,8 +214,11 @@ export default function TimelinePage() {
       api.listCharacters(productionId),
       api.listSongs(productionId),
       api.listProps(productionId),
+      api.listMicrophones(productionId),
+      api.listSetPieces(productionId),
       api.listCueCategories(productionId),
       api.listMomentTypes(),
+      api.getAppSettings(),
     ];
     if (canManagePreparation) {
       requests.push(api.listGroups(productionId));
@@ -175,8 +232,11 @@ export default function TimelinePage() {
           characterData,
           songData,
           propData,
+          micData,
+          setPieceData,
           categoryData,
           typeData,
+          settingsData,
           groupData,
         ] = results;
         setProductionTitle(production.title);
@@ -184,8 +244,11 @@ export default function TimelinePage() {
         setCharacters(characterData);
         setSongs(songData);
         setPropsCatalog(propData);
+        setMicrophonesCatalog(micData);
+        setSetPiecesCatalog(setPieceData);
         setCueCategories(categoryData);
         setMomentTypes(typeData);
+        setAppSettings(settingsData);
         setGroups(groupData ?? []);
         if (actData.length > 0) {
           const firstAct = actData[0];
@@ -202,14 +265,17 @@ export default function TimelinePage() {
   }, [productionId, canManagePreparation]);
 
   useEffect(() => {
+    setSelectedMomentId(null);
+    setMomentDetail(null);
+  }, [productionId, selectedSceneId, momentFilters]);
+
+  useEffect(() => {
     if (selectedSceneId === null) {
       setMoments([]);
       return;
     }
 
     setMomentsLoading(true);
-    setSelectedMomentId(null);
-    setMomentDetail(null);
 
     void api
       .listMoments(productionId, selectedSceneId, momentFilters)
@@ -260,7 +326,7 @@ export default function TimelinePage() {
     if (moment.moment_type === "stage_direction" && activeCharacterNames.length > 0) {
       return activeCharacterNames.some((name) => {
         const pattern = new RegExp(`\\b${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`);
-        return pattern.test(moment.original_text);
+        return pattern.test(moment.display_text);
       });
     }
     return false;
@@ -275,6 +341,93 @@ export default function TimelinePage() {
   function refreshMomentsList() {
     setMomentsRefreshKey((key) => key + 1);
   }
+
+  function resetInsertForm() {
+    setInsertAfterSequence(null);
+    setInsertAtEnd(false);
+    setInsertTypeId("");
+    setInsertText("");
+    setInsertCharacterId("");
+  }
+
+  function speakingCharacterName(moment: MomentSummary): string | null {
+    if (moment.moment_type !== "dialogue" || moment.speaking_character_ids.length === 0) {
+      return null;
+    }
+    const character = characters.find((c) => c.id === moment.speaking_character_ids[0]);
+    return character?.name ?? null;
+  }
+
+  async function handleInsertMoment(event: React.FormEvent) {
+    event.preventDefault();
+    if (selectedSceneId === null || !insertTypeId || !insertText.trim()) return;
+
+    if (insertTypeName === "dialogue" && !insertCharacterId) {
+      alert("Select a speaking character for dialogue moments.");
+      return;
+    }
+
+    const sequenceNumber = insertAtEnd
+      ? (moments[moments.length - 1]?.sequence_number ?? 0) + 1
+      : (insertAfterSequence ?? 0) + 1;
+
+    setStructuralSaving(true);
+    try {
+      const created = await api.createMoment(productionId, selectedSceneId, {
+        sequence_number: sequenceNumber,
+        moment_type_id: Number(insertTypeId),
+        original_text: insertText.trim(),
+        character_id: insertCharacterId ? Number(insertCharacterId) : null,
+      });
+      resetInsertForm();
+      setSelectedMomentId(created.id);
+      setMomentDetail(created);
+      refreshMomentsList();
+    } catch (err) {
+      alert(err instanceof ApiError ? String(err.detail) : "Failed to insert moment");
+    } finally {
+      setStructuralSaving(false);
+    }
+  }
+
+  async function handleDeleteMoment(momentId: number) {
+    if (!confirm("Delete this moment and all attached data?")) return;
+
+    setStructuralSaving(true);
+    try {
+      await api.deleteMoment(productionId, momentId);
+      if (selectedMomentId === momentId) {
+        setSelectedMomentId(null);
+        setMomentDetail(null);
+      }
+      refreshMomentsList();
+    } catch (err) {
+      alert(err instanceof ApiError ? String(err.detail) : "Failed to delete moment");
+    } finally {
+      setStructuralSaving(false);
+    }
+  }
+
+  async function handleMoveMoment(moment: MomentSummary, direction: "up" | "down") {
+    const targetSequence =
+      direction === "up" ? moment.sequence_number - 1 : moment.sequence_number + 1;
+    if (targetSequence < 1) return;
+
+    setStructuralSaving(true);
+    try {
+      const updated = await api.reorderMoment(productionId, moment.id, targetSequence);
+      if (selectedMomentId === moment.id) {
+        setMomentDetail(updated);
+      }
+      refreshMomentsList();
+    } catch (err) {
+      alert(err instanceof ApiError ? String(err.detail) : "Failed to reorder moment");
+    } finally {
+      setStructuralSaving(false);
+    }
+  }
+
+  const insertTypeName = momentTypes.find((t) => String(t.id) === insertTypeId)?.name;
 
   if (loading) {
     return <p className="text-muted-foreground">Loading timeline…</p>;
@@ -421,6 +574,17 @@ export default function TimelinePage() {
             Cue-only mode
           </label>
 
+          {canManagePreparation && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={costumeOnly}
+                onChange={(e) => setCostumeOnly(e.target.checked)}
+              />
+              Costume moments only
+            </label>
+          )}
+
           {songs.length > 0 && (
             <select
               value={songFilter}
@@ -467,6 +631,36 @@ export default function TimelinePage() {
               ))}
             </select>
           )}
+
+          {canManagePreparation && microphonesCatalog.length > 0 && (
+            <select
+              value={microphoneFilter}
+              onChange={(e) => setMicrophoneFilter(e.target.value as ResourceFilterValue)}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="all">All microphones</option>
+              {microphonesCatalog.map((mic) => (
+                <option key={mic.id} value={String(mic.id)}>
+                  {mic.identifier}
+                </option>
+              ))}
+            </select>
+          )}
+
+          {canManagePreparation && setPiecesCatalog.length > 0 && (
+            <select
+              value={setPieceFilter}
+              onChange={(e) => setSetPieceFilter(e.target.value as ResourceFilterValue)}
+              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+            >
+              <option value="all">All set pieces</option>
+              {setPiecesCatalog.map((piece) => (
+                <option key={piece.id} value={String(piece.id)}>
+                  {piece.name}
+                </option>
+              ))}
+            </select>
+          )}
         </div>
       </div>
 
@@ -479,41 +673,178 @@ export default function TimelinePage() {
           <p className="p-4 text-sm text-muted-foreground">No moments match these filters.</p>
         ) : (
           <ul className="h-full overflow-y-auto divide-y divide-border">
-            {moments.map((moment) => (
+            {moments.map((moment, index) => (
               <li key={moment.id}>
-                <button
-                  type="button"
-                  onClick={() => setSelectedMomentId(moment.id)}
+                <div
                   className={cn(
-                    "flex w-full items-start gap-3 px-4 py-3 text-left text-sm hover:bg-muted/50",
+                    "flex w-full items-start gap-2 px-4 py-3 text-left text-sm",
                     selectedMomentId === moment.id && "bg-muted",
-                    isHighlighted(moment) && "border-l-4 border-l-blue-500 bg-blue-50/60 dark:bg-blue-950/20",
+                    isHighlighted(moment) &&
+                      "border-l-4 border-l-blue-500 bg-blue-50/60 dark:bg-blue-950/20",
                   )}
                 >
-                  <span className="w-8 shrink-0 font-mono text-muted-foreground">
-                    {moment.sequence_number}
-                  </span>
-                  <span className="min-w-0 flex-1">{truncate(moment.original_text)}</span>
-                  <div className="flex shrink-0 flex-col items-end gap-1">
-                    {moment.has_props && (
-                      <Badge variant="outline" className="text-xs">
-                        Prop
-                      </Badge>
+                  {canManagePreparation && (
+                    <div className="flex shrink-0 flex-col gap-0.5 pt-0.5">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={structuralSaving || index === 0}
+                        onClick={() => void handleMoveMoment(moment, "up")}
+                        aria-label="Move up"
+                        title="Move up"
+                      >
+                        <ChevronUp />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={structuralSaving || index === moments.length - 1}
+                        onClick={() => void handleMoveMoment(moment, "down")}
+                        aria-label="Move down"
+                        title="Move down"
+                      >
+                        <ChevronDown />
+                      </Button>
+                    </div>
+                  )}
+
+                  <button
+                    type="button"
+                    onClick={() => setSelectedMomentId(moment.id)}
+                    className="flex min-w-0 flex-1 items-start gap-3 text-left hover:opacity-90"
+                  >
+                    <span className="w-8 shrink-0 font-mono text-xs text-muted-foreground">
+                      {moment.sequence_number}
+                    </span>
+                    {speakingCharacterName(moment) && (
+                      <span className="w-24 shrink-0 font-medium text-muted-foreground">
+                        {speakingCharacterName(moment)}
+                      </span>
                     )}
-                    {moment.has_cues && (
-                      <Badge variant="outline" className="text-xs">
-                        Cue
+                    <span className="min-w-0 flex-1 whitespace-pre-wrap break-words leading-relaxed">
+                      {moment.moment_type === "dialogue" && speakingCharacterName(moment)
+                        ? moment.display_text.replace(/^[^:]+:\s*/, "")
+                        : moment.display_text}
+                    </span>
+                    <div className="flex shrink-0 flex-wrap justify-end gap-1">
+                      {moment.has_props && (
+                        <Badge variant="outline" className="text-xs">
+                          Prop
+                        </Badge>
+                      )}
+                      {moment.has_cues && (
+                        <Badge variant="outline" className="text-xs">
+                          Cue
+                        </Badge>
+                      )}
+                      {moment.has_microphone && (
+                        <Badge variant="outline" className="text-xs">
+                          Mic
+                        </Badge>
+                      )}
+                      {moment.has_set_piece && (
+                        <Badge variant="outline" className="text-xs">
+                          Set
+                        </Badge>
+                      )}
+                      {moment.has_costume && (
+                        <Badge variant="outline" className="text-xs">
+                          Costume
+                        </Badge>
+                      )}
+                      <Badge
+                        className={cn("capitalize", momentBadgeClass(moment.moment_type))}
+                      >
+                        {momentTypeLabel(moment.moment_type)}
                       </Badge>
-                    )}
-                    <Badge
-                      className={cn("capitalize", momentBadgeClass(moment.moment_type))}
-                    >
-                      {momentTypeLabel(moment.moment_type)}
-                    </Badge>
-                  </div>
-                </button>
+                    </div>
+                  </button>
+
+                  {canManagePreparation && (
+                    <div className="flex shrink-0 flex-col gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={structuralSaving}
+                        onClick={() => {
+                          resetInsertForm();
+                          setInsertAfterSequence(moment.sequence_number);
+                        }}
+                        aria-label="Insert moment after"
+                        title="Insert moment after"
+                      >
+                        <Plus />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={structuralSaving}
+                        onClick={() => void handleDeleteMoment(moment.id)}
+                        aria-label="Delete moment"
+                        title="Delete moment"
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 />
+                      </Button>
+                    </div>
+                  )}
+                </div>
+
+                {insertAfterSequence === moment.sequence_number && (
+                  <InsertMomentForm
+                    momentTypes={momentTypes}
+                    characters={characters}
+                    insertTypeId={insertTypeId}
+                    insertText={insertText}
+                    insertCharacterId={insertCharacterId}
+                    insertTypeName={insertTypeName}
+                    saving={structuralSaving}
+                    onTypeChange={setInsertTypeId}
+                    onTextChange={setInsertText}
+                    onCharacterChange={setInsertCharacterId}
+                    onSubmit={handleInsertMoment}
+                    onCancel={resetInsertForm}
+                  />
+                )}
               </li>
             ))}
+
+            {canManagePreparation && (
+              <li className="border-t border-border px-4 py-3">
+                {insertAtEnd ? (
+                  <InsertMomentForm
+                    momentTypes={momentTypes}
+                    characters={characters}
+                    insertTypeId={insertTypeId}
+                    insertText={insertText}
+                    insertCharacterId={insertCharacterId}
+                    insertTypeName={insertTypeName}
+                    saving={structuralSaving}
+                    onTypeChange={setInsertTypeId}
+                    onTextChange={setInsertText}
+                    onCharacterChange={setInsertCharacterId}
+                    onSubmit={handleInsertMoment}
+                    onCancel={resetInsertForm}
+                  />
+                ) : (
+                  <button
+                    type="button"
+                    disabled={structuralSaving}
+                    onClick={() => {
+                      resetInsertForm();
+                      setInsertAtEnd(true);
+                    }}
+                    className="text-sm text-primary hover:underline disabled:opacity-50"
+                  >
+                    + Insert moment at end of scene
+                  </button>
+                )}
+              </li>
+            )}
           </ul>
         )}
       </div>
@@ -521,18 +852,53 @@ export default function TimelinePage() {
       <Sheet
         open={selectedMomentId !== null}
         onOpenChange={(open: boolean) => {
-          if (!open) setSelectedMomentId(null);
+          if (!open) {
+            void detailPanelRef.current?.flushPendingSaves().finally(() => {
+              setSelectedMomentId(null);
+            });
+          }
         }}
       >
         <SheetContent
           side={isLargeScreen ? "right" : "bottom"}
           className={cn(
             "overflow-y-auto",
-            isLargeScreen ? "w-96 sm:max-w-md" : "max-h-[70vh]",
+            isLargeScreen ? "sm:max-w-none" : "max-h-[70vh]",
           )}
+          style={
+            isLargeScreen
+              ? { width: detailPanelWidth, maxWidth: detailPanelWidth }
+              : undefined
+          }
         >
+          {isLargeScreen && (
+            <div
+              role="separator"
+              aria-orientation="vertical"
+              aria-label="Resize detail panel"
+              onMouseDown={(event) => {
+                event.preventDefault();
+                const startX = event.clientX;
+                const startWidth = detailPanelWidth;
+
+                function onMouseMove(moveEvent: MouseEvent) {
+                  persistDetailPanelWidth(startWidth - (moveEvent.clientX - startX));
+                }
+
+                function onMouseUp() {
+                  window.removeEventListener("mousemove", onMouseMove);
+                  window.removeEventListener("mouseup", onMouseUp);
+                }
+
+                window.addEventListener("mousemove", onMouseMove);
+                window.addEventListener("mouseup", onMouseUp);
+              }}
+              className="absolute top-0 left-0 z-10 h-full w-2 -translate-x-1/2 cursor-col-resize hover:bg-primary/20"
+            />
+          )}
           {momentDetail ? (
             <MomentDetailPanel
+              ref={detailPanelRef}
               productionId={productionId}
               detail={momentDetail}
               canEdit={canManagePreparation}
@@ -540,10 +906,15 @@ export default function TimelinePage() {
               characters={characters}
               songs={songs}
               propsCatalog={propsCatalog}
+              microphonesCatalog={microphonesCatalog}
+              setPiecesCatalog={setPiecesCatalog}
               cueCategories={cueCategories}
               momentTypes={momentTypes}
-              onChanged={() => {
-                void refreshMomentDetail();
+              appSettings={appSettings}
+              momentBadgeClass={momentBadgeClass}
+              onDetailUpdate={setMomentDetail}
+              onChanged={async () => {
+                await refreshMomentDetail();
                 refreshMomentsList();
               }}
             />
@@ -556,577 +927,88 @@ export default function TimelinePage() {
   );
 }
 
-function MomentDetailPanel({
-  productionId,
-  detail,
-  canEdit,
-  canChooseVisibility,
-  characters,
-  songs,
-  propsCatalog,
-  cueCategories,
+function InsertMomentForm({
   momentTypes,
-  onChanged,
+  characters,
+  insertTypeId,
+  insertText,
+  insertCharacterId,
+  insertTypeName,
+  saving,
+  onTypeChange,
+  onTextChange,
+  onCharacterChange,
+  onSubmit,
+  onCancel,
 }: {
-  productionId: number;
-  detail: MomentDetailResponse;
-  canEdit: boolean;
-  canChooseVisibility: boolean;
-  characters: CharacterDetailResponse[];
-  songs: SongDetailResponse[];
-  propsCatalog: PropResponse[];
-  cueCategories: CueCategoryResponse[];
   momentTypes: MomentTypeResponse[];
-  onChanged: () => void;
+  characters: CharacterDetailResponse[];
+  insertTypeId: string;
+  insertText: string;
+  insertCharacterId: string;
+  insertTypeName: string | undefined;
+  saving: boolean;
+  onTypeChange: (value: string) => void;
+  onTextChange: (value: string) => void;
+  onCharacterChange: (value: string) => void;
+  onSubmit: (event: React.FormEvent) => void;
+  onCancel: () => void;
 }) {
-  const [noteContent, setNoteContent] = useState("");
-  const [noteVisibility, setNoteVisibility] = useState<"public" | "private">("private");
-  const [saving, setSaving] = useState(false);
-
-  const [parsedText, setParsedText] = useState(detail.parsed_text ?? "");
-  const [stageDirectionText, setStageDirectionText] = useState(detail.stage_direction ?? "");
-  const [selectedTypeId, setSelectedTypeId] = useState(
-    () => momentTypes.find((type) => type.name === detail.moment_type)?.id ?? "",
-  );
-  const [selectedSongId, setSelectedSongId] = useState(
-    detail.song_id !== null ? String(detail.song_id) : "",
-  );
-
-  const [attachPropId, setAttachPropId] = useState("");
-  const [attachPropCharacterId, setAttachPropCharacterId] = useState("");
-  const [attachPropNotes, setAttachPropNotes] = useState("");
-
-  const [newCueCategoryId, setNewCueCategoryId] = useState("");
-  const [newCueTitle, setNewCueTitle] = useState("");
-  const [newCueNotes, setNewCueNotes] = useState("");
-
-  useEffect(() => {
-    setParsedText(detail.parsed_text ?? "");
-    setStageDirectionText(detail.stage_direction ?? "");
-    setSelectedTypeId(
-      momentTypes.find((type) => type.name === detail.moment_type)?.id ?? "",
-    );
-    setSelectedSongId(detail.song_id !== null ? String(detail.song_id) : "");
-  }, [detail, momentTypes]);
-
-  async function handleBookmarkToggle() {
-    setSaving(true);
-    try {
-      if (detail.is_bookmarked) {
-        const bookmarks = await api.listBookmarks(productionId);
-        const bookmark = bookmarks.find((item) => item.moment_id === detail.id);
-        if (bookmark) {
-          await api.deleteBookmark(bookmark.id);
-        }
-      } else {
-        await api.createBookmark(detail.id);
-      }
-      onChanged();
-    } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Bookmark action failed");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleAddNote(event: React.FormEvent) {
-    event.preventDefault();
-    if (!noteContent.trim()) return;
-
-    setSaving(true);
-    try {
-      await api.createNote(productionId, {
-        moment_id: detail.id,
-        visibility: canChooseVisibility ? noteVisibility : "private",
-        content: noteContent.trim(),
-      });
-      setNoteContent("");
-      onChanged();
-    } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to add note");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDeleteNote(noteId: number) {
-    setSaving(true);
-    try {
-      await api.deleteNote(productionId, noteId);
-      onChanged();
-    } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to delete note");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleSaveMomentFields() {
-    setSaving(true);
-    try {
-      await api.updateMoment(productionId, detail.id, {
-        moment_type_id: selectedTypeId ? Number(selectedTypeId) : undefined,
-        parsed_text: parsedText.trim() || null,
-        song_id: selectedSongId ? Number(selectedSongId) : null,
-      });
-      onChanged();
-    } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to save moment");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleSaveStageDirection() {
-    if (!detail.stage_direction && !stageDirectionText.trim()) return;
-    setSaving(true);
-    try {
-      await api.updateStageDirection(productionId, detail.id, {
-        direction_text: stageDirectionText,
-      });
-      onChanged();
-    } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to save stage direction");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDialogueCharacterChange(lineId: number, characterId: number) {
-    setSaving(true);
-    try {
-      await api.updateDialogue(productionId, detail.id, lineId, { character_id: characterId });
-      onChanged();
-    } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to update dialogue");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleAttachProp(event: React.FormEvent) {
-    event.preventDefault();
-    if (!attachPropId) return;
-
-    setSaving(true);
-    try {
-      await api.attachMomentProp(productionId, detail.id, {
-        prop_id: Number(attachPropId),
-        character_id: attachPropCharacterId ? Number(attachPropCharacterId) : null,
-        notes: attachPropNotes.trim() || null,
-      });
-      setAttachPropId("");
-      setAttachPropCharacterId("");
-      setAttachPropNotes("");
-      onChanged();
-    } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to attach prop");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDetachProp(momentPropId: number) {
-    setSaving(true);
-    try {
-      await api.detachMomentProp(productionId, detail.id, momentPropId);
-      onChanged();
-    } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to detach prop");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleAddCue(event: React.FormEvent) {
-    event.preventDefault();
-    if (!newCueCategoryId || !newCueTitle.trim()) return;
-
-    setSaving(true);
-    try {
-      await api.createMomentCue(productionId, detail.id, {
-        cue_category_id: Number(newCueCategoryId),
-        title: newCueTitle.trim(),
-        notes: newCueNotes.trim() || null,
-      });
-      setNewCueTitle("");
-      setNewCueNotes("");
-      onChanged();
-    } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to add cue");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  async function handleDeleteCue(cueId: number) {
-    setSaving(true);
-    try {
-      await api.deleteMomentCue(productionId, detail.id, cueId);
-      onChanged();
-    } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to delete cue");
-    } finally {
-      setSaving(false);
-    }
-  }
-
   return (
-    <div className="space-y-4">
-      <SheetHeader className="p-0">
-        <SheetDescription>Moment #{detail.sequence_number}</SheetDescription>
-        <div className="flex items-center gap-2">
-          <SheetTitle className="sr-only">Moment {detail.sequence_number}</SheetTitle>
-          <Badge className={cn("capitalize", momentBadgeClass(detail.moment_type))}>
-            {momentTypeLabel(detail.moment_type)}
-          </Badge>
-        </div>
-      </SheetHeader>
-
-      <Button
-        type="button"
-        variant={detail.is_bookmarked ? "default" : "outline"}
-        size="icon-sm"
-        disabled={saving}
-        onClick={() => void handleBookmarkToggle()}
-        aria-label={detail.is_bookmarked ? "Remove bookmark" : "Bookmark this moment"}
-        title={detail.is_bookmarked ? "Remove bookmark" : "Bookmark this moment"}
+    <form
+      onSubmit={onSubmit}
+      className="mx-4 mb-3 space-y-2 rounded-md border border-dashed border-border bg-muted/30 p-3"
+    >
+      <p className="text-xs font-medium text-muted-foreground">Insert new moment</p>
+      <select
+        value={insertTypeId}
+        onChange={(e) => onTypeChange(e.target.value)}
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
       >
-        <Bookmark className={detail.is_bookmarked ? "fill-current" : undefined} />
-      </Button>
-
-      <div>
-        <h3 className="text-sm font-medium">Original text</h3>
-        <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
-          {detail.original_text}
-        </p>
+        <option value="">Moment type…</option>
+        {momentTypes.map((type) => (
+          <option key={type.id} value={String(type.id)}>
+            {momentTypeLabel(type.name as MomentDetailResponse["moment_type"])}
+          </option>
+        ))}
+      </select>
+      <textarea
+        value={insertText}
+        onChange={(e) => onTextChange(e.target.value)}
+        placeholder="Original text for new moment"
+        rows={2}
+        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+      />
+      {insertTypeName === "dialogue" && (
+        <select
+          value={insertCharacterId}
+          onChange={(e) => onCharacterChange(e.target.value)}
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+        >
+          <option value="">Speaking character…</option>
+          {characters.map((character) => (
+            <option key={character.id} value={String(character.id)}>
+              {character.name}
+            </option>
+          ))}
+        </select>
+      )}
+      <div className="flex gap-2">
+        <button
+          type="submit"
+          disabled={saving || !insertTypeId || !insertText.trim()}
+          className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
+        >
+          Insert
+        </button>
+        <button
+          type="button"
+          onClick={onCancel}
+          className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
+        >
+          Cancel
+        </button>
       </div>
-
-      {canEdit && (
-        <div className="space-y-3 rounded-md border border-border p-3">
-          <h3 className="text-sm font-medium">Edit parsed data</h3>
-
-          <label className="block text-xs text-muted-foreground">
-            Moment type
-            <select
-              value={selectedTypeId}
-              onChange={(e) => setSelectedTypeId(e.target.value)}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              {momentTypes.map((type) => (
-                <option key={type.id} value={type.id}>
-                  {momentTypeLabel(type.name as MomentDetailResponse["moment_type"])}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block text-xs text-muted-foreground">
-            Linked song
-            <select
-              value={selectedSongId}
-              onChange={(e) => setSelectedSongId(e.target.value)}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="">None</option>
-              {songs.map((song) => (
-                <option key={song.id} value={String(song.id)}>
-                  {song.title}
-                </option>
-              ))}
-            </select>
-          </label>
-
-          <label className="block text-xs text-muted-foreground">
-            Parsed text
-            <textarea
-              value={parsedText}
-              onChange={(e) => setParsedText(e.target.value)}
-              rows={3}
-              className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            />
-          </label>
-
-          <button
-            type="button"
-            disabled={saving}
-            onClick={() => void handleSaveMomentFields()}
-            className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            Save moment fields
-          </button>
-        </div>
-      )}
-
-      {!canEdit && detail.parsed_text && (
-        <div>
-          <h3 className="text-sm font-medium">Parsed text</h3>
-          <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
-            {detail.parsed_text}
-          </p>
-        </div>
-      )}
-
-      {(detail.stage_direction || canEdit) && (
-        <div>
-          <h3 className="text-sm font-medium">Stage direction</h3>
-          {canEdit ? (
-            <div className="mt-2 space-y-2">
-              <textarea
-                value={stageDirectionText}
-                onChange={(e) => setStageDirectionText(e.target.value)}
-                rows={3}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-              <button
-                type="button"
-                disabled={saving || !detail.stage_direction}
-                onClick={() => void handleSaveStageDirection()}
-                className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
-              >
-                Save stage direction
-              </button>
-            </div>
-          ) : (
-            <p className="mt-1 text-sm">{detail.stage_direction}</p>
-          )}
-        </div>
-      )}
-
-      {detail.dialogue.length > 0 && (
-        <div>
-          <h3 className="text-sm font-medium">Dialogue</h3>
-          <ul className="mt-2 space-y-2">
-            {detail.dialogue.map((line) => (
-              <li key={line.id} className="text-sm">
-                {canEdit ? (
-                  <div className="flex flex-col gap-1">
-                    <select
-                      value={line.character_id}
-                      disabled={saving}
-                      onChange={(e) =>
-                        void handleDialogueCharacterChange(line.id, Number(e.target.value))
-                      }
-                      className="rounded-md border border-input bg-background px-2 py-1 text-sm"
-                    >
-                      {characters.map((character) => (
-                        <option key={character.id} value={character.id}>
-                          {character.name}
-                        </option>
-                      ))}
-                    </select>
-                    <span>{line.dialogue_text}</span>
-                  </div>
-                ) : (
-                  <>
-                    <span className="font-medium">{line.character_name}:</span>{" "}
-                    {line.dialogue_text}
-                  </>
-                )}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {detail.song_title && !canEdit && (
-        <div>
-          <h3 className="text-sm font-medium">Song</h3>
-          <p className="mt-1 text-sm">{detail.song_title}</p>
-        </div>
-      )}
-
-      <div className="border-t border-border pt-4">
-        <h3 className="text-sm font-medium">Props</h3>
-        {detail.props.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">No props attached.</p>
-        ) : (
-          <ul className="mt-2 space-y-2">
-            {detail.props.map((prop) => (
-              <li key={prop.id} className="rounded-md border border-border p-2 text-sm">
-                <span className="font-medium">{prop.prop_name}</span>
-                {prop.character_name && (
-                  <span className="text-muted-foreground"> — {prop.character_name}</span>
-                )}
-                {prop.notes && <p className="mt-1 text-muted-foreground">{prop.notes}</p>}
-                {canEdit && (
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={() => void handleDetachProp(prop.id)}
-                    className="mt-1 text-xs text-destructive hover:underline disabled:opacity-50"
-                  >
-                    Remove
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {canEdit && propsCatalog.length > 0 && (
-          <form onSubmit={(e) => void handleAttachProp(e)} className="mt-3 space-y-2">
-            <select
-              value={attachPropId}
-              onChange={(e) => setAttachPropId(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="">Select prop…</option>
-              {propsCatalog.map((prop) => (
-                <option key={prop.id} value={String(prop.id)}>
-                  {prop.name}
-                </option>
-              ))}
-            </select>
-            <select
-              value={attachPropCharacterId}
-              onChange={(e) => setAttachPropCharacterId(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="">No carrier character</option>
-              {characters.map((character) => (
-                <option key={character.id} value={String(character.id)}>
-                  {character.name}
-                </option>
-              ))}
-            </select>
-            <input
-              value={attachPropNotes}
-              onChange={(e) => setAttachPropNotes(e.target.value)}
-              placeholder="Notes (optional)"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            />
-            <button
-              type="submit"
-              disabled={saving || !attachPropId}
-              className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
-            >
-              Attach prop
-            </button>
-          </form>
-        )}
-      </div>
-
-      <div className="border-t border-border pt-4">
-        <h3 className="text-sm font-medium">Cues</h3>
-        {detail.cues.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">No cues attached.</p>
-        ) : (
-          <ul className="mt-2 space-y-2">
-            {detail.cues.map((cue) => (
-              <li key={cue.id} className="rounded-md border border-border p-2 text-sm">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{cue.title}</span>
-                  <Badge variant="secondary">{cue.cue_category_name}</Badge>
-                </div>
-                {cue.notes && <p className="mt-1 text-muted-foreground">{cue.notes}</p>}
-                {canEdit && (
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={() => void handleDeleteCue(cue.id)}
-                    className="mt-1 text-xs text-destructive hover:underline disabled:opacity-50"
-                  >
-                    Delete
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-
-        {canEdit && cueCategories.length > 0 && (
-          <form onSubmit={(e) => void handleAddCue(e)} className="mt-3 space-y-2">
-            <select
-              value={newCueCategoryId}
-              onChange={(e) => setNewCueCategoryId(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="">Select category…</option>
-              {cueCategories.map((category) => (
-                <option key={category.id} value={String(category.id)}>
-                  {category.name}
-                </option>
-              ))}
-            </select>
-            <input
-              value={newCueTitle}
-              onChange={(e) => setNewCueTitle(e.target.value)}
-              placeholder="Cue title"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            />
-            <input
-              value={newCueNotes}
-              onChange={(e) => setNewCueNotes(e.target.value)}
-              placeholder="Notes (optional)"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-            />
-            <button
-              type="submit"
-              disabled={saving || !newCueCategoryId || !newCueTitle.trim()}
-              className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
-            >
-              Add cue
-            </button>
-          </form>
-        )}
-      </div>
-
-      <div className="border-t border-border pt-4">
-        <h3 className="text-sm font-medium">Notes</h3>
-        {detail.notes.length === 0 ? (
-          <p className="mt-2 text-sm text-muted-foreground">No notes yet.</p>
-        ) : (
-          <ul className="mt-2 space-y-3">
-            {detail.notes.map((note) => (
-              <li key={note.id} className="rounded-md border border-border p-3 text-sm">
-                <div className="flex items-center justify-between gap-2">
-                  <span className="font-medium">{note.author_display_name}</span>
-                  <Badge variant="secondary">{note.visibility}</Badge>
-                </div>
-                <p className="mt-1 whitespace-pre-wrap">{note.content}</p>
-                {note.is_mine && (
-                  <button
-                    type="button"
-                    disabled={saving}
-                    onClick={() => void handleDeleteNote(note.id)}
-                    className="mt-2 text-xs text-destructive hover:underline disabled:opacity-50"
-                  >
-                    Delete
-                  </button>
-                )}
-              </li>
-            ))}
-          </ul>
-        )}
-
-        <form onSubmit={(e) => void handleAddNote(e)} className="mt-4 space-y-2">
-          <textarea
-            value={noteContent}
-            onChange={(e) => setNoteContent(e.target.value)}
-            placeholder="Add a note…"
-            rows={3}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-          />
-          {canChooseVisibility && (
-            <select
-              value={noteVisibility}
-              onChange={(e) => setNoteVisibility(e.target.value as "public" | "private")}
-              className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-            >
-              <option value="public">Public</option>
-              <option value="private">Private</option>
-            </select>
-          )}
-          <button
-            type="submit"
-            disabled={saving || !noteContent.trim()}
-            className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
-            Add note
-          </button>
-        </form>
-      </div>
-    </div>
+    </form>
   );
 }
