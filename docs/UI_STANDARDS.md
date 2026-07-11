@@ -214,10 +214,23 @@ Use shadcn/ui throughout ([DEVELOPMENT_GUIDE](../.agents/skills/DEVELOPMENT_GUID
 ## Slice 5 (Phase 5 — shipped)
 
 * Moment-attached entrances, exits, and blocking (Director/Admin write; all roles read)
-* Derived on-stage character list in moment detail (per scene, from entrance/exit sequence)
 * Timeline filters: `entrance_only`, `exit_only`, `blocking_only`; list-row badges
 * Production overview page at `/productions/:id` with counts and quick links
 * Reports: entrance/exit sheet and blocking sheet
+
+---
+
+## Slice 6 (Phase 6 — shipped)
+
+* **Rehearse page** at `/productions/:id/rehearse` — all roles; sidebar nav above Timeline
+* Client-side practice presets: Scene run-through, My lines, Line cues (zero API refetch on preset change)
+* Rehearse display toggles: highlight my lines, stage directions, lyrics/songs, prep badges, blur my lines
+* `sessionStorage` persistence for Rehearse controls per production
+* **Scene summary strip** — client-side character/song chips and props-used count below act/scene selectors (Timeline + Rehearse)
+* Shared `TimelineMomentList` — full-row click targets, keyboard accessible, shared highlight styles
+* Timeline **Advanced filters** disclosure for director prep controls; cue-only checkbox removed
+* Moment detail: **Imported data** label; **Add to moment** menu; on-stage block removed; irrelevant fields hidden
+* **Theme** — light/dark/system toggle (Settings + user menu); accent colors centralized in `index.css`
 
 ---
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import ThemeToggle from "@/components/ThemeToggle";
 import { api, ApiError } from "@/lib/api";
 import type { AppSettingsResponse } from "@/lib/types";
 
@@ -88,14 +89,18 @@ export default function SettingsPage() {
               className="mt-1"
             />
             <span>
-              <span className="block text-sm font-medium">Show parsed text</span>
+              <span className="block text-sm font-medium">Show imported text</span>
               <span className="block text-sm text-muted-foreground">
-                Display director parsed-text overrides in moment detail panels.
+                Display imported script text overrides in moment detail panels.
               </span>
             </span>
           </label>
         </div>
       )}
+
+      <div className="rounded-lg border border-border p-4">
+        <ThemeToggle />
+      </div>
     </div>
   );
 }

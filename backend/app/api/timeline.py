@@ -53,7 +53,7 @@ from app.schemas.timeline_editing import (
     MomentUpdate,
     StageDirectionUpdate,
 )
-from app.services.on_stage import on_stage_characters_for_moment
+from app.services.on_stage import compute_on_stage_ids_by_moment, on_stage_characters_for_moment
 from app.services.moment_sequence import (
     move_moment_sequence,
     renumber_moments_after_delete,
@@ -238,6 +238,7 @@ def list_scene_moments(
     entrance_only: bool = Query(default=False),
     exit_only: bool = Query(default=False),
     blocking_only: bool = Query(default=False),
+    blocking_character_id: int | None = Query(default=None),
     user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> list[MomentSummary]:
@@ -360,9 +361,15 @@ def list_scene_moments(
         else None
     )
     costume_char_ids = costume_character_ids_for_scene(db, scene_id)
-    blocking_char_ids = set(parsed_character_ids) if parsed_character_ids and blocking_only else None
+    blocking_char_ids = None
+    if blocking_only:
+        if blocking_character_id is not None:
+            blocking_char_ids = {blocking_character_id}
+        elif parsed_character_ids:
+            blocking_char_ids = set(parsed_character_ids)
 
     moments = load_scene_moments(db, scene_id)
+    on_stage_by_moment = compute_on_stage_ids_by_moment(moments)
     filtered = apply_timeline_filters(
         moments,
         user=user,
@@ -405,6 +412,7 @@ def list_scene_moments(
             has_entrance=len(moment.moment_entrances) > 0,
             has_exit=len(moment.moment_exits) > 0,
             has_blocking=len(moment.moment_blocking) > 0,
+            on_stage_character_ids=on_stage_by_moment.get(moment.id, []),
         )
         for moment in filtered
     ]

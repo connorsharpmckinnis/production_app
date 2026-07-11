@@ -444,6 +444,7 @@ def run_smoke_test(base_url: str = BASE_URL) -> SmokeTestReport:
             if scene_id is not None:
                 try:
                     director_token = login(client, "director", "director")
+                    actor_token = login(client, "actor", "actor")
                     search = client.get(
                         f"{API_PREFIX}/productions/{production_id}/scenes/{scene_id}/moments",
                         headers=_auth_headers(director_token),
@@ -457,23 +458,21 @@ def run_smoke_test(base_url: str = BASE_URL) -> SmokeTestReport:
                         f"matches={len(results)}",
                     )
 
-                    cue_only = client.get(
+                    list_moments = client.get(
                         f"{API_PREFIX}/productions/{production_id}/scenes/{scene_id}/moments",
-                        headers=_auth_headers(director_token),
-                        params={"cue_only": True},
+                        headers=_auth_headers(actor_token),
                     )
-                    cue_only.raise_for_status()
-                    cue_moments = cue_only.json()
-                    cue_types = {m["moment_type"] for m in cue_moments}
-                    allowed = {"stage_direction", "song_header", "song_attribution"}
+                    list_moments.raise_for_status()
+                    moment_rows = list_moments.json()
                     report.record(
-                        "13. Cue-only mode excludes dialogue",
-                        cue_types.issubset(allowed) and "dialogue" not in cue_types,
-                        f"types={sorted(cue_types)}",
+                        "13. Actor scene moments list (Rehearse data path)",
+                        len(moment_rows) > 0
+                        and "on_stage_character_ids" in moment_rows[0],
+                        f"moments={len(moment_rows)}",
                     )
                 except httpx.HTTPError as exc:
                     report.record("12. Timeline search finds Shackleton", False, str(exc))
-                    report.record("13. Cue-only mode excludes dialogue", False, str(exc))
+                    report.record("13. Actor scene moments list (Rehearse data path)", False, str(exc))
 
                 if moments:
                     try:
@@ -745,7 +744,7 @@ def run_smoke_test(base_url: str = BASE_URL) -> SmokeTestReport:
             report.record("10. Director casts actor to CREAN", False, "skipped — missing ids")
             report.record("11. Actor production list filtered to cast shows", False, "skipped")
             report.record("12. Timeline search finds Shackleton", False, "skipped")
-            report.record("13. Cue-only mode excludes dialogue", False, "skipped")
+            report.record("13. Actor scene moments list (Rehearse data path)", False, "skipped")
             report.record("14. Public note on moment", False, "skipped")
             report.record("15. Actor bookmark on moment", False, "skipped")
             report.record("16. Moment types list available", False, "skipped")

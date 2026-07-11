@@ -12,6 +12,7 @@ import MicrophonesPage from "@/pages/MicrophonesPage";
 import ProductionOverviewPage from "@/pages/ProductionOverviewPage";
 import ProductionListPage from "@/pages/ProductionListPage";
 import PropsPage from "@/pages/PropsPage";
+import RehearsePage from "@/pages/RehearsePage";
 import ReportsPage from "@/pages/ReportsPage";
 import SetPiecesPage from "@/pages/SetPiecesPage";
 import SettingsPage from "@/pages/SettingsPage";
@@ -30,6 +31,7 @@ export default function App() {
           <Route path="productions" element={<ProductionListPage />} />
           <Route path="productions/:id" element={<ProductionOverviewPage />} />
           <Route path="productions/:id/timeline" element={<TimelinePage />} />
+          <Route path="productions/:id/rehearse" element={<RehearsePage />} />
           <Route path="productions/:id/characters" element={<CharactersPage />} />
           <Route path="productions/:id/songs" element={<SongsPage />} />
           <Route path="productions/:id/props" element={<PropsPage />} />

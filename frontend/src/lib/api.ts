@@ -155,6 +155,9 @@ function momentQuery(filters?: MomentListFilters): string {
   if (filters.blockingOnly) {
     params.set("blocking_only", "true");
   }
+  if (filters.blockingCharacterId) {
+    params.set("blocking_character_id", String(filters.blockingCharacterId));
+  }
   const query = params.toString();
   return query ? `?${query}` : "";
 }

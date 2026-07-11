@@ -55,6 +55,7 @@ class MomentSummary(BaseModel):
     has_entrance: bool
     has_exit: bool
     has_blocking: bool
+    on_stage_character_ids: list[int] = []
 
     model_config = {"from_attributes": True}
 

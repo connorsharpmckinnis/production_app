@@ -15,6 +15,7 @@ Companion documents:
 - [PHASE_3.md](PHASE_3.md) — Phase 3 execution plan (complete)
 - [PHASE_4.md](PHASE_4.md) — Phase 4 execution plan (complete)
 - [PHASE_5.md](PHASE_5.md) — Phase 5 execution plan (complete)
+- [PHASE_6.md](PHASE_6.md) — Phase 6 execution plan (rehearsal UX & timeline polish)
 - [ROLES.md](ROLES.md) — MVP role permissions
 - [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](../.agents/skills/DEVELOPMENT_GUIDE/SKILL.md) — coding standards for humans and AI
 
@@ -850,6 +851,26 @@ Summary:
 
 
 
+## Phase 6 — Rehearsal UX & Timeline Polish
+
+See [PHASE_6.md](PHASE_6.md) for the execution plan.
+
+Summary:
+
+- **Rehearse** page for all roles — client-side practice presets (Scene run-through, My lines, Line cues); no new API endpoints
+- Cue-only checkbox removed from Timeline; rehearsal display modes live only on Rehearse
+- Moment detail panel refinement (add-menu pattern, hide irrelevant fields, remove on-stage once scene strip ships)
+- Timeline click-target and filter-bar polish
+- Scene summary strip (read-only chips, client-side derived)
+- Phase 5 P2 carryover: on-stage row badges, blocking-by-character filter
+- P2: blur own lines until click/hover reveal
+
+**Explicitly out of Phase 6:** demo walkthrough, importer changes, deployment hardening, bookmarks redesign, event engine, new Rehearse backend APIs.
+
+---
+
+
+
 # Pre-Coding Tasks
 
 Before writing application code, complete the following foundational work.
@@ -933,7 +954,9 @@ See [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](../.agents/skills/DEVELOPMENT_GU
 
 These are not committed scope — captured here so good ideas are not lost:
 
-- **Saved views** — save a timeline filter/search combination (character selection, cue-only, search terms) as a named view for quick recall. May evolve into role-specific modes (rehearsal mode, tech night mode).
+- **Saved views** — save a timeline filter/search combination (character selection, search terms, Rehearse preset) as a named view for quick recall. May evolve into role-specific modes (rehearsal mode, tech night mode).
+- **Scene summary drill-down** — clickable chips on the scene summary strip open a modal with per-character detail: entrance moment, exit moment, costume, props carried, set pieces, blocking notes. Derived from timeline data (see [SCRATCH_NOTES.md](SCRATCH_NOTES.md)). Phase 6 ships read-only chips only.
+- **Rehearse line blur** — in Rehearse mode, actor's own lines stay in the list but text is blurred until click or hover reveal, so they can practice against visible context lines without seeing their line prematurely. Phase 6 P2; presets alone are sufficient for P0.
 - **Production home page** — a dedicated landing page per production instead of opening straight into the timeline hub.
 - **Bookmarks timeline view** — a dedicated timeline-like view for bookmarks with gaps (`…`) between non-adjacent moments; click through to the main timeline. Owner undecided on interaction design — leave as-is until settled.
 - **Live search** — filter timeline results as you type (no Enter required).
@@ -943,6 +966,8 @@ These are not committed scope — captured here so good ideas are not lost:
 - **Costume event-driven model** — track costume piece add/remove events on the timeline and derive current costume state (replacing scene-level assignment over time).
 - **Rich reports** — PDF export, print layouts, cross-production analytics, preparation progress dashboards.
 - **Production-level settings** — per-production overrides for display and workflow flags (if global App Settings prove insufficient).
+- **Real-time note-flagging** -- A tool/ability for directors (or other roles too) to quickly flag or add a note to a moment without fulling disengaging from watching the scene play out. Possibly voice-transcribed, so the person could mumble into their phone while watching the rest of the scene. 
+- **Mobile Interface** -- Some interface ability that's mobile-optimized, probably to support the director in quickly making notes in a mostly-finished show. The idea being that they could sit in the audience with their phone, click through moments of the show passively, and then bring their phone up to talk into it, dictating a brief note that's attached to that moment without disrupting the scene or taking their eyes off the action. 
 
 See also [SCRATCH_NOTES.md](SCRATCH_NOTES.md) for transient owner notes.
 
@@ -961,7 +986,7 @@ A successful MVP should allow a Director or Admin to:
 - Organize groups.
 - Search the script.
 - View actor-specific highlighted dialogue.
-- Use cue-only rehearsal mode.
+- Use Rehearse practice modes (Scene run-through, My lines, Line cues).
 - Add notes and bookmarks.
 - Manage songs, props, cues, costumes, microphones, and set pieces.
 - Generate basic prop and cue sheet reports from timeline data.

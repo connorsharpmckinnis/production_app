@@ -99,6 +99,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     const [newCueCategoryId, setNewCueCategoryId] = useState("");
     const [newCueTitle, setNewCueTitle] = useState("");
     const [newCueNotes, setNewCueNotes] = useState("");
+    const [addAttachmentType, setAddAttachmentType] = useState("");
 
     const detailRef = useRef(detail);
     detailRef.current = detail;
@@ -543,14 +544,14 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
             <div className="rounded-md border border-border p-3">
               <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-medium">Parsed data correction</h3>
+                <h3 className="text-sm font-medium">Imported data</h3>
                 <Button
                   type="button"
                   variant="ghost"
                   size="icon-sm"
                   onClick={() => setShowParsedEdit((open) => !open)}
-                  aria-label="Toggle parsed data editor"
-                  title="Edit parsed import data"
+                  aria-label="Toggle imported data editor"
+                  title="Edit imported data"
                 >
                   <Pencil />
                 </Button>
@@ -575,7 +576,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   </label>
 
                   <label className="block text-xs text-muted-foreground">
-                    Parsed text
+                    Imported text
                     <textarea
                       value={parsedText}
                       onChange={(e) => setParsedText(e.target.value)}
@@ -592,14 +593,14 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
         {!canEdit && appSettings.show_parsed_text && detail.parsed_text && (
           <div>
-            <h3 className="text-sm font-medium">Parsed text</h3>
+            <h3 className="text-sm font-medium">Imported text</h3>
             <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
               {detail.parsed_text}
             </p>
           </div>
         )}
 
-        {(detail.stage_direction || canEdit) && (
+        {detail.moment_type === "stage_direction" && (detail.stage_direction || canEdit) && (
           <div>
             <h3 className="text-sm font-medium">Stage direction</h3>
             {canEdit ? (
@@ -616,7 +617,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           </div>
         )}
 
-        {detail.dialogue.length > 0 && (
+        {detail.moment_type !== "stage_direction" && detail.dialogue.length > 0 && (
           <div>
             <h3 className="text-sm font-medium">Dialogue</h3>
             <ul className="mt-2 space-y-2">
@@ -659,11 +660,324 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           </div>
         )}
 
+        {canEdit && (
+          <div className="rounded-md border border-border p-3">
+            <label className="block text-sm font-medium">
+              Add to moment
+              <select
+                value={addAttachmentType}
+                onChange={(e) => setAddAttachmentType(e.target.value)}
+                className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Choose attachment type…</option>
+                {propsCatalog.length > 0 && <option value="prop">Prop</option>}
+                {cueCategories.length > 0 && <option value="cue">Cue</option>}
+                {microphonesCatalog.length > 0 && <option value="microphone">Microphone</option>}
+                {setPiecesCatalog.length > 0 && <option value="set_piece">Set piece</option>}
+                {characters.length > 0 && <option value="entrance">Entrance</option>}
+                {characters.length > 0 && <option value="exit">Exit</option>}
+                {characters.length > 0 && <option value="blocking">Blocking</option>}
+              </select>
+            </label>
+
+            {addAttachmentType === "prop" && propsCatalog.length > 0 && (
+              <form onSubmit={(e) => void handleAttachProp(e)} className="mt-3 space-y-2">
+                <select
+                  value={attachPropId}
+                  onChange={(e) => {
+                    setAttachPropId(e.target.value);
+                    if (!e.target.value) {
+                      setAttachPropCharacterId("");
+                      setAttachPropNotes("");
+                    }
+                  }}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select prop…</option>
+                  {propsCatalog.map((prop) => (
+                    <option key={prop.id} value={String(prop.id)}>
+                      {prop.name}
+                    </option>
+                  ))}
+                </select>
+                {attachPropId && (
+                  <>
+                    <select
+                      value={attachPropCharacterId}
+                      onChange={(e) => setAttachPropCharacterId(e.target.value)}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="">No carrier character</option>
+                      {characters.map((character) => (
+                        <option key={character.id} value={String(character.id)}>
+                          {character.name}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      value={attachPropNotes}
+                      onChange={(e) => setAttachPropNotes(e.target.value)}
+                      placeholder="Notes (optional)"
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    />
+                  </>
+                )}
+                <button
+                  type="submit"
+                  disabled={saving || !attachPropId}
+                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
+                >
+                  Attach prop
+                </button>
+              </form>
+            )}
+
+            {addAttachmentType === "cue" && cueCategories.length > 0 && (
+              <form onSubmit={(e) => void handleAddCue(e)} className="mt-3 space-y-2">
+                <select
+                  value={newCueCategoryId}
+                  onChange={(e) => {
+                    setNewCueCategoryId(e.target.value);
+                    if (!e.target.value) {
+                      setNewCueTitle("");
+                      setNewCueNotes("");
+                    }
+                  }}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select category…</option>
+                  {cueCategories.map((category) => (
+                    <option key={category.id} value={String(category.id)}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+                {newCueCategoryId && (
+                  <>
+                    <input
+                      value={newCueTitle}
+                      onChange={(e) => setNewCueTitle(e.target.value)}
+                      placeholder="Cue title"
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    />
+                    <input
+                      value={newCueNotes}
+                      onChange={(e) => setNewCueNotes(e.target.value)}
+                      placeholder="Notes (optional)"
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    />
+                  </>
+                )}
+                <button
+                  type="submit"
+                  disabled={saving || !newCueCategoryId || !newCueTitle.trim()}
+                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
+                >
+                  Add cue
+                </button>
+              </form>
+            )}
+
+            {addAttachmentType === "microphone" && microphonesCatalog.length > 0 && (
+              <form onSubmit={(e) => void handleAttachMicrophone(e)} className="mt-3 space-y-2">
+                <select
+                  value={attachMicId}
+                  onChange={(e) => {
+                    setAttachMicId(e.target.value);
+                    if (!e.target.value) {
+                      setAttachMicCharacterId("");
+                      setAttachMicNotes("");
+                    }
+                  }}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select microphone…</option>
+                  {microphonesCatalog.map((mic) => (
+                    <option key={mic.id} value={String(mic.id)}>
+                      {mic.identifier}
+                    </option>
+                  ))}
+                </select>
+                {attachMicId && (
+                  <>
+                    <select
+                      value={attachMicCharacterId}
+                      onChange={(e) => setAttachMicCharacterId(e.target.value)}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="">No wearer character</option>
+                      {characters.map((character) => (
+                        <option key={character.id} value={String(character.id)}>
+                          {character.name}
+                        </option>
+                      ))}
+                    </select>
+                    <input
+                      value={attachMicNotes}
+                      onChange={(e) => setAttachMicNotes(e.target.value)}
+                      placeholder="Notes (optional)"
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    />
+                  </>
+                )}
+                <button
+                  type="submit"
+                  disabled={saving || !attachMicId}
+                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
+                >
+                  Attach microphone
+                </button>
+              </form>
+            )}
+
+            {addAttachmentType === "set_piece" && setPiecesCatalog.length > 0 && (
+              <form onSubmit={(e) => void handleAttachSetPiece(e)} className="mt-3 space-y-2">
+                <select
+                  value={attachSetPieceId}
+                  onChange={(e) => {
+                    setAttachSetPieceId(e.target.value);
+                    if (!e.target.value) setAttachSetPieceNotes("");
+                  }}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select set piece…</option>
+                  {setPiecesCatalog.map((piece) => (
+                    <option key={piece.id} value={String(piece.id)}>
+                      {piece.name}
+                    </option>
+                  ))}
+                </select>
+                {attachSetPieceId && (
+                  <input
+                    value={attachSetPieceNotes}
+                    onChange={(e) => setAttachSetPieceNotes(e.target.value)}
+                    placeholder="Notes (optional)"
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                )}
+                <button
+                  type="submit"
+                  disabled={saving || !attachSetPieceId}
+                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
+                >
+                  Attach set piece
+                </button>
+              </form>
+            )}
+
+            {addAttachmentType === "entrance" && characters.length > 0 && (
+              <form onSubmit={(e) => void handleAttachEntrance(e)} className="mt-3 space-y-2">
+                <select
+                  value={attachEntranceCharacterId}
+                  onChange={(e) => {
+                    setAttachEntranceCharacterId(e.target.value);
+                    if (!e.target.value) setAttachEntranceNotes("");
+                  }}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select character…</option>
+                  {characters.map((character) => (
+                    <option key={character.id} value={String(character.id)}>
+                      {character.name}
+                    </option>
+                  ))}
+                </select>
+                {attachEntranceCharacterId && (
+                  <input
+                    value={attachEntranceNotes}
+                    onChange={(e) => setAttachEntranceNotes(e.target.value)}
+                    placeholder="Notes (optional)"
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                )}
+                <button
+                  type="submit"
+                  disabled={saving || !attachEntranceCharacterId}
+                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
+                >
+                  Add entrance
+                </button>
+              </form>
+            )}
+
+            {addAttachmentType === "exit" && characters.length > 0 && (
+              <form onSubmit={(e) => void handleAttachExit(e)} className="mt-3 space-y-2">
+                <select
+                  value={attachExitCharacterId}
+                  onChange={(e) => {
+                    setAttachExitCharacterId(e.target.value);
+                    if (!e.target.value) setAttachExitNotes("");
+                  }}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select character…</option>
+                  {characters.map((character) => (
+                    <option key={character.id} value={String(character.id)}>
+                      {character.name}
+                    </option>
+                  ))}
+                </select>
+                {attachExitCharacterId && (
+                  <input
+                    value={attachExitNotes}
+                    onChange={(e) => setAttachExitNotes(e.target.value)}
+                    placeholder="Notes (optional)"
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  />
+                )}
+                <button
+                  type="submit"
+                  disabled={saving || !attachExitCharacterId}
+                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
+                >
+                  Add exit
+                </button>
+              </form>
+            )}
+
+            {addAttachmentType === "blocking" && characters.length > 0 && (
+              <form onSubmit={(e) => void handleAttachBlocking(e)} className="mt-3 space-y-2">
+                <select
+                  value={attachBlockingCharacterId}
+                  onChange={(e) => setAttachBlockingCharacterId(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select character…</option>
+                  {characters.map((character) => (
+                    <option key={character.id} value={String(character.id)}>
+                      {character.name}
+                    </option>
+                  ))}
+                </select>
+                {attachBlockingCharacterId && (
+                  <textarea
+                    value={attachBlockingNotes}
+                    onChange={(e) => setAttachBlockingNotes(e.target.value)}
+                    placeholder="Blocking notes"
+                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    rows={2}
+                  />
+                )}
+                <button
+                  type="submit"
+                  disabled={
+                    saving || !attachBlockingCharacterId || !attachBlockingNotes.trim()
+                  }
+                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
+                >
+                  Add blocking
+                </button>
+              </form>
+            )}
+          </div>
+        )}
+
         <AttachmentSection
           title="Props"
           emptyMessage="No props attached."
           canEdit={canEdit}
           saving={saving}
+          defaultExpanded={canEdit}
           items={detail.props.map((prop) => ({
             id: prop.id,
             label: prop.prop_name,
@@ -672,57 +986,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           }))}
           onDetach={handleDetachProp}
           catalogLength={propsCatalog.length}
-          attachForm={
-            <form onSubmit={(e) => void handleAttachProp(e)} className="space-y-2">
-              <select
-                value={attachPropId}
-                onChange={(e) => {
-                  setAttachPropId(e.target.value);
-                  if (!e.target.value) {
-                    setAttachPropCharacterId("");
-                    setAttachPropNotes("");
-                  }
-                }}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Select prop…</option>
-                {propsCatalog.map((prop) => (
-                  <option key={prop.id} value={String(prop.id)}>
-                    {prop.name}
-                  </option>
-                ))}
-              </select>
-              {attachPropId && (
-                <>
-                  <select
-                    value={attachPropCharacterId}
-                    onChange={(e) => setAttachPropCharacterId(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="">No carrier character</option>
-                    {characters.map((character) => (
-                      <option key={character.id} value={String(character.id)}>
-                        {character.name}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    value={attachPropNotes}
-                    onChange={(e) => setAttachPropNotes(e.target.value)}
-                    placeholder="Notes (optional)"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
-                </>
-              )}
-              <button
-                type="submit"
-                disabled={saving || !attachPropId}
-                className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
-              >
-                Attach prop
-              </button>
-            </form>
-          }
         />
 
         <AttachmentSection
@@ -730,6 +993,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           emptyMessage="No microphones attached."
           canEdit={canEdit}
           saving={saving}
+          defaultExpanded={canEdit}
           items={detail.microphones.map((mic) => ({
             id: mic.id,
             label: mic.microphone_identifier,
@@ -738,57 +1002,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           }))}
           onDetach={handleDetachMicrophone}
           catalogLength={microphonesCatalog.length}
-          attachForm={
-            <form onSubmit={(e) => void handleAttachMicrophone(e)} className="space-y-2">
-              <select
-                value={attachMicId}
-                onChange={(e) => {
-                  setAttachMicId(e.target.value);
-                  if (!e.target.value) {
-                    setAttachMicCharacterId("");
-                    setAttachMicNotes("");
-                  }
-                }}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Select microphone…</option>
-                {microphonesCatalog.map((mic) => (
-                  <option key={mic.id} value={String(mic.id)}>
-                    {mic.identifier}
-                  </option>
-                ))}
-              </select>
-              {attachMicId && (
-                <>
-                  <select
-                    value={attachMicCharacterId}
-                    onChange={(e) => setAttachMicCharacterId(e.target.value)}
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  >
-                    <option value="">No wearer character</option>
-                    {characters.map((character) => (
-                      <option key={character.id} value={String(character.id)}>
-                        {character.name}
-                      </option>
-                    ))}
-                  </select>
-                  <input
-                    value={attachMicNotes}
-                    onChange={(e) => setAttachMicNotes(e.target.value)}
-                    placeholder="Notes (optional)"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
-                </>
-              )}
-              <button
-                type="submit"
-                disabled={saving || !attachMicId}
-                className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
-              >
-                Attach microphone
-              </button>
-            </form>
-          }
         />
 
         <AttachmentSection
@@ -796,6 +1009,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           emptyMessage="No set pieces attached."
           canEdit={canEdit}
           saving={saving}
+          defaultExpanded={canEdit}
           items={detail.set_pieces.map((piece) => ({
             id: piece.id,
             label: piece.set_piece_name,
@@ -803,56 +1017,14 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           }))}
           onDetach={handleDetachSetPiece}
           catalogLength={setPiecesCatalog.length}
-          attachForm={
-            <form onSubmit={(e) => void handleAttachSetPiece(e)} className="space-y-2">
-              <select
-                value={attachSetPieceId}
-                onChange={(e) => {
-                  setAttachSetPieceId(e.target.value);
-                  if (!e.target.value) setAttachSetPieceNotes("");
-                }}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Select set piece…</option>
-                {setPiecesCatalog.map((piece) => (
-                  <option key={piece.id} value={String(piece.id)}>
-                    {piece.name}
-                  </option>
-                ))}
-              </select>
-              {attachSetPieceId && (
-                <input
-                  value={attachSetPieceNotes}
-                  onChange={(e) => setAttachSetPieceNotes(e.target.value)}
-                  placeholder="Notes (optional)"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                />
-              )}
-              <button
-                type="submit"
-                disabled={saving || !attachSetPieceId}
-                className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
-              >
-                Attach set piece
-              </button>
-            </form>
-          }
         />
-
-        {detail.on_stage_characters.length > 0 && (
-          <div className="border-t border-border pt-4">
-            <h3 className="text-sm font-medium">On stage (this scene)</h3>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {detail.on_stage_characters.map((character) => character.name).join(", ")}
-            </p>
-          </div>
-        )}
 
         <AttachmentSection
           title="Entrances"
           emptyMessage="No entrances recorded."
           canEdit={canEdit}
           saving={saving}
+          defaultExpanded={canEdit}
           items={detail.entrances.map((entrance) => ({
             id: entrance.id,
             label: entrance.character_name,
@@ -860,40 +1032,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           }))}
           onDetach={handleDetachEntrance}
           catalogLength={characters.length}
-          attachForm={
-            <form onSubmit={(e) => void handleAttachEntrance(e)} className="space-y-2">
-              <select
-                value={attachEntranceCharacterId}
-                onChange={(e) => {
-                  setAttachEntranceCharacterId(e.target.value);
-                  if (!e.target.value) setAttachEntranceNotes("");
-                }}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Select character…</option>
-                {characters.map((character) => (
-                  <option key={character.id} value={String(character.id)}>
-                    {character.name}
-                  </option>
-                ))}
-              </select>
-              {attachEntranceCharacterId && (
-                <input
-                  value={attachEntranceNotes}
-                  onChange={(e) => setAttachEntranceNotes(e.target.value)}
-                  placeholder="Notes (optional)"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                />
-              )}
-              <button
-                type="submit"
-                disabled={saving || !attachEntranceCharacterId}
-                className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
-              >
-                Add entrance
-              </button>
-            </form>
-          }
         />
 
         <AttachmentSection
@@ -901,6 +1039,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           emptyMessage="No exits recorded."
           canEdit={canEdit}
           saving={saving}
+          defaultExpanded={canEdit}
           items={detail.exits.map((exitRow) => ({
             id: exitRow.id,
             label: exitRow.character_name,
@@ -908,198 +1047,44 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           }))}
           onDetach={handleDetachExit}
           catalogLength={characters.length}
-          attachForm={
-            <form onSubmit={(e) => void handleAttachExit(e)} className="space-y-2">
-              <select
-                value={attachExitCharacterId}
-                onChange={(e) => {
-                  setAttachExitCharacterId(e.target.value);
-                  if (!e.target.value) setAttachExitNotes("");
-                }}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Select character…</option>
-                {characters.map((character) => (
-                  <option key={character.id} value={String(character.id)}>
-                    {character.name}
-                  </option>
-                ))}
-              </select>
-              {attachExitCharacterId && (
-                <input
-                  value={attachExitNotes}
-                  onChange={(e) => setAttachExitNotes(e.target.value)}
-                  placeholder="Notes (optional)"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                />
-              )}
-              <button
-                type="submit"
-                disabled={saving || !attachExitCharacterId}
-                className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
-              >
-                Add exit
-              </button>
-            </form>
-          }
         />
 
-        <div className="border-t border-border pt-4">
-          <h3 className="text-sm font-medium">Blocking</h3>
-          {detail.blocking.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">No blocking notes.</p>
-          ) : (
-            <ul className="mt-2 space-y-2">
-              {detail.blocking.map((row) => (
-                <li key={row.id} className="rounded-md border border-border p-2 text-sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0 flex-1">
-                      <span className="font-medium">{row.character_name}</span>
-                      {canEdit ? (
-                        <textarea
-                          defaultValue={row.notes}
-                          disabled={saving}
-                          onBlur={(e) => {
-                            if (e.target.value.trim() !== row.notes) {
-                              void handleUpdateBlockingNotes(row.id, e.target.value);
-                            }
-                          }}
-                          className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                          rows={2}
-                        />
-                      ) : (
-                        <p className="mt-1 text-muted-foreground whitespace-pre-wrap">
-                          {row.notes}
-                        </p>
-                      )}
-                    </div>
-                    {canEdit && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        disabled={saving}
-                        onClick={() => void handleDetachBlocking(row.id)}
-                        aria-label="Remove blocking"
-                        title="Remove blocking"
-                        className="shrink-0 text-destructive hover:text-destructive"
-                      >
-                        <Trash2 />
-                      </Button>
-                    )}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
-          {canEdit && characters.length > 0 && (
-            <form onSubmit={(e) => void handleAttachBlocking(e)} className="mt-3 space-y-2">
-              <select
-                value={attachBlockingCharacterId}
-                onChange={(e) => setAttachBlockingCharacterId(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Select character…</option>
-                {characters.map((character) => (
-                  <option key={character.id} value={String(character.id)}>
-                    {character.name}
-                  </option>
-                ))}
-              </select>
-              {attachBlockingCharacterId && (
-                <textarea
-                  value={attachBlockingNotes}
-                  onChange={(e) => setAttachBlockingNotes(e.target.value)}
-                  placeholder="Blocking notes"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  rows={2}
-                />
-              )}
-              <button
-                type="submit"
-                disabled={saving || !attachBlockingCharacterId || !attachBlockingNotes.trim()}
-                className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
-              >
-                Add blocking
-              </button>
-            </form>
-          )}
-        </div>
+        <AttachmentSection
+          title="Blocking"
+          emptyMessage="No blocking notes."
+          canEdit={canEdit}
+          saving={saving}
+          defaultExpanded={canEdit}
+          items={detail.blocking.map((row) => ({
+            id: row.id,
+            label: row.character_name,
+            notes: row.notes ?? undefined,
+            editableNotes: canEdit,
+            onNotesBlur: (notes: string) => {
+              if (notes.trim() !== (row.notes ?? "")) {
+                void handleUpdateBlockingNotes(row.id, notes);
+              }
+            },
+          }))}
+          onDetach={handleDetachBlocking}
+          catalogLength={characters.length}
+        />
 
-        <div className="border-t border-border pt-4">
-          <h3 className="text-sm font-medium">Cues</h3>
-          {detail.cues.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">No cues attached.</p>
-          ) : (
-            <ul className="mt-2 space-y-2">
-              {detail.cues.map((cue) => (
-                <li key={cue.id} className="rounded-md border border-border p-2 text-sm">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium">{cue.title}</span>
-                    <Badge variant="secondary">{cue.cue_category_name}</Badge>
-                  </div>
-                  {cue.notes && <p className="mt-1 text-muted-foreground">{cue.notes}</p>}
-                  {canEdit && (
-                    <button
-                      type="button"
-                      disabled={saving}
-                      onClick={() => void handleDeleteCue(cue.id)}
-                      className="mt-1 text-xs text-destructive hover:underline disabled:opacity-50"
-                    >
-                      Delete
-                    </button>
-                  )}
-                </li>
-              ))}
-            </ul>
-          )}
-
-          {canEdit && cueCategories.length > 0 && (
-            <form onSubmit={(e) => void handleAddCue(e)} className="mt-3 space-y-2">
-              <select
-                value={newCueCategoryId}
-                onChange={(e) => {
-                  setNewCueCategoryId(e.target.value);
-                  if (!e.target.value) {
-                    setNewCueTitle("");
-                    setNewCueNotes("");
-                  }
-                }}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Select category…</option>
-                {cueCategories.map((category) => (
-                  <option key={category.id} value={String(category.id)}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-              {newCueCategoryId && (
-                <>
-                  <input
-                    value={newCueTitle}
-                    onChange={(e) => setNewCueTitle(e.target.value)}
-                    placeholder="Cue title"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
-                  <input
-                    value={newCueNotes}
-                    onChange={(e) => setNewCueNotes(e.target.value)}
-                    placeholder="Notes (optional)"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
-                </>
-              )}
-              <button
-                type="submit"
-                disabled={saving || !newCueCategoryId || !newCueTitle.trim()}
-                className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
-              >
-                Add cue
-              </button>
-            </form>
-          )}
-        </div>
+        <AttachmentSection
+          title="Cues"
+          emptyMessage="No cues attached."
+          canEdit={canEdit}
+          saving={saving}
+          defaultExpanded={canEdit}
+          items={detail.cues.map((cue) => ({
+            id: cue.id,
+            label: cue.title,
+            sublabel: cue.cue_category_name,
+            notes: cue.notes ?? undefined,
+          }))}
+          onDetach={handleDeleteCue}
+          catalogLength={cueCategories.length}
+        />
 
         <div className="border-t border-border pt-4">
           <h3 className="text-sm font-medium">Notes</h3>
@@ -1169,55 +1154,94 @@ function AttachmentSection({
   items,
   onDetach,
   catalogLength,
+  defaultExpanded = true,
   attachForm,
 }: {
   title: string;
   emptyMessage: string;
   canEdit: boolean;
   saving: boolean;
-  items: { id: number; label: string; sublabel?: string; notes?: string }[];
+  items: {
+    id: number;
+    label: string;
+    sublabel?: string;
+    notes?: string;
+    editableNotes?: boolean;
+    onNotesBlur?: (notes: string) => void;
+  }[];
   onDetach: (id: number) => void;
   catalogLength: number;
-  attachForm: React.ReactNode;
+  defaultExpanded?: boolean;
+  attachForm?: React.ReactNode;
 }) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  const hasContent = items.length > 0;
+
   return (
     <div className="border-t border-border pt-4">
-      <h3 className="text-sm font-medium">{title}</h3>
-      {items.length === 0 ? (
-        <p className="mt-2 text-sm text-muted-foreground">{emptyMessage}</p>
-      ) : (
-        <ul className="mt-2 space-y-2">
-          {items.map((item) => (
-            <li key={item.id} className="rounded-md border border-border p-2 text-sm">
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <span className="font-medium">{item.label}</span>
-                  {item.sublabel && (
-                    <span className="text-muted-foreground"> — {item.sublabel}</span>
-                  )}
-                  {item.notes && <p className="mt-1 text-muted-foreground">{item.notes}</p>}
-                </div>
-                {canEdit && (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    disabled={saving}
-                    onClick={() => onDetach(item.id)}
-                    aria-label={`Remove ${title.toLowerCase()}`}
-                    title={`Remove ${title.toLowerCase()}`}
-                    className="shrink-0 text-destructive hover:text-destructive"
-                  >
-                    <Trash2 />
-                  </Button>
-                )}
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
+      <button
+        type="button"
+        onClick={() => setExpanded((open) => !open)}
+        className="flex w-full items-center justify-between gap-2 text-left"
+      >
+        <h3 className="text-sm font-medium">{title}</h3>
+        <span className="text-xs text-muted-foreground">
+          {hasContent ? `${items.length}` : "—"} {expanded ? "▾" : "▸"}
+        </span>
+      </button>
+      {expanded && (
+        <>
+          {items.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">{emptyMessage}</p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {items.map((item) => (
+                <li key={item.id} className="rounded-md border border-border p-2 text-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <span className="font-medium">{item.label}</span>
+                      {item.sublabel && (
+                        <span className="text-muted-foreground"> — {item.sublabel}</span>
+                      )}
+                      {item.editableNotes && canEdit ? (
+                        <textarea
+                          defaultValue={item.notes}
+                          disabled={saving}
+                          onBlur={(e) => item.onNotesBlur?.(e.target.value)}
+                          className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          rows={2}
+                        />
+                      ) : (
+                        item.notes && (
+                          <p className="mt-1 text-muted-foreground">{item.notes}</p>
+                        )
+                      )}
+                    </div>
+                    {canEdit && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={saving}
+                        onClick={() => onDetach(item.id)}
+                        aria-label={`Remove ${title.toLowerCase()}`}
+                        title={`Remove ${title.toLowerCase()}`}
+                        className="shrink-0 text-destructive hover:text-destructive"
+                      >
+                        <Trash2 />
+                      </Button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
 
-      {canEdit && catalogLength > 0 && <div className="mt-3">{attachForm}</div>}
+          {canEdit && catalogLength > 0 && attachForm && (
+            <div className="mt-3">{attachForm}</div>
+          )}
+        </>
+      )}
     </div>
   );
 }

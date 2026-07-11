@@ -45,6 +45,21 @@ def on_stage_characters_for_moment(db: Session, moment: Moment) -> list[Characte
     return characters
 
 
+def compute_on_stage_ids_by_moment(moments: list[Moment]) -> dict[int, list[int]]:
+    """Compute on-stage character IDs after each moment in sequence order."""
+    on_stage: set[int] = set()
+    result: dict[int, list[int]] = {}
+
+    for moment in moments:
+        for entrance in moment.moment_entrances:
+            on_stage.add(entrance.character_id)
+        for exit_row in moment.moment_exits:
+            on_stage.discard(exit_row.character_id)
+        result[moment.id] = sorted(on_stage)
+
+    return result
+
+
 def scene_has_entrances_or_exits(db: Session, scene_id: int) -> bool:
     """True when the scene has at least one entrance or exit attachment."""
     entrance = (

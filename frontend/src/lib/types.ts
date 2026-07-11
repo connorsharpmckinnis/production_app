@@ -86,6 +86,7 @@ export interface MomentSummary {
   has_entrance: boolean;
   has_exit: boolean;
   has_blocking: boolean;
+  on_stage_character_ids: number[];
 }
 
 export interface DialogueLineResponse {
@@ -384,6 +385,7 @@ export interface MomentListFilters {
   entranceOnly?: boolean;
   exitOnly?: boolean;
   blockingOnly?: boolean;
+  blockingCharacterId?: number;
 }
 
 export interface CreateUserRequest {

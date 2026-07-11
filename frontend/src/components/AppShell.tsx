@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, NavLink, Outlet, useParams } from "react-router-dom";
+import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -97,6 +98,9 @@ export default function AppShell() {
                 >
                   My bookmarks
                 </button>
+                <div className="border-t border-border px-3 py-2">
+                  <ThemeToggle compact />
+                </div>
                 <button
                   type="button"
                   className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
@@ -178,6 +182,13 @@ export default function AppShell() {
                   onClick={() => setSidebarOpen(false)}
                 >
                   Overview
+                </NavLink>
+                <NavLink
+                  to={`/productions/${productionId}/rehearse`}
+                  className={navLinkClass}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  Rehearse
                 </NavLink>
                 <NavLink
                   to={`/productions/${productionId}/timeline`}
