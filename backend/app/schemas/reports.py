@@ -50,3 +50,31 @@ class CostumesBySceneGroup(BaseModel):
     scene_number: int
     scene_title: str | None
     costumes: list[CostumeBySceneEntry]
+
+
+class EntranceExitSheetRow(BaseModel):
+    moment_id: int
+    sequence_number: int
+    movement_type: str
+    character_id: int
+    character_name: str
+    notes: str | None
+
+
+class EntranceExitSheetGroup(BaseModel):
+    scene_id: int
+    act_number: int
+    scene_number: int
+    scene_title: str | None
+    rows: list[EntranceExitSheetRow]
+
+
+class BlockingSheetEntry(BaseModel):
+    moment_id: int
+    sequence_number: int
+    act_number: int
+    scene_number: int
+    scene_title: str | None
+    character_id: int
+    character_name: str
+    notes: str

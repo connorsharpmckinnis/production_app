@@ -661,6 +661,58 @@ def run_smoke_test(base_url: str = BASE_URL) -> SmokeTestReport:
                             prop_sheet.status_code == 200,
                             f"entries={len(prop_sheet.json()) if prop_sheet.status_code == 200 else 0}",
                         )
+
+                        # --- Phase 5 checks ---
+                        characters = client.get(
+                            f"{API_PREFIX}/productions/{production_id}/characters",
+                            headers=_auth_headers(director_token),
+                        )
+                        crean_id = next(
+                            c["id"] for c in characters.json() if c["name"] == "CREAN"
+                        )
+                        first_moment_id = moments[0]["id"]
+                        entrance_attach = client.post(
+                            f"{API_PREFIX}/productions/{production_id}/moments/{first_moment_id}/entrances",
+                            headers=_auth_headers(director_token),
+                            json={"character_id": crean_id, "notes": "smoke test"},
+                        )
+                        report.record(
+                            "25. Entrance attach to moment",
+                            entrance_attach.status_code == 201,
+                            f"status={entrance_attach.status_code}",
+                        )
+
+                        overview = client.get(
+                            f"{API_PREFIX}/productions/{production_id}/overview",
+                            headers=_auth_headers(director_token),
+                        )
+                        report.record(
+                            "26. Production overview",
+                            overview.status_code == 200
+                            and overview.json().get("moment_count", 0) > 0,
+                            f"status={overview.status_code}",
+                        )
+
+                        entrance_exit_report = client.get(
+                            f"{API_PREFIX}/productions/{production_id}/reports/entrance-exit-sheet",
+                            headers=_auth_headers(director_token),
+                        )
+                        report.record(
+                            "27. Entrance/exit report",
+                            entrance_exit_report.status_code == 200,
+                            f"groups={len(entrance_exit_report.json()) if entrance_exit_report.status_code == 200 else 0}",
+                        )
+
+                        moment_detail = client.get(
+                            f"{API_PREFIX}/productions/{production_id}/moments/{first_moment_id}",
+                            headers=_auth_headers(director_token),
+                        )
+                        report.record(
+                            "28. Moment detail includes on-stage characters",
+                            moment_detail.status_code == 200
+                            and "on_stage_characters" in moment_detail.json(),
+                            f"status={moment_detail.status_code}",
+                        )
                     except httpx.HTTPError as exc:
                         report.record("16. Moment types list available", False, str(exc))
                         report.record("17. Actor cannot PATCH moment", False, str(exc))
@@ -671,6 +723,10 @@ def run_smoke_test(base_url: str = BASE_URL) -> SmokeTestReport:
                         report.record("22. Admin can PATCH app settings", False, str(exc))
                         report.record("23. Structural moment insert/delete", False, str(exc))
                         report.record("24. Prop sheet report", False, str(exc))
+                        report.record("25. Entrance attach to moment", False, str(exc))
+                        report.record("26. Production overview", False, str(exc))
+                        report.record("27. Entrance/exit report", False, str(exc))
+                        report.record("28. Moment detail includes on-stage characters", False, str(exc))
                 else:
                     report.record("16. Moment types list available", False, "skipped")
                     report.record("17. Actor cannot PATCH moment", False, "skipped")
@@ -681,6 +737,10 @@ def run_smoke_test(base_url: str = BASE_URL) -> SmokeTestReport:
                     report.record("22. Admin can PATCH app settings", False, "skipped")
                     report.record("23. Structural moment insert/delete", False, "skipped")
                     report.record("24. Prop sheet report", False, "skipped")
+                    report.record("25. Entrance attach to moment", False, "skipped")
+                    report.record("26. Production overview", False, "skipped")
+                    report.record("27. Entrance/exit report", False, "skipped")
+                    report.record("28. Moment detail includes on-stage characters", False, "skipped")
         else:
             report.record("10. Director casts actor to CREAN", False, "skipped — missing ids")
             report.record("11. Actor production list filtered to cast shows", False, "skipped")
@@ -697,6 +757,10 @@ def run_smoke_test(base_url: str = BASE_URL) -> SmokeTestReport:
             report.record("22. Admin can PATCH app settings", False, "skipped")
             report.record("23. Structural moment insert/delete", False, "skipped")
             report.record("24. Prop sheet report", False, "skipped")
+            report.record("25. Entrance attach to moment", False, "skipped")
+            report.record("26. Production overview", False, "skipped")
+            report.record("27. Entrance/exit report", False, "skipped")
+            report.record("28. Moment detail includes on-stage characters", False, "skipped")
 
     return report
 

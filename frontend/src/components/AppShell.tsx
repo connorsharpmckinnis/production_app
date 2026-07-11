@@ -172,6 +172,14 @@ export default function AppShell() {
                   Production
                 </div>
                 <NavLink
+                  to={`/productions/${productionId}`}
+                  end
+                  className={navLinkClass}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  Overview
+                </NavLink>
+                <NavLink
                   to={`/productions/${productionId}/timeline`}
                   className={navLinkClass}
                   onClick={() => setSidebarOpen(false)}

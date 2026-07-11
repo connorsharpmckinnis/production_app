@@ -14,6 +14,7 @@ Companion documents:
 - [PHASE_2.md](PHASE_2.md) — Phase 2 execution plan
 - [PHASE_3.md](PHASE_3.md) — Phase 3 execution plan (complete)
 - [PHASE_4.md](PHASE_4.md) — Phase 4 execution plan (complete)
+- [PHASE_5.md](PHASE_5.md) — Phase 5 execution plan (complete)
 - [ROLES.md](ROLES.md) — MVP role permissions
 - [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](../.agents/skills/DEVELOPMENT_GUIDE/SKILL.md) — coding standards for humans and AI
 
@@ -832,14 +833,18 @@ Summary:
 
 
 
-## Phase 5 — Advanced Features
+## Phase 5 — MVP Completion & Demo Readiness
 
-- Rehearsals
-- Attendance
-- Production archives
-- Multi-production improvements
-- Event-derived state engine
-- Optional AI assistance
+See [PHASE_5.md](PHASE_5.md) for the execution plan.
+
+Summary:
+
+- Entrances, exits, and blocking (moment-attached; on-stage derivation within scenes)
+- Minimal production overview page (counts and navigation — not a progress dashboard)
+- Extended minimal reports (entrance/exit sheet, blocking sheet)
+- Demo package (multi-scene script validation, staff/director walkthrough doc)
+
+**Explicitly deferred past MVP:** rehearsals, attendance, tasks, performances, re-import, production status, event engine, UX polish (live search, multi-select filters, bookmarks redesign).
 
 ---
 
@@ -962,5 +967,8 @@ A successful MVP should allow a Director or Admin to:
 - Generate basic prop and cue sheet reports from timeline data.
 - Configure global display settings (e.g. hide import-review fields after verification).
 - Create and manage user accounts (Admin).
+- Record structured entrances, exits, and blocking on moments (Phase 5).
+- View a minimal production overview with key counts (Phase 5).
+- Generate entrance/exit and blocking reports (Phase 5).
 
-At this point, the application should provide meaningful value during rehearsal and technical preparation while establishing the architectural foundation for future production management features.
+At this point, the application should provide meaningful value during rehearsal and technical preparation while establishing the architectural foundation for future production management features. Phase 5 adds the remaining prep workflow pieces and packages the app for a staff/director demo.

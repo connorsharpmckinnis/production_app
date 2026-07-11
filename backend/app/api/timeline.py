@@ -13,6 +13,9 @@ from app.models import (
     Group,
     Microphone,
     Moment,
+    MomentBlocking,
+    MomentEntrance,
+    MomentExit,
     MomentMicrophone,
     MomentProp,
     MomentSetPiece,
@@ -30,6 +33,12 @@ from app.schemas.microphones import MomentMicrophoneResponse
 from app.schemas.notes import NoteResponse
 from app.schemas.props import MomentPropResponse
 from app.schemas.set_pieces import MomentSetPieceResponse
+from app.schemas.stage_movements import (
+    MomentBlockingResponse,
+    MomentEntranceResponse,
+    MomentExitResponse,
+    OnStageCharacterResponse,
+)
 from app.schemas.timeline import (
     ActSummary,
     DialogueLineResponse,
@@ -44,6 +53,7 @@ from app.schemas.timeline_editing import (
     MomentUpdate,
     StageDirectionUpdate,
 )
+from app.services.on_stage import on_stage_characters_for_moment
 from app.services.moment_sequence import (
     move_moment_sequence,
     renumber_moments_after_delete,
@@ -149,6 +159,33 @@ def _moment_set_piece_response(moment_set_piece: MomentSetPiece) -> MomentSetPie
     )
 
 
+def _moment_entrance_response(entrance: MomentEntrance) -> MomentEntranceResponse:
+    return MomentEntranceResponse(
+        id=entrance.id,
+        character_id=entrance.character_id,
+        character_name=entrance.character.name,
+        notes=entrance.notes,
+    )
+
+
+def _moment_exit_response(exit_row: MomentExit) -> MomentExitResponse:
+    return MomentExitResponse(
+        id=exit_row.id,
+        character_id=exit_row.character_id,
+        character_name=exit_row.character.name,
+        notes=exit_row.notes,
+    )
+
+
+def _moment_blocking_response(blocking: MomentBlocking) -> MomentBlockingResponse:
+    return MomentBlockingResponse(
+        id=blocking.id,
+        character_id=blocking.character_id,
+        character_name=blocking.character.name,
+        notes=blocking.notes,
+    )
+
+
 def _cue_response(cue: Cue) -> CueResponse:
     return CueResponse(
         id=cue.id,
@@ -198,6 +235,9 @@ def list_scene_moments(
     microphone_id: int | None = Query(default=None),
     set_piece_id: int | None = Query(default=None),
     costume_only: bool = Query(default=False),
+    entrance_only: bool = Query(default=False),
+    exit_only: bool = Query(default=False),
+    blocking_only: bool = Query(default=False),
     user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> list[MomentSummary]:
@@ -320,6 +360,7 @@ def list_scene_moments(
         else None
     )
     costume_char_ids = costume_character_ids_for_scene(db, scene_id)
+    blocking_char_ids = set(parsed_character_ids) if parsed_character_ids and blocking_only else None
 
     moments = load_scene_moments(db, scene_id)
     filtered = apply_timeline_filters(
@@ -335,6 +376,10 @@ def list_scene_moments(
         microphone_id=microphone_id,
         set_piece_id=set_piece_id,
         costume_only=costume_only,
+        entrance_only=entrance_only,
+        exit_only=exit_only,
+        blocking_only=blocking_only,
+        blocking_character_ids=blocking_char_ids,
         moment_ids_with_cues=cued_moment_ids,
         moment_ids_with_prop=prop_moment_ids,
         moment_ids_with_cue_category=category_moment_ids,
@@ -357,6 +402,9 @@ def list_scene_moments(
             has_microphone=len(moment.moment_microphones) > 0,
             has_set_piece=len(moment.moment_set_pieces) > 0,
             has_costume=moment_has_costume(moment, costume_char_ids),
+            has_entrance=len(moment.moment_entrances) > 0,
+            has_exit=len(moment.moment_exits) > 0,
+            has_blocking=len(moment.moment_blocking) > 0,
         )
         for moment in filtered
     ]
@@ -383,6 +431,9 @@ def get_moment_detail(
             joinedload(Moment.moment_microphones).joinedload(MomentMicrophone.microphone),
             joinedload(Moment.moment_microphones).joinedload(MomentMicrophone.character),
             joinedload(Moment.moment_set_pieces).joinedload(MomentSetPiece.set_piece),
+            joinedload(Moment.moment_entrances).joinedload(MomentEntrance.character),
+            joinedload(Moment.moment_exits).joinedload(MomentExit.character),
+            joinedload(Moment.moment_blocking).joinedload(MomentBlocking.character),
             joinedload(Moment.cues).joinedload(Cue.cue_category),
         )
         .join(Scene)
@@ -406,6 +457,8 @@ def get_moment_detail(
         .first()
         is not None
     )
+
+    on_stage = on_stage_characters_for_moment(db, moment)
 
     return MomentDetailResponse(
         id=moment.id,
@@ -431,6 +484,13 @@ def get_moment_detail(
         ],
         set_pieces=[
             _moment_set_piece_response(item) for item in moment.moment_set_pieces
+        ],
+        entrances=[_moment_entrance_response(item) for item in moment.moment_entrances],
+        exits=[_moment_exit_response(item) for item in moment.moment_exits],
+        blocking=[_moment_blocking_response(item) for item in moment.moment_blocking],
+        on_stage_characters=[
+            OnStageCharacterResponse(id=character.id, name=character.name)
+            for character in on_stage
         ],
         cues=[_cue_response(cue) for cue in moment.cues],
         notes=[_note_response(note, user.id) for note in visible_notes],

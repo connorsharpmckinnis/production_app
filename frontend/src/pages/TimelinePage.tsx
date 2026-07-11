@@ -123,6 +123,9 @@ export default function TimelinePage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [cueOnly, setCueOnly] = useState(false);
   const [costumeOnly, setCostumeOnly] = useState(false);
+  const [entranceOnly, setEntranceOnly] = useState(false);
+  const [exitOnly, setExitOnly] = useState(false);
+  const [blockingOnly, setBlockingOnly] = useState(false);
   const [characterFilter, setCharacterFilter] = useState<CharacterFilterValue>("all");
   const [groupFilter, setGroupFilter] = useState<GroupFilterValue>("all");
   const [songFilter, setSongFilter] = useState<ResourceFilterValue>("all");
@@ -165,6 +168,9 @@ export default function TimelinePage() {
       search: searchQuery || undefined,
       cueOnly: cueOnly || undefined,
       costumeOnly: costumeOnly || undefined,
+      entranceOnly: entranceOnly || undefined,
+      exitOnly: exitOnly || undefined,
+      blockingOnly: blockingOnly || undefined,
       songId: songFilter === "all" ? undefined : Number(songFilter),
       propId: propFilter === "all" ? undefined : Number(propFilter),
       cueCategoryId: cueCategoryFilter === "all" ? undefined : Number(cueCategoryFilter),
@@ -177,6 +183,9 @@ export default function TimelinePage() {
       searchQuery,
       cueOnly,
       costumeOnly,
+      entranceOnly,
+      exitOnly,
+      blockingOnly,
       songFilter,
       propFilter,
       cueCategoryFilter,
@@ -585,6 +594,39 @@ export default function TimelinePage() {
             </label>
           )}
 
+          {canManagePreparation && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={entranceOnly}
+                onChange={(e) => setEntranceOnly(e.target.checked)}
+              />
+              Entrance moments only
+            </label>
+          )}
+
+          {canManagePreparation && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={exitOnly}
+                onChange={(e) => setExitOnly(e.target.checked)}
+              />
+              Exit moments only
+            </label>
+          )}
+
+          {canManagePreparation && (
+            <label className="flex items-center gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={blockingOnly}
+                onChange={(e) => setBlockingOnly(e.target.checked)}
+              />
+              Blocking moments only
+            </label>
+          )}
+
           {songs.length > 0 && (
             <select
               value={songFilter}
@@ -752,6 +794,21 @@ export default function TimelinePage() {
                       {moment.has_costume && (
                         <Badge variant="outline" className="text-xs">
                           Costume
+                        </Badge>
+                      )}
+                      {moment.has_entrance && (
+                        <Badge variant="outline" className="text-xs">
+                          Entrance
+                        </Badge>
+                      )}
+                      {moment.has_exit && (
+                        <Badge variant="outline" className="text-xs">
+                          Exit
+                        </Badge>
+                      )}
+                      {moment.has_blocking && (
+                        <Badge variant="outline" className="text-xs">
+                          Blocking
                         </Badge>
                       )}
                       <Badge

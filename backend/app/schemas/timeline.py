@@ -5,6 +5,12 @@ from app.schemas.microphones import MomentMicrophoneResponse
 from app.schemas.notes import NoteResponse
 from app.schemas.props import MomentPropResponse
 from app.schemas.set_pieces import MomentSetPieceResponse
+from app.schemas.stage_movements import (
+    MomentBlockingResponse,
+    MomentEntranceResponse,
+    MomentExitResponse,
+    OnStageCharacterResponse,
+)
 
 
 class SceneSummary(BaseModel):
@@ -46,6 +52,9 @@ class MomentSummary(BaseModel):
     has_microphone: bool
     has_set_piece: bool
     has_costume: bool
+    has_entrance: bool
+    has_exit: bool
+    has_blocking: bool
 
     model_config = {"from_attributes": True}
 
@@ -63,6 +72,10 @@ class MomentDetailResponse(BaseModel):
     props: list[MomentPropResponse]
     microphones: list[MomentMicrophoneResponse]
     set_pieces: list[MomentSetPieceResponse]
+    entrances: list[MomentEntranceResponse]
+    exits: list[MomentExitResponse]
+    blocking: list[MomentBlockingResponse]
+    on_stage_characters: list[OnStageCharacterResponse]
     cues: list[CueResponse]
     notes: list[NoteResponse]
     is_bookmarked: bool

@@ -1,14 +1,16 @@
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
+from sqlalchemy import func
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import require_admin, require_authenticated, user_has_role
 from app.config import get_settings
 from app.db.session import get_db
-from app.models import Act, Character, Organization, Production, User, UserCharacterAssignment
+from app.models import Act, Character, Moment, Organization, Production, Scene, User, UserCharacterAssignment
 from app.schemas.production import (
     ImportErrorResponse,
     ImportSuccessResponse,
     ProductionCreate,
+    ProductionOverviewResponse,
     ProductionResponse,
 )
 from app.services.importer import ImportLineError, import_script
@@ -69,6 +71,71 @@ def get_production(
     db: Session = Depends(get_db),
 ) -> Production:
     return _get_production_or_404(db, production_id)
+
+
+@router.get("/{production_id}/overview", response_model=ProductionOverviewResponse)
+def get_production_overview(
+    production_id: int,
+    _user: User = Depends(require_authenticated),
+    db: Session = Depends(get_db),
+) -> ProductionOverviewResponse:
+    production = _get_production_or_404(db, production_id)
+
+    act_count = (
+        db.query(func.count(Act.id)).filter(Act.production_id == production_id).scalar() or 0
+    )
+    scene_count = (
+        db.query(func.count(Scene.id))
+        .join(Act)
+        .filter(Act.production_id == production_id)
+        .scalar()
+        or 0
+    )
+    moment_count = (
+        db.query(func.count(Moment.id))
+        .join(Scene)
+        .join(Act)
+        .filter(Act.production_id == production_id)
+        .scalar()
+        or 0
+    )
+    character_count = (
+        db.query(func.count(Character.id))
+        .filter(Character.production_id == production_id)
+        .scalar()
+        or 0
+    )
+    cast_count = (
+        db.query(func.count(UserCharacterAssignment.id))
+        .join(Character, Character.id == UserCharacterAssignment.character_id)
+        .filter(Character.production_id == production_id)
+        .scalar()
+        or 0
+    )
+
+    imported_at = None
+    if production.author is not None:
+        imported_at = (
+            db.query(func.min(Moment.created_at))
+            .join(Scene)
+            .join(Act)
+            .filter(Act.production_id == production_id)
+            .scalar()
+        )
+
+    return ProductionOverviewResponse(
+        id=production.id,
+        title=production.title,
+        season=production.season,
+        author=production.author,
+        created_at=production.created_at,
+        imported_at=imported_at,
+        act_count=act_count,
+        scene_count=scene_count,
+        moment_count=moment_count,
+        character_count=character_count,
+        cast_count=cast_count,
+    )
 
 
 @router.delete("/{production_id}", status_code=status.HTTP_204_NO_CONTENT)

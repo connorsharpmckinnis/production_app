@@ -211,14 +211,22 @@ Use shadcn/ui throughout ([DEVELOPMENT_GUIDE](../.agents/skills/DEVELOPMENT_GUID
 
 ---
 
+## Slice 5 (Phase 5 — shipped)
+
+* Moment-attached entrances, exits, and blocking (Director/Admin write; all roles read)
+* Derived on-stage character list in moment detail (per scene, from entrance/exit sequence)
+* Timeline filters: `entrance_only`, `exit_only`, `blocking_only`; list-row badges
+* Production overview page at `/productions/:id` with counts and quick links
+* Reports: entrance/exit sheet and blocking sheet
+
+---
+
 ## Deferred to Later Slices
 
 * Live search (filter as you type)
 * Multi-select character / prop / cue filters
 * Bookmarks dedicated view
-* Production home page
 * Saved filter views / rehearsal modes
 * Preparation progress dashboard
 * Split/merge moments
 * Costume event-driven model (moment-attached costume events)
-* Blocking, entrances, exits

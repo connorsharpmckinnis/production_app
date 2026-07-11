@@ -10,11 +10,16 @@ import type {
   CueCategoryResponse,
   CueResponse,
   CueSheetCategory,
+  EntranceExitSheetGroup,
+  BlockingSheetEntry,
   GroupResponse,
   ImportLineErrorDetail,
   ImportSuccessResponse,
   LoginRequest,
   MicrophoneResponse,
+  MomentBlockingResponse,
+  MomentEntranceResponse,
+  MomentExitResponse,
   MomentDetailResponse,
   MomentListFilters,
   MomentMicrophoneResponse,
@@ -24,6 +29,7 @@ import type {
   MomentTypeResponse,
   NoteResponse,
   ProductionCreate,
+  ProductionOverviewResponse,
   ProductionResponse,
   PropResponse,
   PropSheetEntry,
@@ -140,6 +146,15 @@ function momentQuery(filters?: MomentListFilters): string {
   if (filters.costumeOnly) {
     params.set("costume_only", "true");
   }
+  if (filters.entranceOnly) {
+    params.set("entrance_only", "true");
+  }
+  if (filters.exitOnly) {
+    params.set("exit_only", "true");
+  }
+  if (filters.blockingOnly) {
+    params.set("blocking_only", "true");
+  }
   const query = params.toString();
   return query ? `?${query}` : "";
 }
@@ -162,6 +177,10 @@ export const api = {
 
   getProduction(id: number) {
     return request<ProductionResponse>(`/productions/${id}`);
+  },
+
+  getProductionOverview(id: number) {
+    return request<ProductionOverviewResponse>(`/productions/${id}/overview`);
   },
 
   createProduction(body: ProductionCreate) {
@@ -696,6 +715,72 @@ export const api = {
     );
   },
 
+  attachMomentEntrance(
+    productionId: number,
+    momentId: number,
+    body: { character_id: number; notes?: string | null },
+  ) {
+    return request<MomentEntranceResponse>(
+      `/productions/${productionId}/moments/${momentId}/entrances`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
+  },
+
+  detachMomentEntrance(productionId: number, momentId: number, entranceId: number) {
+    return request<void>(
+      `/productions/${productionId}/moments/${momentId}/entrances/${entranceId}`,
+      { method: "DELETE" },
+    );
+  },
+
+  attachMomentExit(
+    productionId: number,
+    momentId: number,
+    body: { character_id: number; notes?: string | null },
+  ) {
+    return request<MomentExitResponse>(
+      `/productions/${productionId}/moments/${momentId}/exits`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
+  },
+
+  detachMomentExit(productionId: number, momentId: number, exitId: number) {
+    return request<void>(
+      `/productions/${productionId}/moments/${momentId}/exits/${exitId}`,
+      { method: "DELETE" },
+    );
+  },
+
+  attachMomentBlocking(
+    productionId: number,
+    momentId: number,
+    body: { character_id: number; notes: string },
+  ) {
+    return request<MomentBlockingResponse>(
+      `/productions/${productionId}/moments/${momentId}/blocking`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
+  },
+
+  updateMomentBlocking(
+    productionId: number,
+    momentId: number,
+    blockingId: number,
+    body: { notes: string },
+  ) {
+    return request<MomentBlockingResponse>(
+      `/productions/${productionId}/moments/${momentId}/blocking/${blockingId}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    );
+  },
+
+  detachMomentBlocking(productionId: number, momentId: number, blockingId: number) {
+    return request<void>(
+      `/productions/${productionId}/moments/${momentId}/blocking/${blockingId}`,
+      { method: "DELETE" },
+    );
+  },
+
   getPropSheetReport(productionId: number) {
     return request<PropSheetEntry[]>(`/productions/${productionId}/reports/prop-sheet`);
   },
@@ -707,6 +792,18 @@ export const api = {
   getCostumesBySceneReport(productionId: number) {
     return request<CostumesBySceneGroup[]>(
       `/productions/${productionId}/reports/costumes-by-scene`,
+    );
+  },
+
+  getEntranceExitSheetReport(productionId: number) {
+    return request<EntranceExitSheetGroup[]>(
+      `/productions/${productionId}/reports/entrance-exit-sheet`,
+    );
+  },
+
+  getBlockingSheetReport(productionId: number) {
+    return request<BlockingSheetEntry[]>(
+      `/productions/${productionId}/reports/blocking-sheet`,
     );
   },
 };

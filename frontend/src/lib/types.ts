@@ -83,6 +83,9 @@ export interface MomentSummary {
   has_microphone: boolean;
   has_set_piece: boolean;
   has_costume: boolean;
+  has_entrance: boolean;
+  has_exit: boolean;
+  has_blocking: boolean;
 }
 
 export interface DialogueLineResponse {
@@ -165,6 +168,32 @@ export interface MomentSetPieceResponse {
   notes: string | null;
 }
 
+export interface OnStageCharacterResponse {
+  id: number;
+  name: string;
+}
+
+export interface MomentEntranceResponse {
+  id: number;
+  character_id: number;
+  character_name: string;
+  notes: string | null;
+}
+
+export interface MomentExitResponse {
+  id: number;
+  character_id: number;
+  character_name: string;
+  notes: string | null;
+}
+
+export interface MomentBlockingResponse {
+  id: number;
+  character_id: number;
+  character_name: string;
+  notes: string;
+}
+
 export interface MomentDetailResponse {
   id: number;
   sequence_number: number;
@@ -178,6 +207,10 @@ export interface MomentDetailResponse {
   props: MomentPropResponse[];
   microphones: MomentMicrophoneResponse[];
   set_pieces: MomentSetPieceResponse[];
+  entrances: MomentEntranceResponse[];
+  exits: MomentExitResponse[];
+  blocking: MomentBlockingResponse[];
+  on_stage_characters: OnStageCharacterResponse[];
   cues: CueResponse[];
   notes: NoteResponse[];
   is_bookmarked: boolean;
@@ -262,6 +295,48 @@ export interface CostumesBySceneGroup {
   costumes: CostumeBySceneEntry[];
 }
 
+export interface EntranceExitSheetRow {
+  moment_id: number;
+  sequence_number: number;
+  movement_type: "entrance" | "exit";
+  character_id: number;
+  character_name: string;
+  notes: string | null;
+}
+
+export interface EntranceExitSheetGroup {
+  scene_id: number;
+  act_number: number;
+  scene_number: number;
+  scene_title: string | null;
+  rows: EntranceExitSheetRow[];
+}
+
+export interface BlockingSheetEntry {
+  moment_id: number;
+  sequence_number: number;
+  act_number: number;
+  scene_number: number;
+  scene_title: string | null;
+  character_id: number;
+  character_name: string;
+  notes: string;
+}
+
+export interface ProductionOverviewResponse {
+  id: number;
+  title: string;
+  season: string | null;
+  author: string | null;
+  created_at: string;
+  imported_at: string | null;
+  act_count: number;
+  scene_count: number;
+  moment_count: number;
+  character_count: number;
+  cast_count: number;
+}
+
 export interface CharacterDetailResponse {
   id: number;
   name: string;
@@ -306,6 +381,9 @@ export interface MomentListFilters {
   microphoneId?: number;
   setPieceId?: number;
   costumeOnly?: boolean;
+  entranceOnly?: boolean;
+  exitOnly?: boolean;
+  blockingOnly?: boolean;
 }
 
 export interface CreateUserRequest {

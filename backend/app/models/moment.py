@@ -69,3 +69,15 @@ class Moment(Base):
         back_populates="moment",
         cascade="all, delete-orphan",
     )
+    moment_entrances: Mapped[list["MomentEntrance"]] = relationship(
+        back_populates="moment",
+        cascade="all, delete-orphan",
+    )
+    moment_exits: Mapped[list["MomentExit"]] = relationship(
+        back_populates="moment",
+        cascade="all, delete-orphan",
+    )
+    moment_blocking: Mapped[list["MomentBlocking"]] = relationship(
+        back_populates="moment",
+        cascade="all, delete-orphan",
+    )

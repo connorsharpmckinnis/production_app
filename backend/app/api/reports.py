@@ -9,6 +9,9 @@ from app.models import (
     Cue,
     CueCategory,
     Moment,
+    MomentBlocking,
+    MomentEntrance,
+    MomentExit,
     MomentProp,
     Production,
     Prop,
@@ -16,10 +19,13 @@ from app.models import (
     User,
 )
 from app.schemas.reports import (
+    BlockingSheetEntry,
     CostumeBySceneEntry,
     CostumesBySceneGroup,
     CueSheetCategory,
     CueSheetMomentReference,
+    EntranceExitSheetGroup,
+    EntranceExitSheetRow,
     PropSheetEntry,
     PropSheetMomentReference,
 )
@@ -237,3 +243,141 @@ def costumes_by_scene(
             )
         )
     return groups
+
+
+@router.get(
+    "/{production_id}/reports/entrance-exit-sheet",
+    response_model=list[EntranceExitSheetGroup],
+)
+def entrance_exit_sheet(
+    production_id: int,
+    _user: User = Depends(require_authenticated),
+    db: Session = Depends(get_db),
+) -> list[EntranceExitSheetGroup]:
+    _get_production_or_404(db, production_id)
+
+    scenes = (
+        db.query(Scene)
+        .join(Act)
+        .options(joinedload(Scene.act))
+        .filter(Act.production_id == production_id)
+        .order_by(Act.sort_order, Scene.sort_order)
+        .all()
+    )
+
+    entrances = (
+        db.query(MomentEntrance)
+        .options(
+            joinedload(MomentEntrance.character),
+            joinedload(MomentEntrance.moment).joinedload(Moment.scene).joinedload(Scene.act),
+        )
+        .join(Moment, MomentEntrance.moment_id == Moment.id)
+        .join(Scene, Moment.scene_id == Scene.id)
+        .join(Act, Scene.act_id == Act.id)
+        .filter(Act.production_id == production_id)
+        .all()
+    )
+    exits = (
+        db.query(MomentExit)
+        .options(
+            joinedload(MomentExit.character),
+            joinedload(MomentExit.moment).joinedload(Moment.scene).joinedload(Scene.act),
+        )
+        .join(Moment, MomentExit.moment_id == Moment.id)
+        .join(Scene, Moment.scene_id == Scene.id)
+        .join(Act, Scene.act_id == Act.id)
+        .filter(Act.production_id == production_id)
+        .all()
+    )
+
+    rows_by_scene: dict[int, list[EntranceExitSheetRow]] = {scene.id: [] for scene in scenes}
+
+    for entrance in entrances:
+        moment = entrance.moment
+        rows_by_scene[moment.scene_id].append(
+            EntranceExitSheetRow(
+                moment_id=moment.id,
+                sequence_number=moment.sequence_number,
+                movement_type="entrance",
+                character_id=entrance.character_id,
+                character_name=entrance.character.name,
+                notes=entrance.notes,
+            )
+        )
+
+    for exit_row in exits:
+        moment = exit_row.moment
+        rows_by_scene[moment.scene_id].append(
+            EntranceExitSheetRow(
+                moment_id=moment.id,
+                sequence_number=moment.sequence_number,
+                movement_type="exit",
+                character_id=exit_row.character_id,
+                character_name=exit_row.character.name,
+                notes=exit_row.notes,
+            )
+        )
+
+    groups: list[EntranceExitSheetGroup] = []
+    for scene in scenes:
+        scene_rows = rows_by_scene[scene.id]
+        if not scene_rows:
+            continue
+        scene_rows.sort(key=lambda row: (row.sequence_number, row.movement_type, row.character_name))
+        groups.append(
+            EntranceExitSheetGroup(
+                scene_id=scene.id,
+                act_number=scene.act.number,
+                scene_number=scene.number,
+                scene_title=scene.title,
+                rows=scene_rows,
+            )
+        )
+    return groups
+
+
+@router.get(
+    "/{production_id}/reports/blocking-sheet",
+    response_model=list[BlockingSheetEntry],
+)
+def blocking_sheet(
+    production_id: int,
+    _user: User = Depends(require_authenticated),
+    db: Session = Depends(get_db),
+) -> list[BlockingSheetEntry]:
+    _get_production_or_404(db, production_id)
+    timeline = _timeline_moment_order(db, production_id)
+
+    blocking_rows = (
+        db.query(MomentBlocking)
+        .options(
+            joinedload(MomentBlocking.character),
+            joinedload(MomentBlocking.moment).joinedload(Moment.scene).joinedload(Scene.act),
+        )
+        .join(Moment, MomentBlocking.moment_id == Moment.id)
+        .join(Scene, Moment.scene_id == Scene.id)
+        .join(Act, Scene.act_id == Act.id)
+        .filter(Act.production_id == production_id)
+        .all()
+    )
+
+    entries: list[BlockingSheetEntry] = []
+    for blocking in blocking_rows:
+        moment, act, scene = next(
+            (m, a, s) for m, a, s in timeline if m.id == blocking.moment_id
+        )
+        entries.append(
+            BlockingSheetEntry(
+                moment_id=moment.id,
+                sequence_number=moment.sequence_number,
+                act_number=act.number,
+                scene_number=scene.number,
+                scene_title=scene.title,
+                character_id=blocking.character_id,
+                character_name=blocking.character.name,
+                notes=blocking.notes,
+            )
+        )
+
+    entries.sort(key=lambda entry: (entry.act_number, entry.scene_number, entry.sequence_number))
+    return entries

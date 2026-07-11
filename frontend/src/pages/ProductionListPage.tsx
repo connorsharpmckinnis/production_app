@@ -101,7 +101,7 @@ export default function ProductionListPage() {
                     <div className="flex justify-end gap-2">
                       {production.author ? (
                         <Link
-                          to={`/productions/${production.id}/timeline`}
+                          to={`/productions/${production.id}`}
                           className="rounded-md border border-border px-3 py-1 text-xs hover:bg-muted"
                         >
                           Open

@@ -10,6 +10,9 @@ from app.models.dialogue import Dialogue
 from app.models.group import CharacterGroup, Group, UserGroup
 from app.models.microphone import Microphone
 from app.models.moment import Moment
+from app.models.moment_blocking import MomentBlocking
+from app.models.moment_entrance import MomentEntrance
+from app.models.moment_exit import MomentExit
 from app.models.moment_microphone import MomentMicrophone
 from app.models.moment_prop import MomentProp
 from app.models.moment_set_piece import MomentSetPiece
@@ -39,6 +42,9 @@ __all__ = [
     "Group",
     "Microphone",
     "Moment",
+    "MomentBlocking",
+    "MomentEntrance",
+    "MomentExit",
     "MomentMicrophone",
     "MomentProp",
     "MomentSetPiece",

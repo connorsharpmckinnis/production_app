@@ -89,6 +89,13 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     const [attachSetPieceId, setAttachSetPieceId] = useState("");
     const [attachSetPieceNotes, setAttachSetPieceNotes] = useState("");
 
+    const [attachEntranceCharacterId, setAttachEntranceCharacterId] = useState("");
+    const [attachEntranceNotes, setAttachEntranceNotes] = useState("");
+    const [attachExitCharacterId, setAttachExitCharacterId] = useState("");
+    const [attachExitNotes, setAttachExitNotes] = useState("");
+    const [attachBlockingCharacterId, setAttachBlockingCharacterId] = useState("");
+    const [attachBlockingNotes, setAttachBlockingNotes] = useState("");
+
     const [newCueCategoryId, setNewCueCategoryId] = useState("");
     const [newCueTitle, setNewCueTitle] = useState("");
     const [newCueNotes, setNewCueNotes] = useState("");
@@ -330,6 +337,117 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         onChanged();
       } catch (err) {
         alert(err instanceof ApiError ? String(err.detail) : "Failed to detach set piece");
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function handleAttachEntrance(event: React.FormEvent) {
+      event.preventDefault();
+      if (!attachEntranceCharacterId) return;
+
+      setSaving(true);
+      try {
+        await api.attachMomentEntrance(productionId, detail.id, {
+          character_id: Number(attachEntranceCharacterId),
+          notes: attachEntranceNotes.trim() || null,
+        });
+        setAttachEntranceCharacterId("");
+        setAttachEntranceNotes("");
+        onChanged();
+      } catch (err) {
+        alert(err instanceof ApiError ? String(err.detail) : "Failed to attach entrance");
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function handleDetachEntrance(entranceId: number) {
+      setSaving(true);
+      try {
+        await api.detachMomentEntrance(productionId, detail.id, entranceId);
+        onChanged();
+      } catch (err) {
+        alert(err instanceof ApiError ? String(err.detail) : "Failed to detach entrance");
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function handleAttachExit(event: React.FormEvent) {
+      event.preventDefault();
+      if (!attachExitCharacterId) return;
+
+      setSaving(true);
+      try {
+        await api.attachMomentExit(productionId, detail.id, {
+          character_id: Number(attachExitCharacterId),
+          notes: attachExitNotes.trim() || null,
+        });
+        setAttachExitCharacterId("");
+        setAttachExitNotes("");
+        onChanged();
+      } catch (err) {
+        alert(err instanceof ApiError ? String(err.detail) : "Failed to attach exit");
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function handleDetachExit(exitId: number) {
+      setSaving(true);
+      try {
+        await api.detachMomentExit(productionId, detail.id, exitId);
+        onChanged();
+      } catch (err) {
+        alert(err instanceof ApiError ? String(err.detail) : "Failed to detach exit");
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function handleAttachBlocking(event: React.FormEvent) {
+      event.preventDefault();
+      if (!attachBlockingCharacterId || !attachBlockingNotes.trim()) return;
+
+      setSaving(true);
+      try {
+        await api.attachMomentBlocking(productionId, detail.id, {
+          character_id: Number(attachBlockingCharacterId),
+          notes: attachBlockingNotes.trim(),
+        });
+        setAttachBlockingCharacterId("");
+        setAttachBlockingNotes("");
+        onChanged();
+      } catch (err) {
+        alert(err instanceof ApiError ? String(err.detail) : "Failed to attach blocking");
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function handleUpdateBlockingNotes(blockingId: number, notes: string) {
+      const trimmed = notes.trim();
+      if (!trimmed) return;
+
+      setSaving(true);
+      try {
+        await api.updateMomentBlocking(productionId, detail.id, blockingId, { notes: trimmed });
+        onChanged();
+      } catch (err) {
+        alert(err instanceof ApiError ? String(err.detail) : "Failed to update blocking");
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function handleDetachBlocking(blockingId: number) {
+      setSaving(true);
+      try {
+        await api.detachMomentBlocking(productionId, detail.id, blockingId);
+        onChanged();
+      } catch (err) {
+        alert(err instanceof ApiError ? String(err.detail) : "Failed to detach blocking");
       } finally {
         setSaving(false);
       }
@@ -720,6 +838,193 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             </form>
           }
         />
+
+        {detail.on_stage_characters.length > 0 && (
+          <div className="border-t border-border pt-4">
+            <h3 className="text-sm font-medium">On stage (this scene)</h3>
+            <p className="mt-2 text-sm text-muted-foreground">
+              {detail.on_stage_characters.map((character) => character.name).join(", ")}
+            </p>
+          </div>
+        )}
+
+        <AttachmentSection
+          title="Entrances"
+          emptyMessage="No entrances recorded."
+          canEdit={canEdit}
+          saving={saving}
+          items={detail.entrances.map((entrance) => ({
+            id: entrance.id,
+            label: entrance.character_name,
+            notes: entrance.notes ?? undefined,
+          }))}
+          onDetach={handleDetachEntrance}
+          catalogLength={characters.length}
+          attachForm={
+            <form onSubmit={(e) => void handleAttachEntrance(e)} className="space-y-2">
+              <select
+                value={attachEntranceCharacterId}
+                onChange={(e) => {
+                  setAttachEntranceCharacterId(e.target.value);
+                  if (!e.target.value) setAttachEntranceNotes("");
+                }}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Select character…</option>
+                {characters.map((character) => (
+                  <option key={character.id} value={String(character.id)}>
+                    {character.name}
+                  </option>
+                ))}
+              </select>
+              {attachEntranceCharacterId && (
+                <input
+                  value={attachEntranceNotes}
+                  onChange={(e) => setAttachEntranceNotes(e.target.value)}
+                  placeholder="Notes (optional)"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              )}
+              <button
+                type="submit"
+                disabled={saving || !attachEntranceCharacterId}
+                className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
+              >
+                Add entrance
+              </button>
+            </form>
+          }
+        />
+
+        <AttachmentSection
+          title="Exits"
+          emptyMessage="No exits recorded."
+          canEdit={canEdit}
+          saving={saving}
+          items={detail.exits.map((exitRow) => ({
+            id: exitRow.id,
+            label: exitRow.character_name,
+            notes: exitRow.notes ?? undefined,
+          }))}
+          onDetach={handleDetachExit}
+          catalogLength={characters.length}
+          attachForm={
+            <form onSubmit={(e) => void handleAttachExit(e)} className="space-y-2">
+              <select
+                value={attachExitCharacterId}
+                onChange={(e) => {
+                  setAttachExitCharacterId(e.target.value);
+                  if (!e.target.value) setAttachExitNotes("");
+                }}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Select character…</option>
+                {characters.map((character) => (
+                  <option key={character.id} value={String(character.id)}>
+                    {character.name}
+                  </option>
+                ))}
+              </select>
+              {attachExitCharacterId && (
+                <input
+                  value={attachExitNotes}
+                  onChange={(e) => setAttachExitNotes(e.target.value)}
+                  placeholder="Notes (optional)"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+              )}
+              <button
+                type="submit"
+                disabled={saving || !attachExitCharacterId}
+                className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
+              >
+                Add exit
+              </button>
+            </form>
+          }
+        />
+
+        <div className="border-t border-border pt-4">
+          <h3 className="text-sm font-medium">Blocking</h3>
+          {detail.blocking.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">No blocking notes.</p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {detail.blocking.map((row) => (
+                <li key={row.id} className="rounded-md border border-border p-2 text-sm">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex-1">
+                      <span className="font-medium">{row.character_name}</span>
+                      {canEdit ? (
+                        <textarea
+                          defaultValue={row.notes}
+                          disabled={saving}
+                          onBlur={(e) => {
+                            if (e.target.value.trim() !== row.notes) {
+                              void handleUpdateBlockingNotes(row.id, e.target.value);
+                            }
+                          }}
+                          className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          rows={2}
+                        />
+                      ) : (
+                        <p className="mt-1 text-muted-foreground whitespace-pre-wrap">
+                          {row.notes}
+                        </p>
+                      )}
+                    </div>
+                    {canEdit && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={saving}
+                        onClick={() => void handleDetachBlocking(row.id)}
+                        aria-label="Remove blocking"
+                        title="Remove blocking"
+                        className="shrink-0 text-destructive hover:text-destructive"
+                      >
+                        <Trash2 />
+                      </Button>
+                    )}
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+          {canEdit && characters.length > 0 && (
+            <form onSubmit={(e) => void handleAttachBlocking(e)} className="mt-3 space-y-2">
+              <select
+                value={attachBlockingCharacterId}
+                onChange={(e) => setAttachBlockingCharacterId(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Select character…</option>
+                {characters.map((character) => (
+                  <option key={character.id} value={String(character.id)}>
+                    {character.name}
+                  </option>
+                ))}
+              </select>
+              {attachBlockingCharacterId && (
+                <textarea
+                  value={attachBlockingNotes}
+                  onChange={(e) => setAttachBlockingNotes(e.target.value)}
+                  placeholder="Blocking notes"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  rows={2}
+                />
+              )}
+              <button
+                type="submit"
+                disabled={saving || !attachBlockingCharacterId || !attachBlockingNotes.trim()}
+                className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
+              >
+                Add blocking
+              </button>
+            </form>
+          )}
+        </div>
 
         <div className="border-t border-border pt-4">
           <h3 className="text-sm font-medium">Cues</h3>

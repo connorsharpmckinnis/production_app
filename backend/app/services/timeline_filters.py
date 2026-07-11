@@ -5,7 +5,7 @@ import re
 from sqlalchemy.orm import Session, joinedload
 
 from app.auth.dependencies import user_has_role
-from app.models import Costume, Cue, Dialogue, Moment, MomentMicrophone, MomentProp, MomentSetPiece, User
+from app.models import Costume, Cue, Dialogue, Moment, MomentBlocking, MomentEntrance, MomentExit, MomentMicrophone, MomentProp, MomentSetPiece, User
 
 # Moment types shown in cue-only rehearsal mode (Phase 2).
 CUE_ONLY_TYPES = frozenset({"stage_direction", "song_header", "song_attribution"})
@@ -54,6 +54,9 @@ def load_scene_moments(db: Session, scene_id: int) -> list[Moment]:
             joinedload(Moment.moment_props),
             joinedload(Moment.moment_microphones),
             joinedload(Moment.moment_set_pieces),
+            joinedload(Moment.moment_entrances),
+            joinedload(Moment.moment_exits),
+            joinedload(Moment.moment_blocking),
             joinedload(Moment.cues),
         )
         .filter(Moment.scene_id == scene_id)
@@ -204,6 +207,13 @@ def moment_matches_character_filter(
     return False
 
 
+def moment_has_blocking_for_characters(moment: Moment, character_ids: set[int]) -> bool:
+    """True when the moment has blocking for one of the given characters."""
+    if not character_ids:
+        return False
+    return any(row.character_id in character_ids for row in moment.moment_blocking)
+
+
 def apply_timeline_filters(
     moments: list[Moment],
     *,
@@ -218,6 +228,10 @@ def apply_timeline_filters(
     microphone_id: int | None = None,
     set_piece_id: int | None = None,
     costume_only: bool = False,
+    entrance_only: bool = False,
+    exit_only: bool = False,
+    blocking_only: bool = False,
+    blocking_character_ids: set[int] | None = None,
     moment_ids_with_cues: set[int] | None = None,
     moment_ids_with_prop: set[int] | None = None,
     moment_ids_with_cue_category: set[int] | None = None,
@@ -269,6 +283,22 @@ def apply_timeline_filters(
             for moment in filtered
             if moment_has_costume(moment, character_ids_with_costume)
         ]
+
+    if entrance_only:
+        filtered = [moment for moment in filtered if len(moment.moment_entrances) > 0]
+
+    if exit_only:
+        filtered = [moment for moment in filtered if len(moment.moment_exits) > 0]
+
+    if blocking_only:
+        if blocking_character_ids:
+            filtered = [
+                moment
+                for moment in filtered
+                if moment_has_blocking_for_characters(moment, blocking_character_ids)
+            ]
+        else:
+            filtered = [moment for moment in filtered if len(moment.moment_blocking) > 0]
 
     if character_ids:
         filtered = [

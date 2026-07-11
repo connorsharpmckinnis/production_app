@@ -592,6 +592,57 @@ Fields
 
 ---
 
+# MOMENT_ENTRANCES
+
+Purpose
+
+Record structured character entrances on moments (Phase 5).
+
+Fields
+
+* id
+* moment_id
+* character_id
+* notes (nullable)
+
+**Decision:** Unique `(moment_id, character_id)` — one entrance row per character per moment.
+
+---
+
+# MOMENT_EXITS
+
+Purpose
+
+Record structured character exits on moments (Phase 5).
+
+Fields
+
+* id
+* moment_id
+* character_id
+* notes (nullable)
+
+**Decision:** Unique `(moment_id, character_id)` — one exit row per character per moment.
+
+---
+
+# MOMENT_BLOCKING
+
+Purpose
+
+Attach blocking notes to moments for specific characters (Phase 5).
+
+Fields
+
+* id
+* moment_id
+* character_id
+* notes (required)
+
+**Decision:** Unique `(moment_id, character_id)` — one blocking row per character per moment. On-stage presence within a scene is derived from entrance/exit sequence, not stored.
+
+---
+
 # COSTUMES
 
 Fields

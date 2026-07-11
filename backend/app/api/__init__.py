@@ -13,6 +13,7 @@ from app.api import (
     reports,
     set_pieces,
     settings,
+    stage_movements,
     timeline,
     users,
 )
@@ -32,4 +33,5 @@ api_router.include_router(cues.router)
 api_router.include_router(costumes.router)
 api_router.include_router(microphones.router)
 api_router.include_router(set_pieces.router)
+api_router.include_router(stage_movements.router)
 api_router.include_router(reports.router)

@@ -39,3 +39,10 @@ class Character(Base):
         back_populates="character",
     )
     costumes: Mapped[list["Costume"]] = relationship(back_populates="character")
+    moment_entrances: Mapped[list["MomentEntrance"]] = relationship(
+        back_populates="character",
+    )
+    moment_exits: Mapped[list["MomentExit"]] = relationship(back_populates="character")
+    moment_blocking: Mapped[list["MomentBlocking"]] = relationship(
+        back_populates="character",
+    )

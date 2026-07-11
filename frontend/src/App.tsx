@@ -9,6 +9,7 @@ import GroupsPage from "@/pages/GroupsPage";
 import ImportPage from "@/pages/ImportPage";
 import LoginPage from "@/pages/LoginPage";
 import MicrophonesPage from "@/pages/MicrophonesPage";
+import ProductionOverviewPage from "@/pages/ProductionOverviewPage";
 import ProductionListPage from "@/pages/ProductionListPage";
 import PropsPage from "@/pages/PropsPage";
 import ReportsPage from "@/pages/ReportsPage";
@@ -27,6 +28,7 @@ export default function App() {
         <Route element={<AppShell />}>
           <Route index element={<Navigate to="/productions" replace />} />
           <Route path="productions" element={<ProductionListPage />} />
+          <Route path="productions/:id" element={<ProductionOverviewPage />} />
           <Route path="productions/:id/timeline" element={<TimelinePage />} />
           <Route path="productions/:id/characters" element={<CharactersPage />} />
           <Route path="productions/:id/songs" element={<SongsPage />} />

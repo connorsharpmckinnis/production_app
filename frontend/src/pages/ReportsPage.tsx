@@ -2,8 +2,10 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { api, ApiError } from "@/lib/api";
 import type {
+  BlockingSheetEntry,
   CostumesBySceneGroup,
   CueSheetCategory,
+  EntranceExitSheetGroup,
   PropSheetEntry,
 } from "@/lib/types";
 
@@ -14,6 +16,8 @@ export default function ReportsPage() {
   const [propSheet, setPropSheet] = useState<PropSheetEntry[]>([]);
   const [cueSheet, setCueSheet] = useState<CueSheetCategory[]>([]);
   const [costumesReport, setCostumesReport] = useState<CostumesBySceneGroup[]>([]);
+  const [entranceExitReport, setEntranceExitReport] = useState<EntranceExitSheetGroup[]>([]);
+  const [blockingReport, setBlockingReport] = useState<BlockingSheetEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -22,11 +26,15 @@ export default function ReportsPage() {
       api.getPropSheetReport(productionId),
       api.getCueSheetReport(productionId),
       api.getCostumesBySceneReport(productionId),
+      api.getEntranceExitSheetReport(productionId),
+      api.getBlockingSheetReport(productionId),
     ])
-      .then(([props, cues, costumes]) => {
+      .then(([props, cues, costumes, entranceExit, blocking]) => {
         setPropSheet(props);
         setCueSheet(cues);
         setCostumesReport(costumes);
+        setEntranceExitReport(entranceExit);
+        setBlockingReport(blocking);
       })
       .catch((err: unknown) => {
         setError(err instanceof ApiError ? String(err.detail) : "Failed to load reports");
@@ -139,6 +147,49 @@ export default function ReportsPage() {
               </div>
             ))}
           </div>
+        )}
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-lg font-medium">Entrances &amp; exits</h2>
+        {entranceExitReport.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No entrance or exit records.</p>
+        ) : (
+          <div className="space-y-4">
+            {entranceExitReport.map((group) => (
+              <div key={group.scene_id} className="rounded-lg border border-border p-4">
+                <h3 className="font-medium">
+                  Act {group.act_number}, Scene {group.scene_number}
+                  {group.scene_title ? `: ${group.scene_title}` : ""}
+                </h3>
+                <ul className="mt-2 space-y-1 text-sm">
+                  {group.rows.map((row) => (
+                    <li key={`${row.moment_id}-${row.movement_type}-${row.character_id}`}>
+                      Moment {row.sequence_number} — {row.movement_type}: {row.character_name}
+                      {row.notes ? ` (${row.notes})` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      <section className="space-y-4">
+        <h2 className="text-lg font-medium">Blocking sheet</h2>
+        {blockingReport.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No blocking notes.</p>
+        ) : (
+          <ul className="space-y-2 text-sm">
+            {blockingReport.map((entry) => (
+              <li key={entry.moment_id + "-" + entry.character_id} className="rounded-lg border border-border p-3">
+                Act {entry.act_number}, Scene {entry.scene_number}
+                {entry.scene_title ? ` (${entry.scene_title})` : ""} — Moment{" "}
+                {entry.sequence_number} — {entry.character_name}: {entry.notes}
+              </li>
+            ))}
+          </ul>
         )}
       </section>
     </div>
