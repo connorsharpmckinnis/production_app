@@ -62,7 +62,7 @@ export default function ProductionListPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Productions</h1>
-          <p className="text-sm text-muted-foreground">Manage theater productions</p>
+          <p className="text-sm text-muted-foreground">Manage productions</p>
         </div>
         {isAdmin && (
           <Link

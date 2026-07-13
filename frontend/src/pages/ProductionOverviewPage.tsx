@@ -77,7 +77,7 @@ export default function ProductionOverviewPage() {
           title="This production needs a script"
           description={
             isAdmin
-              ? "Import a Theater App markdown or Word (.docx) script to build the timeline."
+              ? "Import a script to build the timeline."
               : "Ask an admin to import the script before rehearsal prep begins."
           }
           actionLabel={isAdmin ? "Import script" : undefined}

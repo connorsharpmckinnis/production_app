@@ -148,7 +148,7 @@ export default function AppShell() {
             </svg>
           </button>
           <Link to="/productions" className="shrink-0 text-lg font-semibold tracking-tight">
-            Theater App
+            The Theater Thing
           </Link>
           {productionId && displayProductionTitle && (
             <>
