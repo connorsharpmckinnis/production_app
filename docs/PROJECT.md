@@ -16,6 +16,7 @@ Companion documents:
 - [PHASE_4.md](PHASE_4.md) — Phase 4 execution plan (complete)
 - [PHASE_5.md](PHASE_5.md) — Phase 5 execution plan (complete)
 - [PHASE_6.md](PHASE_6.md) — Phase 6 execution plan (rehearsal UX & timeline polish)
+- [PHASE_7.md](PHASE_7.md) — Phase 7 execution plan (import hardening & DOCX)
 - [ROLES.md](ROLES.md) — MVP role permissions
 - [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](../.agents/skills/DEVELOPMENT_GUIDE/SKILL.md) — coding standards for humans and AI
 
@@ -586,11 +587,11 @@ This migration is planned for Phase 3+ and is not required for MVP. The current 
 
 # Import Philosophy
 
-The importer creates a Timeline from a Markdown (`.md`) script file — typically exported from Google Docs via **File → Download → Markdown**.
+The importer creates a Timeline from a Markdown (`.md`) or Word (`.docx`) script file — typically exported from Google Docs via **File → Download → Markdown** or **Microsoft Word (.docx)**.
 
 It does not create a finished production.
 
-**Importer approach (MVP):** Read the file line by line. Classify each line with regex pattern matching. Full fail on first unrecognized line with line number and reason. See [IMPORT_SPEC.md](IMPORT_SPEC.md) for Google Docs export patterns.
+**Importer approach:** Format adapters extract lines; a shared classifier reads line by line with regex pattern matching. Full fail on first unrecognized line with line number and reason. Production title is admin-owned (create-time name is not overwritten by the script title page). See [IMPORT_SPEC.md](IMPORT_SPEC.md) and [PHASE_7.md](PHASE_7.md).
 
 Imported information should remain intact while allowing structured production data to be layered on top.
 
@@ -765,7 +766,7 @@ See [PHASE_1.md](PHASE_1.md) for the execution plan.
 Summary:
 
 - Create Productions (Admin only)
-- Upload `.md` scripts (Google Docs Markdown export; Admin only)
+- Upload `.md` / `.docx` scripts (Google Docs Markdown or Word export; Admin only)
 - Parse standard script format (line-by-line regex classification)
 - Detect:
   - Acts
@@ -866,6 +867,24 @@ Summary:
 - P2: blur own lines until click/hover reveal
 
 **Explicitly out of Phase 6:** demo walkthrough, importer changes, deployment hardening, bookmarks redesign, event engine, new Rehearse backend APIs.
+
+---
+
+
+
+## Phase 7 — Import Hardening & Multi-Format Foundation
+
+See [PHASE_7.md](PHASE_7.md) for the execution plan.
+
+Summary:
+
+- Admin-chosen production title survives import (script title page does not rename)
+- Format adapters for `.md` and `.docx` → shared preprocess → shared classifier
+- Preprocessing: mojibake (including smart quotes), Markdown unescape, clear UTF-8 errors
+- Plain SCRIPT_FORMAT aliases (`Title:`, `Author:`, `Act 1`, `Scene 1 - …`) and plain `### SONG TITLE` (no hyperlink required)
+- Overview “needs script” based on acts only (not author)
+
+**Explicitly out of Phase 7:** re-import, admin field-mapping UI, warn-and-continue, ODT/RTF/PDF/Drive API.
 
 ---
 

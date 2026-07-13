@@ -32,7 +32,7 @@ export const aboutContent = {
     intro:
       "This build is meant to be usable with a real STP production. The core prep and rehearsal loops work end to end. Some of it is still rough around the edges, and a bunch of the bigger ideas are still ahead.",
     whatWorks: [
-      "Create a production and import a script in the Theater App markdown format.",
+      "Create a production and import a script as markdown (.md) or Word (.docx).",
       "Review and edit the Timeline — add, delete, and reorder moments.",
       "Cast characters, manage groups, and keep catalogs for props, cues, costumes, mics, set pieces, and songs.",
       "Attach prep data and notes to moments; bookmark moments for later.",

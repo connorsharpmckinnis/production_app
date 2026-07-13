@@ -38,6 +38,15 @@ Theater production management platform — monorepo with FastAPI backend, React 
 
    Change these before any production deployment.
 
+## Importing a script
+
+1. Create a production (Admin) — the name you enter is the production title and **stays** after import.
+2. Open **Import script** and upload a Google Docs export as **Markdown (`.md`)** or **Word (`.docx`)**.
+3. For Word/Google Docs: use Heading 1 for acts, Heading 2 for scenes, Heading 3 for song titles (ALL CAPS; hyperlink optional), italic Body for stage directions, and ALL CAPS (centered in the gold-standard script) for singers/lyrics.
+4. On success you land on the Timeline. Author is taken from the script title page when present; the script `Title:` line does not rename the production.
+
+See [docs/IMPORT_SPEC.md](docs/IMPORT_SPEC.md) and [docs/SCRIPT_FORMAT.md](docs/SCRIPT_FORMAT.md).
+
 ## Services
 
 | Service  | Description                                      | Port |

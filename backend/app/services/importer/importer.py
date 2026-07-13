@@ -20,12 +20,15 @@ from app.models import (
 from app.services.importer.builtins import BUILTIN_CHARACTER_NAMES, BUILTIN_SINGER_NAMES
 from app.services.importer.errors import ImportLineError
 from app.services.importer.parentheticals import parse_speaker_names, parse_singer_line
+from app.services.importer.extract import extract_script_lines
 from app.services.importer.patterns import (
     RE_ACT,
+    RE_ACT_PLAIN,
     RE_ALL_CAPS_LINE,
     RE_AUTHOR,
     RE_AUTHOR_NOTE,
     RE_AUTHOR_NOTE_H4,
+    RE_AUTHOR_PLAIN,
     RE_DIALOGUE,
     RE_END_OF_ACT,
     RE_END_OF_SCENE,
@@ -33,11 +36,18 @@ from app.services.importer.patterns import (
     RE_H4,
     RE_H4_ITALIC,
     RE_SCENE,
+    RE_SCENE_PLAIN,
     RE_SONG_HEADER,
+    RE_SONG_HEADER_PLAIN,
     RE_STAGE_DIRECTION,
     RE_TITLE,
+    RE_TITLE_PLAIN,
 )
-from app.services.importer.preprocessing import preprocess_script
+from app.services.importer.preprocessing import (
+    ScriptDecodeError,
+    preprocess_lines,
+    preprocess_script,
+)
 from app.services.importer.word_numbers import parse_number
 
 SONG_MOMENT_TYPES = frozenset({"song_header", "song_attribution", "lyric"})
@@ -64,6 +74,7 @@ class ImportResult:
     moments_created: int = 0
     characters_created: int = 0
     songs_created: int = 0
+    script_title: str | None = None
 
 
 def _load_moment_types(db: Session) -> dict[str, MomentType]:
@@ -254,14 +265,15 @@ def _classify_and_process_line(
         return
 
     if not state.title_page_complete:
-        if match := RE_TITLE.match(line):
+        if match := RE_TITLE.match(line) or RE_TITLE_PLAIN.match(line):
+            # Parsed for logging / future UX only — never overwrites production.title.
             state.production_title = match.group(1).strip()
             return
-        if match := RE_AUTHOR.match(line):
+        if match := RE_AUTHOR.match(line) or RE_AUTHOR_PLAIN.match(line):
             state.production_author = match.group(1).strip()
             return
 
-    if match := RE_ACT.match(line):
+    if match := RE_ACT.match(line) or RE_ACT_PLAIN.match(line):
         number = parse_number(match.group(1))
         act = Act(
             production_id=production.id,
@@ -278,7 +290,7 @@ def _classify_and_process_line(
         state.title_page_complete = True
         return
 
-    if match := RE_SCENE.match(line):
+    if match := RE_SCENE.match(line) or RE_SCENE_PLAIN.match(line):
         if state.current_act is None:
             raise ImportLineError(line_number, line, "Scene heading before any Act")
         number = parse_number(match.group(1))
@@ -296,7 +308,7 @@ def _classify_and_process_line(
         state.sequence_number = 0
         return
 
-    if match := RE_SONG_HEADER.match(line):
+    if match := RE_SONG_HEADER.match(line) or RE_SONG_HEADER_PLAIN.match(line):
         title = match.group(1).strip()
         song = Song(production_id=production.id, title=title)
         db.add(song)
@@ -354,17 +366,38 @@ def import_script(
     db: Session,
     production: Production,
     content: bytes | str,
+    *,
+    filename: str | None = None,
 ) -> ImportResult:
     """
     Import script content into an existing production.
 
+    When ``filename`` is provided (API uploads), format adapters extract lines
+    before shared preprocessing and classification. Inline string tests may omit
+    ``filename`` and go straight through ``preprocess_script``.
+
     Rolls back the entire transaction on any line error.
+
+    Production title is admin-owned: script title-page Title is parsed into
+    ``ImportResult.script_title`` but never written to ``production.title``.
+    Author is still applied from the script when present.
     """
     existing_acts = db.query(Act).filter(Act.production_id == production.id).count()
     if existing_acts > 0:
         raise ValueError("Production already has imported content; re-import is not allowed")
 
-    lines = preprocess_script(content)
+    try:
+        if filename is not None:
+            if isinstance(content, str):
+                content = content.encode("utf-8")
+            lines = preprocess_lines(extract_script_lines(filename, content))
+        else:
+            lines = preprocess_script(content)
+    except ScriptDecodeError as exc:
+        raise ValueError(str(exc)) from exc
+    except ValueError:
+        raise
+
     state = ImportState(
         moment_types=_load_moment_types(db),
         dialogue_character_names=_collect_dialogue_character_names(lines),
@@ -377,8 +410,8 @@ def import_script(
         for line_number, line in enumerate(lines, start=1):
             _classify_and_process_line(db, production, state, line_number, line)
 
-        if state.production_title:
-            production.title = state.production_title
+        # Admin create-time title wins — do not assign production.title here.
+        result.script_title = state.production_title
         if state.production_author:
             production.author = state.production_author
 

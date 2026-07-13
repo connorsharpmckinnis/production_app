@@ -1,9 +1,16 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { useToast } from "@/context/ToastContext";
 import { api, ApiError, isImportLineError } from "@/lib/api";
 import type { ImportLineErrorDetail } from "@/lib/types";
 import { cn } from "@/lib/utils";
+
+const ACCEPTED_EXTENSIONS = [".md", ".docx"] as const;
+
+function hasAcceptedExtension(name: string): boolean {
+  const lower = name.toLowerCase();
+  return ACCEPTED_EXTENSIONS.some((ext) => lower.endsWith(ext));
+}
 
 export default function ImportPage() {
   const { id } = useParams<{ id: string }>();
@@ -16,6 +23,14 @@ export default function ImportPage() {
   const [importing, setImporting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [lineError, setLineError] = useState<ImportLineErrorDetail | null>(null);
+  const [productionTitle, setProductionTitle] = useState<string | null>(null);
+
+  useEffect(() => {
+    void api
+      .getProduction(productionId)
+      .then((production) => setProductionTitle(production.title))
+      .catch(() => setProductionTitle(null));
+  }, [productionId]);
 
   function handleFileChange(selected: File | null) {
     setFile(selected);
@@ -25,8 +40,8 @@ export default function ImportPage() {
 
   function acceptFile(selected: File | null) {
     if (!selected) return;
-    if (!selected.name.endsWith(".md")) {
-      setError("Only .md script files are accepted.");
+    if (!hasAcceptedExtension(selected.name)) {
+      setError("Only .md and .docx script files are accepted.");
       return;
     }
     handleFileChange(selected);
@@ -51,12 +66,12 @@ export default function ImportPage() {
 
   async function handleImport() {
     if (!file) {
-      setError("Please select a .md script file.");
+      setError("Please select a .md or .docx script file.");
       return;
     }
 
-    if (!file.name.endsWith(".md")) {
-      setError("Only .md script files are accepted.");
+    if (!hasAcceptedExtension(file.name)) {
+      setError("Only .md and .docx script files are accepted.");
       return;
     }
 
@@ -99,19 +114,24 @@ export default function ImportPage() {
           </Link>
         </div>
         <h1 className="mt-2 text-2xl font-semibold tracking-tight">Import Script</h1>
-        <p className="text-sm text-muted-foreground">
-          Upload a markdown script file to build the timeline. See{" "}
+        {productionTitle && (
+          <p className="mt-1 text-sm font-medium text-foreground">{productionTitle}</p>
+        )}
+        <p className="mt-1 text-sm text-muted-foreground">
+          Upload a markdown (`.md`) or Word (`.docx`) script to build the timeline.
+          Production name stays as set when you created it; the script title page does
+          not rename it. See{" "}
           <Link to="/about" className="text-primary hover:underline">
             About the App
           </Link>{" "}
-          for workflow context; scripts should follow the Theater App markdown format.
+          for workflow context.
         </p>
       </div>
 
       <div className="space-y-4 rounded-lg border border-border bg-card p-6">
         <div className="space-y-2">
           <label htmlFor="script-file" className="text-sm font-medium">
-            Script file (.md)
+            Script file (.md or .docx)
           </label>
           <div
             role="button"
@@ -134,7 +154,9 @@ export default function ImportPage() {
             )}
           >
             <p className="text-sm font-medium">Drop your script here</p>
-            <p className="mt-1 text-xs text-muted-foreground">or click to browse (.md only)</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              or click to browse (.md or .docx)
+            </p>
             {file && (
               <p className="mt-3 text-xs text-muted-foreground">Selected: {file.name}</p>
             )}
@@ -143,7 +165,7 @@ export default function ImportPage() {
             ref={fileInputRef}
             id="script-file"
             type="file"
-            accept=".md"
+            accept=".md,.docx"
             className="sr-only"
             onChange={(e) => acceptFile(e.target.files?.[0] ?? null)}
           />
@@ -162,10 +184,26 @@ export default function ImportPage() {
       <div className="rounded-lg border border-border bg-muted/20 p-4">
         <h2 className="text-sm font-medium">Format tips</h2>
         <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
-          <li>Start with title page lines like <code className="text-xs">Title:</code> and <code className="text-xs">Author:</code>, then <code className="text-xs">Act 1</code>.</li>
-          <li>Scene headings use <code className="text-xs">Scene 1 - Title</code> (number, hyphen, title).</li>
-          <li>Dialogue is one line per beat: <code className="text-xs">CHARACTER: line of dialogue</code>.</li>
-          <li>Stage directions are prose wrapped in asterisks: <code className="text-xs">*LIGHTS UP on…*</code>.</li>
+          <li>
+            Start with title page lines like <code className="text-xs">Title:</code> and{" "}
+            <code className="text-xs">Author:</code>, then <code className="text-xs">Act 1</code>.
+          </li>
+          <li>
+            Scene headings use <code className="text-xs">Scene 1 - Title</code> (number,
+            hyphen, title).
+          </li>
+          <li>
+            Dialogue is one line per beat:{" "}
+            <code className="text-xs">CHARACTER: line of dialogue</code>.
+          </li>
+          <li>
+            Stage directions are italic (Word) or wrapped in asterisks:{" "}
+            <code className="text-xs">*LIGHTS UP on…*</code>.
+          </li>
+          <li>
+            For Word/Google Docs: Heading 1 = Act, Heading 2 = Scene, Heading 3 = song
+            title (ALL CAPS), italic Body = stage direction, centered ALL CAPS = lyrics.
+          </li>
           <li>Separate each moment with a blank line — one beat per moment on the timeline.</li>
         </ul>
       </div>

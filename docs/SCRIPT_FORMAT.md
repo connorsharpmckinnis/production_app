@@ -1,6 +1,6 @@
 # Theater App Script Format
 
-**Version:** 0.2
+**Version:** 0.3
 
 This document defines the **Theater App Standard Script Format** — the default format scripts are expected to follow when imported into Theater App.
 
@@ -11,7 +11,7 @@ Companion documents:
 
 The goal is not to capture every possible way a playwright might write a script. The goal is to give writers a clear, consistent set of rules so that a script can be imported faithfully into the production Timeline (Acts → Scenes → Moments) without guesswork.
 
-**MVP import source:** Markdown (`.md`) files, typically exported from Google Docs via **File → Download → Markdown**. The export uses markdown headings and link syntax; see [IMPORT_SPEC.md](IMPORT_SPEC.md) for how the importer reads it. [SCRIPT_FORMAT.md](SCRIPT_FORMAT.md) describes authoring intent.
+**MVP import sources:** Markdown (`.md`) or Word (`.docx`) files, typically exported from Google Docs via **File → Download → Markdown** or **Microsoft Word (.docx)**. Markdown export uses headings and optional link syntax; DOCX uses Heading styles, italic Body for stage directions, and ALL CAPS (centered in the gold-standard script) for singers/lyrics. See [IMPORT_SPEC.md](IMPORT_SPEC.md) for how the importer reads each format. This document describes authoring intent.
 
 ---
 
@@ -55,7 +55,10 @@ Everything between an Act heading and the next Act heading belongs to that Act. 
 
 ## Title Page
 
-The first lines of the script carry basic metadata. These are imported and stored, but are not part of the performance Timeline.
+The first lines of the script carry basic metadata. They are not part of the performance Timeline.
+
+- **`Author:`** is stored on the production when present.
+- **`Title:`** is parsed for reference only. The production name is set when an Admin creates the production and is **not** overwritten by the script title page.
 
 ### Format
 
@@ -360,6 +363,8 @@ Songs are distinct sequences within a scene. A song block has three parts: **tit
 - The parenthetical is **part of the song title**, not a separate field. It identifies which *instance* of a song this is within the production.
 - Use `(REPRISE)`, `(PRE-PRISE)`, `(VERSE 2)`, or a **number** when the same song appears multiple times in fragments: `US WHO TRAVEL (2)` is the second time that song appears — functionally similar to `(REPRISE)` but numbered for shows that reuse songs in many small pieces.
 - The full title line (including parenthetical) is one Song record and one Moment.
+- **Word / Google Docs:** use **Heading 3** for song titles. A hyperlink on the title is optional (a personal convenience) — not required for import. Do not rely on a special font; the Heading 3 style is the distinguishing signal.
+- Optional song **description** (sentence case, not ALL CAPS) may follow the title — centered Heading 4 / Body in Word exports — and is stored on the Song record, not as a Moment.
 
 ### Performer attribution line
 
@@ -381,6 +386,7 @@ Songs are distinct sequences within a scene. A song block has three parts: **tit
 - Each lyric line is written in ALL CAPS on its own line.
 - One lyric line = one Moment.
 - Punctuation and ellipses are preserved as written.
+- **Word / Google Docs:** singer labels and lyrics are normal (Body) text in ALL CAPS, typically centered — not a special heading level. The importer keys off ALL CAPS (and Heading 4 ALL CAPS when present), not a unique font.
 
 ### Full song example
 
@@ -557,11 +563,12 @@ End of Scene 1
 
 This section previews how the MVP importer will read the format. The full import specification will be a separate document.
 
-**Importer strategy:** Read the `.md` file line by line. Classify each line with regex pattern matching. Build Acts, Scenes, Moments, Characters, and Songs incrementally. No parser generator or AST is needed.
+**Importer strategy:** Format adapters turn `.md` / `.docx` into lines; a shared classifier reads line by line with regex pattern matching. Build Acts, Scenes, Moments, Characters, and Songs incrementally. No parser generator or AST is needed.
 
 | Script construct | Maps to | `moment_types.name` |
 |-----------------|---------|----------------------|
-| `Title:` / `Author:` lines | Production metadata (not Timeline Moments) | — |
+| `Title:` line | Parsed only — does **not** set production name (admin create title wins) | — |
+| `Author:` line | Production author metadata (not a Timeline Moment) | — |
 | `Act {N}` heading | **Act** record | — |
 | `Scene {N} - {Title}` heading | **Scene** record | — |
 | `End of Scene {N}` marker | Ignored | — |
@@ -590,4 +597,5 @@ This section previews how the MVP importer will read the format. The full import
 | Version | Date | Notes |
 |---------|------|-------|
 | 0.1 | 2026-07-08 | Initial draft derived from production script example |
+| 0.3 | 2026-07-13 | DOCX import path; title page does not rename production; song titles via Heading 3 without required hyperlink; lyrics/singers as ALL CAPS Body text |
 | 0.2 | 2026-07-08 | Resolved open questions: digit numbering, title page, song instance labels, parenthetical handling, character reference guidance |

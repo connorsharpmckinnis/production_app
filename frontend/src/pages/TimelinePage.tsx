@@ -459,7 +459,7 @@ export default function TimelinePage() {
         <h1 className="text-2xl font-semibold tracking-tight">Timeline</h1>
         <EmptyState
           title="No script imported yet"
-          description="Import a Theater App markdown script to build the timeline."
+          description="Import a Theater App markdown or Word (.docx) script to build the timeline."
           actionLabel={isAdmin ? "Import script" : undefined}
           actionTo={isAdmin ? `/productions/${productionId}/import` : undefined}
         />

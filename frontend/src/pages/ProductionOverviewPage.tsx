@@ -49,7 +49,7 @@ export default function ProductionOverviewPage() {
     );
   }
 
-  const needsImport = overview.act_count === 0 || !overview.author;
+  const needsImport = overview.act_count === 0;
   const needsCasting =
     overview.character_count > 0 && overview.cast_count < overview.character_count;
   const castLabel =
@@ -77,7 +77,7 @@ export default function ProductionOverviewPage() {
           title="This production needs a script"
           description={
             isAdmin
-              ? "Import a Theater App markdown script to build the timeline."
+              ? "Import a Theater App markdown or Word (.docx) script to build the timeline."
               : "Ask an admin to import the script before rehearsal prep begins."
           }
           actionLabel={isAdmin ? "Import script" : undefined}

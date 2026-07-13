@@ -113,8 +113,9 @@ def get_production_overview(
         or 0
     )
 
+    # Import state is based on timeline structure (acts), not author metadata.
     imported_at = None
-    if production.author is not None:
+    if act_count > 0:
         imported_at = (
             db.query(func.min(Moment.created_at))
             .join(Scene)
@@ -160,17 +161,19 @@ async def import_production_script(
     _admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> ImportSuccessResponse:
-    if not file.filename or not file.filename.lower().endswith(".md"):
+    filename = file.filename or ""
+    lower_name = filename.lower()
+    if not lower_name.endswith((".md", ".docx")):
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Only .md script files are accepted",
+            detail="Only .md and .docx script files are accepted",
         )
 
     production = _get_production_or_404(db, production_id)
     content = await file.read()
 
     try:
-        result = import_script(db, production, content)
+        result = import_script(db, production, content, filename=filename)
     except ImportLineError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,

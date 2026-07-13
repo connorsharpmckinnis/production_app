@@ -49,13 +49,16 @@ uv run pytest -q
 
 ## Script Importer
 
-Script import lives in [`app/services/importer/`](app/services/importer/). It parses Google Docs Markdown exports into production timeline records without modifying the original script text.
+Script import lives in [`app/services/importer/`](app/services/importer/). It accepts Google Docs **Markdown** (`.md`) and **Word** (`.docx`) exports, extracts lines via format adapters, then classifies into production timeline records without modifying sacred script text. The production title set at create time is never overwritten by the script title page.
 
 | Module | Purpose |
 |--------|---------|
 | `importer.py` | Main `import_script()` entry point and line-by-line state machine |
+| `extract.py` | Format detection and adapter dispatch |
+| `formats/md.py` | Markdown bytes → lines |
+| `formats/docx.py` | DOCX paragraphs → classifier-shaped lines (`python-docx`) |
 | `patterns.py` | Regex patterns for acts, scenes, dialogue, songs, etc. |
-| `preprocessing.py` | Normalizes raw Markdown before parsing |
+| `preprocessing.py` | Mojibake repair, Markdown unescape, line normalization |
 | `parentheticals.py` | Parses speaker names and singer attribution lines |
 | `builtins.py` | Built-in character and singer name lists |
 | `word_numbers.py` | Converts written numbers (e.g. "One") to integers |
@@ -63,7 +66,7 @@ Script import lives in [`app/services/importer/`](app/services/importer/). It pa
 
 Import rules and line classification are defined in [docs/IMPORT_SPEC.md](../docs/IMPORT_SPEC.md). Authoring format is in [docs/SCRIPT_FORMAT.md](../docs/SCRIPT_FORMAT.md).
 
-The import API endpoint is `POST /api/productions/{id}/import` (Admin only).
+The import API endpoint is `POST /api/productions/{id}/import` (Admin only; `.md` or `.docx`).
 
 ## Phase 2 Features
 
