@@ -56,7 +56,8 @@ export default function TimelineMomentList({
   insertFormSlot,
   footerSlot,
 }: TimelineMomentListProps) {
-  const [hoveredBlurLineId, setHoveredBlurLineId] = useState<number | null>(null);
+  const [revealedBlurLineId, setRevealedBlurLineId] = useState<number | null>(null);
+  const [blurRevealMode, setBlurRevealMode] = useState<"hover" | "tap" | null>(null);
 
   function handleRowKeyDown(event: React.KeyboardEvent, momentId: number) {
     if (event.key === "Enter" || event.key === " ") {
@@ -66,25 +67,46 @@ export default function TimelineMomentList({
   }
 
   return (
-    <ul className="h-full overflow-y-auto divide-y divide-border">
+    <ul className="min-h-0 flex-1 overflow-y-auto divide-y divide-border">
       {moments.map((moment, index) => {
         const speaker = speakingCharacterName(moment, characters);
         const highlighted = isHighlighted(moment);
         const selected = selectedMomentId === moment.id;
         const shouldBlur = blurMyLines && isMyLine?.(moment);
-        const revealed = hoveredBlurLineId === moment.id;
+        const revealed = revealedBlurLineId === moment.id;
 
         return (
           <li key={moment.id}>
             <div
               role="button"
               tabIndex={0}
-              onClick={() => onSelectMoment(moment.id)}
+              onClick={() => {
+                if (shouldBlur && !revealed) {
+                  setRevealedBlurLineId(moment.id);
+                  setBlurRevealMode("tap");
+                  return;
+                }
+                onSelectMoment(moment.id);
+              }}
               onKeyDown={(event) => handleRowKeyDown(event, moment.id)}
               onMouseEnter={
-                shouldBlur ? () => setHoveredBlurLineId(moment.id) : undefined
+                shouldBlur
+                  ? () => {
+                      setRevealedBlurLineId(moment.id);
+                      setBlurRevealMode("hover");
+                    }
+                  : undefined
               }
-              onMouseLeave={shouldBlur ? () => setHoveredBlurLineId(null) : undefined}
+              onMouseLeave={
+                shouldBlur
+                  ? () => {
+                      if (blurRevealMode === "hover") {
+                        setRevealedBlurLineId(null);
+                        setBlurRevealMode(null);
+                      }
+                    }
+                  : undefined
+              }
               className={momentHighlightRowClass(highlighted, selected)}
             >
               {canManagePreparation && (
@@ -121,7 +143,10 @@ export default function TimelineMomentList({
                 {moment.sequence_number}
               </span>
               {speaker && (
-                <span className="w-24 shrink-0 self-start font-medium text-muted-foreground">
+                <span
+                  className="w-24 shrink-0 self-start truncate font-medium text-muted-foreground"
+                  title={speaker}
+                >
                   {speaker}
                 </span>
               )}

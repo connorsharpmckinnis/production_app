@@ -1,5 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { Trash2 } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { useConfirm } from "@/context/ConfirmContext";
+import { useToast } from "@/context/ToastContext";
 import { api, ApiError } from "@/lib/api";
 import type { ProductionResponse } from "@/lib/types";
 import { useAuth } from "@/context/AuthContext";
@@ -7,6 +13,8 @@ import { formatDate } from "@/lib/utils";
 
 export default function ProductionListPage() {
   const { isAdmin, isActorOnly } = useAuth();
+  const confirm = useConfirm();
+  const toast = useToast();
   const [productions, setProductions] = useState<ProductionResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -23,16 +31,23 @@ export default function ProductionListPage() {
   }, []);
 
   async function handleDelete(id: number) {
-    if (!confirm("Delete this production? This cannot be undone.")) return;
+    const ok = await confirm({
+      title: "Delete this production?",
+      description: "This cannot be undone. All timeline and prep data will be removed.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
 
     setDeletingId(id);
     try {
       await api.deleteProduction(id);
       setProductions((prev) => prev.filter((p) => p.id !== id));
+      toast.success("Production deleted");
     } catch (err) {
       const message =
         err instanceof ApiError ? String(err.detail) : "Failed to delete production";
-      alert(message);
+      toast.error(message);
     } finally {
       setDeletingId(null);
     }
@@ -66,68 +81,100 @@ export default function ProductionListPage() {
       )}
 
       {productions.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
-          {isActorOnly
-            ? "No productions yet — ask your director to cast you."
-            : "No productions yet."}
-          {isAdmin && " Create one to get started."}
-        </div>
+        <EmptyState
+          title={
+            isActorOnly
+              ? "No productions yet"
+              : "No productions yet"
+          }
+          description={
+            isActorOnly
+              ? "Ask your director to cast you in a production."
+              : isAdmin
+                ? "Create a production to get started."
+                : "Ask an admin to create a production."
+          }
+          actionLabel={isAdmin ? "New production" : undefined}
+          actionTo={isAdmin ? "/productions/new" : undefined}
+        />
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border">
+        <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
             <thead className="border-b border-border bg-muted/50">
               <tr>
                 <th className="px-4 py-3 text-left font-medium">Title</th>
                 <th className="px-4 py-3 text-left font-medium">Season</th>
-                <th className="px-4 py-3 text-left font-medium">Author</th>
+                <th className="px-4 py-3 text-left font-medium">Status</th>
                 <th className="px-4 py-3 text-left font-medium">Created</th>
                 <th className="px-4 py-3 text-right font-medium">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {productions.map((production) => (
-                <tr key={production.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3 font-medium">{production.title}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {production.season ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {production.author ?? "—"}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    {formatDate(production.created_at)}
-                  </td>
-                  <td className="px-4 py-3 text-right">
-                    <div className="flex justify-end gap-2">
-                      {production.author ? (
+              {productions.map((production) => {
+                const ready = Boolean(production.author);
+                return (
+                  <tr key={production.id} className="border-b border-border last:border-0">
+                    <td className="px-4 py-3 font-medium">
+                      {ready ? (
                         <Link
                           to={`/productions/${production.id}`}
-                          className="rounded-md border border-border px-3 py-1 text-xs hover:bg-muted"
+                          className="hover:underline"
                         >
-                          Open
+                          {production.title}
                         </Link>
-                      ) : isAdmin ? (
-                        <Link
-                          to={`/productions/${production.id}/import`}
-                          className="rounded-md border border-border px-3 py-1 text-xs hover:bg-muted"
-                        >
-                          Import
-                        </Link>
-                      ) : null}
-                      {isAdmin && (
-                        <button
-                          type="button"
-                          disabled={deletingId === production.id}
-                          onClick={() => void handleDelete(production.id)}
-                          className="rounded-md border border-destructive/30 px-3 py-1 text-xs text-destructive hover:bg-destructive/10 disabled:opacity-50"
-                        >
-                          Delete
-                        </button>
+                      ) : (
+                        production.title
                       )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {production.season ?? "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      {ready ? (
+                        <Badge variant="secondary">Ready</Badge>
+                      ) : (
+                        <Badge variant="outline">Needs import</Badge>
+                      )}
+                    </td>
+                    <td className="px-4 py-3 text-muted-foreground">
+                      {formatDate(production.created_at)}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <div className="flex justify-end gap-2">
+                        {ready ? (
+                          <Link
+                            to={`/productions/${production.id}`}
+                            className="rounded-md border border-border px-3 py-1 text-xs hover:bg-muted"
+                          >
+                            Open
+                          </Link>
+                        ) : isAdmin ? (
+                          <Link
+                            to={`/productions/${production.id}/import`}
+                            className="rounded-md border border-border px-3 py-1 text-xs hover:bg-muted"
+                          >
+                            Import
+                          </Link>
+                        ) : null}
+                        {isAdmin && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            disabled={deletingId === production.id}
+                            onClick={() => void handleDelete(production.id)}
+                            aria-label={`Delete ${production.title}`}
+                            title="Delete"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 />
+                          </Button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>

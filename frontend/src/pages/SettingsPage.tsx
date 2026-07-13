@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import ThemeToggle from "@/components/ThemeToggle";
+import { useToast } from "@/context/ToastContext";
 import { api, ApiError } from "@/lib/api";
 import type { AppSettingsResponse } from "@/lib/types";
 
 export default function SettingsPage() {
+  const toast = useToast();
   const [settings, setSettings] = useState<AppSettingsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -33,8 +35,9 @@ export default function SettingsPage() {
     try {
       const updated = await api.updateAppSettings({ [field]: value });
       setSettings(updated);
+      toast.success("Settings updated");
     } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to update settings");
+      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to update settings");
     } finally {
       setSaving(false);
     }

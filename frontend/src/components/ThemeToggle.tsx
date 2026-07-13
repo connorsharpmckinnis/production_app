@@ -19,6 +19,7 @@ export default function ThemeToggle({ compact = false }: { compact?: boolean }) 
             <button
               key={option.value}
               type="button"
+              aria-pressed={preference === option.value}
               onClick={() => setPreference(option.value)}
               className={
                 preference === option.value
@@ -42,6 +43,7 @@ export default function ThemeToggle({ compact = false }: { compact?: boolean }) 
           <button
             key={option.value}
             type="button"
+            aria-pressed={preference === option.value}
             onClick={() => setPreference(option.value)}
             className={
               preference === option.value

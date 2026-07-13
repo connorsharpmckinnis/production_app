@@ -19,7 +19,7 @@ export function momentBadgeClass(type: string): string {
 /** Left-border highlight for filtered or "my line" moments. */
 export function momentHighlightRowClass(isHighlighted: boolean, isSelected: boolean): string {
   return cn(
-    "flex w-full min-h-[3rem] cursor-pointer items-stretch gap-2 px-4 py-3 text-left text-sm transition-colors",
+    "flex w-full min-h-[2.5rem] cursor-pointer items-stretch gap-2 px-3 py-2 text-left text-sm transition-colors",
     isSelected && "bg-muted",
     isHighlighted && "border-l-4 border-l-highlight bg-highlight-muted",
   );

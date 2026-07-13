@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import { api, ApiError } from "@/lib/api";
 import type {
@@ -250,6 +250,17 @@ export function useTimelineScene({
     setSelectedSceneId(act?.scenes[0]?.id ?? null);
   }
 
+  const selectSceneById = useCallback((sceneId: number): boolean => {
+    for (const act of acts) {
+      if (act.scenes.some((item) => item.id === sceneId)) {
+        setSelectedActId(act.id);
+        setSelectedSceneId(sceneId);
+        return true;
+      }
+    }
+    return false;
+  }, [acts]);
+
   async function refreshMomentDetail() {
     if (selectedMomentId === null) return;
     const detail = await api.getMoment(productionId, selectedMomentId);
@@ -292,6 +303,7 @@ export function useTimelineScene({
     myCharacterIds,
     canManagePreparation,
     handleActChange,
+    selectSceneById,
     setSelectedSceneId,
     refreshMomentDetail,
     refreshMomentsList,

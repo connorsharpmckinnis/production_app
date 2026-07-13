@@ -1,6 +1,7 @@
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "@/components/AppShell";
 import ProtectedRoute from "@/components/ProtectedRoute";
+import AboutPage from "@/pages/AboutPage";
 import CharactersPage from "@/pages/CharactersPage";
 import CostumesPage from "@/pages/CostumesPage";
 import CreateProductionPage from "@/pages/CreateProductionPage";
@@ -28,6 +29,7 @@ export default function App() {
       <Route element={<ProtectedRoute />}>
         <Route element={<AppShell />}>
           <Route index element={<Navigate to="/productions" replace />} />
+          <Route path="about" element={<AboutPage />} />
           <Route path="productions" element={<ProductionListPage />} />
           <Route path="productions/:id" element={<ProductionOverviewPage />} />
           <Route path="productions/:id/timeline" element={<TimelinePage />} />

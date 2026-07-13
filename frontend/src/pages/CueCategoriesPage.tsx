@@ -1,23 +1,38 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { Pencil, Trash2 } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
+import { useConfirm } from "@/context/ConfirmContext";
+import { useToast } from "@/context/ToastContext";
 import { api, ApiError } from "@/lib/api";
 import type { CueCategoryResponse } from "@/lib/types";
+
+const COMMON_CATEGORIES = ["Lighting", "Sound", "Music", "Projection", "FX"];
 
 export default function CueCategoriesPage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
   const { canManagePreparation } = useAuth();
+  const confirm = useConfirm();
+  const toast = useToast();
 
   const [categories, setCategories] = useState<CueCategoryResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editDescription, setEditDescription] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<CueCategoryResponse | null>(null);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function loadData() {
@@ -36,57 +51,102 @@ export default function CueCategoriesPage() {
     void loadData();
   }, [productionId]);
 
-  async function handleCreate(event: React.FormEvent) {
+  function openCreateDialog() {
+    setEditingCategory(null);
+    setName("");
+    setDescription("");
+    setDialogOpen(true);
+  }
+
+  function openEditDialog(category: CueCategoryResponse) {
+    setEditingCategory(category);
+    setName(category.name);
+    setDescription(category.description ?? "");
+    setDialogOpen(true);
+  }
+
+  function closeDialog() {
+    setDialogOpen(false);
+    setEditingCategory(null);
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!newName.trim()) return;
+    if (!name.trim()) return;
 
     setSaving(true);
     try {
-      await api.createCueCategory(productionId, {
-        name: newName.trim(),
-        description: newDescription.trim() || null,
-      });
-      setNewName("");
-      setNewDescription("");
-      setShowAddForm(false);
+      if (editingCategory) {
+        await api.updateCueCategory(productionId, editingCategory.id, {
+          name: name.trim(),
+          description: description.trim() || null,
+        });
+        toast.success("Category updated");
+      } else {
+        await api.createCueCategory(productionId, {
+          name: name.trim(),
+          description: description.trim() || null,
+        });
+        toast.success("Category created");
+      }
+      closeDialog();
       await loadData();
     } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to create category");
+      toast.error(
+        err instanceof ApiError
+          ? String(err.detail)
+          : editingCategory
+            ? "Failed to update category"
+            : "Failed to create category",
+      );
     } finally {
       setSaving(false);
     }
   }
 
-  function startEditing(category: CueCategoryResponse) {
-    setEditingId(category.id);
-    setEditName(category.name);
-    setEditDescription(category.description ?? "");
-  }
+  async function handleAddCommonCategories() {
+    const existing = new Set(categories.map((c) => c.name.toLowerCase()));
+    const missing = COMMON_CATEGORIES.filter((name) => !existing.has(name.toLowerCase()));
+    if (missing.length === 0) {
+      toast.success("All common categories already exist");
+      return;
+    }
 
-  async function handleSaveEdit(categoryId: number) {
     setSaving(true);
     try {
-      await api.updateCueCategory(productionId, categoryId, {
-        name: editName.trim(),
-        description: editDescription.trim() || null,
-      });
-      setEditingId(null);
+      for (const categoryName of missing) {
+        await api.createCueCategory(productionId, { name: categoryName, description: null });
+      }
+      toast.success(
+        missing.length === 1
+          ? `Added ${missing[0]}`
+          : `Added ${missing.length} common categories`,
+      );
       await loadData();
     } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to update category");
+      toast.error(
+        err instanceof ApiError ? String(err.detail) : "Failed to add common categories",
+      );
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete(categoryId: number) {
-    if (!confirm("Delete this cue category?")) return;
+    const ok = await confirm({
+      title: "Delete this cue category?",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
+
     setSaving(true);
     try {
       await api.deleteCueCategory(productionId, categoryId);
+      toast.success("Category deleted");
       await loadData();
     } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to delete category");
+      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to delete category");
     } finally {
       setSaving(false);
     }
@@ -100,10 +160,10 @@ export default function CueCategoriesPage() {
     <div className="space-y-6">
       <div>
         <Link
-          to={`/productions/${productionId}/timeline`}
+          to={`/productions/${productionId}`}
           className="text-sm text-muted-foreground hover:text-foreground"
         >
-          ← Timeline
+          ← Overview
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Cue Categories</h1>
         <p className="text-sm text-muted-foreground">
@@ -120,52 +180,28 @@ export default function CueCategoriesPage() {
       )}
 
       {canManagePreparation && (
-        <div>
-          {showAddForm ? (
-            <form onSubmit={(e) => void handleCreate(e)} className="space-y-2 rounded-md border border-border p-4">
-              <input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Category name (e.g. Lighting)"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-              <input
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-                placeholder="Description (optional)"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                >
-                  Add category
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowAddForm(true)}
-              className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
-            >
-              Add category
-            </button>
-          )}
+        <div className="flex flex-wrap gap-2">
+          <Button type="button" onClick={openCreateDialog}>
+            Add category
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={saving}
+            onClick={() => void handleAddCommonCategories()}
+          >
+            Add common categories
+          </Button>
         </div>
       )}
 
       {categories.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No cue categories yet.</p>
+        <EmptyState
+          title="No cue categories yet"
+          description="Add categories like Lighting or Sound to organize technical cues."
+          actionLabel={canManagePreparation ? "Add category" : undefined}
+          onAction={canManagePreparation ? openCreateDialog : undefined}
+        />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
@@ -181,69 +217,37 @@ export default function CueCategoriesPage() {
             <tbody className="divide-y divide-border">
               {categories.map((category) => (
                 <tr key={category.id}>
-                  {editingId === category.id ? (
-                    <>
-                      <td className="px-4 py-3">
-                        <input
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          value={editDescription}
-                          onChange={(e) => setEditDescription(e.target.value)}
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            disabled={saving}
-                            onClick={() => void handleSaveEdit(category.id)}
-                            className="text-sm text-primary hover:underline disabled:opacity-50"
-                          >
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingId(null)}
-                            className="text-sm text-muted-foreground hover:underline"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="px-4 py-3 font-medium">{category.name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {category.description ?? "—"}
-                      </td>
-                      {canManagePreparation && (
-                        <td className="px-4 py-3">
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => startEditing(category)}
-                              className="text-sm text-primary hover:underline"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleDelete(category.id)}
-                              className="text-sm text-destructive hover:underline"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      )}
-                    </>
+                  <td className="px-4 py-3 font-medium">{category.name}</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {category.description ?? "—"}
+                  </td>
+                  {canManagePreparation && (
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => openEditDialog(category)}
+                          aria-label={`Edit ${category.name}`}
+                          title="Edit"
+                        >
+                          <Pencil />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={saving}
+                          onClick={() => void handleDelete(category.id)}
+                          aria-label={`Delete ${category.name}`}
+                          title="Delete"
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 />
+                        </Button>
+                      </div>
+                    </td>
                   )}
                 </tr>
               ))}
@@ -251,6 +255,50 @@ export default function CueCategoriesPage() {
           </table>
         </div>
       )}
+
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditingCategory(null);
+        }}
+      >
+        <DialogContent>
+          <form onSubmit={(e) => void handleSubmit(e)}>
+            <DialogHeader>
+              <DialogTitle>{editingCategory ? "Edit category" : "Add category"}</DialogTitle>
+              <DialogDescription>
+                {editingCategory
+                  ? "Update this cue category."
+                  : "Add a new cue category (e.g. Lighting, Sound)."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-4">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Category name (e.g. Lighting)"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                autoFocus
+              />
+              <input
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Description (optional)"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeDialog}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving || !name.trim()}>
+                {editingCategory ? "Save" : "Add category"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

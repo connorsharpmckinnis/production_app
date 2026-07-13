@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import { Bookmark, Pencil, Trash2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,8 @@ import {
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { useConfirm } from "@/context/ConfirmContext";
+import { useToast } from "@/context/ToastContext";
 import { api, ApiError } from "@/lib/api";
 import type {
   AppSettingsResponse,
@@ -64,6 +67,9 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     },
     ref,
   ) {
+    const confirm = useConfirm();
+    const toast = useToast();
+
     const [noteContent, setNoteContent] = useState("");
     const [noteVisibility, setNoteVisibility] = useState<"public" | "private">("private");
     const [saving, setSaving] = useState(false);
@@ -134,17 +140,20 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         });
         onDetailUpdate(updated);
         await onChanged();
+        toast.success("Moment saved");
       } catch (err) {
         if (err instanceof ApiError && err.status === 409) {
-          const proceed = confirm(
-            `${String(err.detail)}\n\nChange the moment type anyway? Structured dialogue or stage direction data will be orphaned.`,
-          );
+          const proceed = await confirm({
+            title: "Change moment type?",
+            description: `${String(err.detail)} Structured dialogue or stage direction data will be orphaned.`,
+            confirmLabel: "Change type",
+          });
           if (proceed) {
             await saveMomentFields(true);
             return;
           }
         } else {
-          alert(err instanceof ApiError ? String(err.detail) : "Failed to save moment");
+          toast.error(err instanceof ApiError ? String(err.detail) : "Failed to save moment");
         }
       } finally {
         setSaving(false);
@@ -162,8 +171,11 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         });
         onDetailUpdate(updated);
         await onChanged();
+        toast.success("Stage direction saved");
       } catch (err) {
-        alert(err instanceof ApiError ? String(err.detail) : "Failed to save stage direction");
+        toast.error(
+          err instanceof ApiError ? String(err.detail) : "Failed to save stage direction",
+        );
       } finally {
         setSaving(false);
       }
@@ -185,12 +197,14 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           if (bookmark) {
             await api.deleteBookmark(bookmark.id);
           }
+          toast.success("Bookmark removed");
         } else {
           await api.createBookmark(detail.id);
+          toast.success("Bookmark added");
         }
         onChanged();
       } catch (err) {
-        alert(err instanceof ApiError ? String(err.detail) : "Bookmark action failed");
+        toast.error(err instanceof ApiError ? String(err.detail) : "Bookmark action failed");
       } finally {
         setSaving(false);
       }
@@ -209,20 +223,30 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         });
         setNoteContent("");
         onChanged();
+        toast.success("Note added");
       } catch (err) {
-        alert(err instanceof ApiError ? String(err.detail) : "Failed to add note");
+        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to add note");
       } finally {
         setSaving(false);
       }
     }
 
     async function handleDeleteNote(noteId: number) {
+      const ok = await confirm({
+        title: "Delete this note?",
+        description: "This cannot be undone.",
+        confirmLabel: "Delete",
+        destructive: true,
+      });
+      if (!ok) return;
+
       setSaving(true);
       try {
         await api.deleteNote(productionId, noteId);
         onChanged();
+        toast.success("Note deleted");
       } catch (err) {
-        alert(err instanceof ApiError ? String(err.detail) : "Failed to delete note");
+        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to delete note");
       } finally {
         setSaving(false);
       }
@@ -236,8 +260,9 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         });
         onDetailUpdate(updated);
         await onChanged();
+        toast.success("Dialogue updated");
       } catch (err) {
-        alert(err instanceof ApiError ? String(err.detail) : "Failed to update dialogue");
+        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to update dialogue");
       } finally {
         setSaving(false);
       }
@@ -258,20 +283,29 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         setAttachPropCharacterId("");
         setAttachPropNotes("");
         onChanged();
+        toast.success("Prop added");
       } catch (err) {
-        alert(err instanceof ApiError ? String(err.detail) : "Failed to attach prop");
+        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to attach prop");
       } finally {
         setSaving(false);
       }
     }
 
     async function handleDetachProp(momentPropId: number) {
+      const ok = await confirm({
+        title: "Remove this prop from the moment?",
+        confirmLabel: "Remove",
+        destructive: true,
+      });
+      if (!ok) return;
+
       setSaving(true);
       try {
         await api.detachMomentProp(productionId, detail.id, momentPropId);
         onChanged();
+        toast.success("Prop removed");
       } catch (err) {
-        alert(err instanceof ApiError ? String(err.detail) : "Failed to detach prop");
+        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to detach prop");
       } finally {
         setSaving(false);
       }
@@ -292,20 +326,29 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         setAttachMicCharacterId("");
         setAttachMicNotes("");
         onChanged();
+        toast.success("Microphone added");
       } catch (err) {
-        alert(err instanceof ApiError ? String(err.detail) : "Failed to attach microphone");
+        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to attach microphone");
       } finally {
         setSaving(false);
       }
     }
 
     async function handleDetachMicrophone(momentMicId: number) {
+      const ok = await confirm({
+        title: "Remove this microphone from the moment?",
+        confirmLabel: "Remove",
+        destructive: true,
+      });
+      if (!ok) return;
+
       setSaving(true);
       try {
         await api.detachMomentMicrophone(productionId, detail.id, momentMicId);
         onChanged();
+        toast.success("Microphone removed");
       } catch (err) {
-        alert(err instanceof ApiError ? String(err.detail) : "Failed to detach microphone");
+        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to detach microphone");
       } finally {
         setSaving(false);
       }
@@ -324,20 +367,29 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         setAttachSetPieceId("");
         setAttachSetPieceNotes("");
         onChanged();
+        toast.success("Set piece added");
       } catch (err) {
-        alert(err instanceof ApiError ? String(err.detail) : "Failed to attach set piece");
+        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to attach set piece");
       } finally {
         setSaving(false);
       }
     }
 
     async function handleDetachSetPiece(momentSetPieceId: number) {
+      const ok = await confirm({
+        title: "Remove this set piece from the moment?",
+        confirmLabel: "Remove",
+        destructive: true,
+      });
+      if (!ok) return;
+
       setSaving(true);
       try {
         await api.detachMomentSetPiece(productionId, detail.id, momentSetPieceId);
         onChanged();
+        toast.success("Set piece removed");
       } catch (err) {
-        alert(err instanceof ApiError ? String(err.detail) : "Failed to detach set piece");
+        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to detach set piece");
       } finally {
         setSaving(false);
       }
@@ -356,20 +408,29 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         setAttachEntranceCharacterId("");
         setAttachEntranceNotes("");
         onChanged();
+        toast.success("Entrance added");
       } catch (err) {
-        alert(err instanceof ApiError ? String(err.detail) : "Failed to attach entrance");
+        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to attach entrance");
       } finally {
         setSaving(false);
       }
     }
 
     async function handleDetachEntrance(entranceId: number) {
+      const ok = await confirm({
+        title: "Remove this entrance from the moment?",
+        confirmLabel: "Remove",
+        destructive: true,
+      });
+      if (!ok) return;
+
       setSaving(true);
       try {
         await api.detachMomentEntrance(productionId, detail.id, entranceId);
         onChanged();
+        toast.success("Entrance removed");
       } catch (err) {
-        alert(err instanceof ApiError ? String(err.detail) : "Failed to detach entrance");
+        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to detach entrance");
       } finally {
         setSaving(false);
       }
@@ -388,20 +449,29 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         setAttachExitCharacterId("");
         setAttachExitNotes("");
         onChanged();
+        toast.success("Exit added");
       } catch (err) {
-        alert(err instanceof ApiError ? String(err.detail) : "Failed to attach exit");
+        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to attach exit");
       } finally {
         setSaving(false);
       }
     }
 
     async function handleDetachExit(exitId: number) {
+      const ok = await confirm({
+        title: "Remove this exit from the moment?",
+        confirmLabel: "Remove",
+        destructive: true,
+      });
+      if (!ok) return;
+
       setSaving(true);
       try {
         await api.detachMomentExit(productionId, detail.id, exitId);
         onChanged();
+        toast.success("Exit removed");
       } catch (err) {
-        alert(err instanceof ApiError ? String(err.detail) : "Failed to detach exit");
+        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to detach exit");
       } finally {
         setSaving(false);
       }
@@ -420,8 +490,9 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         setAttachBlockingCharacterId("");
         setAttachBlockingNotes("");
         onChanged();
+        toast.success("Blocking added");
       } catch (err) {
-        alert(err instanceof ApiError ? String(err.detail) : "Failed to attach blocking");
+        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to attach blocking");
       } finally {
         setSaving(false);
       }
@@ -435,20 +506,29 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       try {
         await api.updateMomentBlocking(productionId, detail.id, blockingId, { notes: trimmed });
         onChanged();
+        toast.success("Blocking updated");
       } catch (err) {
-        alert(err instanceof ApiError ? String(err.detail) : "Failed to update blocking");
+        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to update blocking");
       } finally {
         setSaving(false);
       }
     }
 
     async function handleDetachBlocking(blockingId: number) {
+      const ok = await confirm({
+        title: "Remove this blocking from the moment?",
+        confirmLabel: "Remove",
+        destructive: true,
+      });
+      if (!ok) return;
+
       setSaving(true);
       try {
         await api.detachMomentBlocking(productionId, detail.id, blockingId);
         onChanged();
+        toast.success("Blocking removed");
       } catch (err) {
-        alert(err instanceof ApiError ? String(err.detail) : "Failed to detach blocking");
+        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to detach blocking");
       } finally {
         setSaving(false);
       }
@@ -468,20 +548,29 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         setNewCueTitle("");
         setNewCueNotes("");
         onChanged();
+        toast.success("Cue added");
       } catch (err) {
-        alert(err instanceof ApiError ? String(err.detail) : "Failed to add cue");
+        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to add cue");
       } finally {
         setSaving(false);
       }
     }
 
     async function handleDeleteCue(cueId: number) {
+      const ok = await confirm({
+        title: "Remove this cue from the moment?",
+        confirmLabel: "Remove",
+        destructive: true,
+      });
+      if (!ok) return;
+
       setSaving(true);
       try {
         await api.deleteMomentCue(productionId, detail.id, cueId);
         onChanged();
+        toast.success("Cue removed");
       } catch (err) {
-        alert(err instanceof ApiError ? String(err.detail) : "Failed to delete cue");
+        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to delete cue");
       } finally {
         setSaving(false);
       }
@@ -680,6 +769,54 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
               </select>
             </label>
 
+            {propsCatalog.length === 0 &&
+              cueCategories.length === 0 &&
+              microphonesCatalog.length === 0 &&
+              setPiecesCatalog.length === 0 && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  Need something to attach? Create items in{" "}
+                  <Link
+                    to={`/productions/${productionId}/props`}
+                    className="underline hover:text-foreground"
+                  >
+                    Props
+                  </Link>
+                  ,{" "}
+                  <Link
+                    to={`/productions/${productionId}/cue-categories`}
+                    className="underline hover:text-foreground"
+                  >
+                    Cue Categories
+                  </Link>
+                  ,{" "}
+                  <Link
+                    to={`/productions/${productionId}/microphones`}
+                    className="underline hover:text-foreground"
+                  >
+                    Microphones
+                  </Link>
+                  , or{" "}
+                  <Link
+                    to={`/productions/${productionId}/set-pieces`}
+                    className="underline hover:text-foreground"
+                  >
+                    Set Pieces
+                  </Link>{" "}
+                  first.
+                </p>
+              )}
+
+            <p className="mt-2 text-xs text-muted-foreground">
+              Costumes are assigned by character and scene — manage them on the{" "}
+              <Link
+                to={`/productions/${productionId}/costumes`}
+                className="underline hover:text-foreground"
+              >
+                Costumes
+              </Link>{" "}
+              page.
+            </p>
+
             {addAttachmentType === "prop" && propsCatalog.length > 0 && (
               <form onSubmit={(e) => void handleAttachProp(e)} className="mt-3 space-y-2">
                 <select
@@ -727,7 +864,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   disabled={saving || !attachPropId}
                   className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
                 >
-                  Attach prop
+                  Add
                 </button>
               </form>
             )}
@@ -773,7 +910,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   disabled={saving || !newCueCategoryId || !newCueTitle.trim()}
                   className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
                 >
-                  Add cue
+                  Add
                 </button>
               </form>
             )}
@@ -825,7 +962,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   disabled={saving || !attachMicId}
                   className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
                 >
-                  Attach microphone
+                  Add
                 </button>
               </form>
             )}
@@ -860,7 +997,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   disabled={saving || !attachSetPieceId}
                   className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
                 >
-                  Attach set piece
+                  Add
                 </button>
               </form>
             )}
@@ -895,7 +1032,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   disabled={saving || !attachEntranceCharacterId}
                   className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
                 >
-                  Add entrance
+                  Add
                 </button>
               </form>
             )}
@@ -930,7 +1067,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   disabled={saving || !attachExitCharacterId}
                   className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
                 >
-                  Add exit
+                  Add
                 </button>
               </form>
             )}
@@ -965,7 +1102,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   }
                   className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
                 >
-                  Add blocking
+                  Add
                 </button>
               </form>
             )}
@@ -977,7 +1114,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           emptyMessage="No props attached."
           canEdit={canEdit}
           saving={saving}
-          defaultExpanded={canEdit}
+          defaultExpanded={detail.props.length > 0}
           items={detail.props.map((prop) => ({
             id: prop.id,
             label: prop.prop_name,
@@ -993,7 +1130,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           emptyMessage="No microphones attached."
           canEdit={canEdit}
           saving={saving}
-          defaultExpanded={canEdit}
+          defaultExpanded={detail.microphones.length > 0}
           items={detail.microphones.map((mic) => ({
             id: mic.id,
             label: mic.microphone_identifier,
@@ -1009,7 +1146,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           emptyMessage="No set pieces attached."
           canEdit={canEdit}
           saving={saving}
-          defaultExpanded={canEdit}
+          defaultExpanded={detail.set_pieces.length > 0}
           items={detail.set_pieces.map((piece) => ({
             id: piece.id,
             label: piece.set_piece_name,
@@ -1024,7 +1161,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           emptyMessage="No entrances recorded."
           canEdit={canEdit}
           saving={saving}
-          defaultExpanded={canEdit}
+          defaultExpanded={detail.entrances.length > 0}
           items={detail.entrances.map((entrance) => ({
             id: entrance.id,
             label: entrance.character_name,
@@ -1039,7 +1176,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           emptyMessage="No exits recorded."
           canEdit={canEdit}
           saving={saving}
-          defaultExpanded={canEdit}
+          defaultExpanded={detail.exits.length > 0}
           items={detail.exits.map((exitRow) => ({
             id: exitRow.id,
             label: exitRow.character_name,
@@ -1054,7 +1191,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           emptyMessage="No blocking notes."
           canEdit={canEdit}
           saving={saving}
-          defaultExpanded={canEdit}
+          defaultExpanded={detail.blocking.length > 0}
           items={detail.blocking.map((row) => ({
             id: row.id,
             label: row.character_name,
@@ -1075,7 +1212,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           emptyMessage="No cues attached."
           canEdit={canEdit}
           saving={saving}
-          defaultExpanded={canEdit}
+          defaultExpanded={detail.cues.length > 0}
           items={detail.cues.map((cue) => ({
             id: cue.id,
             label: cue.title,
@@ -1096,25 +1233,33 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                 <li key={note.id} className="rounded-md border border-border p-3 text-sm">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-medium">{note.author_display_name}</span>
-                    <Badge variant="secondary">{note.visibility}</Badge>
+                    <div className="flex items-center gap-2">
+                      <Badge variant="secondary">
+                        {note.visibility === "public" ? "Visible to cast" : "Only me"}
+                      </Badge>
+                      {note.is_mine && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={saving}
+                          onClick={() => void handleDeleteNote(note.id)}
+                          aria-label="Delete note"
+                          title="Delete note"
+                          className="shrink-0 text-destructive hover:text-destructive"
+                        >
+                          <Trash2 />
+                        </Button>
+                      )}
+                    </div>
                   </div>
                   <p className="mt-1 whitespace-pre-wrap">{note.content}</p>
-                  {note.is_mine && (
-                    <button
-                      type="button"
-                      disabled={saving}
-                      onClick={() => void handleDeleteNote(note.id)}
-                      className="mt-2 text-xs text-destructive hover:underline disabled:opacity-50"
-                    >
-                      Delete
-                    </button>
-                  )}
                 </li>
               ))}
             </ul>
           )}
 
-          <form onSubmit={(e) => void handleAddNote(e)} className="mt-4 space-y-2">
+          <form onSubmit={(e) => void handleAddNote(e)} className="mt-4 flex flex-col gap-3">
             <textarea
               value={noteContent}
               onChange={(e) => setNoteContent(e.target.value)}
@@ -1128,8 +1273,8 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                 onChange={(e) => setNoteVisibility(e.target.value as "public" | "private")}
                 className="rounded-md border border-input bg-background px-3 py-2 text-sm"
               >
-                <option value="public">Public</option>
-                <option value="private">Private</option>
+                <option value="public">Visible to cast</option>
+                <option value="private">Only me</option>
               </select>
             )}
             <button

@@ -1,6 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { Pencil, Trash2 } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
+import { useConfirm } from "@/context/ConfirmContext";
+import { useToast } from "@/context/ToastContext";
 import { api, ApiError } from "@/lib/api";
 import type { MicrophoneResponse } from "@/lib/types";
 
@@ -8,14 +21,15 @@ export default function MicrophonesPage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
   const { canManagePreparation } = useAuth();
+  const confirm = useConfirm();
+  const toast = useToast();
 
   const [microphones, setMicrophones] = useState<MicrophoneResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newIdentifier, setNewIdentifier] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editIdentifier, setEditIdentifier] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingMic, setEditingMic] = useState<MicrophoneResponse | null>(null);
+  const [identifier, setIdentifier] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function loadData() {
@@ -34,49 +48,68 @@ export default function MicrophonesPage() {
     void loadData();
   }, [productionId]);
 
-  async function handleCreate(event: React.FormEvent) {
+  function openCreateDialog() {
+    setEditingMic(null);
+    setIdentifier("");
+    setDialogOpen(true);
+  }
+
+  function openEditDialog(mic: MicrophoneResponse) {
+    setEditingMic(mic);
+    setIdentifier(mic.identifier);
+    setDialogOpen(true);
+  }
+
+  function closeDialog() {
+    setDialogOpen(false);
+    setEditingMic(null);
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!newIdentifier.trim()) return;
+    if (!identifier.trim()) return;
 
     setSaving(true);
     try {
-      await api.createMicrophone(productionId, { identifier: newIdentifier.trim() });
-      setNewIdentifier("");
-      setShowAddForm(false);
+      if (editingMic) {
+        await api.updateMicrophone(productionId, editingMic.id, {
+          identifier: identifier.trim(),
+        });
+        toast.success("Microphone updated");
+      } else {
+        await api.createMicrophone(productionId, { identifier: identifier.trim() });
+        toast.success("Microphone created");
+      }
+      closeDialog();
       await loadData();
     } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to create microphone");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function startEditing(mic: MicrophoneResponse) {
-    setEditingId(mic.id);
-    setEditIdentifier(mic.identifier);
-  }
-
-  async function handleSaveEdit(micId: number) {
-    setSaving(true);
-    try {
-      await api.updateMicrophone(productionId, micId, { identifier: editIdentifier.trim() });
-      setEditingId(null);
-      await loadData();
-    } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to update microphone");
+      toast.error(
+        err instanceof ApiError
+          ? String(err.detail)
+          : editingMic
+            ? "Failed to update microphone"
+            : "Failed to create microphone",
+      );
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete(micId: number) {
-    if (!confirm("Delete this microphone?")) return;
+    const ok = await confirm({
+      title: "Delete this microphone?",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
+
     setSaving(true);
     try {
       await api.deleteMicrophone(productionId, micId);
+      toast.success("Microphone deleted");
       await loadData();
     } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to delete microphone");
+      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to delete microphone");
     } finally {
       setSaving(false);
     }
@@ -90,10 +123,10 @@ export default function MicrophonesPage() {
     <div className="space-y-6">
       <div>
         <Link
-          to={`/productions/${productionId}/timeline`}
+          to={`/productions/${productionId}`}
           className="text-sm text-muted-foreground hover:text-foreground"
         >
-          ← Timeline
+          ← Overview
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Microphones</h1>
         <p className="text-sm text-muted-foreground">
@@ -110,46 +143,18 @@ export default function MicrophonesPage() {
       )}
 
       {canManagePreparation && (
-        <div>
-          {showAddForm ? (
-            <form onSubmit={(e) => void handleCreate(e)} className="space-y-2 rounded-md border border-border p-4">
-              <input
-                value={newIdentifier}
-                onChange={(e) => setNewIdentifier(e.target.value)}
-                placeholder="Identifier (e.g. Lav 1)"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                >
-                  Add microphone
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowAddForm(true)}
-              className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
-            >
-              Add microphone
-            </button>
-          )}
-        </div>
+        <Button type="button" onClick={openCreateDialog}>
+          Add microphone
+        </Button>
       )}
 
       {microphones.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No microphones yet.</p>
+        <EmptyState
+          title="No microphones yet"
+          description="Add microphones to the catalog, then attach them to moments from the timeline."
+          actionLabel={canManagePreparation ? "Add microphone" : undefined}
+          onAction={canManagePreparation ? openCreateDialog : undefined}
+        />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
@@ -164,59 +169,34 @@ export default function MicrophonesPage() {
             <tbody className="divide-y divide-border">
               {microphones.map((mic) => (
                 <tr key={mic.id}>
-                  {editingId === mic.id ? (
-                    <>
-                      <td className="px-4 py-3">
-                        <input
-                          value={editIdentifier}
-                          onChange={(e) => setEditIdentifier(e.target.value)}
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            disabled={saving}
-                            onClick={() => void handleSaveEdit(mic.id)}
-                            className="text-sm text-primary hover:underline disabled:opacity-50"
-                          >
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingId(null)}
-                            className="text-sm text-muted-foreground hover:underline"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="px-4 py-3 font-medium">{mic.identifier}</td>
-                      {canManagePreparation && (
-                        <td className="px-4 py-3">
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => startEditing(mic)}
-                              className="text-sm text-primary hover:underline"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleDelete(mic.id)}
-                              className="text-sm text-destructive hover:underline"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      )}
-                    </>
+                  <td className="px-4 py-3 font-medium">{mic.identifier}</td>
+                  {canManagePreparation && (
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => openEditDialog(mic)}
+                          aria-label={`Edit ${mic.identifier}`}
+                          title="Edit"
+                        >
+                          <Pencil />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={saving}
+                          onClick={() => void handleDelete(mic.id)}
+                          aria-label={`Delete ${mic.identifier}`}
+                          title="Delete"
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 />
+                        </Button>
+                      </div>
+                    </td>
                   )}
                 </tr>
               ))}
@@ -224,6 +204,44 @@ export default function MicrophonesPage() {
           </table>
         </div>
       )}
+
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditingMic(null);
+        }}
+      >
+        <DialogContent>
+          <form onSubmit={(e) => void handleSubmit(e)}>
+            <DialogHeader>
+              <DialogTitle>{editingMic ? "Edit microphone" : "Add microphone"}</DialogTitle>
+              <DialogDescription>
+                {editingMic
+                  ? "Update this microphone in the catalog."
+                  : "Add a new microphone to the catalog."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="py-4">
+              <input
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
+                placeholder="Identifier (e.g. Lav 1)"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                autoFocus
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeDialog}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving || !identifier.trim()}>
+                {editingMic ? "Save" : "Add microphone"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

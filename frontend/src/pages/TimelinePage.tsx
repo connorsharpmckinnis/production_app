@@ -1,8 +1,16 @@
-import { useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { Link, useParams, useSearchParams } from "react-router-dom";
+import { X } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
 import MomentDetailSheet from "@/components/MomentDetailSheet";
 import SceneSummaryStrip from "@/components/SceneSummaryStrip";
 import TimelineMomentList from "@/components/TimelineMomentList";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
+import { useConfirm } from "@/context/ConfirmContext";
+import { useToast } from "@/context/ToastContext";
+import { useAuth } from "@/context/AuthContext";
 import { useTimelineScene } from "@/hooks/useTimelineScene";
 import { api, ApiError } from "@/lib/api";
 import { isHighlightedMoment } from "@/lib/momentHighlight";
@@ -22,6 +30,11 @@ type ResourceFilterValue = "all" | string;
 export default function TimelinePage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const confirm = useConfirm();
+  const toast = useToast();
+  const { isAdmin } = useAuth();
+  const pendingMomentIdRef = useRef<number | null>(null);
 
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -46,6 +59,7 @@ export default function TimelinePage() {
   const [insertText, setInsertText] = useState("");
   const [insertCharacterId, setInsertCharacterId] = useState("");
   const [structuralSaving, setStructuralSaving] = useState(false);
+  const [defaultInsertTypeReady, setDefaultInsertTypeReady] = useState(false);
 
   const filterInput = useMemo(
     () => ({
@@ -86,6 +100,46 @@ export default function TimelinePage() {
   const groups = scene.groups;
   const canManagePreparation = scene.canManagePreparation;
 
+  useEffect(() => {
+    if (defaultInsertTypeReady || scene.momentTypes.length === 0) return;
+    const dialogue = scene.momentTypes.find((type) => type.name === "dialogue");
+    if (dialogue) {
+      setInsertTypeId(String(dialogue.id));
+    }
+    setDefaultInsertTypeReady(true);
+  }, [scene.momentTypes, defaultInsertTypeReady]);
+
+  useEffect(() => {
+    if (scene.loading || scene.acts.length === 0) return;
+    const momentParam = searchParams.get("moment");
+    const sceneParam = searchParams.get("scene");
+    if (!momentParam) return;
+
+    const momentId = Number(momentParam);
+    if (!Number.isFinite(momentId)) return;
+
+    if (sceneParam) {
+      const sceneId = Number(sceneParam);
+      if (Number.isFinite(sceneId)) {
+        scene.selectSceneById(sceneId);
+      }
+    }
+    pendingMomentIdRef.current = momentId;
+    setSearchParams({}, { replace: true });
+    // Intentionally depends on acts/loading and URL params only.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene.loading, scene.acts.length, searchParams, setSearchParams]);
+
+  useEffect(() => {
+    const pending = pendingMomentIdRef.current;
+    if (pending === null || scene.momentsLoading) return;
+    if (scene.moments.some((moment) => moment.id === pending)) {
+      scene.setSelectedMomentId(pending);
+      pendingMomentIdRef.current = null;
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene.moments, scene.momentsLoading]);
+
   const highlightCharacterIds = useMemo(() => {
     if (groupFilter !== "all") {
       const group = groups.find((item) => item.id === Number(groupFilter));
@@ -115,15 +169,191 @@ export default function TimelinePage() {
     setPieceFilter !== "all",
   ].filter(Boolean).length;
 
+  const hasActiveFilters =
+    searchQuery !== "" ||
+    characterFilter !== "all" ||
+    advancedFilterCount > 0;
+
+  const activeFilterChips = useMemo(() => {
+    const chips: { key: string; label: string; onDismiss: () => void }[] = [];
+
+    if (searchQuery) {
+      chips.push({
+        key: "search",
+        label: `Search: “${searchQuery}”`,
+        onDismiss: () => {
+          setSearchInput("");
+          setSearchQuery("");
+        },
+      });
+    }
+
+    if (characterFilter === "mine") {
+      chips.push({
+        key: "character-mine",
+        label: "My characters",
+        onDismiss: () => setCharacterFilter("all"),
+      });
+    } else if (characterFilter !== "all") {
+      const character = scene.characters.find((item) => String(item.id) === characterFilter);
+      chips.push({
+        key: `character-${characterFilter}`,
+        label: character?.name ?? "Character",
+        onDismiss: () => setCharacterFilter("all"),
+      });
+    }
+
+    if (groupFilter !== "all") {
+      const group = groups.find((item) => item.id === Number(groupFilter));
+      chips.push({
+        key: `group-${groupFilter}`,
+        label: group?.name ?? "Group",
+        onDismiss: () => setGroupFilter("all"),
+      });
+    }
+
+    if (costumeOnly) {
+      chips.push({
+        key: "costume",
+        label: "Costume moments",
+        onDismiss: () => setCostumeOnly(false),
+      });
+    }
+    if (entranceOnly) {
+      chips.push({
+        key: "entrance",
+        label: "Entrance moments",
+        onDismiss: () => setEntranceOnly(false),
+      });
+    }
+    if (exitOnly) {
+      chips.push({
+        key: "exit",
+        label: "Exit moments",
+        onDismiss: () => setExitOnly(false),
+      });
+    }
+    if (blockingOnly) {
+      chips.push({
+        key: "blocking",
+        label: "Blocking moments",
+        onDismiss: () => setBlockingOnly(false),
+      });
+    }
+
+    if (blockingCharacterFilter !== "all") {
+      const character = scene.characters.find(
+        (item) => String(item.id) === blockingCharacterFilter,
+      );
+      chips.push({
+        key: `blocking-character-${blockingCharacterFilter}`,
+        label: `Blocking: ${character?.name ?? "Character"}`,
+        onDismiss: () => setBlockingCharacterFilter("all"),
+      });
+    }
+
+    if (songFilter !== "all") {
+      const song = scene.songs.find((item) => String(item.id) === songFilter);
+      chips.push({
+        key: `song-${songFilter}`,
+        label: song?.title ?? "Song",
+        onDismiss: () => setSongFilter("all"),
+      });
+    }
+
+    if (propFilter !== "all") {
+      const prop = scene.propsCatalog.find((item) => String(item.id) === propFilter);
+      chips.push({
+        key: `prop-${propFilter}`,
+        label: prop?.name ?? "Prop",
+        onDismiss: () => setPropFilter("all"),
+      });
+    }
+
+    if (cueCategoryFilter !== "all") {
+      const category = scene.cueCategories.find(
+        (item) => String(item.id) === cueCategoryFilter,
+      );
+      chips.push({
+        key: `cue-${cueCategoryFilter}`,
+        label: category?.name ?? "Cue category",
+        onDismiss: () => setCueCategoryFilter("all"),
+      });
+    }
+
+    if (microphoneFilter !== "all") {
+      const mic = scene.microphonesCatalog.find(
+        (item) => String(item.id) === microphoneFilter,
+      );
+      chips.push({
+        key: `mic-${microphoneFilter}`,
+        label: mic?.identifier ?? "Microphone",
+        onDismiss: () => setMicrophoneFilter("all"),
+      });
+    }
+
+    if (setPieceFilter !== "all") {
+      const piece = scene.setPiecesCatalog.find(
+        (item) => String(item.id) === setPieceFilter,
+      );
+      chips.push({
+        key: `set-piece-${setPieceFilter}`,
+        label: piece?.name ?? "Set piece",
+        onDismiss: () => setSetPieceFilter("all"),
+      });
+    }
+
+    return chips;
+  }, [
+    searchQuery,
+    characterFilter,
+    groupFilter,
+    costumeOnly,
+    entranceOnly,
+    exitOnly,
+    blockingOnly,
+    blockingCharacterFilter,
+    songFilter,
+    propFilter,
+    cueCategoryFilter,
+    microphoneFilter,
+    setPieceFilter,
+    scene.characters,
+    scene.songs,
+    scene.propsCatalog,
+    scene.cueCategories,
+    scene.microphonesCatalog,
+    scene.setPiecesCatalog,
+    groups,
+  ]);
+
   function handleSearchSubmit(event: React.FormEvent) {
     event.preventDefault();
     setSearchQuery(searchInput.trim());
   }
 
+  function clearAllFilters() {
+    setSearchInput("");
+    setSearchQuery("");
+    setCharacterFilter("all");
+    setGroupFilter("all");
+    setCostumeOnly(false);
+    setEntranceOnly(false);
+    setExitOnly(false);
+    setBlockingOnly(false);
+    setBlockingCharacterFilter("all");
+    setSongFilter("all");
+    setPropFilter("all");
+    setCueCategoryFilter("all");
+    setMicrophoneFilter("all");
+    setSetPieceFilter("all");
+  }
+
   function resetInsertForm() {
     setInsertAfterSequence(null);
     setInsertAtEnd(false);
-    setInsertTypeId("");
+    const dialogue = scene.momentTypes.find((type) => type.name === "dialogue");
+    setInsertTypeId(dialogue ? String(dialogue.id) : "");
     setInsertText("");
     setInsertCharacterId("");
   }
@@ -136,7 +366,7 @@ export default function TimelinePage() {
     if (scene.selectedSceneId === null || !insertTypeId || !insertText.trim()) return;
 
     if (insertTypeName === "dialogue" && !insertCharacterId) {
-      alert("Select a speaking character for dialogue moments.");
+      toast.error("Select a speaking character for dialogue moments.");
       return;
     }
 
@@ -156,15 +386,22 @@ export default function TimelinePage() {
       scene.setSelectedMomentId(created.id);
       scene.setMomentDetail(created);
       scene.refreshMomentsList();
+      toast.success("Moment inserted");
     } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to insert moment");
+      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to insert moment");
     } finally {
       setStructuralSaving(false);
     }
   }
 
   async function handleDeleteMoment(momentId: number) {
-    if (!confirm("Delete this moment and all attached data?")) return;
+    const ok = await confirm({
+      title: "Delete this moment?",
+      description: "All attached props, cues, notes, and other data on this moment will be removed.",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
 
     setStructuralSaving(true);
     try {
@@ -174,8 +411,9 @@ export default function TimelinePage() {
         scene.setMomentDetail(null);
       }
       scene.refreshMomentsList();
+      toast.success("Moment deleted");
     } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to delete moment");
+      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to delete moment");
     } finally {
       setStructuralSaving(false);
     }
@@ -194,21 +432,37 @@ export default function TimelinePage() {
       }
       scene.refreshMomentsList();
     } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to reorder moment");
+      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to reorder moment");
     } finally {
       setStructuralSaving(false);
     }
   }
 
   if (scene.loading) {
-    return <p className="text-muted-foreground">Loading timeline…</p>;
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-8 w-48" />
+        <div className="flex flex-wrap gap-2">
+          <Skeleton className="h-10 w-full max-w-md" />
+          <Skeleton className="h-10 w-28" />
+          <Skeleton className="h-10 w-36" />
+        </div>
+        <Skeleton className="h-[50vh] w-full" />
+      </div>
+    );
   }
 
   if (scene.acts.length === 0) {
     return (
       <div className="space-y-4">
         <h1 className="text-2xl font-semibold tracking-tight">Timeline</h1>
-        <p className="text-muted-foreground">No acts found. Import a script first.</p>
+        <EmptyState
+          title="No script imported yet"
+          description="Import a Theater App markdown script to build the timeline."
+          actionLabel={isAdmin ? "Import script" : undefined}
+          actionTo={isAdmin ? `/productions/${productionId}/import` : undefined}
+        />
         <Link to="/productions" className="text-sm text-primary hover:underline">
           Back to productions
         </Link>
@@ -223,55 +477,57 @@ export default function TimelinePage() {
     : "Select a scene";
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] flex-col gap-4">
-      <div>
-        <Link to="/productions" className="text-sm text-muted-foreground hover:text-foreground">
-          ← Productions
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      <div className="flex shrink-0 flex-wrap items-baseline gap-x-3 gap-y-0.5">
+        <Link
+          to={`/productions/${productionId}`}
+          className="text-xs text-muted-foreground hover:text-foreground"
+        >
+          ← Overview
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="text-xl font-semibold tracking-tight">
           {scene.productionTitle ?? "Timeline"}
         </h1>
       </div>
 
       {scene.error && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+        <div className="shrink-0 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
           {scene.error}
         </div>
       )}
 
-      <div className="flex flex-col gap-3">
-        <form onSubmit={handleSearchSubmit} className="flex gap-2">
+      <div className="flex shrink-0 flex-col gap-1.5">
+        <form onSubmit={handleSearchSubmit} className="flex flex-wrap gap-1.5">
           <input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search this scene…"
-            className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+            title="Filters combine with AND — all selected conditions must match."
+            className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm"
           />
           <button
             type="submit"
-            className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
+            className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
           >
             Search
           </button>
-          {searchQuery && (
+          {hasActiveFilters && (
             <button
               type="button"
-              onClick={() => {
-                setSearchInput("");
-                setSearchQuery("");
-              }}
-              className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
+              onClick={clearAllFilters}
+              className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
             >
-              Clear
+              Clear filters
             </button>
           )}
         </form>
 
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center">
           <select
             value={scene.selectedActId ?? ""}
             onChange={(e) => scene.handleActChange(Number(e.target.value))}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+            title="Filters combine with AND — all selected conditions must match."
           >
             {scene.acts.map((act) => (
               <option key={act.id} value={act.id}>
@@ -283,7 +539,7 @@ export default function TimelinePage() {
           <select
             value={scene.selectedSceneId ?? ""}
             onChange={(e) => scene.setSelectedSceneId(Number(e.target.value))}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
             disabled={!scene.selectedAct?.scenes.length}
           >
             {scene.selectedAct?.scenes.map((item) => (
@@ -301,7 +557,7 @@ export default function TimelinePage() {
               setGroupFilter("all");
             }}
             disabled={groupFilter !== "all"}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm disabled:opacity-50"
+            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm disabled:opacity-50"
           >
             <option value="all">All characters</option>
             {myCharacterIds.length > 0 && <option value="mine">My characters</option>}
@@ -315,7 +571,7 @@ export default function TimelinePage() {
           <button
             type="button"
             onClick={() => setAdvancedOpen((open) => !open)}
-            className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
+            className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
           >
             Advanced filters
             {advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ""}
@@ -323,7 +579,7 @@ export default function TimelinePage() {
         </div>
 
         {advancedOpen && (
-          <div className="flex flex-col gap-2 rounded-lg border border-border bg-muted/20 p-3 sm:flex-row sm:flex-wrap sm:items-center">
+          <div className="flex flex-col gap-1.5 rounded-md border border-border bg-muted/20 p-2 sm:flex-row sm:flex-wrap sm:items-center">
             {canManagePreparation && groups.length > 0 && (
               <select
                 value={groupFilter}
@@ -331,7 +587,7 @@ export default function TimelinePage() {
                   setGroupFilter(e.target.value as GroupFilterValue);
                   setCharacterFilter("all");
                 }}
-                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
               >
                 <option value="all">All groups</option>
                 {groups.map((group) => (
@@ -390,7 +646,7 @@ export default function TimelinePage() {
               <select
                 value={blockingCharacterFilter}
                 onChange={(e) => setBlockingCharacterFilter(e.target.value as ResourceFilterValue)}
-                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
               >
                 <option value="all">All blocking characters</option>
                 {scene.characters.map((character) => (
@@ -405,7 +661,7 @@ export default function TimelinePage() {
               <select
                 value={songFilter}
                 onChange={(e) => setSongFilter(e.target.value as ResourceFilterValue)}
-                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
               >
                 <option value="all">All songs</option>
                 {scene.songs.map((song) => (
@@ -420,7 +676,7 @@ export default function TimelinePage() {
               <select
                 value={propFilter}
                 onChange={(e) => setPropFilter(e.target.value as ResourceFilterValue)}
-                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
               >
                 <option value="all">All props</option>
                 {scene.propsCatalog.map((prop) => (
@@ -435,7 +691,7 @@ export default function TimelinePage() {
               <select
                 value={cueCategoryFilter}
                 onChange={(e) => setCueCategoryFilter(e.target.value as ResourceFilterValue)}
-                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
               >
                 <option value="all">All cue categories</option>
                 {scene.cueCategories.map((category) => (
@@ -450,7 +706,7 @@ export default function TimelinePage() {
               <select
                 value={microphoneFilter}
                 onChange={(e) => setMicrophoneFilter(e.target.value as ResourceFilterValue)}
-                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
               >
                 <option value="all">All microphones</option>
                 {scene.microphonesCatalog.map((mic) => (
@@ -465,7 +721,7 @@ export default function TimelinePage() {
               <select
                 value={setPieceFilter}
                 onChange={(e) => setSetPieceFilter(e.target.value as ResourceFilterValue)}
-                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
               >
                 <option value="all">All set pieces</option>
                 {scene.setPiecesCatalog.map((piece) => (
@@ -477,16 +733,60 @@ export default function TimelinePage() {
             )}
           </div>
         )}
+
+        {hasActiveFilters && activeFilterChips.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2">
+            {activeFilterChips.map((chip) => (
+              <Badge key={chip.key} variant="secondary" className="gap-1 pr-1">
+                {chip.label}
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="size-5 hover:bg-transparent"
+                  onClick={chip.onDismiss}
+                  aria-label={`Remove ${chip.label} filter`}
+                >
+                  <X className="size-3" />
+                </Button>
+              </Badge>
+            ))}
+            <button
+              type="button"
+              onClick={clearAllFilters}
+              className="text-xs text-muted-foreground hover:text-foreground"
+            >
+              Clear all
+            </button>
+          </div>
+        )}
       </div>
 
-      <SceneSummaryStrip summary={sceneSummary} />
-      <p className="text-sm font-medium text-muted-foreground">{sceneLabel}</p>
+      <div className="flex shrink-0 flex-col gap-1">
+        <SceneSummaryStrip summary={sceneSummary} />
+        <p className="text-xs font-medium text-muted-foreground">{sceneLabel}</p>
+      </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
+      <div className="flex min-h-[40dvh] flex-1 flex-col overflow-hidden rounded-lg border border-border sm:min-h-0">
         {scene.momentsLoading ? (
-          <p className="p-4 text-sm text-muted-foreground">Loading moments…</p>
+          <div className="space-y-2 p-3">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <Skeleton key={index} className="h-10 w-full" />
+            ))}
+          </div>
         ) : scene.moments.length === 0 ? (
-          <p className="p-4 text-sm text-muted-foreground">No moments match these filters.</p>
+          <div className="p-3">
+            <EmptyState
+              title={hasActiveFilters ? "No moments match these filters" : "No moments in this scene"}
+              description={
+                hasActiveFilters
+                  ? "Try clearing filters or choosing a different scene."
+                  : "Use structural edit to insert moments, or import a script if this production is empty."
+              }
+              actionLabel={hasActiveFilters ? "Clear filters" : undefined}
+              onAction={hasActiveFilters ? clearAllFilters : undefined}
+            />
+          </div>
         ) : (
           <TimelineMomentList
             moments={scene.moments}
@@ -525,7 +825,7 @@ export default function TimelinePage() {
             )}
             footerSlot={
               canManagePreparation ? (
-                <li className="border-t border-border px-4 py-3">
+                <li className="border-t border-border px-3 py-2">
                   {insertAtEnd ? (
                     <InsertMomentForm
                       momentTypes={scene.momentTypes}

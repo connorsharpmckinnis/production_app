@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import MomentDetailSheet from "@/components/MomentDetailSheet";
 import SceneSummaryStrip from "@/components/SceneSummaryStrip";
 import TimelineMomentList from "@/components/TimelineMomentList";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useTimelineScene } from "@/hooks/useTimelineScene";
 import { isMyMoment } from "@/lib/momentHighlight";
 import {
@@ -26,7 +27,16 @@ interface StoredRehearseState {
 
 function loadStoredState(productionId: number): StoredRehearseState | null {
   if (typeof window === "undefined") return null;
-  const raw = sessionStorage.getItem(rehearseStorageKey(productionId));
+  const key = rehearseStorageKey(productionId);
+  let raw = localStorage.getItem(key);
+  if (!raw) {
+    const sessionRaw = sessionStorage.getItem(key);
+    if (sessionRaw) {
+      localStorage.setItem(key, sessionRaw);
+      sessionStorage.removeItem(key);
+      raw = sessionRaw;
+    }
+  }
   if (!raw) return null;
   try {
     return JSON.parse(raw) as StoredRehearseState;
@@ -36,7 +46,7 @@ function loadStoredState(productionId: number): StoredRehearseState | null {
 }
 
 function saveStoredState(productionId: number, state: StoredRehearseState) {
-  sessionStorage.setItem(rehearseStorageKey(productionId), JSON.stringify(state));
+  localStorage.setItem(rehearseStorageKey(productionId), JSON.stringify(state));
 }
 
 export default function RehearsePage() {
@@ -111,7 +121,19 @@ export default function RehearsePage() {
   }
 
   if (scene.loading) {
-    return <p className="text-muted-foreground">Loading rehearse view…</p>;
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-4 w-24" />
+        <Skeleton className="h-8 w-56" />
+        <div className="flex flex-wrap gap-2">
+          <Skeleton className="h-10 w-28" />
+          <Skeleton className="h-10 w-36" />
+          <Skeleton className="h-10 w-40" />
+        </div>
+        <Skeleton className="h-14 w-full" />
+        <Skeleton className="h-[50vh] w-full" />
+      </div>
+    );
   }
 
   if (scene.acts.length === 0) {
@@ -143,15 +165,15 @@ export default function RehearsePage() {
   })();
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] flex-col gap-4">
-      <div>
+    <div className="flex min-h-0 flex-1 flex-col gap-2">
+      <div className="flex shrink-0 flex-wrap items-baseline gap-x-3 gap-y-0.5">
         <Link
-          to="/productions"
-          className="text-sm text-muted-foreground hover:text-foreground"
+          to={`/productions/${productionId}`}
+          className="text-xs text-muted-foreground hover:text-foreground"
         >
-          ← Productions
+          ← Overview
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight">
+        <h1 className="text-xl font-semibold tracking-tight">
           {scene.productionTitle ?? "Rehearse"}
         </h1>
       </div>
@@ -162,12 +184,12 @@ export default function RehearsePage() {
         </div>
       )}
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
-        <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+      <div className="flex shrink-0 flex-col gap-1.5 lg:flex-row lg:items-end lg:justify-between">
+        <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center">
           <select
             value={scene.selectedActId ?? ""}
             onChange={(e) => scene.handleActChange(Number(e.target.value))}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
           >
             {scene.acts.map((act) => (
               <option key={act.id} value={act.id}>
@@ -179,7 +201,7 @@ export default function RehearsePage() {
           <select
             value={scene.selectedSceneId ?? ""}
             onChange={(e) => scene.setSelectedSceneId(Number(e.target.value))}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
             disabled={!scene.selectedAct?.scenes.length}
           >
             {scene.selectedAct?.scenes.map((item) => (
@@ -197,7 +219,7 @@ export default function RehearsePage() {
               if (value === "custom") return;
               handlePresetChange(value as Exclude<RehearsePresetId, "custom">);
             }}
-            className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
           >
             {(
               Object.entries(REHEARSE_PRESET_LABELS) as [
@@ -209,27 +231,35 @@ export default function RehearsePage() {
                 {label}
               </option>
             ))}
-            {effectivePreset === "custom" && <option value="custom">Custom</option>}
+            {effectivePreset === "custom" && (
+              <option
+                value="custom"
+                disabled
+                title="Adjust toggles to create a custom view"
+              >
+                Custom
+              </option>
+            )}
           </select>
         </div>
 
-        <form onSubmit={handleSearchSubmit} className="flex gap-2">
+        <form onSubmit={handleSearchSubmit} className="flex gap-1.5">
           <input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search this scene…"
-            className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-2 text-sm"
+            className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm"
           />
           <button
             type="submit"
-            className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
+            className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
           >
             Search
           </button>
         </form>
       </div>
 
-      <div className="flex flex-wrap gap-x-4 gap-y-2 rounded-lg border border-border bg-card px-4 py-3 text-sm">
+      <div className="flex shrink-0 flex-wrap gap-x-3 gap-y-1.5 rounded-md border border-border bg-card px-3 py-2 text-sm">
         <label className="flex items-center gap-2">
           <input
             type="checkbox"
@@ -272,14 +302,20 @@ export default function RehearsePage() {
         </label>
       </div>
 
-      <SceneSummaryStrip summary={sceneSummary} />
-      <p className="text-sm font-medium text-muted-foreground">{sceneLabel}</p>
+      <div className="flex shrink-0 flex-col gap-1">
+        <SceneSummaryStrip summary={sceneSummary} />
+        <p className="text-xs font-medium text-muted-foreground">{sceneLabel}</p>
+      </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
+      <div className="flex min-h-[40dvh] flex-1 flex-col overflow-hidden rounded-lg border border-border sm:min-h-0">
         {scene.momentsLoading ? (
-          <p className="p-4 text-sm text-muted-foreground">Loading moments…</p>
+          <div className="space-y-2 p-3">
+            {Array.from({ length: 8 }).map((_, index) => (
+              <Skeleton key={index} className="h-10 w-full" />
+            ))}
+          </div>
         ) : displayMoments.length === 0 ? (
-          <p className="p-4 text-sm text-muted-foreground">{emptyMessage}</p>
+          <p className="p-3 text-sm text-muted-foreground">{emptyMessage}</p>
         ) : (
           <TimelineMomentList
             moments={displayMoments}

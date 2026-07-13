@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import EmptyState from "@/components/EmptyState";
 import { useAuth } from "@/context/AuthContext";
+import { useToast } from "@/context/ToastContext";
 import { api, ApiError } from "@/lib/api";
 import type { CastableUserResponse, CharacterDetailResponse } from "@/lib/types";
 
@@ -8,6 +10,7 @@ export default function CharactersPage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
   const { canManagePreparation } = useAuth();
+  const toast = useToast();
 
   const [characters, setCharacters] = useState<CharacterDetailResponse[]>([]);
   const [castableUsers, setCastableUsers] = useState<CastableUserResponse[]>([]);
@@ -42,9 +45,10 @@ export default function CharactersPage() {
     try {
       const parsedUserId = userId === "" ? null : Number(userId);
       await api.castCharacter(productionId, characterId, parsedUserId);
+      toast.success(parsedUserId == null ? "Actor unassigned" : "Actor assigned");
       await loadData();
     } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to update casting");
+      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to update casting");
     } finally {
       setSavingId(null);
     }
@@ -59,9 +63,10 @@ export default function CharactersPage() {
       await api.createCharacter(productionId, { name: newName.trim() });
       setNewName("");
       setShowAddForm(false);
+      toast.success("Character created");
       await loadData();
     } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to add character");
+      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to add character");
     } finally {
       setSavingId(null);
     }
@@ -75,10 +80,10 @@ export default function CharactersPage() {
     <div className="space-y-6">
       <div>
         <Link
-          to={`/productions/${productionId}/timeline`}
+          to={`/productions/${productionId}`}
           className="text-sm text-muted-foreground hover:text-foreground"
         >
-          ← Timeline
+          ← Overview
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Characters</h1>
         <p className="text-sm text-muted-foreground">
@@ -132,9 +137,12 @@ export default function CharactersPage() {
       )}
 
       {characters.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border p-8 text-center text-muted-foreground">
-          No characters found. Import a script first.
-        </div>
+        <EmptyState
+          title="No characters yet"
+          description="Import a script first, or add a character manually."
+          actionLabel={canManagePreparation ? "Add character" : undefined}
+          onAction={canManagePreparation ? () => setShowAddForm(true) : undefined}
+        />
       ) : (
         <div className="overflow-hidden rounded-lg border border-border">
           <table className="w-full text-sm">

@@ -1,6 +1,19 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { Pencil, Trash2 } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
+import { useConfirm } from "@/context/ConfirmContext";
+import { useToast } from "@/context/ToastContext";
 import { api, ApiError } from "@/lib/api";
 import type { ActSummary, CostumeResponse } from "@/lib/types";
 
@@ -8,6 +21,8 @@ export default function CostumesPage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
   const { canManagePreparation } = useAuth();
+  const confirm = useConfirm();
+  const toast = useToast();
 
   const [acts, setActs] = useState<ActSummary[]>([]);
   const [characters, setCharacters] = useState<
@@ -16,16 +31,12 @@ export default function CostumesPage() {
   const [costumes, setCostumes] = useState<CostumeResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newCharacterId, setNewCharacterId] = useState("");
-  const [newSceneId, setNewSceneId] = useState("");
-  const [newName, setNewName] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editCharacterId, setEditCharacterId] = useState("");
-  const [editSceneId, setEditSceneId] = useState("");
-  const [editName, setEditName] = useState("");
-  const [editDescription, setEditDescription] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingCostume, setEditingCostume] = useState<CostumeResponse | null>(null);
+  const [characterId, setCharacterId] = useState("");
+  const [sceneId, setSceneId] = useState("");
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
 
   const scenes = useMemo(
@@ -63,65 +74,82 @@ export default function CostumesPage() {
     void loadData();
   }, [productionId]);
 
-  async function handleCreate(event: React.FormEvent) {
+  function openCreateDialog() {
+    setEditingCostume(null);
+    setCharacterId("");
+    setSceneId("");
+    setName("");
+    setDescription("");
+    setDialogOpen(true);
+  }
+
+  function openEditDialog(costume: CostumeResponse) {
+    setEditingCostume(costume);
+    setCharacterId(String(costume.character_id));
+    setSceneId(String(costume.scene_id));
+    setName(costume.name);
+    setDescription(costume.description ?? "");
+    setDialogOpen(true);
+  }
+
+  function closeDialog() {
+    setDialogOpen(false);
+    setEditingCostume(null);
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!newCharacterId || !newSceneId || !newName.trim()) return;
+    if (!characterId || !sceneId || !name.trim()) return;
 
     setSaving(true);
     try {
-      await api.createCostume(productionId, {
-        character_id: Number(newCharacterId),
-        scene_id: Number(newSceneId),
-        name: newName.trim(),
-        description: newDescription.trim() || null,
-      });
-      setNewCharacterId("");
-      setNewSceneId("");
-      setNewName("");
-      setNewDescription("");
-      setShowAddForm(false);
+      if (editingCostume) {
+        await api.updateCostume(productionId, editingCostume.id, {
+          character_id: Number(characterId),
+          scene_id: Number(sceneId),
+          name: name.trim(),
+          description: description.trim() || null,
+        });
+        toast.success("Costume updated");
+      } else {
+        await api.createCostume(productionId, {
+          character_id: Number(characterId),
+          scene_id: Number(sceneId),
+          name: name.trim(),
+          description: description.trim() || null,
+        });
+        toast.success("Costume created");
+      }
+      closeDialog();
       await loadData();
     } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to create costume");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function startEditing(costume: CostumeResponse) {
-    setEditingId(costume.id);
-    setEditCharacterId(String(costume.character_id));
-    setEditSceneId(String(costume.scene_id));
-    setEditName(costume.name);
-    setEditDescription(costume.description ?? "");
-  }
-
-  async function handleSaveEdit(costumeId: number) {
-    setSaving(true);
-    try {
-      await api.updateCostume(productionId, costumeId, {
-        character_id: Number(editCharacterId),
-        scene_id: Number(editSceneId),
-        name: editName.trim(),
-        description: editDescription.trim() || null,
-      });
-      setEditingId(null);
-      await loadData();
-    } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to update costume");
+      toast.error(
+        err instanceof ApiError
+          ? String(err.detail)
+          : editingCostume
+            ? "Failed to update costume"
+            : "Failed to create costume",
+      );
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete(costumeId: number) {
-    if (!confirm("Delete this costume assignment?")) return;
+    const ok = await confirm({
+      title: "Delete this costume assignment?",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
+
     setSaving(true);
     try {
       await api.deleteCostume(productionId, costumeId);
+      toast.success("Costume deleted");
       await loadData();
     } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to delete costume");
+      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to delete costume");
     } finally {
       setSaving(false);
     }
@@ -135,10 +163,10 @@ export default function CostumesPage() {
     <div className="space-y-6">
       <div>
         <Link
-          to={`/productions/${productionId}/timeline`}
+          to={`/productions/${productionId}`}
           className="text-sm text-muted-foreground hover:text-foreground"
         >
-          ← Timeline
+          ← Overview
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Costumes</h1>
         <p className="text-sm text-muted-foreground">
@@ -155,77 +183,18 @@ export default function CostumesPage() {
       )}
 
       {canManagePreparation && (
-        <div>
-          {showAddForm ? (
-            <form onSubmit={(e) => void handleCreate(e)} className="space-y-2 rounded-md border border-border p-4">
-              <select
-                value={newCharacterId}
-                onChange={(e) => setNewCharacterId(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Select character…</option>
-                {characters.map((character) => (
-                  <option key={character.id} value={String(character.id)}>
-                    {character.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={newSceneId}
-                onChange={(e) => setNewSceneId(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Select scene…</option>
-                {scenes.map((scene) => (
-                  <option key={scene.id} value={String(scene.id)}>
-                    {scene.label}
-                  </option>
-                ))}
-              </select>
-              <input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Costume name"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-              <textarea
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-                placeholder="Description (optional)"
-                rows={2}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                >
-                  Add costume
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowAddForm(true)}
-              className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
-            >
-              Add costume
-            </button>
-          )}
-        </div>
+        <Button type="button" onClick={openCreateDialog}>
+          Add costume
+        </Button>
       )}
 
       {costumes.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No costumes yet.</p>
+        <EmptyState
+          title="No costumes yet"
+          description="Assign costumes to characters for specific scenes."
+          actionLabel={canManagePreparation ? "Add costume" : undefined}
+          onAction={canManagePreparation ? openCreateDialog : undefined}
+        />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
@@ -243,100 +212,42 @@ export default function CostumesPage() {
             <tbody className="divide-y divide-border">
               {costumes.map((costume) => (
                 <tr key={costume.id}>
-                  {editingId === costume.id ? (
-                    <>
-                      <td className="px-4 py-3">
-                        <select
-                          value={editCharacterId}
-                          onChange={(e) => setEditCharacterId(e.target.value)}
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                  <td className="px-4 py-3 font-medium">{costume.character_name}</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    Scene {costume.scene_number}
+                    {costume.scene_title ? `: ${costume.scene_title}` : ""}
+                  </td>
+                  <td className="px-4 py-3 font-medium">{costume.name}</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {costume.description ?? "—"}
+                  </td>
+                  {canManagePreparation && (
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => openEditDialog(costume)}
+                          aria-label={`Edit ${costume.name}`}
+                          title="Edit"
                         >
-                          {characters.map((character) => (
-                            <option key={character.id} value={String(character.id)}>
-                              {character.name}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-4 py-3">
-                        <select
-                          value={editSceneId}
-                          onChange={(e) => setEditSceneId(e.target.value)}
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
+                          <Pencil />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={saving}
+                          onClick={() => void handleDelete(costume.id)}
+                          aria-label={`Delete ${costume.name}`}
+                          title="Delete"
+                          className="text-destructive hover:text-destructive"
                         >
-                          {scenes.map((scene) => (
-                            <option key={scene.id} value={String(scene.id)}>
-                              {scene.label}
-                            </option>
-                          ))}
-                        </select>
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          value={editDescription}
-                          onChange={(e) => setEditDescription(e.target.value)}
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            disabled={saving}
-                            onClick={() => void handleSaveEdit(costume.id)}
-                            className="text-sm text-primary hover:underline disabled:opacity-50"
-                          >
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingId(null)}
-                            className="text-sm text-muted-foreground hover:underline"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="px-4 py-3 font-medium">{costume.character_name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        Scene {costume.scene_number}
-                        {costume.scene_title ? `: ${costume.scene_title}` : ""}
-                      </td>
-                      <td className="px-4 py-3 font-medium">{costume.name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {costume.description ?? "—"}
-                      </td>
-                      {canManagePreparation && (
-                        <td className="px-4 py-3">
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => startEditing(costume)}
-                              className="text-sm text-primary hover:underline"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleDelete(costume.id)}
-                              className="text-sm text-destructive hover:underline"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      )}
-                    </>
+                          <Trash2 />
+                        </Button>
+                      </div>
+                    </td>
                   )}
                 </tr>
               ))}
@@ -344,6 +255,77 @@ export default function CostumesPage() {
           </table>
         </div>
       )}
+
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditingCostume(null);
+        }}
+      >
+        <DialogContent>
+          <form onSubmit={(e) => void handleSubmit(e)}>
+            <DialogHeader>
+              <DialogTitle>{editingCostume ? "Edit costume" : "Add costume"}</DialogTitle>
+              <DialogDescription>
+                {editingCostume
+                  ? "Update this costume assignment."
+                  : "Assign a costume to a character for a specific scene."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-4">
+              <select
+                value={characterId}
+                onChange={(e) => setCharacterId(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Select character…</option>
+                {characters.map((character) => (
+                  <option key={character.id} value={String(character.id)}>
+                    {character.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={sceneId}
+                onChange={(e) => setSceneId(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="">Select scene…</option>
+                {scenes.map((scene) => (
+                  <option key={scene.id} value={String(scene.id)}>
+                    {scene.label}
+                  </option>
+                ))}
+              </select>
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Costume name"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Description (optional)"
+                rows={2}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeDialog}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={saving || !characterId || !sceneId || !name.trim()}
+              >
+                {editingCostume ? "Save" : "Add costume"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

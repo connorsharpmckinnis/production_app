@@ -1,6 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { Pencil, Trash2 } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
+import { useConfirm } from "@/context/ConfirmContext";
+import { useToast } from "@/context/ToastContext";
 import { api, ApiError } from "@/lib/api";
 import type { SetPieceResponse } from "@/lib/types";
 
@@ -8,18 +21,17 @@ export default function SetPiecesPage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
   const { canManagePreparation } = useAuth();
+  const confirm = useConfirm();
+  const toast = useToast();
 
   const [setPieces, setSetPieces] = useState<SetPieceResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newMobile, setNewMobile] = useState(false);
-  const [newDescription, setNewDescription] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editMobile, setEditMobile] = useState(false);
-  const [editDescription, setEditDescription] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingPiece, setEditingPiece] = useState<SetPieceResponse | null>(null);
+  const [name, setName] = useState("");
+  const [mobile, setMobile] = useState(false);
+  const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function loadData() {
@@ -38,61 +50,78 @@ export default function SetPiecesPage() {
     void loadData();
   }, [productionId]);
 
-  async function handleCreate(event: React.FormEvent) {
+  function openCreateDialog() {
+    setEditingPiece(null);
+    setName("");
+    setMobile(false);
+    setDescription("");
+    setDialogOpen(true);
+  }
+
+  function openEditDialog(piece: SetPieceResponse) {
+    setEditingPiece(piece);
+    setName(piece.name);
+    setMobile(piece.mobile);
+    setDescription(piece.description ?? "");
+    setDialogOpen(true);
+  }
+
+  function closeDialog() {
+    setDialogOpen(false);
+    setEditingPiece(null);
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!newName.trim()) return;
+    if (!name.trim()) return;
 
     setSaving(true);
     try {
-      await api.createSetPiece(productionId, {
-        name: newName.trim(),
-        mobile: newMobile,
-        description: newDescription.trim() || null,
-      });
-      setNewName("");
-      setNewMobile(false);
-      setNewDescription("");
-      setShowAddForm(false);
+      if (editingPiece) {
+        await api.updateSetPiece(productionId, editingPiece.id, {
+          name: name.trim(),
+          mobile,
+          description: description.trim() || null,
+        });
+        toast.success("Set piece updated");
+      } else {
+        await api.createSetPiece(productionId, {
+          name: name.trim(),
+          mobile,
+          description: description.trim() || null,
+        });
+        toast.success("Set piece created");
+      }
+      closeDialog();
       await loadData();
     } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to create set piece");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function startEditing(piece: SetPieceResponse) {
-    setEditingId(piece.id);
-    setEditName(piece.name);
-    setEditMobile(piece.mobile);
-    setEditDescription(piece.description ?? "");
-  }
-
-  async function handleSaveEdit(pieceId: number) {
-    setSaving(true);
-    try {
-      await api.updateSetPiece(productionId, pieceId, {
-        name: editName.trim(),
-        mobile: editMobile,
-        description: editDescription.trim() || null,
-      });
-      setEditingId(null);
-      await loadData();
-    } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to update set piece");
+      toast.error(
+        err instanceof ApiError
+          ? String(err.detail)
+          : editingPiece
+            ? "Failed to update set piece"
+            : "Failed to create set piece",
+      );
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete(pieceId: number) {
-    if (!confirm("Delete this set piece?")) return;
+    const ok = await confirm({
+      title: "Delete this set piece?",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
+
     setSaving(true);
     try {
       await api.deleteSetPiece(productionId, pieceId);
+      toast.success("Set piece deleted");
       await loadData();
     } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to delete set piece");
+      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to delete set piece");
     } finally {
       setSaving(false);
     }
@@ -106,10 +135,10 @@ export default function SetPiecesPage() {
     <div className="space-y-6">
       <div>
         <Link
-          to={`/productions/${productionId}/timeline`}
+          to={`/productions/${productionId}`}
           className="text-sm text-muted-foreground hover:text-foreground"
         >
-          ← Timeline
+          ← Overview
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Set Pieces</h1>
         <p className="text-sm text-muted-foreground">
@@ -126,61 +155,18 @@ export default function SetPiecesPage() {
       )}
 
       {canManagePreparation && (
-        <div>
-          {showAddForm ? (
-            <form onSubmit={(e) => void handleCreate(e)} className="space-y-2 rounded-md border border-border p-4">
-              <input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Set piece name"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={newMobile}
-                  onChange={(e) => setNewMobile(e.target.checked)}
-                />
-                Mobile (can be moved between moments)
-              </label>
-              <textarea
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-                placeholder="Description (optional)"
-                rows={2}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                >
-                  Add set piece
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowAddForm(true)}
-              className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
-            >
-              Add set piece
-            </button>
-          )}
-        </div>
+        <Button type="button" onClick={openCreateDialog}>
+          Add set piece
+        </Button>
       )}
 
       {setPieces.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No set pieces yet.</p>
+        <EmptyState
+          title="No set pieces yet"
+          description="Add set pieces to the catalog, then attach them to moments from the timeline."
+          actionLabel={canManagePreparation ? "Add set piece" : undefined}
+          onAction={canManagePreparation ? openCreateDialog : undefined}
+        />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
@@ -197,79 +183,40 @@ export default function SetPiecesPage() {
             <tbody className="divide-y divide-border">
               {setPieces.map((piece) => (
                 <tr key={piece.id}>
-                  {editingId === piece.id ? (
-                    <>
-                      <td className="px-4 py-3">
-                        <input
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          type="checkbox"
-                          checked={editMobile}
-                          onChange={(e) => setEditMobile(e.target.checked)}
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          value={editDescription}
-                          onChange={(e) => setEditDescription(e.target.value)}
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            disabled={saving}
-                            onClick={() => void handleSaveEdit(piece.id)}
-                            className="text-sm text-primary hover:underline disabled:opacity-50"
-                          >
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingId(null)}
-                            className="text-sm text-muted-foreground hover:underline"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="px-4 py-3 font-medium">{piece.name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {piece.mobile ? "Yes" : "No"}
-                      </td>
-                      <td className="px-4 py-3 text-muted-foreground">
-                        {piece.description ?? "—"}
-                      </td>
-                      {canManagePreparation && (
-                        <td className="px-4 py-3">
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => startEditing(piece)}
-                              className="text-sm text-primary hover:underline"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleDelete(piece.id)}
-                              className="text-sm text-destructive hover:underline"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      )}
-                    </>
+                  <td className="px-4 py-3 font-medium">{piece.name}</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {piece.mobile ? "Yes" : "No"}
+                  </td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {piece.description ?? "—"}
+                  </td>
+                  {canManagePreparation && (
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => openEditDialog(piece)}
+                          aria-label={`Edit ${piece.name}`}
+                          title="Edit"
+                        >
+                          <Pencil />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={saving}
+                          onClick={() => void handleDelete(piece.id)}
+                          aria-label={`Delete ${piece.name}`}
+                          title="Delete"
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 />
+                        </Button>
+                      </div>
+                    </td>
                   )}
                 </tr>
               ))}
@@ -277,6 +224,59 @@ export default function SetPiecesPage() {
           </table>
         </div>
       )}
+
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditingPiece(null);
+        }}
+      >
+        <DialogContent>
+          <form onSubmit={(e) => void handleSubmit(e)}>
+            <DialogHeader>
+              <DialogTitle>{editingPiece ? "Edit set piece" : "Add set piece"}</DialogTitle>
+              <DialogDescription>
+                {editingPiece
+                  ? "Update this set piece in the catalog."
+                  : "Add a new set piece to the catalog."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-4">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Set piece name"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                autoFocus
+              />
+              <label className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={mobile}
+                  onChange={(e) => setMobile(e.target.checked)}
+                />
+                Mobile (can be moved between moments)
+              </label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Description (optional)"
+                rows={2}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeDialog}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving || !name.trim()}>
+                {editingPiece ? "Save" : "Add set piece"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

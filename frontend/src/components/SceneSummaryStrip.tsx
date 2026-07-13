@@ -17,9 +17,9 @@ export default function SceneSummaryStrip({ summary }: SceneSummaryStripProps) {
   }
 
   return (
-    <div className="space-y-2 rounded-lg border border-border bg-muted/20 px-4 py-3">
+    <div className="space-y-1 rounded-md border border-border bg-muted/20 px-3 py-2">
       {characterNames.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Characters in this scene
           </span>
@@ -32,7 +32,7 @@ export default function SceneSummaryStrip({ summary }: SceneSummaryStripProps) {
       )}
 
       {songTitles.length > 0 && (
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5">
           <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
             Songs
           </span>

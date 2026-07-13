@@ -1,6 +1,19 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { Pencil, Trash2 } from "lucide-react";
+import EmptyState from "@/components/EmptyState";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
+import { useConfirm } from "@/context/ConfirmContext";
+import { useToast } from "@/context/ToastContext";
 import { api, ApiError } from "@/lib/api";
 import type { PropResponse } from "@/lib/types";
 
@@ -8,18 +21,17 @@ export default function PropsPage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
   const { canManagePreparation } = useAuth();
+  const confirm = useConfirm();
+  const toast = useToast();
 
   const [props, setProps] = useState<PropResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [newName, setNewName] = useState("");
-  const [newDescription, setNewDescription] = useState("");
-  const [newNotes, setNewNotes] = useState("");
-  const [editingId, setEditingId] = useState<number | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editDescription, setEditDescription] = useState("");
-  const [editNotes, setEditNotes] = useState("");
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const [editingProp, setEditingProp] = useState<PropResponse | null>(null);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function loadData() {
@@ -38,61 +50,78 @@ export default function PropsPage() {
     void loadData();
   }, [productionId]);
 
-  async function handleCreate(event: React.FormEvent) {
+  function openCreateDialog() {
+    setEditingProp(null);
+    setName("");
+    setDescription("");
+    setNotes("");
+    setDialogOpen(true);
+  }
+
+  function openEditDialog(prop: PropResponse) {
+    setEditingProp(prop);
+    setName(prop.name);
+    setDescription(prop.description ?? "");
+    setNotes(prop.notes ?? "");
+    setDialogOpen(true);
+  }
+
+  function closeDialog() {
+    setDialogOpen(false);
+    setEditingProp(null);
+  }
+
+  async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!newName.trim()) return;
+    if (!name.trim()) return;
 
     setSaving(true);
     try {
-      await api.createProp(productionId, {
-        name: newName.trim(),
-        description: newDescription.trim() || null,
-        notes: newNotes.trim() || null,
-      });
-      setNewName("");
-      setNewDescription("");
-      setNewNotes("");
-      setShowAddForm(false);
+      if (editingProp) {
+        await api.updateProp(productionId, editingProp.id, {
+          name: name.trim(),
+          description: description.trim() || null,
+          notes: notes.trim() || null,
+        });
+        toast.success("Prop updated");
+      } else {
+        await api.createProp(productionId, {
+          name: name.trim(),
+          description: description.trim() || null,
+          notes: notes.trim() || null,
+        });
+        toast.success("Prop created");
+      }
+      closeDialog();
       await loadData();
     } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to create prop");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  function startEditing(prop: PropResponse) {
-    setEditingId(prop.id);
-    setEditName(prop.name);
-    setEditDescription(prop.description ?? "");
-    setEditNotes(prop.notes ?? "");
-  }
-
-  async function handleSaveEdit(propId: number) {
-    setSaving(true);
-    try {
-      await api.updateProp(productionId, propId, {
-        name: editName.trim(),
-        description: editDescription.trim() || null,
-        notes: editNotes.trim() || null,
-      });
-      setEditingId(null);
-      await loadData();
-    } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to update prop");
+      toast.error(
+        err instanceof ApiError
+          ? String(err.detail)
+          : editingProp
+            ? "Failed to update prop"
+            : "Failed to create prop",
+      );
     } finally {
       setSaving(false);
     }
   }
 
   async function handleDelete(propId: number) {
-    if (!confirm("Delete this prop?")) return;
+    const ok = await confirm({
+      title: "Delete this prop?",
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
+
     setSaving(true);
     try {
       await api.deleteProp(productionId, propId);
+      toast.success("Prop deleted");
       await loadData();
     } catch (err) {
-      alert(err instanceof ApiError ? String(err.detail) : "Failed to delete prop");
+      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to delete prop");
     } finally {
       setSaving(false);
     }
@@ -106,10 +135,10 @@ export default function PropsPage() {
     <div className="space-y-6">
       <div>
         <Link
-          to={`/productions/${productionId}/timeline`}
+          to={`/productions/${productionId}`}
           className="text-sm text-muted-foreground hover:text-foreground"
         >
-          ← Timeline
+          ← Overview
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Props</h1>
         <p className="text-sm text-muted-foreground">
@@ -126,59 +155,18 @@ export default function PropsPage() {
       )}
 
       {canManagePreparation && (
-        <div>
-          {showAddForm ? (
-            <form onSubmit={(e) => void handleCreate(e)} className="space-y-2 rounded-md border border-border p-4">
-              <input
-                value={newName}
-                onChange={(e) => setNewName(e.target.value)}
-                placeholder="Prop name"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-              <input
-                value={newDescription}
-                onChange={(e) => setNewDescription(e.target.value)}
-                placeholder="Description (optional)"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-              <textarea
-                value={newNotes}
-                onChange={(e) => setNewNotes(e.target.value)}
-                placeholder="Notes (optional)"
-                rows={2}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-              <div className="flex gap-2">
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-                >
-                  Add prop
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowAddForm(false)}
-                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
-                >
-                  Cancel
-                </button>
-              </div>
-            </form>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setShowAddForm(true)}
-              className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
-            >
-              Add prop
-            </button>
-          )}
-        </div>
+        <Button type="button" onClick={openCreateDialog}>
+          Add prop
+        </Button>
       )}
 
       {props.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No props yet.</p>
+        <EmptyState
+          title="No props yet"
+          description="Add props to the catalog, then attach them to moments from the timeline."
+          actionLabel={canManagePreparation ? "Add prop" : undefined}
+          onAction={canManagePreparation ? openCreateDialog : undefined}
+        />
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">
           <table className="w-full text-sm">
@@ -195,75 +183,36 @@ export default function PropsPage() {
             <tbody className="divide-y divide-border">
               {props.map((prop) => (
                 <tr key={prop.id}>
-                  {editingId === prop.id ? (
-                    <>
-                      <td className="px-4 py-3">
-                        <input
-                          value={editName}
-                          onChange={(e) => setEditName(e.target.value)}
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          value={editDescription}
-                          onChange={(e) => setEditDescription(e.target.value)}
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <input
-                          value={editNotes}
-                          onChange={(e) => setEditNotes(e.target.value)}
-                          className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
-                        />
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            disabled={saving}
-                            onClick={() => void handleSaveEdit(prop.id)}
-                            className="text-sm text-primary hover:underline disabled:opacity-50"
-                          >
-                            Save
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingId(null)}
-                            className="text-sm text-muted-foreground hover:underline"
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </td>
-                    </>
-                  ) : (
-                    <>
-                      <td className="px-4 py-3 font-medium">{prop.name}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{prop.description ?? "—"}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{prop.notes ?? "—"}</td>
-                      {canManagePreparation && (
-                        <td className="px-4 py-3">
-                          <div className="flex gap-2">
-                            <button
-                              type="button"
-                              onClick={() => startEditing(prop)}
-                              className="text-sm text-primary hover:underline"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => void handleDelete(prop.id)}
-                              className="text-sm text-destructive hover:underline"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </td>
-                      )}
-                    </>
+                  <td className="px-4 py-3 font-medium">{prop.name}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{prop.description ?? "—"}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{prop.notes ?? "—"}</td>
+                  {canManagePreparation && (
+                    <td className="px-4 py-3">
+                      <div className="flex gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => openEditDialog(prop)}
+                          aria-label={`Edit ${prop.name}`}
+                          title="Edit"
+                        >
+                          <Pencil />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={saving}
+                          onClick={() => void handleDelete(prop.id)}
+                          aria-label={`Delete ${prop.name}`}
+                          title="Delete"
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 />
+                        </Button>
+                      </div>
+                    </td>
                   )}
                 </tr>
               ))}
@@ -271,6 +220,57 @@ export default function PropsPage() {
           </table>
         </div>
       )}
+
+      <Dialog
+        open={dialogOpen}
+        onOpenChange={(open) => {
+          setDialogOpen(open);
+          if (!open) setEditingProp(null);
+        }}
+      >
+        <DialogContent>
+          <form onSubmit={(e) => void handleSubmit(e)}>
+            <DialogHeader>
+              <DialogTitle>{editingProp ? "Edit prop" : "Add prop"}</DialogTitle>
+              <DialogDescription>
+                {editingProp
+                  ? "Update this prop in the catalog."
+                  : "Add a new prop to the catalog."}
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-4">
+              <input
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Prop name"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                autoFocus
+              />
+              <input
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                placeholder="Description (optional)"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Notes (optional)"
+                rows={2}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeDialog}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={saving || !name.trim()}>
+                {editingProp ? "Save" : "Add prop"}
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
