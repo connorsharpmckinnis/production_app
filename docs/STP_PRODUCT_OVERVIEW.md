@@ -125,7 +125,7 @@ If this feels promising, here's a concrete way we could try it without boiling t
 
 ### Phase A — Look and talk (1 meeting)
 - 15–20 minute walkthrough of the current app  
-- Open questions from Emmy / Becky / Pam  
+- Open questions from staff/directors
 - Decide whether a pilot is worth doing  
 
 ### Phase B — Soft pilot on one production
