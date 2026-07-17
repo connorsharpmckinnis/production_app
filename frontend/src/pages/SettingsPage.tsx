@@ -5,41 +5,27 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/context/ToastContext";
 import { api, ApiError } from "@/lib/api";
 import {
-  bandLabel,
-  ENCOURAGEMENT_BANDS,
   isValidRotationSeconds,
   ROTATION_MAX_SECONDS,
   ROTATION_MIN_SECONDS,
 } from "@/lib/overviewSpotlight";
 import type { AppSettingsResponse, OverviewMessageDefaultResponse } from "@/lib/types";
 
-type DefaultDraft = {
-  band: string;
-  title: string;
-  body: string;
-  active: boolean;
-};
-
-function draftsFromDefaults(defaults: OverviewMessageDefaultResponse[]): DefaultDraft[] {
-  return ENCOURAGEMENT_BANDS.map((band) => {
-    const match = defaults.find((item) => item.band === band);
-    return {
-      band,
-      title: match?.title ?? "",
-      body: match?.body ?? "",
-      active: match?.active ?? true,
-    };
-  });
+function linesFromDefaults(defaults: OverviewMessageDefaultResponse[]): string {
+  return defaults
+    .filter((item) => item.active)
+    .map((item) => item.body)
+    .join("\n");
 }
 
 export default function SettingsPage() {
   const toast = useToast();
   const [settings, setSettings] = useState<AppSettingsResponse | null>(null);
-  const [defaults, setDefaults] = useState<DefaultDraft[]>([]);
+  const [quotesText, setQuotesText] = useState("");
   const [rotationInput, setRotationInput] = useState("20");
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [savingDefaults, setSavingDefaults] = useState(false);
+  const [savingQuotes, setSavingQuotes] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function loadSettings() {
@@ -51,7 +37,7 @@ export default function SettingsPage() {
       ]);
       setSettings(settingsData);
       setRotationInput(String(settingsData.default_message_rotation_seconds));
-      setDefaults(draftsFromDefaults(defaultsData));
+      setQuotesText(linesFromDefaults(defaultsData));
     } catch (err) {
       setError(err instanceof ApiError ? String(err.detail) : "Failed to load settings");
     } finally {
@@ -106,38 +92,36 @@ export default function SettingsPage() {
     }
   }
 
-  function updateDraft(band: string, patch: Partial<DefaultDraft>) {
-    setDefaults((current) =>
-      current.map((item) => (item.band === band ? { ...item, ...patch } : item)),
-    );
-  }
+  async function handleSaveQuotes() {
+    const lines = quotesText
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
 
-  async function handleSaveDefaults() {
-    const missing = defaults.find((item) => !item.body.trim());
-    if (missing) {
-      toast.error(`Encouragement for ${bandLabel(missing.band)} needs a message body.`);
+    if (lines.length === 0) {
+      toast.error("Add at least one line of text to rotate.");
       return;
     }
 
-    setSavingDefaults(true);
+    setSavingQuotes(true);
     try {
       const saved = await api.replaceOverviewMessageDefaults(
-        defaults.map((item, index) => ({
-          band: item.band,
-          title: item.title.trim() || null,
-          body: item.body.trim(),
+        lines.map((body, index) => ({
+          band: "0",
+          title: null,
+          body,
           sort_order: index,
-          active: item.active,
+          active: true,
         })),
       );
-      setDefaults(draftsFromDefaults(saved));
-      toast.success("Encouragement defaults saved");
+      setQuotesText(linesFromDefaults(saved));
+      toast.success("Rotating messages saved");
     } catch (err) {
       toast.error(
-        err instanceof ApiError ? String(err.detail) : "Failed to save encouragement defaults",
+        err instanceof ApiError ? String(err.detail) : "Failed to save rotating messages",
       );
     } finally {
-      setSavingDefaults(false);
+      setSavingQuotes(false);
     }
   }
 
@@ -153,7 +137,7 @@ export default function SettingsPage() {
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">App Settings</h1>
         <p className="text-sm text-muted-foreground">
-          Global display options and Overview encouragement defaults for all productions.
+          Global display options and Overview rotating messages for all productions.
         </p>
       </div>
 
@@ -203,15 +187,15 @@ export default function SettingsPage() {
       {settings && (
         <section className="space-y-4 rounded-lg border border-border p-4">
           <div>
-            <h2 className="text-sm font-medium">Overview message rotation</h2>
+            <h2 className="text-sm font-medium">Overview rotating messages</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Default seconds between spotlight messages. Use 0 to keep the first message only.
-              Productions can override this.
+              One message per line. Every N seconds the Overview spotlight shows the next line.
+              Productions can add their own scripture/announcements and override the interval.
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-3">
             <label className="block text-sm">
-              <span className="mb-1 block text-muted-foreground">Seconds</span>
+              <span className="mb-1 block text-muted-foreground">Seconds between lines</span>
               <input
                 type="number"
                 min={0}
@@ -222,63 +206,32 @@ export default function SettingsPage() {
               />
             </label>
             <Button type="button" disabled={saving} onClick={() => void handleSaveRotation()}>
-              Save rotation
+              Save interval
             </Button>
           </div>
           <p className="text-xs text-muted-foreground">
-            Allowed: 0 (off) or {ROTATION_MIN_SECONDS}–{ROTATION_MAX_SECONDS}.
+            Allowed: 0 (off — show first line only) or {ROTATION_MIN_SECONDS}–
+            {ROTATION_MAX_SECONDS}.
           </p>
+          <label className="block text-sm">
+            <span className="mb-1 block text-muted-foreground">Messages (one per line)</span>
+            <textarea
+              value={quotesText}
+              onChange={(e) => setQuotesText(e.target.value)}
+              rows={10}
+              placeholder={"Blank stage — import a script and let's get rolling.\nGood start — the bones are there."}
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed"
+            />
+          </label>
+          <Button
+            type="button"
+            disabled={savingQuotes}
+            onClick={() => void handleSaveQuotes()}
+          >
+            Save messages
+          </Button>
         </section>
       )}
-
-      <section className="space-y-4 rounded-lg border border-border p-4">
-        <div>
-          <h2 className="text-sm font-medium">Encouragement defaults</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            One plain-text message per readiness band. Used when a production has no
-            matching encouragement of its own. Keep tone friendly — no shame for low scores.
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          {defaults.map((item) => (
-            <div key={item.band} className="space-y-2 rounded-md border border-border/70 p-3">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <p className="text-sm font-medium">Band {bandLabel(item.band)}</p>
-                <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={item.active}
-                    onChange={(e) => updateDraft(item.band, { active: e.target.checked })}
-                  />
-                  Active
-                </label>
-              </div>
-              <input
-                value={item.title}
-                onChange={(e) => updateDraft(item.band, { title: e.target.value })}
-                placeholder="Optional short title"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-              <textarea
-                value={item.body}
-                onChange={(e) => updateDraft(item.band, { body: e.target.value })}
-                placeholder="Encouragement body"
-                rows={2}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            </div>
-          ))}
-        </div>
-
-        <Button
-          type="button"
-          disabled={savingDefaults}
-          onClick={() => void handleSaveDefaults()}
-        >
-          Save encouragement defaults
-        </Button>
-      </section>
 
       <div className="rounded-lg border border-border p-4">
         <ThemeToggle />

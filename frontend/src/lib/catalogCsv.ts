@@ -47,7 +47,7 @@ export const CATALOG_CSV_CONFIGS: Record<CatalogCsvKind, CatalogCsvConfig> = {
     pathSegment: "costumes",
     templateFilename: "costumes_template.csv",
     helpText:
-      "The scene column must match the exact scene title. If two scenes share a title, use Act N / Scene Title to pick the right one.",
+      "Scene can be the exact title, Act N / Title, shorthand like 2:1, or use act + scene number columns.",
   },
   songs: {
     kind: "songs",

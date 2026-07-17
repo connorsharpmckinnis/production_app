@@ -83,20 +83,22 @@ Each dimension returns at most 25 gap strings. A score of `100` returns no gaps.
 
 ## Overview message resolution
 
-The spotlight supports production-scoped `announcement`, `scripture`, and `encouragement` messages. Only encouragement is tied to a readiness band.
+The spotlight supports production-scoped `announcement`, `scripture`, and `encouragement` messages. Encouragement/quotes rotate as a flat list (readiness bands are no longer used for filtering). Global Settings stores one message per line with a shared rotation interval.
 
-For the current band, the backend builds one queue in this order:
+The backend builds one queue in this order:
 
 1. Active production announcements.
 2. Active production scripture.
-3. Active production encouragement for the current band, if any.
-4. Otherwise, active global encouragement defaults for the current band.
+3. Active production encouragement, if the production has any.
+4. Otherwise, active global encouragement defaults.
 
-Within each kind, rows are ordered by `sort_order`, then database ID. Production encouragement replaces the global pool only for the matching band. Encouragement configured for another band does not suppress the current band's global fallback. Announcements and scripture have no global fallback.
+Within each kind, rows are ordered by `sort_order`, then database ID. Every active encouragement row is included regardless of its `band` value. Production encouragement replaces the entire global pool when the production has at least one encouragement row; otherwise the global defaults are used. Announcements and scripture have no global fallback.
 
 Inactive messages are omitted. If every applicable pool is empty, the spotlight queue is empty and no spotlight card is shown.
 
-### Band mapping
+### Readiness band (display only)
+
+The overview endpoint still computes and returns a `readiness_band` string derived from the overall readiness percent. It is used only for Overview display and API compatibility — it no longer selects or filters spotlight messages.
 
 | Overall readiness | Band |
 | --- | --- |
@@ -108,7 +110,7 @@ Inactive messages are omitted. If every applicable pool is empty, the spotlight 
 | `90`–`99` | `90-99` |
 | `100` | `100` |
 
-The application seeds one friendly global encouragement message for each band. Admins can edit, disable, add, or replace those defaults in Settings.
+The application still seeds several friendly global encouragement messages (historically one per band). They now display as a flat rotating pool, and Settings saves edited messages as a plain list (all with `band: "0"`). Admins can edit, disable, add, or replace those defaults in Settings.
 
 ### Rotation behavior
 
@@ -143,8 +145,8 @@ For an existing development database, rebuild/restart the backend so migrations 
 2. Open its Overview as Director or Admin to inspect overall readiness and dimension gaps.
 3. Follow a dimension action to casting, a catalog page, or the Timeline and add the missing preparation data.
 4. Return to Overview to see the newly derived score.
-5. Use the Overview message editor to add show-specific scripture, announcements, or banded encouragement and set the production rotation.
-6. As Admin, use Settings to edit global band encouragement and the inherited rotation default.
+5. Use the Overview message editor to add show-specific scripture, announcements, or encouragement and set the production rotation.
+6. As Admin, use Settings to edit the global rotating messages (one per line) and the inherited rotation default.
 7. To seed production catalogs in bulk, use each catalog page's import control and follow [CATALOG_CSV.md](CATALOG_CSV.md).
 
 ## Testing

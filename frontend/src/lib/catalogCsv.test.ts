@@ -96,8 +96,11 @@ describe("shouldRefreshAfterCatalogImport", () => {
 
 describe("CATALOG_CSV_CONFIGS", () => {
   it("includes costume scene help", () => {
-    expect(CATALOG_CSV_CONFIGS.costumes.helpText).toMatch(/scene title/i);
-    expect(CATALOG_CSV_CONFIGS.costumes.helpText).toMatch(/Act N/i);
+    const help = CATALOG_CSV_CONFIGS.costumes.helpText ?? "";
+    expect(help).toMatch(/exact title/i);
+    expect(help).toMatch(/Act N/i);
+    expect(help).toMatch(/2:1/);
+    expect(help).toMatch(/act \+ scene/i);
   });
 
   it("uses useful template filenames", () => {

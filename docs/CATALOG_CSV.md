@@ -48,7 +48,7 @@ Roles: **Director** or **Admin**.
 | Props | `name` | `description`, `notes` | `name` |
 | Microphones | `identifier` | `notes` | `identifier` |
 | Set pieces | `name` | `mobile`, `description` | `name` |
-| Costumes | `name`, `character`, `scene` | `description` | `name` + resolved character + resolved scene |
+| Costumes | `name`, `character`, `scene` | `act`, `description` | `name` + resolved character + resolved scene |
 | Songs | `title` | `composer`, `lyricist`, `description` | `title` |
 | Cue categories | `name` | `description` | `name` |
 
@@ -80,10 +80,21 @@ Rules for the qualified form:
 - `N` is the act number.
 - The title piece matches `scenes.title` the same way as the unqualified form (within that act only).
 
+You can also address a scene by **act and scene number**:
+
+- Shorthand in the `scene` column: `2:1` or `2.1` (act 2, scene 1)
+- Or separate columns: `act` + `scene` as numbers (`act=2`, `scene=1`)
+
+When `act` is present, both `act` and `scene` must be numbers (title / `Act N / Title` forms are not used for that row).
+
 Examples for Endurance Scene 1:
 
 - `Welcome to the Age of Adventure`
 - `Act 1 / Welcome to the Age of Adventure`
+- `1:1`
+- columns `act=1`, `scene=1`
+
+Unassigned costume imports (no character/scene) are not supported yet — costumes are character×scene assignments.
 
 ## Templates
 

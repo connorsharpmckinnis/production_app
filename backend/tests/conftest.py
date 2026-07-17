@@ -2,6 +2,7 @@ import os
 
 import pytest
 from fastapi.testclient import TestClient
+from passlib.context import CryptContext
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -10,6 +11,19 @@ from app.config import Settings, get_settings
 from app.db.base import Base
 from app.db.session import get_db
 from app.main import app
+
+# Production keeps default bcrypt cost. Tests use a low round count so seed/login
+# stay realistic without dominating suite runtime.
+_FAST_PWD_CONTEXT = CryptContext(
+    schemes=["bcrypt"],
+    deprecated="auto",
+    bcrypt__rounds=4,
+)
+
+
+@pytest.fixture(autouse=True)
+def fast_password_hashing(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr("app.auth.password.pwd_context", _FAST_PWD_CONTEXT)
 
 
 @pytest.fixture

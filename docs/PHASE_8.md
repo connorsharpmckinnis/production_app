@@ -195,6 +195,8 @@ Prefer existing routes; filtered deep-links only if cheap.
 
 ## Overview Messages (confirmed)
 
+> **Post-implementation revision (2026-07-17):** The readiness-band matching described in this section was simplified after the initial build. Encouragement/quotes now rotate as a **flat list** — the spotlight no longer filters by readiness band. Global Settings is a single multiline field (one message per line) plus a shared rotation interval, and edited defaults are saved with `band: "0"`. The `band` column and `readiness_band` API value are retained for compatibility and Overview display only. See [PREP_READINESS.md](PREP_READINESS.md#overview-message-resolution) for current behavior; the design below is kept as the original plan of record.
+
 STP is a Christian theater company. The Overview should be able to surface **encouragement**, **scripture**, and **announcement-level** info — not only auto-generated progress vibes.
 
 Today there is only global `app_settings` (display flags). Phase 8 adds **editable message content** and **rotation frequency**.

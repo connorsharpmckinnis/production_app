@@ -142,11 +142,12 @@ def test_overview_empty_production_readiness_zero(seeded_client: TestClient) -> 
     assert data["dimensions"] == []
     assert data["readiness_band"] == "0"
     assert data["rotation_seconds"] == 20
-    assert len(data["spotlight"]) == 1
+    assert len(data["spotlight"]) == 7
     assert data["spotlight"][0]["kind"] == "encouragement"
-    assert data["spotlight"][0]["band"] == "0"
     assert data["spotlight"][0]["source"] == "global"
     assert "Blank stage" in data["spotlight"][0]["body"]
+    bodies = [item["body"] for item in data["spotlight"]]
+    assert len(bodies) == len(set(bodies))
 
 
 def test_overview_imported_readiness_shape(
@@ -681,13 +682,14 @@ def test_production_message_validation(seeded_client: TestClient) -> None:
     production_id = _empty_production(seeded_client)
     director_headers = _login(seeded_client, "director", "director")
 
-    missing_band = seeded_client.put(
+    # Encouragement no longer requires a readiness band.
+    no_band = seeded_client.put(
         f"/api/productions/{production_id}/overview-messages",
         json={
             "messages": [
                 {
                     "kind": "encouragement",
-                    "body": "Needs a band",
+                    "body": "Band optional now",
                     "sort_order": 0,
                     "active": True,
                 }
@@ -695,7 +697,7 @@ def test_production_message_validation(seeded_client: TestClient) -> None:
         },
         headers=director_headers,
     )
-    assert missing_band.status_code == 422
+    assert no_band.status_code == 200
 
     bad_band = seeded_client.put(
         f"/api/productions/{production_id}/overview-messages",
@@ -923,10 +925,10 @@ def test_inactive_global_default_excluded(seeded_client: TestClient) -> None:
     assert bodies == ["Visible"]
 
 
-def test_production_encouragement_other_band_does_not_block_global(
+def test_production_encouragement_replaces_global_pool(
     seeded_client: TestClient,
 ) -> None:
-    """Production encouragement for a different band still falls back to global for band 0."""
+    """Any production encouragement replaces the global rotating pool (bands ignored)."""
     production_id = _empty_production(seeded_client)
     director_headers = _login(seeded_client, "director", "director")
 
@@ -937,7 +939,7 @@ def test_production_encouragement_other_band_does_not_block_global(
                 {
                     "kind": "encouragement",
                     "band": "100",
-                    "body": "Only for complete shows",
+                    "body": "Show-specific quote",
                     "sort_order": 0,
                     "active": True,
                 }
@@ -951,5 +953,6 @@ def test_production_encouragement_other_band_does_not_block_global(
         headers=director_headers,
     ).json()
     assert overview["readiness_band"] == "0"
-    assert overview["spotlight"][0]["source"] == "global"
-    assert "Blank stage" in overview["spotlight"][0]["body"]
+    assert len(overview["spotlight"]) == 1
+    assert overview["spotlight"][0]["source"] == "production"
+    assert overview["spotlight"][0]["body"] == "Show-specific quote"

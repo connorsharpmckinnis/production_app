@@ -18,7 +18,8 @@ def _validate_rotation(value: int) -> int:
 
 
 class OverviewMessageDefaultItem(BaseModel):
-    band: str
+    # Legacy field kept for API compatibility; spotlight no longer filters by band.
+    band: str = "0"
     title: str | None = None
     body: str = Field(min_length=1)
     sort_order: int = 0
@@ -50,6 +51,7 @@ class OverviewMessageDefaultsReplace(BaseModel):
 
 class ProductionOverviewMessageItem(BaseModel):
     kind: str
+    # Legacy optional field for encouragement; spotlight ignores band filtering.
     band: str | None = None
     title: str | None = None
     body: str = Field(min_length=1)
@@ -68,10 +70,10 @@ class ProductionOverviewMessageItem(BaseModel):
     @model_validator(mode="after")
     def validate_band_for_kind(self) -> "ProductionOverviewMessageItem":
         if self.kind == "encouragement":
-            if self.band is None or self.band not in ENCOURAGEMENT_BAND_SET:
+            if self.band is not None and self.band not in ENCOURAGEMENT_BAND_SET:
                 raise ValueError(
-                    "encouragement messages require a valid band "
-                    f"({', '.join(sorted(ENCOURAGEMENT_BAND_SET))})"
+                    "encouragement band must be one of: "
+                    f"{', '.join(sorted(ENCOURAGEMENT_BAND_SET))}"
                 )
         elif self.band is not None:
             raise ValueError(f"{self.kind} messages must not have a band")

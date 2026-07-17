@@ -58,6 +58,7 @@ def build_spotlight_queue(
     readiness_percent: int | None,
 ) -> SpotlightResult:
     app_settings = get_or_create_app_settings(db)
+    # readiness_band is kept on the API for Overview display; messages no longer filter by it.
     band = readiness_band(readiness_percent)
     rotation = effective_rotation_seconds(production, app_settings)
 
@@ -100,7 +101,7 @@ def build_spotlight_queue(
     production_encouragement = [
         message
         for message in production_messages
-        if message.kind == "encouragement" and message.band == band
+        if message.kind == "encouragement"
     ]
 
     if production_encouragement:
@@ -117,10 +118,7 @@ def build_spotlight_queue(
     else:
         global_defaults = (
             db.query(AppOverviewMessageDefault)
-            .filter(
-                AppOverviewMessageDefault.band == band,
-                AppOverviewMessageDefault.active.is_(True),
-            )
+            .filter(AppOverviewMessageDefault.active.is_(True))
             .order_by(
                 AppOverviewMessageDefault.sort_order.asc(),
                 AppOverviewMessageDefault.id.asc(),

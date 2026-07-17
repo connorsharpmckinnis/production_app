@@ -670,6 +670,50 @@ def test_costume_qualified_unknown_scene(
     assert "Unknown scene" in response.json()["errors"][0]["message"]
 
 
+def test_costume_scene_shorthand(
+    seeded_client: TestClient,
+    db_session: Session,
+) -> None:
+    production_id = _imported_production(seeded_client, db_session)
+    headers = _login(seeded_client, "director", "director")
+    csv_body = (
+        "name,character,scene,description\n"
+        "Parka,SHACKLETON,1:1,Opening look\n"
+    )
+    response = _upload(
+        seeded_client,
+        f"/api/productions/{production_id}/costumes/import",
+        csv_body,
+        headers,
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["created"] == 1
+    assert body["errors"] == []
+
+
+def test_costume_act_scene_columns(
+    seeded_client: TestClient,
+    db_session: Session,
+) -> None:
+    production_id = _imported_production(seeded_client, db_session)
+    headers = _login(seeded_client, "director", "director")
+    csv_body = (
+        "name,character,act,scene,description\n"
+        "Parka,SHACKLETON,1,1,Opening look\n"
+    )
+    response = _upload(
+        seeded_client,
+        f"/api/productions/{production_id}/costumes/import",
+        csv_body,
+        headers,
+    )
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["created"] == 1
+    assert body["errors"] == []
+
+
 def test_costume_template_and_actor_forbidden(
     seeded_client: TestClient,
     db_session: Session,
@@ -683,7 +727,7 @@ def test_costume_template_and_actor_forbidden(
         headers=director,
     )
     assert template.status_code == 200
-    assert template.text.strip() == "name,character,scene,description"
+    assert template.text.strip() == "name,character,scene,act,description"
 
     forbidden = _upload(
         seeded_client,

@@ -3,8 +3,6 @@ import { Button } from "@/components/ui/button";
 import { useToast } from "@/context/ToastContext";
 import { api, ApiError } from "@/lib/api";
 import {
-  bandLabel,
-  ENCOURAGEMENT_BANDS,
   isValidRotationSeconds,
   ROTATION_MAX_SECONDS,
   ROTATION_MIN_SECONDS,
@@ -18,7 +16,6 @@ import type {
 type MessageDraft = {
   key: string;
   kind: OverviewMessageKind;
-  band: string;
   title: string;
   body: string;
   active: boolean;
@@ -35,7 +32,6 @@ function toDrafts(messages: ProductionOverviewMessageResponse[]): MessageDraft[]
   return messages.map((message, index) => ({
     key: `existing-${message.id}-${index}`,
     kind: message.kind as OverviewMessageKind,
-    band: message.band ?? "50-74",
     title: message.title ?? "",
     body: message.body,
     active: message.active,
@@ -46,7 +42,6 @@ function emptyDraft(kind: OverviewMessageKind = "announcement"): MessageDraft {
   return {
     key: `new-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     kind,
-    band: "50-74",
     title: "",
     body: "",
     active: true,
@@ -127,14 +122,6 @@ export default function OverviewMessageEditor({
       return;
     }
 
-    const encouragementMissingBand = drafts.find(
-      (item) => item.kind === "encouragement" && !item.band,
-    );
-    if (encouragementMissingBand) {
-      toast.error("Encouragement messages need a readiness band.");
-      return;
-    }
-
     let rotationValue: number | null = null;
     if (rotationMode === "off") {
       rotationValue = 0;
@@ -157,7 +144,7 @@ export default function OverviewMessageEditor({
           productionId,
           drafts.map((item, index) => ({
             kind: item.kind,
-            band: item.kind === "encouragement" ? item.band : null,
+            band: null,
             title: item.title.trim() || null,
             body: item.body.trim(),
             sort_order: index,
@@ -199,8 +186,8 @@ export default function OverviewMessageEditor({
         <div>
           <h2 className="text-sm font-medium">Overview messages</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Plain-text announcements, scripture, and encouragement for this show. A good place
-            for show-specific verses.
+            Plain-text announcements, scripture, and quotes for this show. These rotate with
+            the global Overview messages on the production Overview page.
           </p>
         </div>
         <Button type="button" variant="outline" onClick={() => setOpen((value) => !value)}>
@@ -265,7 +252,7 @@ export default function OverviewMessageEditor({
 
               {drafts.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                  No production messages yet. Global encouragement still appears when needed.
+                  No production messages yet. Global rotating messages still appear when needed.
                 </p>
               ) : (
                 <ul className="space-y-3">
@@ -315,56 +302,26 @@ export default function OverviewMessageEditor({
                           >
                             <option value="announcement">Announcement</option>
                             <option value="scripture">Scripture</option>
-                            <option value="encouragement">Encouragement</option>
+                            <option value="encouragement">Quote</option>
                           </select>
                         </label>
 
-                        {item.kind === "encouragement" ? (
-                          <label className="block text-sm">
-                            <span className="mb-1 block text-muted-foreground">Band</span>
-                            <select
-                              value={item.band}
-                              onChange={(e) => updateDraft(item.key, { band: e.target.value })}
-                              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            >
-                              {ENCOURAGEMENT_BANDS.map((band) => (
-                                <option key={band} value={band}>
-                                  {bandLabel(band)}
-                                </option>
-                              ))}
-                            </select>
-                          </label>
-                        ) : (
-                          <label className="block text-sm">
-                            <span className="mb-1 block text-muted-foreground">
-                              Title / citation
-                            </span>
-                            <input
-                              value={item.title}
-                              onChange={(e) => updateDraft(item.key, { title: e.target.value })}
-                              placeholder={
-                                item.kind === "scripture"
-                                  ? "e.g. Philippians 4:13"
-                                  : "Optional title"
-                              }
-                              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                            />
-                          </label>
-                        )}
-                      </div>
-
-                      {item.kind === "encouragement" && (
                         <label className="block text-sm">
                           <span className="mb-1 block text-muted-foreground">
-                            Optional title
+                            {item.kind === "scripture" ? "Citation" : "Title (optional)"}
                           </span>
                           <input
                             value={item.title}
                             onChange={(e) => updateDraft(item.key, { title: e.target.value })}
+                            placeholder={
+                              item.kind === "scripture"
+                                ? "e.g. Philippians 4:13"
+                                : "Optional title"
+                            }
                             className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                           />
                         </label>
-                      )}
+                      </div>
 
                       <label className="block text-sm">
                         <span className="mb-1 block text-muted-foreground">Body</span>
@@ -400,7 +357,7 @@ export default function OverviewMessageEditor({
                   variant="outline"
                   onClick={() => setDrafts((current) => [...current, emptyDraft("encouragement")])}
                 >
-                  Add encouragement
+                  Add quote
                 </Button>
                 <Button type="button" disabled={saving} onClick={() => void handleSave()}>
                   Save messages

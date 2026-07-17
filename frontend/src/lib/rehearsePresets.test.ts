@@ -9,7 +9,7 @@ import {
   PRESET_DEFAULT_TOGGLES,
   togglesMatchPreset,
 } from "@/lib/rehearsePresets";
-import { isMyMoment } from "@/lib/momentHighlight";
+import { isMyMoment, isMySpokenLine } from "@/lib/momentHighlight";
 
 const characters = [
   { id: 1, name: "ALICE" },
@@ -81,6 +81,17 @@ describe("isMyMoment", () => {
 
   it("matches stage direction referencing character name", () => {
     expect(isMyMoment(moments[0], [1], characters as never)).toBe(true);
+  });
+});
+
+describe("isMySpokenLine", () => {
+  it("matches dialogue speaking character only", () => {
+    expect(isMySpokenLine(moments[2], [1])).toBe(true);
+    expect(isMySpokenLine(moments[1], [1])).toBe(false);
+  });
+
+  it("does not match stage directions that name the character", () => {
+    expect(isMySpokenLine(moments[0], [1])).toBe(false);
   });
 });
 

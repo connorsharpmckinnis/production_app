@@ -1,11 +1,8 @@
 # Scratch Notes
+
 ## Transient, low-importance notes for human use (not to be taken as authoritative)
 
 I'll be using this document to store temporary notes relating to the project. Stuff that I need to remember to ask/work on. 
-
-
-
-
 
 ## Little Things
 
@@ -33,16 +30,28 @@ I'll be using this document to store temporary notes relating to the project. St
 - The Public/Private dropdown before adding a Note is too close to the Add Note button. Give some padding. → **Fixed 2026-07-12** (spacing + “Visible to cast” / “Only me” labels)
 - On the Overview page for a production, I need a little bit of buffer at the bottom of the page so that the bottom-most buttons aren't sitting directly on the bottom of the screen. Just a handful of pixels would be fine. 
 - Idea: The theater has a certain number of 'standard' items (pre-build set blocks like staircases and platforms, 30 or so microphone packs, mic wires of different lengths, and even costumes but there's a shit-ton of them so they may not work for this idea). Those items generally don't vary in availability, type, or notes/details from one production to the other, they just are used in different ways and by different people. So, what if an Admin or other meta-production role could set all the microphones with their notes, add standard set pieces that won't get fully dismantled between shows, and other 'permanent' stuff that the theater has available, and then a director can selectively or collectively import those items as things to use in their show, rather than having to manually add all microphones, set pieces, etc for each production? This idea could be initially implemented with an import feature that lets users upload CSVs, and then we can set an expectation that STP creates authoritative CSVs of their various assets for directors to copy, modify, and import to speed up the process, and then a future version could even include a system to manage, add, edit, and delete those assets in-app, and directors could essentially 'shop' from teh catalog of sets, props, mics, etc to choose what they want/need from the catalog. We can even store metadata like where it's stored, to give prop/costume/etc people an easier time assembling the shopping list. I definitely want this, and will need to flesh out the final-state idea (including the management system in-app, storage locations, status/condition, painting/tailoring notes, etc) in the 'final' product, if not starting this system earlier. 
-- I want to update the Moment detail panel to put better emphasis on the stage direction, line, or lyric. Putting it up above the 'imported data' section, changing the color, size, or background of the text, and hiding stuff like 'linked song' if it's not a song-related moment (inside a song block) 
+- I want to update the Moment detail panel to put better emphasis on the stage direction, line, or lyric. Putting it up above the 'imported data' section, changing the color, size, or background of the text, and hiding stuff like 'linked song' if it's not a song-related moment (inside a song block) → **Fixed 2026-07-17**: primary content emphasized above imported data; linked song only for song-related moments.
+- Blur My Lines toggle in Rehearse page is blurring stage directions with character's name in it. No good. → **Fixed 2026-07-17**: blur uses spoken lines only (`isMySpokenLine`).
+- I was thinking for the 'import costumes/props/whatever', that we could import unassigned items and then add the assignments later. For example, just import 'here's all the costumes I pulled out of the closet', and then 'okay, blue hat goes to John in Act 2 Scene 1.' Not sure if that's possible right now, but at the moment I have to write out the scene title in the import CSV which is not good enough. Absolute minimum, we need to be able to just say 2:1 or have an Act and Scene column in the CSV if we do have to assign it in the import. This may not be a relevant factor in the event-driven future, but for now it's not good enough for me to be happy with it. → **Partial fix 2026-07-17**: costumes support `2:1` / `2.1` and `act`+`scene` number columns. Unassigned costumes still deferred (schema requires character+scene).
+- I'm not sure how much I care about or like the percentage-based encouragement things. It might just be too much Settings page real-estate for not being a very useful feature. I like the ability to post announcements, but that may be a separate feature later (when notifications come into play) and I like being able to rotate through scriptures or quotes. I just may want to simplify it to something like "every X seconds, display the next line in this long text input field" without all the percentage ranges and stuff. Dunno yet though. → **Simplified 2026-07-17**: Settings is one multiline field + interval; readiness bands no longer filter the spotlight.
+- Eventually we're going to want to remove the buttons and labels on teh Encouragement/scripture display button. Removing 'Encouragement 2 of 5', ditching the next/pause/previous buttons, etc just to let the encouragement be a simple, subtle note.
+- On the moment detail page, I want to make sure the 'core text' the stage direction, dialog, or whatever is always fully displayed, so make sure the box containing it is always sized enough to show the whole thing without an internal scrollbar.
+- Still getting some import artifacts ("Such troopers\!", "right, it's the Nimrod\![^2]" from footnotes). For footnotes, maybe we import those as moment-attached public notes? 
+
+
 
 ## Report Ideas (things I'd like to be able to see at a glance and the ways I'd like to be able to see them)
+
 - Character 'burn-down' chart: A horizontal timeline of the show with color-coded characters occupying rows on the chart, showing what scenes they're in and when they're on/offstage. Perhaps including hover-able icons to display when they have costume, prop, or mic changes.
 - Set change chart: Another horizontal timeline, but this time with set pieces and their positions displayed. Position changes, on-offs, and any other modifications are displayed in the chart
 - Break Tike Chart: Some way to see when actors have time off-stage to drink water, go to the bathroom, or generally have enough time to do anything other than get ready for the next scene. Include highights or alerts to show when actors have particularly short periods between entrances/exits/whatevers to protect that time for them and prevent unnecessary quick-changes or mic-changes. 
 - 
+
+
 
 ## Done (Phase 2 close-out)
 
 - ~~Groups: add actors/users in UI~~ — shipped on Groups page
 - ~~Timeline filter by group~~ — shipped for Director/Admin
 - ~~Act filter "Act 1: Act 1" duplicate~~ — fixed via `formatActLabel`
+

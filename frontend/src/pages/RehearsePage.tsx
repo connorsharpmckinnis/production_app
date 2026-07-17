@@ -5,7 +5,7 @@ import SceneSummaryStrip from "@/components/SceneSummaryStrip";
 import TimelineMomentList from "@/components/TimelineMomentList";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTimelineScene } from "@/hooks/useTimelineScene";
-import { isMyMoment } from "@/lib/momentHighlight";
+import { isMyMoment, isMySpokenLine } from "@/lib/momentHighlight";
 import {
   applyRehearsePreset,
   applyRehearseToggles,
@@ -328,7 +328,7 @@ export default function RehearsePage() {
             }
             showPrepBadges={toggles.showPrepBadges}
             blurMyLines={toggles.blurMyLines}
-            isMyLine={(moment) => isMyMoment(moment, scene.myCharacterIds, scene.characters)}
+            isMyLine={(moment) => isMySpokenLine(moment, scene.myCharacterIds)}
           />
         )}
       </div>

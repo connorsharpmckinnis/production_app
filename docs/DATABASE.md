@@ -258,7 +258,7 @@ Fields
 
 Purpose
 
-Global default Overview **encouragement** messages keyed by readiness band. Used when a production has no active encouragement for the current band.
+Global default Overview rotating messages (quotes/encouragement). Legacy `band` column may still be present on rows but is not used for spotlight filtering.
 
 Fields
 
@@ -271,9 +271,9 @@ Fields
 * created_at
 * updated_at
 
-**Decision (Phase 8):** Global defaults are encouragement-by-band only. Scripture and announcements are production-scoped.
+**Decision (Phase 8, revised 2026-07-17):** Global defaults are encouragement/quotes only; scripture and announcements are production-scoped. The `band` column is retained for compatibility but the spotlight no longer filters by it — defaults display as a flat rotating list, and Settings saves edited rows with `band: "0"`.
 
-Seeded band copy (migration + startup seed when empty):
+Seeded default copy (migration + startup seed when empty; historically one row per band):
 
 | Band | Default body |
 | ---- | ------------ |
@@ -298,7 +298,7 @@ Fields
 * id
 * production_id
 * kind (`encouragement` \| `scripture` \| `announcement`)
-* band (nullable — **required** for `encouragement`; **must be null** for other kinds)
+* band (nullable — legacy; optional for `encouragement`, **must be null** for other kinds; no longer used for spotlight filtering)
 * title (nullable — e.g. scripture citation)
 * body
 * sort_order
@@ -310,7 +310,7 @@ Relationships
 
 Many → One Production
 
-**Spotlight resolve order (Overview API):** active production announcements (by `sort_order`), then active production scripture, then active production encouragement for the current readiness band if any exist for that band, otherwise active global defaults for that band. Empty production / readiness `0` / no script → band `0`.
+**Spotlight resolve order (Overview API):** active production announcements (by `sort_order`), then active production scripture, then active production encouragement/quotes if any exist, otherwise all active global default messages. Rotation interval comes from the production override or the global default. Empty production / readiness `0` / no script still reports readiness band `0` on the Overview payload for display, but that band no longer filters messages.
 
 ---
 

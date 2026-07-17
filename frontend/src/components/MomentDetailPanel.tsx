@@ -70,6 +70,12 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     const confirm = useConfirm();
     const toast = useToast();
 
+    const isSongRelated =
+      detail.song_id != null ||
+      detail.moment_type === "song_header" ||
+      detail.moment_type === "song_attribution" ||
+      detail.moment_type === "lyric";
+
     const [noteContent, setNoteContent] = useState("");
     const [noteVisibility, setNoteVisibility] = useState<"public" | "private">("private");
     const [saving, setSaving] = useState(false);
@@ -603,6 +609,83 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           <Bookmark className={detail.is_bookmarked ? "fill-current" : undefined} />
         </Button>
 
+        {/* Primary script content — emphasized above imported metadata */}
+        {detail.moment_type === "stage_direction" && (detail.stage_direction || canEdit) && (
+          <div className="rounded-md bg-muted/60 px-3 py-3">
+            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Stage direction
+            </h3>
+            {canEdit ? (
+              <textarea
+                value={stageDirectionText}
+                onChange={(e) => setStageDirectionText(e.target.value)}
+                onBlur={() => void saveStageDirection()}
+                rows={3}
+                className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-base italic"
+              />
+            ) : (
+              <p className="mt-1 text-base italic leading-relaxed">{detail.stage_direction}</p>
+            )}
+          </div>
+        )}
+
+        {detail.moment_type !== "stage_direction" && detail.dialogue.length > 0 && (
+          <div className="rounded-md bg-muted/60 px-3 py-3">
+            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Dialogue
+            </h3>
+            <ul className="mt-2 space-y-2">
+              {detail.dialogue.map((line) => (
+                <li key={line.id} className="text-base leading-relaxed">
+                  {canEdit ? (
+                    <div className="flex flex-col gap-1">
+                      <select
+                        value={line.character_id}
+                        disabled={saving}
+                        onChange={(e) =>
+                          void handleDialogueCharacterChange(line.id, Number(e.target.value))
+                        }
+                        className="rounded-md border border-input bg-background px-2 py-1 text-sm"
+                      >
+                        {characters.map((character) => (
+                          <option key={character.id} value={character.id}>
+                            {character.name}
+                          </option>
+                        ))}
+                      </select>
+                      <span>{line.dialogue_text}</span>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="font-medium">{line.character_name}:</span>{" "}
+                      {line.dialogue_text}
+                    </>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {(detail.moment_type === "lyric" ||
+          detail.moment_type === "song_header" ||
+          detail.moment_type === "song_attribution") &&
+          detail.dialogue.length === 0 &&
+          (detail.parsed_text || detail.original_text) && (
+            <div className="rounded-md bg-muted/60 px-3 py-3">
+              <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                {detail.moment_type === "lyric"
+                  ? "Lyric"
+                  : detail.moment_type === "song_header"
+                    ? "Song title"
+                    : "Attribution"}
+              </h3>
+              <p className="mt-1 whitespace-pre-wrap text-base leading-relaxed">
+                {detail.parsed_text || detail.original_text}
+              </p>
+            </div>
+          )}
+
         {appSettings.show_original_text && (
           <div>
             <h3 className="text-sm font-medium">Original text</h3>
@@ -614,22 +697,24 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
         {canEdit && (
           <div className="space-y-3">
-            <label className="block text-xs text-muted-foreground">
-              Linked song
-              <select
-                value={selectedSongId}
-                onChange={(e) => setSelectedSongId(e.target.value)}
-                onBlur={() => void saveMomentFields()}
-                className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">None</option>
-                {songs.map((song) => (
-                  <option key={song.id} value={String(song.id)}>
-                    {song.title}
-                  </option>
-                ))}
-              </select>
-            </label>
+            {isSongRelated && (
+              <label className="block text-xs text-muted-foreground">
+                Linked song
+                <select
+                  value={selectedSongId}
+                  onChange={(e) => setSelectedSongId(e.target.value)}
+                  onBlur={() => void saveMomentFields()}
+                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">None</option>
+                  {songs.map((song) => (
+                    <option key={song.id} value={String(song.id)}>
+                      {song.title}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
 
             <div className="rounded-md border border-border p-3">
               <div className="flex items-center justify-between gap-2">
@@ -689,60 +774,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           </div>
         )}
 
-        {detail.moment_type === "stage_direction" && (detail.stage_direction || canEdit) && (
-          <div>
-            <h3 className="text-sm font-medium">Stage direction</h3>
-            {canEdit ? (
-              <textarea
-                value={stageDirectionText}
-                onChange={(e) => setStageDirectionText(e.target.value)}
-                onBlur={() => void saveStageDirection()}
-                rows={3}
-                className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              />
-            ) : (
-              <p className="mt-1 text-sm">{detail.stage_direction}</p>
-            )}
-          </div>
-        )}
-
-        {detail.moment_type !== "stage_direction" && detail.dialogue.length > 0 && (
-          <div>
-            <h3 className="text-sm font-medium">Dialogue</h3>
-            <ul className="mt-2 space-y-2">
-              {detail.dialogue.map((line) => (
-                <li key={line.id} className="text-sm">
-                  {canEdit ? (
-                    <div className="flex flex-col gap-1">
-                      <select
-                        value={line.character_id}
-                        disabled={saving}
-                        onChange={(e) =>
-                          void handleDialogueCharacterChange(line.id, Number(e.target.value))
-                        }
-                        className="rounded-md border border-input bg-background px-2 py-1 text-sm"
-                      >
-                        {characters.map((character) => (
-                          <option key={character.id} value={character.id}>
-                            {character.name}
-                          </option>
-                        ))}
-                      </select>
-                      <span>{line.dialogue_text}</span>
-                    </div>
-                  ) : (
-                    <>
-                      <span className="font-medium">{line.character_name}:</span>{" "}
-                      {line.dialogue_text}
-                    </>
-                  )}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-
-        {detail.song_title && !canEdit && (
+        {detail.song_title && !canEdit && isSongRelated && (
           <div>
             <h3 className="text-sm font-medium">Song</h3>
             <p className="mt-1 text-sm">{detail.song_title}</p>

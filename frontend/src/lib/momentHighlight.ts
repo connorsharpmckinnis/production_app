@@ -9,6 +9,18 @@ function characterNamesForIds(
     .map((character) => character.name);
 }
 
+/** True when the user speaks this line (dialogue or lyric only — not stage directions). */
+export function isMySpokenLine(
+  moment: MomentSummary,
+  myCharacterIds: number[],
+): boolean {
+  if (!myCharacterIds.length) return false;
+  if (moment.moment_type !== "dialogue" && moment.moment_type !== "lyric") {
+    return false;
+  }
+  return moment.speaking_character_ids.some((id) => myCharacterIds.includes(id));
+}
+
 /** True when a moment belongs to one of the given characters (dialogue, lyrics, or referenced stage direction). */
 export function isMyMoment(
   moment: MomentSummary,

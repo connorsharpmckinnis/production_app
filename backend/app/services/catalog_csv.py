@@ -33,7 +33,7 @@ MICROPHONES_REQUIRED = ("identifier",)
 SET_PIECES_COLUMNS = ("name", "mobile", "description")
 SET_PIECES_REQUIRED = ("name",)
 
-COSTUMES_COLUMNS = ("name", "character", "scene", "description")
+COSTUMES_COLUMNS = ("name", "character", "scene", "act", "description")
 COSTUMES_REQUIRED = ("name", "character", "scene")
 
 SONGS_COLUMNS = ("title", "composer", "lyricist", "description")
@@ -43,6 +43,8 @@ CUE_CATEGORIES_COLUMNS = ("name", "description")
 CUE_CATEGORIES_REQUIRED = ("name",)
 
 _ACT_SCENE_RE = re.compile(r"^Act\s+(\d+)\s*/\s*(.+)$", re.IGNORECASE)
+# Shorthand like 2:1 or 2.1 → act number + scene number
+_ACT_SCENE_SHORTHAND_RE = re.compile(r"^(\d+)\s*[:.]\s*(\d+)$")
 _TRUE_VALUES = frozenset({"true", "1"})
 _FALSE_VALUES = frozenset({"false", "0"})
 
@@ -494,16 +496,68 @@ def _scene_ui_title(scene: Scene) -> str:
     return scene.title or ""
 
 
+def _resolve_scene_by_numbers(
+    scenes: list[Scene],
+    act_number: int,
+    scene_number: int,
+    *,
+    label: str,
+) -> Scene:
+    matches = [
+        scene
+        for scene in scenes
+        if scene.act.number == act_number and scene.number == scene_number
+    ]
+    if not matches:
+        raise ValueError(f"Unknown scene: {label}")
+    if len(matches) > 1:
+        raise ValueError(f"Ambiguous scene: {label}")
+    return matches[0]
+
+
 def resolve_scene_for_costume(
     scenes: list[Scene],
     raw_scene: str,
+    *,
+    raw_act: str | None = None,
 ) -> Scene:
-    """Resolve costume CSV scene by UI title or ``Act N / Scene Title``."""
-    value = raw_scene.strip()
-    if not value:
+    """Resolve costume CSV scene by title, ``Act N / Title``, ``2:1``, or act+scene columns."""
+    act_value = optional_text(raw_act)
+    scene_value = optional_text(raw_scene)
+
+    # Separate act + scene number columns (e.g. act=2, scene=1).
+    if act_value is not None:
+        if scene_value is None:
+            raise ValueError("Missing required value: scene")
+        if not act_value.isdigit() or not scene_value.isdigit():
+            raise ValueError(
+                "When act is provided, act and scene must be numbers "
+                f"(got act={act_value!r}, scene={scene_value!r})"
+            )
+        act_number = int(act_value)
+        scene_number = int(scene_value)
+        return _resolve_scene_by_numbers(
+            scenes,
+            act_number,
+            scene_number,
+            label=f"{act_number}:{scene_number}",
+        )
+
+    if scene_value is None:
         raise ValueError("Missing required value: scene")
 
-    qualified = _ACT_SCENE_RE.match(value)
+    shorthand = _ACT_SCENE_SHORTHAND_RE.match(scene_value)
+    if shorthand is not None:
+        act_number = int(shorthand.group(1))
+        scene_number = int(shorthand.group(2))
+        return _resolve_scene_by_numbers(
+            scenes,
+            act_number,
+            scene_number,
+            label=scene_value,
+        )
+
+    qualified = _ACT_SCENE_RE.match(scene_value)
     if qualified is not None:
         act_number = int(qualified.group(1))
         title_key = normalize_key(qualified.group(2))
@@ -514,22 +568,22 @@ def resolve_scene_for_costume(
             and normalize_key(_scene_ui_title(scene)) == title_key
         ]
         if not matches:
-            raise ValueError(f"Unknown scene: {value}")
+            raise ValueError(f"Unknown scene: {scene_value}")
         if len(matches) > 1:
-            raise ValueError(f"Ambiguous scene: {value}")
+            raise ValueError(f"Ambiguous scene: {scene_value}")
         return matches[0]
 
-    title_key = normalize_key(value)
+    title_key = normalize_key(scene_value)
     matches = [
         scene
         for scene in scenes
         if normalize_key(_scene_ui_title(scene)) == title_key
     ]
     if not matches:
-        raise ValueError(f"Unknown scene: {value}")
+        raise ValueError(f"Unknown scene: {scene_value}")
     if len(matches) > 1:
         raise ValueError(
-            f"Ambiguous scene title matches multiple scenes: {value}"
+            f"Ambiguous scene title matches multiple scenes: {scene_value}"
         )
     return matches[0]
 
@@ -572,9 +626,12 @@ def import_costumes_csv(
         try:
             name = required_text(values.get("name"), "name")
             character_name = required_text(values.get("character"), "character")
-            scene_value = required_text(values.get("scene"), "scene")
             character = _resolve_character(characters, character_name)
-            scene = resolve_scene_for_costume(scenes, scene_value)
+            scene = resolve_scene_for_costume(
+                scenes,
+                values.get("scene") or "",
+                raw_act=values.get("act"),
+            )
         except ValueError as exc:
             errors.append(_row_error(row_number, str(exc)))
             continue

@@ -900,7 +900,7 @@ Summary:
 - Implemented 2026-07-16; full-show / multi-scene manual validation remains pending until the owner fixture is available
 - Richer production Overview: heuristic prep readiness %, dimension breakdown, gap CTAs
 - Costume readiness = speaking characters in a scene who have a costume for that scene
-- Editable Overview messages (encouragement bands, scripture, announcements) with configurable rotation — production-level primary, global defaults secondary
+- Editable Overview messages (encouragement/quotes, scripture, announcements) with configurable rotation — production-level primary, global defaults secondary. Simplified 2026-07-17: encouragement rotates as a flat list (readiness bands no longer filter the spotlight)
 - Lightweight Actor Overview (messages, roles, Rehearse, placeholders)
 - CSV import for props, microphones, set pieces, costumes, songs, and cue categories (skip duplicates; v1 bridge to STP digital catalogs)
 - Microphone catalog gains optional `notes`
