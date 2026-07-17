@@ -1,8 +1,14 @@
+import {
+  CATALOG_CSV_CONFIGS,
+  parseContentDispositionFilename,
+  type CatalogCsvKind,
+} from "./catalogCsv";
 import type {
   ActSummary,
   AppSettingsResponse,
   BookmarkResponse,
   CastableUserResponse,
+  CatalogImportResult,
   CharacterDetailResponse,
   CostumeResponse,
   CostumesBySceneGroup,
@@ -28,8 +34,13 @@ import type {
   MomentSummary,
   MomentTypeResponse,
   NoteResponse,
+  OverviewMessageDefaultItem,
+  OverviewMessageDefaultResponse,
   ProductionCreate,
+  ProductionOverviewMessageItem,
+  ProductionOverviewMessageResponse,
   ProductionOverviewResponse,
+  ProductionOverviewSettingsResponse,
   ProductionResponse,
   PropResponse,
   PropSheetEntry,
@@ -160,6 +171,42 @@ function momentQuery(filters?: MomentListFilters): string {
   }
   const query = params.toString();
   return query ? `?${query}` : "";
+}
+
+function triggerBlobDownload(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const anchor = document.createElement("a");
+  anchor.href = url;
+  anchor.download = filename;
+  anchor.rel = "noopener";
+  document.body.appendChild(anchor);
+  anchor.click();
+  anchor.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
+async function downloadAuthenticatedFile(
+  path: string,
+  fallbackFilename: string,
+): Promise<void> {
+  const token = getToken();
+  const headers = new Headers();
+  if (token) {
+    headers.set("Authorization", `Bearer ${token}`);
+  }
+
+  const response = await fetch(`/api${path}`, { headers });
+
+  if (!response.ok) {
+    const data = await response.json().catch(() => null);
+    throw new ApiError(response.status, data?.detail ?? "Request failed");
+  }
+
+  const blob = await response.blob();
+  const filename =
+    parseContentDispositionFilename(response.headers.get("Content-Disposition")) ??
+    fallbackFilename;
+  triggerBlobDownload(blob, filename);
 }
 
 export const api = {
@@ -408,6 +455,14 @@ export const api = {
     return request<SongDetailResponse[]>(`/productions/${productionId}/songs`);
   },
 
+  importSongsCsv(productionId: number, file: File) {
+    return this.importCatalogCsv(productionId, "songs", file);
+  },
+
+  downloadSongsCsvTemplate(productionId: number) {
+    return this.downloadCatalogCsvTemplate(productionId, "songs");
+  },
+
   createSong(
     productionId: number,
     body: { title: string; composer?: string | null; lyricist?: string | null; description?: string | null },
@@ -460,6 +515,14 @@ export const api = {
     });
   },
 
+  importPropsCsv(productionId: number, file: File) {
+    return this.importCatalogCsv(productionId, "props", file);
+  },
+
+  downloadPropsCsvTemplate(productionId: number) {
+    return this.downloadCatalogCsvTemplate(productionId, "props");
+  },
+
   attachMomentProp(
     productionId: number,
     momentId: number,
@@ -509,6 +572,14 @@ export const api = {
     });
   },
 
+  importCueCategoriesCsv(productionId: number, file: File) {
+    return this.importCatalogCsv(productionId, "cue-categories", file);
+  },
+
+  downloadCueCategoriesCsvTemplate(productionId: number) {
+    return this.downloadCatalogCsvTemplate(productionId, "cue-categories");
+  },
+
   createMomentCue(
     productionId: number,
     momentId: number,
@@ -548,6 +619,55 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify(body),
     });
+  },
+
+  getOverviewMessageDefaults() {
+    return request<OverviewMessageDefaultResponse[]>("/settings/overview-message-defaults");
+  },
+
+  replaceOverviewMessageDefaults(messages: OverviewMessageDefaultItem[]) {
+    return request<OverviewMessageDefaultResponse[]>("/settings/overview-message-defaults", {
+      method: "PUT",
+      body: JSON.stringify({ messages }),
+    });
+  },
+
+  getProductionOverviewMessages(productionId: number) {
+    return request<ProductionOverviewMessageResponse[]>(
+      `/productions/${productionId}/overview-messages`,
+    );
+  },
+
+  replaceProductionOverviewMessages(
+    productionId: number,
+    messages: ProductionOverviewMessageItem[],
+  ) {
+    return request<ProductionOverviewMessageResponse[]>(
+      `/productions/${productionId}/overview-messages`,
+      {
+        method: "PUT",
+        body: JSON.stringify({ messages }),
+      },
+    );
+  },
+
+  getProductionOverviewSettings(productionId: number) {
+    return request<ProductionOverviewSettingsResponse>(
+      `/productions/${productionId}/overview-settings`,
+    );
+  },
+
+  updateProductionOverviewSettings(
+    productionId: number,
+    body: { message_rotation_seconds: number | null },
+  ) {
+    return request<ProductionOverviewSettingsResponse>(
+      `/productions/${productionId}/overview-settings`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      },
+    );
   },
 
   createMoment(
@@ -615,11 +735,22 @@ export const api = {
     });
   },
 
+  importCostumesCsv(productionId: number, file: File) {
+    return this.importCatalogCsv(productionId, "costumes", file);
+  },
+
+  downloadCostumesCsvTemplate(productionId: number) {
+    return this.downloadCatalogCsvTemplate(productionId, "costumes");
+  },
+
   listMicrophones(productionId: number) {
     return request<MicrophoneResponse[]>(`/productions/${productionId}/microphones`);
   },
 
-  createMicrophone(productionId: number, body: { identifier: string }) {
+  createMicrophone(
+    productionId: number,
+    body: { identifier: string; notes?: string | null },
+  ) {
     return request<MicrophoneResponse>(`/productions/${productionId}/microphones`, {
       method: "POST",
       body: JSON.stringify(body),
@@ -629,7 +760,7 @@ export const api = {
   updateMicrophone(
     productionId: number,
     microphoneId: number,
-    body: { identifier?: string },
+    body: { identifier?: string; notes?: string | null },
   ) {
     return request<MicrophoneResponse>(
       `/productions/${productionId}/microphones/${microphoneId}`,
@@ -641,6 +772,14 @@ export const api = {
     return request<void>(`/productions/${productionId}/microphones/${microphoneId}`, {
       method: "DELETE",
     });
+  },
+
+  importMicrophonesCsv(productionId: number, file: File) {
+    return this.importCatalogCsv(productionId, "microphones", file);
+  },
+
+  downloadMicrophonesCsvTemplate(productionId: number) {
+    return this.downloadCatalogCsvTemplate(productionId, "microphones");
   },
 
   attachMomentMicrophone(
@@ -694,6 +833,32 @@ export const api = {
     return request<void>(`/productions/${productionId}/set-pieces/${setPieceId}`, {
       method: "DELETE",
     });
+  },
+
+  importSetPiecesCsv(productionId: number, file: File) {
+    return this.importCatalogCsv(productionId, "set-pieces", file);
+  },
+
+  downloadSetPiecesCsvTemplate(productionId: number) {
+    return this.downloadCatalogCsvTemplate(productionId, "set-pieces");
+  },
+
+  importCatalogCsv(productionId: number, kind: CatalogCsvKind, file: File) {
+    const config = CATALOG_CSV_CONFIGS[kind];
+    const formData = new FormData();
+    formData.append("file", file);
+    return request<CatalogImportResult>(
+      `/productions/${productionId}/${config.pathSegment}/import`,
+      { method: "POST", body: formData },
+    );
+  },
+
+  downloadCatalogCsvTemplate(productionId: number, kind: CatalogCsvKind) {
+    const config = CATALOG_CSV_CONFIGS[kind];
+    return downloadAuthenticatedFile(
+      `/productions/${productionId}/${config.pathSegment}/import/template`,
+      config.templateFilename,
+    );
   },
 
   attachMomentSetPiece(

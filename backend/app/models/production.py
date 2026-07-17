@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -18,6 +18,8 @@ class Production(Base):
     title: Mapped[str] = mapped_column(String(255), nullable=False)
     season: Mapped[str | None] = mapped_column(String(100), nullable=True)
     author: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    # Null inherits app_settings.default_message_rotation_seconds.
+    message_rotation_seconds: Mapped[int | None] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
         server_default=func.now(),
@@ -64,6 +66,10 @@ class Production(Base):
         cascade="all, delete-orphan",
     )
     set_pieces: Mapped[list["SetPiece"]] = relationship(
+        back_populates="production",
+        cascade="all, delete-orphan",
+    )
+    overview_messages: Mapped[list["ProductionOverviewMessage"]] = relationship(
         back_populates="production",
         cascade="all, delete-orphan",
     )

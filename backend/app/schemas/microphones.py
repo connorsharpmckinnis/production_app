@@ -3,15 +3,18 @@ from pydantic import BaseModel, Field
 
 class MicrophoneCreate(BaseModel):
     identifier: str = Field(min_length=1, max_length=255)
+    notes: str | None = None
 
 
 class MicrophoneUpdate(BaseModel):
     identifier: str | None = Field(default=None, min_length=1, max_length=255)
+    notes: str | None = None
 
 
 class MicrophoneResponse(BaseModel):
     id: int
     identifier: str
+    notes: str | None
 
 
 class MomentMicrophoneCreate(BaseModel):

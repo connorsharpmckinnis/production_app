@@ -2,7 +2,19 @@ from sqlalchemy.orm import Session
 
 from app.auth.password import hash_password
 from app.config import Settings
-from app.models import AppRole, AppSetting, MomentType, Organization, User, UserAppRole
+from app.db.encouragement_defaults import (
+    DEFAULT_ENCOURAGEMENT_MESSAGES,
+    DEFAULT_MESSAGE_ROTATION_SECONDS,
+)
+from app.models import (
+    AppOverviewMessageDefault,
+    AppRole,
+    AppSetting,
+    MomentType,
+    Organization,
+    User,
+    UserAppRole,
+)
 APP_ROLES = [
     ("Admin", "Full system access; import scripts; manage users"),
     ("Director", "Edit timeline; cast actors; no create/delete production, import, or user management"),
@@ -109,9 +121,28 @@ def _seed_app_settings(db: Session) -> None:
                 id=1,
                 show_original_text=True,
                 show_parsed_text=True,
+                default_message_rotation_seconds=DEFAULT_MESSAGE_ROTATION_SECONDS,
             )
         )
         db.flush()
+
+
+def _seed_overview_message_defaults(db: Session) -> None:
+    # Only insert the built-in band copy when the table is empty so admin edits survive re-seed.
+    existing = db.query(AppOverviewMessageDefault).count()
+    if existing > 0:
+        return
+    for row in DEFAULT_ENCOURAGEMENT_MESSAGES:
+        db.add(
+            AppOverviewMessageDefault(
+                band=row["band"],
+                title=row["title"],
+                body=row["body"],
+                sort_order=row["sort_order"],
+                active=row["active"],
+            )
+        )
+    db.flush()
 
 
 def seed_database(db: Session, settings: Settings) -> None:
@@ -119,6 +150,7 @@ def seed_database(db: Session, settings: Settings) -> None:
     roles_by_name = _seed_app_roles(db)
     _seed_moment_types(db)
     _seed_app_settings(db)
+    _seed_overview_message_defaults(db)
 
     user_count = db.query(User).count()
     if user_count == 0:

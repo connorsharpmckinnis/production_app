@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Pencil, Trash2 } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
+import CatalogCsvImport from "@/components/CatalogCsvImport";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -155,9 +156,16 @@ export default function SetPiecesPage() {
       )}
 
       {canManagePreparation && (
-        <Button type="button" onClick={openCreateDialog}>
-          Add set piece
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" onClick={openCreateDialog}>
+            Add set piece
+          </Button>
+          <CatalogCsvImport
+            productionId={productionId}
+            kind="set-pieces"
+            onImported={loadData}
+          />
+        </div>
       )}
 
       {setPieces.length === 0 ? (

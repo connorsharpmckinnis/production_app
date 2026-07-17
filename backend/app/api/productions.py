@@ -2,18 +2,37 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import require_admin, require_authenticated, user_has_role
-from app.config import get_settings
+from app.auth.dependencies import (
+    require_admin,
+    require_authenticated,
+    require_director_or_admin,
+    user_has_role,
+)
 from app.db.session import get_db
-from app.models import Act, Character, Moment, Organization, Production, Scene, User, UserCharacterAssignment
+from app.models import Act, Character, Moment, Production, Scene, User, UserCharacterAssignment
+from app.schemas.overview_messages import (
+    ProductionOverviewMessageResponse,
+    ProductionOverviewMessagesReplace,
+    ProductionOverviewSettingsResponse,
+    ProductionOverviewSettingsUpdate,
+)
 from app.schemas.production import (
     ImportErrorResponse,
     ImportSuccessResponse,
     ProductionCreate,
     ProductionOverviewResponse,
     ProductionResponse,
+    ReadinessDimension,
 )
 from app.services.importer import ImportLineError, import_script
+from app.services.overview_messages import (
+    build_spotlight_queue,
+    effective_rotation_seconds,
+    get_or_create_app_settings,
+    list_production_messages,
+    replace_production_messages,
+)
+from app.services.readiness import compute_readiness
 
 router = APIRouter(prefix="/productions", tags=["productions"])
 
@@ -76,7 +95,7 @@ def get_production(
 @router.get("/{production_id}/overview", response_model=ProductionOverviewResponse)
 def get_production_overview(
     production_id: int,
-    _user: User = Depends(require_authenticated),
+    user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> ProductionOverviewResponse:
     production = _get_production_or_404(db, production_id)
@@ -124,6 +143,14 @@ def get_production_overview(
             .scalar()
         )
 
+    readiness = compute_readiness(db, production_id)
+    spotlight = build_spotlight_queue(db, production, readiness.readiness_percent)
+    is_actor_only = (
+        user_has_role(user, "Actor")
+        and not user_has_role(user, "Admin")
+        and not user_has_role(user, "Director")
+    )
+
     return ProductionOverviewResponse(
         id=production.id,
         title=production.title,
@@ -136,6 +163,88 @@ def get_production_overview(
         moment_count=moment_count,
         character_count=character_count,
         cast_count=cast_count,
+        readiness_percent=None if is_actor_only else readiness.readiness_percent,
+        dimensions=[]
+        if is_actor_only
+        else [
+            ReadinessDimension(
+                key=dimension.key,
+                label=dimension.label,
+                score=dimension.score,
+                summary=dimension.summary,
+                href_hint=dimension.href_hint,
+                gaps=dimension.gaps,
+            )
+            for dimension in readiness.dimensions
+        ],
+        readiness_band=spotlight.readiness_band,
+        rotation_seconds=spotlight.rotation_seconds,
+        spotlight=spotlight.spotlight,
+    )
+
+
+@router.get(
+    "/{production_id}/overview-messages",
+    response_model=list[ProductionOverviewMessageResponse],
+)
+def get_production_overview_messages(
+    production_id: int,
+    _user: User = Depends(require_authenticated),
+    db: Session = Depends(get_db),
+) -> list[ProductionOverviewMessageResponse]:
+    _get_production_or_404(db, production_id)
+    return list_production_messages(db, production_id)
+
+
+@router.put(
+    "/{production_id}/overview-messages",
+    response_model=list[ProductionOverviewMessageResponse],
+)
+def replace_production_overview_messages(
+    production_id: int,
+    body: ProductionOverviewMessagesReplace,
+    _user: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> list[ProductionOverviewMessageResponse]:
+    _get_production_or_404(db, production_id)
+    return replace_production_messages(db, production_id, body.messages)
+
+
+@router.get(
+    "/{production_id}/overview-settings",
+    response_model=ProductionOverviewSettingsResponse,
+)
+def get_production_overview_settings(
+    production_id: int,
+    _user: User = Depends(require_authenticated),
+    db: Session = Depends(get_db),
+) -> ProductionOverviewSettingsResponse:
+    production = _get_production_or_404(db, production_id)
+    app_settings = get_or_create_app_settings(db)
+    return ProductionOverviewSettingsResponse(
+        message_rotation_seconds=production.message_rotation_seconds,
+        effective_rotation_seconds=effective_rotation_seconds(production, app_settings),
+    )
+
+
+@router.patch(
+    "/{production_id}/overview-settings",
+    response_model=ProductionOverviewSettingsResponse,
+)
+def update_production_overview_settings(
+    production_id: int,
+    body: ProductionOverviewSettingsUpdate,
+    _user: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> ProductionOverviewSettingsResponse:
+    production = _get_production_or_404(db, production_id)
+    production.message_rotation_seconds = body.message_rotation_seconds
+    db.commit()
+    db.refresh(production)
+    app_settings = get_or_create_app_settings(db)
+    return ProductionOverviewSettingsResponse(
+        message_rotation_seconds=production.message_rotation_seconds,
+        effective_rotation_seconds=effective_rotation_seconds(production, app_settings),
     )
 
 

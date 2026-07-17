@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Pencil, Trash2 } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
+import CatalogCsvImport from "@/components/CatalogCsvImport";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -183,9 +184,16 @@ export default function CostumesPage() {
       )}
 
       {canManagePreparation && (
-        <Button type="button" onClick={openCreateDialog}>
-          Add costume
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" onClick={openCreateDialog}>
+            Add costume
+          </Button>
+          <CatalogCsvImport
+            productionId={productionId}
+            kind="costumes"
+            onImported={loadData}
+          />
+        </div>
       )}
 
       {costumes.length === 0 ? (

@@ -1,10 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from sqlalchemy.orm import Session, joinedload
 
+from app.api.catalog_csv_routes import (
+    catalog_csv_error_http,
+    catalog_template_response,
+    read_catalog_upload,
+)
 from app.auth.dependencies import require_authenticated, require_director_or_admin
 from app.db.session import get_db
 from app.models import Act, Character, Moment, MomentProp, Production, Prop, Scene, User
+from app.schemas.catalog_csv import CatalogImportResult
 from app.schemas.props import MomentPropCreate, MomentPropResponse, PropCreate, PropResponse, PropUpdate
+from app.services.catalog_csv import CatalogCsvError, PROPS_COLUMNS, import_props_csv
 
 router = APIRouter(prefix="/productions", tags=["props"])
 
@@ -148,6 +155,34 @@ def delete_prop(
     prop = _get_prop_or_404(db, production_id, prop_id)
     db.delete(prop)
     db.commit()
+
+
+@router.get("/{production_id}/props/import/template")
+def download_props_csv_template(
+    production_id: int,
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> Response:
+    _get_production_or_404(db, production_id)
+    return catalog_template_response("props_template.csv", PROPS_COLUMNS)
+
+
+@router.post(
+    "/{production_id}/props/import",
+    response_model=CatalogImportResult,
+)
+async def import_props(
+    production_id: int,
+    file: UploadFile = File(...),
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> CatalogImportResult:
+    _get_production_or_404(db, production_id)
+    content = await read_catalog_upload(file)
+    try:
+        return import_props_csv(db, production_id, content)
+    except CatalogCsvError as exc:
+        raise catalog_csv_error_http(exc) from exc
 
 
 @router.get(

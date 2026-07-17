@@ -1,9 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from sqlalchemy.orm import Session, joinedload
 
+from app.api.catalog_csv_routes import (
+    catalog_csv_error_http,
+    catalog_template_response,
+    read_catalog_upload,
+)
 from app.auth.dependencies import require_authenticated, require_director_or_admin
 from app.db.session import get_db
 from app.models import Act, Cue, CueCategory, Moment, Production, Scene, User
+from app.schemas.catalog_csv import CatalogImportResult
 from app.schemas.cues import (
     CueCategoryCreate,
     CueCategoryResponse,
@@ -11,6 +17,11 @@ from app.schemas.cues import (
     CueCreate,
     CueResponse,
     CueUpdate,
+)
+from app.services.catalog_csv import (
+    CatalogCsvError,
+    CUE_CATEGORIES_COLUMNS,
+    import_cue_categories_csv,
 )
 
 router = APIRouter(prefix="/productions", tags=["cues"])
@@ -156,6 +167,37 @@ def delete_cue_category(
     category = _get_cue_category_or_404(db, production_id, cue_category_id)
     db.delete(category)
     db.commit()
+
+
+@router.get("/{production_id}/cue-categories/import/template")
+def download_cue_categories_csv_template(
+    production_id: int,
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> Response:
+    _get_production_or_404(db, production_id)
+    return catalog_template_response(
+        "cue_categories_template.csv",
+        CUE_CATEGORIES_COLUMNS,
+    )
+
+
+@router.post(
+    "/{production_id}/cue-categories/import",
+    response_model=CatalogImportResult,
+)
+async def import_cue_categories(
+    production_id: int,
+    file: UploadFile = File(...),
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> CatalogImportResult:
+    _get_production_or_404(db, production_id)
+    content = await read_catalog_upload(file)
+    try:
+        return import_cue_categories_csv(db, production_id, content)
+    except CatalogCsvError as exc:
+        raise catalog_csv_error_http(exc) from exc
 
 
 @router.get(

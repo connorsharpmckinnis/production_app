@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Pencil, Trash2 } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
+import CatalogCsvImport from "@/components/CatalogCsvImport";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -155,9 +156,16 @@ export default function PropsPage() {
       )}
 
       {canManagePreparation && (
-        <Button type="button" onClick={openCreateDialog}>
-          Add prop
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" onClick={openCreateDialog}>
+            Add prop
+          </Button>
+          <CatalogCsvImport
+            productionId={productionId}
+            kind="props"
+            onImported={loadData}
+          />
+        </div>
       )}
 
       {props.length === 0 ? (

@@ -2,6 +2,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field
 
+from app.schemas.overview_messages import SpotlightMessage
+
 
 class ProductionCreate(BaseModel):
     title: str = Field(min_length=1, max_length=255)
@@ -18,6 +20,15 @@ class ProductionResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ReadinessDimension(BaseModel):
+    key: str
+    label: str
+    score: int | None
+    summary: str
+    href_hint: str
+    gaps: list[str] = Field(default_factory=list)
+
+
 class ProductionOverviewResponse(BaseModel):
     id: int
     title: str
@@ -30,6 +41,11 @@ class ProductionOverviewResponse(BaseModel):
     moment_count: int
     character_count: int
     cast_count: int
+    readiness_percent: int | None
+    dimensions: list[ReadinessDimension]
+    readiness_band: str
+    rotation_seconds: int
+    spotlight: list[SpotlightMessage]
 
 
 class ImportErrorResponse(BaseModel):

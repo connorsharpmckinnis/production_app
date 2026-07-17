@@ -1,15 +1,26 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from sqlalchemy.orm import Session, joinedload
 
+from app.api.catalog_csv_routes import (
+    catalog_csv_error_http,
+    catalog_template_response,
+    read_catalog_upload,
+)
 from app.auth.dependencies import require_authenticated, require_director_or_admin
 from app.db.session import get_db
 from app.models import Act, Character, Microphone, Moment, MomentMicrophone, Production, Scene, User
+from app.schemas.catalog_csv import CatalogImportResult
 from app.schemas.microphones import (
     MicrophoneCreate,
     MicrophoneResponse,
     MicrophoneUpdate,
     MomentMicrophoneCreate,
     MomentMicrophoneResponse,
+)
+from app.services.catalog_csv import (
+    CatalogCsvError,
+    MICROPHONES_COLUMNS,
+    import_microphones_csv,
 )
 
 router = APIRouter(prefix="/productions", tags=["microphones"])
@@ -64,6 +75,14 @@ def _moment_microphone_response(moment_microphone: MomentMicrophone) -> MomentMi
     )
 
 
+def _microphone_response(microphone: Microphone) -> MicrophoneResponse:
+    return MicrophoneResponse(
+        id=microphone.id,
+        identifier=microphone.identifier,
+        notes=microphone.notes,
+    )
+
+
 @router.get("/{production_id}/microphones", response_model=list[MicrophoneResponse])
 def list_microphones(
     production_id: int,
@@ -77,10 +96,7 @@ def list_microphones(
         .order_by(Microphone.identifier)
         .all()
     )
-    return [
-        MicrophoneResponse(id=microphone.id, identifier=microphone.identifier)
-        for microphone in microphones
-    ]
+    return [_microphone_response(microphone) for microphone in microphones]
 
 
 @router.post(
@@ -98,11 +114,12 @@ def create_microphone(
     microphone = Microphone(
         production_id=production_id,
         identifier=body.identifier.strip(),
+        notes=body.notes,
     )
     db.add(microphone)
     db.commit()
     db.refresh(microphone)
-    return MicrophoneResponse(id=microphone.id, identifier=microphone.identifier)
+    return _microphone_response(microphone)
 
 
 @router.patch(
@@ -119,9 +136,11 @@ def update_microphone(
     microphone = _get_microphone_or_404(db, production_id, microphone_id)
     if body.identifier is not None:
         microphone.identifier = body.identifier.strip()
+    if body.notes is not None:
+        microphone.notes = body.notes
     db.commit()
     db.refresh(microphone)
-    return MicrophoneResponse(id=microphone.id, identifier=microphone.identifier)
+    return _microphone_response(microphone)
 
 
 @router.delete(
@@ -137,6 +156,34 @@ def delete_microphone(
     microphone = _get_microphone_or_404(db, production_id, microphone_id)
     db.delete(microphone)
     db.commit()
+
+
+@router.get("/{production_id}/microphones/import/template")
+def download_microphones_csv_template(
+    production_id: int,
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> Response:
+    _get_production_or_404(db, production_id)
+    return catalog_template_response("microphones_template.csv", MICROPHONES_COLUMNS)
+
+
+@router.post(
+    "/{production_id}/microphones/import",
+    response_model=CatalogImportResult,
+)
+async def import_microphones(
+    production_id: int,
+    file: UploadFile = File(...),
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> CatalogImportResult:
+    _get_production_or_404(db, production_id)
+    content = await read_catalog_upload(file)
+    try:
+        return import_microphones_csv(db, production_id, content)
+    except CatalogCsvError as exc:
+        raise catalog_csv_error_http(exc) from exc
 
 
 @router.get(

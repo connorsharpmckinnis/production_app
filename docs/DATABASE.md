@@ -206,6 +206,8 @@ Fields
 * organization_id
 * title
 * season
+* author (nullable — set from script import when present)
+* message_rotation_seconds (nullable — Overview spotlight interval; `null` inherits `app_settings.default_message_rotation_seconds`; `0` = rotation off; otherwise 5–300)
 * created_at
 * updated_at
 
@@ -229,9 +231,86 @@ One → Many CueCategories
 
 One → Many SetPieces
 
+One → Many ProductionOverviewMessages
+
 One → Many Notes
 
 One → Many Tasks
+
+---
+
+# APP_SETTINGS
+
+Purpose
+
+Singleton application settings row (`id = 1`). Display flags and global Overview message defaults that productions may override.
+
+Fields
+
+* id (always `1`)
+* show_original_text
+* show_parsed_text
+* default_message_rotation_seconds (integer; `0` = rotation off; otherwise 5–300; default `20`)
+
+---
+
+# APP_OVERVIEW_MESSAGE_DEFAULTS
+
+Purpose
+
+Global default Overview **encouragement** messages keyed by readiness band. Used when a production has no active encouragement for the current band.
+
+Fields
+
+* id
+* band (`0`, `1-24`, `25-49`, `50-74`, `75-89`, `90-99`, `100`)
+* title (nullable)
+* body
+* sort_order
+* active
+* created_at
+* updated_at
+
+**Decision (Phase 8):** Global defaults are encouragement-by-band only. Scripture and announcements are production-scoped.
+
+Seeded band copy (migration + startup seed when empty):
+
+| Band | Default body |
+| ---- | ------------ |
+| `0` | Blank stage — import a script and let's get rolling. |
+| `1-24` | Good start — the bones are there. |
+| `25-49` | You're building something real. Keep layering prep. |
+| `50-74` | Solid progress — the show is taking shape. |
+| `75-89` | You got it — almost at the finish line! |
+| `90-99` | So close — knock out the last gaps. |
+| `100` | Prep looks complete. Time to rehearse. |
+
+---
+
+# PRODUCTION_OVERVIEW_MESSAGES
+
+Purpose
+
+Production-scoped Overview spotlight messages (encouragement, scripture, announcement).
+
+Fields
+
+* id
+* production_id
+* kind (`encouragement` \| `scripture` \| `announcement`)
+* band (nullable — **required** for `encouragement`; **must be null** for other kinds)
+* title (nullable — e.g. scripture citation)
+* body
+* sort_order
+* active
+* created_at
+* updated_at
+
+Relationships
+
+Many → One Production
+
+**Spotlight resolve order (Overview API):** active production announcements (by `sort_order`), then active production scripture, then active production encouragement for the current readiness band if any exist for that band, otherwise active global defaults for that band. Empty production / readiness `0` / no script → band `0`.
 
 ---
 
@@ -665,6 +744,7 @@ Fields
 * id
 * production_id
 * identifier
+* notes (nullable — catalog-level notes; distinct from moment attachment notes)
 
 Examples
 
@@ -674,7 +754,7 @@ Lav 2
 
 Lav 7
 
-Assignments occur through Moments.
+Assignments occur through Moments. Moment-level `moment_microphones.notes` stay separate from catalog `notes`.
 
 ---
 

@@ -75,7 +75,11 @@ def test_settings_get_and_patch(seeded_client: TestClient) -> None:
 
     settings = seeded_client.get("/api/settings", headers=director_headers)
     assert settings.status_code == 200
-    assert settings.json() == {"show_original_text": True, "show_parsed_text": True}
+    assert settings.json() == {
+        "show_original_text": True,
+        "show_parsed_text": True,
+        "default_message_rotation_seconds": 20,
+    }
 
     patched = seeded_client.patch(
         "/api/settings",

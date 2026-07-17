@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Pencil, Trash2 } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
+import CatalogCsvImport from "@/components/CatalogCsvImport";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -30,6 +31,7 @@ export default function MicrophonesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingMic, setEditingMic] = useState<MicrophoneResponse | null>(null);
   const [identifier, setIdentifier] = useState("");
+  const [notes, setNotes] = useState("");
   const [saving, setSaving] = useState(false);
 
   async function loadData() {
@@ -51,12 +53,14 @@ export default function MicrophonesPage() {
   function openCreateDialog() {
     setEditingMic(null);
     setIdentifier("");
+    setNotes("");
     setDialogOpen(true);
   }
 
   function openEditDialog(mic: MicrophoneResponse) {
     setEditingMic(mic);
     setIdentifier(mic.identifier);
+    setNotes(mic.notes ?? "");
     setDialogOpen(true);
   }
 
@@ -71,13 +75,15 @@ export default function MicrophonesPage() {
 
     setSaving(true);
     try {
+      const payload = {
+        identifier: identifier.trim(),
+        notes: notes.trim() || null,
+      };
       if (editingMic) {
-        await api.updateMicrophone(productionId, editingMic.id, {
-          identifier: identifier.trim(),
-        });
+        await api.updateMicrophone(productionId, editingMic.id, payload);
         toast.success("Microphone updated");
       } else {
-        await api.createMicrophone(productionId, { identifier: identifier.trim() });
+        await api.createMicrophone(productionId, payload);
         toast.success("Microphone created");
       }
       closeDialog();
@@ -143,9 +149,16 @@ export default function MicrophonesPage() {
       )}
 
       {canManagePreparation && (
-        <Button type="button" onClick={openCreateDialog}>
-          Add microphone
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button type="button" onClick={openCreateDialog}>
+            Add microphone
+          </Button>
+          <CatalogCsvImport
+            productionId={productionId}
+            kind="microphones"
+            onImported={loadData}
+          />
+        </div>
       )}
 
       {microphones.length === 0 ? (
@@ -161,6 +174,7 @@ export default function MicrophonesPage() {
             <thead className="border-b border-border bg-muted/50">
               <tr>
                 <th className="px-4 py-3 text-left font-medium">Identifier</th>
+                <th className="px-4 py-3 text-left font-medium">Notes</th>
                 {canManagePreparation && (
                   <th className="px-4 py-3 text-left font-medium">Actions</th>
                 )}
@@ -170,6 +184,7 @@ export default function MicrophonesPage() {
               {microphones.map((mic) => (
                 <tr key={mic.id}>
                   <td className="px-4 py-3 font-medium">{mic.identifier}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{mic.notes ?? "—"}</td>
                   {canManagePreparation && (
                     <td className="px-4 py-3">
                       <div className="flex gap-1">
@@ -222,13 +237,20 @@ export default function MicrophonesPage() {
                   : "Add a new microphone to the catalog."}
               </DialogDescription>
             </DialogHeader>
-            <div className="py-4">
+            <div className="space-y-3 py-4">
               <input
                 value={identifier}
                 onChange={(e) => setIdentifier(e.target.value)}
                 placeholder="Identifier (e.g. Lav 1)"
                 className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 autoFocus
+              />
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Notes (optional)"
+                rows={2}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
             <DialogFooter>

@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, String
+from sqlalchemy import ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -14,6 +14,7 @@ class Microphone(Base):
         index=True,
     )
     identifier: Mapped[str] = mapped_column(String(255), nullable=False)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     production: Mapped["Production"] = relationship(back_populates="microphones")
     moment_attachments: Mapped[list["MomentMicrophone"]] = relationship(

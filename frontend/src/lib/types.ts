@@ -55,6 +55,18 @@ export interface ImportLineErrorDetail {
   message: string;
 }
 
+export interface CatalogImportRowError {
+  row: number;
+  message: string;
+}
+
+export interface CatalogImportResult {
+  created: number;
+  skipped: number;
+  errors: CatalogImportRowError[];
+  warnings: string[];
+}
+
 export interface SceneSummary {
   id: number;
   number: number;
@@ -220,11 +232,78 @@ export interface MomentDetailResponse {
 export interface AppSettingsResponse {
   show_original_text: boolean;
   show_parsed_text: boolean;
+  default_message_rotation_seconds: number;
+}
+
+export type OverviewMessageKind = "encouragement" | "scripture" | "announcement";
+
+export type EncouragementBand =
+  | "0"
+  | "1-24"
+  | "25-49"
+  | "50-74"
+  | "75-89"
+  | "90-99"
+  | "100";
+
+export interface OverviewMessageDefaultItem {
+  band: EncouragementBand | string;
+  title?: string | null;
+  body: string;
+  sort_order?: number;
+  active?: boolean;
+}
+
+export interface OverviewMessageDefaultResponse extends OverviewMessageDefaultItem {
+  id: number;
+  sort_order: number;
+  active: boolean;
+  title: string | null;
+}
+
+export interface ProductionOverviewMessageItem {
+  kind: OverviewMessageKind | string;
+  band?: string | null;
+  title?: string | null;
+  body: string;
+  sort_order?: number;
+  active?: boolean;
+}
+
+export interface ProductionOverviewMessageResponse extends ProductionOverviewMessageItem {
+  id: number;
+  sort_order: number;
+  active: boolean;
+  title: string | null;
+  band: string | null;
+}
+
+export interface ProductionOverviewSettingsResponse {
+  message_rotation_seconds: number | null;
+  effective_rotation_seconds: number;
+}
+
+export interface SpotlightMessage {
+  kind: string;
+  band: string | null;
+  title: string | null;
+  body: string;
+  source: string;
+}
+
+export interface ReadinessDimension {
+  key: string;
+  label: string;
+  score: number | null;
+  summary: string;
+  href_hint: string;
+  gaps: string[];
 }
 
 export interface MicrophoneResponse {
   id: number;
   identifier: string;
+  notes: string | null;
 }
 
 export interface SetPieceResponse {
@@ -336,6 +415,11 @@ export interface ProductionOverviewResponse {
   moment_count: number;
   character_count: number;
   cast_count: number;
+  readiness_percent: number | null;
+  dimensions: ReadinessDimension[];
+  readiness_band: string;
+  rotation_seconds: number;
+  spotlight: SpotlightMessage[];
 }
 
 export interface CharacterDetailResponse {

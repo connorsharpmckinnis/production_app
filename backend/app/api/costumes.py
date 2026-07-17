@@ -1,10 +1,17 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from sqlalchemy.orm import Session, joinedload
 
+from app.api.catalog_csv_routes import (
+    catalog_csv_error_http,
+    catalog_template_response,
+    read_catalog_upload,
+)
 from app.auth.dependencies import require_authenticated, require_director_or_admin
 from app.db.session import get_db
 from app.models import Act, Character, Costume, Production, Scene, User
+from app.schemas.catalog_csv import CatalogImportResult
 from app.schemas.costumes import CostumeCreate, CostumeResponse, CostumeUpdate
+from app.services.catalog_csv import CatalogCsvError, COSTUMES_COLUMNS, import_costumes_csv
 
 router = APIRouter(prefix="/productions", tags=["costumes"])
 
@@ -162,3 +169,31 @@ def delete_costume(
     costume = _get_costume_or_404(db, production_id, costume_id)
     db.delete(costume)
     db.commit()
+
+
+@router.get("/{production_id}/costumes/import/template")
+def download_costumes_csv_template(
+    production_id: int,
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> Response:
+    _get_production_or_404(db, production_id)
+    return catalog_template_response("costumes_template.csv", COSTUMES_COLUMNS)
+
+
+@router.post(
+    "/{production_id}/costumes/import",
+    response_model=CatalogImportResult,
+)
+async def import_costumes(
+    production_id: int,
+    file: UploadFile = File(...),
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> CatalogImportResult:
+    _get_production_or_404(db, production_id)
+    content = await read_catalog_upload(file)
+    try:
+        return import_costumes_csv(db, production_id, content)
+    except CatalogCsvError as exc:
+        raise catalog_csv_error_http(exc) from exc

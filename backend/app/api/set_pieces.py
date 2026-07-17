@@ -1,9 +1,15 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from sqlalchemy.orm import Session, joinedload
 
+from app.api.catalog_csv_routes import (
+    catalog_csv_error_http,
+    catalog_template_response,
+    read_catalog_upload,
+)
 from app.auth.dependencies import require_authenticated, require_director_or_admin
 from app.db.session import get_db
 from app.models import Act, Moment, MomentSetPiece, Production, Scene, SetPiece, User
+from app.schemas.catalog_csv import CatalogImportResult
 from app.schemas.set_pieces import (
     MomentSetPieceCreate,
     MomentSetPieceResponse,
@@ -11,6 +17,7 @@ from app.schemas.set_pieces import (
     SetPieceResponse,
     SetPieceUpdate,
 )
+from app.services.catalog_csv import CatalogCsvError, SET_PIECES_COLUMNS, import_set_pieces_csv
 
 router = APIRouter(prefix="/productions", tags=["set-pieces"])
 
@@ -153,6 +160,34 @@ def delete_set_piece(
     set_piece = _get_set_piece_or_404(db, production_id, set_piece_id)
     db.delete(set_piece)
     db.commit()
+
+
+@router.get("/{production_id}/set-pieces/import/template")
+def download_set_pieces_csv_template(
+    production_id: int,
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> Response:
+    _get_production_or_404(db, production_id)
+    return catalog_template_response("set_pieces_template.csv", SET_PIECES_COLUMNS)
+
+
+@router.post(
+    "/{production_id}/set-pieces/import",
+    response_model=CatalogImportResult,
+)
+async def import_set_pieces(
+    production_id: int,
+    file: UploadFile = File(...),
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> CatalogImportResult:
+    _get_production_or_404(db, production_id)
+    content = await read_catalog_upload(file)
+    try:
+        return import_set_pieces_csv(db, production_id, content)
+    except CatalogCsvError as exc:
+        raise catalog_csv_error_http(exc) from exc
 
 
 @router.get(

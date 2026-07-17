@@ -200,6 +200,9 @@ def test_production_overview(seeded_client: TestClient, db_session: Session) -> 
     assert data["moment_count"] > 0
     assert data["character_count"] > 0
     assert data["imported_at"] is not None
+    assert isinstance(data["readiness_percent"], int)
+    assert isinstance(data["dimensions"], list)
+    assert len(data["dimensions"]) >= 1
 
 
 def test_phase5_reports(seeded_client: TestClient, db_session: Session) -> None:

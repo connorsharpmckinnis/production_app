@@ -1,7 +1,12 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from sqlalchemy import distinct, func
 from sqlalchemy.orm import Session, joinedload
 
+from app.api.catalog_csv_routes import (
+    catalog_csv_error_http,
+    catalog_template_response,
+    read_catalog_upload,
+)
 from app.auth.dependencies import require_authenticated, require_role, user_has_role
 from app.db.session import get_db
 from app.models import (
@@ -20,6 +25,7 @@ from app.schemas.casting import (
     CastCharacterResponse,
     CastableUserResponse,
 )
+from app.schemas.catalog_csv import CatalogImportResult
 from app.schemas.characters import (
     AssignedActorResponse,
     CharacterCreate,
@@ -29,6 +35,7 @@ from app.schemas.characters import (
     SongDetailResponse,
     SongUpdate,
 )
+from app.services.catalog_csv import CatalogCsvError, SONGS_COLUMNS, import_songs_csv
 
 router = APIRouter(prefix="/productions", tags=["characters"])
 
@@ -273,6 +280,34 @@ def update_song(
         lyricist=song.lyricist,
         description=song.description,
     )
+
+
+@router.get("/{production_id}/songs/import/template")
+def download_songs_csv_template(
+    production_id: int,
+    _director: User = Depends(require_director),
+    db: Session = Depends(get_db),
+) -> Response:
+    _get_production_or_404(db, production_id)
+    return catalog_template_response("songs_template.csv", SONGS_COLUMNS)
+
+
+@router.post(
+    "/{production_id}/songs/import",
+    response_model=CatalogImportResult,
+)
+async def import_songs(
+    production_id: int,
+    file: UploadFile = File(...),
+    _director: User = Depends(require_director),
+    db: Session = Depends(get_db),
+) -> CatalogImportResult:
+    _get_production_or_404(db, production_id)
+    content = await read_catalog_upload(file)
+    try:
+        return import_songs_csv(db, production_id, content)
+    except CatalogCsvError as exc:
+        raise catalog_csv_error_http(exc) from exc
 
 
 @router.get("/{production_id}/casting", response_model=list[CastAssignmentResponse])

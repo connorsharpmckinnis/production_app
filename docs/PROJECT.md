@@ -17,6 +17,7 @@ Companion documents:
 - [PHASE_5.md](PHASE_5.md) — Phase 5 execution plan (complete)
 - [PHASE_6.md](PHASE_6.md) — Phase 6 execution plan (rehearsal UX & timeline polish)
 - [PHASE_7.md](PHASE_7.md) — Phase 7 execution plan (import hardening & DOCX)
+- [PHASE_8.md](PHASE_8.md) — Phase 8 execution plan (prep readiness & catalog CSV)
 - [ROLES.md](ROLES.md) — MVP role permissions
 - [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](../.agents/skills/DEVELOPMENT_GUIDE/SKILL.md) — coding standards for humans and AI
 
@@ -885,6 +886,27 @@ Summary:
 - Overview “needs script” based on acts only (not author)
 
 **Explicitly out of Phase 7:** re-import, admin field-mapping UI, warn-and-continue, ODT/RTF/PDF/Drive API.
+
+---
+
+
+
+## Phase 8 — Prep Readiness Dashboard & Catalog CSV Import (Implemented; Full-Show Validation Pending)
+
+See [PHASE_8.md](PHASE_8.md) for the execution plan.
+
+Summary:
+
+- Implemented 2026-07-16; full-show / multi-scene manual validation remains pending until the owner fixture is available
+- Richer production Overview: heuristic prep readiness %, dimension breakdown, gap CTAs
+- Costume readiness = speaking characters in a scene who have a costume for that scene
+- Editable Overview messages (encouragement bands, scripture, announcements) with configurable rotation — production-level primary, global defaults secondary
+- Lightweight Actor Overview (messages, roles, Rehearse, placeholders)
+- CSV import for props, microphones, set pieces, costumes, songs, and cue categories (skip duplicates; v1 bridge to STP digital catalogs)
+- Microphone catalog gains optional `notes`
+- Implementation references: [PREP_READINESS.md](PREP_READINESS.md) and [CATALOG_CSV.md](CATALOG_CSV.md)
+
+**Explicitly out of Phase 8:** event engine, org-wide inventory, CSV upsert modes, explicit “reviewed / intentionally blank” progress table, deployment hardening.
 
 ---
 

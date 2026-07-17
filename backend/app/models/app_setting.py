@@ -2,6 +2,7 @@ from sqlalchemy import Boolean, Integer
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.db.encouragement_defaults import DEFAULT_MESSAGE_ROTATION_SECONDS
 
 
 class AppSetting(Base):
@@ -12,3 +13,8 @@ class AppSetting(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
     show_original_text: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
     show_parsed_text: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    default_message_rotation_seconds: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        default=DEFAULT_MESSAGE_ROTATION_SECONDS,
+    )

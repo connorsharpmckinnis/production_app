@@ -106,6 +106,7 @@ export function useTimelineScene({
   const [appSettings, setAppSettings] = useState<AppSettingsResponse>({
     show_original_text: true,
     show_parsed_text: true,
+    default_message_rotation_seconds: 20,
   });
   const [selectedActId, setSelectedActId] = useState<number | null>(null);
   const [selectedSceneId, setSelectedSceneId] = useState<number | null>(null);
