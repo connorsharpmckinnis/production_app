@@ -2,6 +2,9 @@
 .env
 .env.local
 
+# Testing/Development Resources
+test_data/
+
 # Python
 __pycache__/
 *.py[cod]
