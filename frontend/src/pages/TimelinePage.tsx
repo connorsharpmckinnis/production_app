@@ -3,7 +3,7 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { X } from "lucide-react";
 import EmptyState from "@/components/EmptyState";
 import MomentDetailSheet from "@/components/MomentDetailSheet";
-import SceneSummaryStrip from "@/components/SceneSummaryStrip";
+import SceneMultiSelect from "@/components/SceneMultiSelect";
 import TimelineMomentList from "@/components/TimelineMomentList";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,14 +14,13 @@ import { useAuth } from "@/context/AuthContext";
 import { useTimelineScene } from "@/hooks/useTimelineScene";
 import { api, ApiError } from "@/lib/api";
 import { isHighlightedMoment } from "@/lib/momentHighlight";
-import { deriveSceneSummary } from "@/lib/sceneSummary";
 import type {
   CharacterDetailResponse,
   MomentDetailResponse,
   MomentSummary,
   MomentTypeResponse,
 } from "@/lib/types";
-import { formatActLabel, momentTypeLabel } from "@/lib/utils";
+import { momentTypeLabel, sortByName } from "@/lib/utils";
 
 type CharacterFilterValue = "all" | "mine" | string;
 type GroupFilterValue = "all" | string;
@@ -53,7 +52,12 @@ export default function TimelinePage() {
   const [microphoneFilter, setMicrophoneFilter] = useState<ResourceFilterValue>("all");
   const [setPieceFilter, setSetPieceFilter] = useState<ResourceFilterValue>("all");
 
+  const [editTimeline, setEditTimeline] = useState(false);
+  const [showSequenceNumbers, setShowSequenceNumbers] = useState(false);
+  const [showPrepBadges, setShowPrepBadges] = useState(false);
+
   const [insertAfterSequence, setInsertAfterSequence] = useState<number | null>(null);
+  const [insertSceneId, setInsertSceneId] = useState<number | null>(null);
   const [insertAtEnd, setInsertAtEnd] = useState(false);
   const [insertTypeId, setInsertTypeId] = useState("");
   const [insertText, setInsertText] = useState("");
@@ -99,6 +103,13 @@ export default function TimelinePage() {
   const myCharacterIds = scene.myCharacterIds;
   const groups = scene.groups;
   const canManagePreparation = scene.canManagePreparation;
+  const showStructuralControls = canManagePreparation && editTimeline;
+
+  useEffect(() => {
+    if (!canManagePreparation && editTimeline) {
+      setEditTimeline(false);
+    }
+  }, [canManagePreparation, editTimeline]);
 
   useEffect(() => {
     if (defaultInsertTypeReady || scene.momentTypes.length === 0) return;
@@ -149,11 +160,6 @@ export default function TimelinePage() {
     if (characterFilter === "mine") return myCharacterIds;
     return [Number(characterFilter)];
   }, [characterFilter, groupFilter, groups, myCharacterIds]);
-
-  const sceneSummary = useMemo(
-    () => deriveSceneSummary(scene.moments, scene.characters, scene.songs),
-    [scene.moments, scene.characters, scene.songs],
-  );
 
   const advancedFilterCount = [
     groupFilter !== "all",
@@ -351,6 +357,7 @@ export default function TimelinePage() {
 
   function resetInsertForm() {
     setInsertAfterSequence(null);
+    setInsertSceneId(null);
     setInsertAtEnd(false);
     const dialogue = scene.momentTypes.find((type) => type.name === "dialogue");
     setInsertTypeId(dialogue ? String(dialogue.id) : "");
@@ -363,20 +370,24 @@ export default function TimelinePage() {
 
   async function handleInsertMoment(event: React.FormEvent) {
     event.preventDefault();
-    if (scene.selectedSceneId === null || !insertTypeId || !insertText.trim()) return;
+    const targetSceneId = insertAtEnd ? scene.selectedSceneId : insertSceneId;
+    if (targetSceneId === null || !insertTypeId || !insertText.trim()) return;
 
     if (insertTypeName === "dialogue" && !insertCharacterId) {
       toast.error("Select a speaking character for dialogue moments.");
       return;
     }
 
+    const sectionMoments =
+      scene.momentSections.find((section) => section.sceneId === targetSceneId)?.moments ?? [];
+
     const sequenceNumber = insertAtEnd
-      ? (scene.moments[scene.moments.length - 1]?.sequence_number ?? 0) + 1
+      ? (sectionMoments[sectionMoments.length - 1]?.sequence_number ?? 0) + 1
       : (insertAfterSequence ?? 0) + 1;
 
     setStructuralSaving(true);
     try {
-      const created = await api.createMoment(productionId, scene.selectedSceneId, {
+      const created = await api.createMoment(productionId, targetSceneId, {
         sequence_number: sequenceNumber,
         moment_type_id: Number(insertTypeId),
         original_text: insertText.trim(),
@@ -470,12 +481,6 @@ export default function TimelinePage() {
     );
   }
 
-  const sceneLabel = scene.selectedScene
-    ? `Act ${scene.selectedAct?.number} › Scene ${scene.selectedScene.number}${
-        scene.selectedScene.title ? ` — ${scene.selectedScene.title}` : ""
-      }`
-    : "Select a scene";
-
   return (
     <div className="flex min-h-0 flex-1 flex-col gap-2">
       <div className="flex shrink-0 flex-wrap items-baseline gap-x-3 gap-y-0.5">
@@ -501,7 +506,7 @@ export default function TimelinePage() {
           <input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search this scene…"
+            placeholder="Search timeline…"
             title="Filters combine with AND — all selected conditions must match."
             className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm"
           />
@@ -523,32 +528,11 @@ export default function TimelinePage() {
         </form>
 
         <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center">
-          <select
-            value={scene.selectedActId ?? ""}
-            onChange={(e) => scene.handleActChange(Number(e.target.value))}
-            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-            title="Filters combine with AND — all selected conditions must match."
-          >
-            {scene.acts.map((act) => (
-              <option key={act.id} value={act.id}>
-                {formatActLabel(act)}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={scene.selectedSceneId ?? ""}
-            onChange={(e) => scene.setSelectedSceneId(Number(e.target.value))}
-            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-            disabled={!scene.selectedAct?.scenes.length}
-          >
-            {scene.selectedAct?.scenes.map((item) => (
-              <option key={item.id} value={item.id}>
-                Scene {item.number}
-                {item.title ? `: ${item.title}` : ""}
-              </option>
-            ))}
-          </select>
+          <SceneMultiSelect
+            acts={scene.acts}
+            selectedSceneIds={scene.selectedSceneIds}
+            onChange={scene.setSelectedSceneIds}
+          />
 
           <select
             value={characterFilter}
@@ -576,6 +560,35 @@ export default function TimelinePage() {
             Advanced filters
             {advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ""}
           </button>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
+          {canManagePreparation && (
+            <label className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                checked={editTimeline}
+                onChange={(e) => setEditTimeline(e.target.checked)}
+              />
+              Edit Timeline
+            </label>
+          )}
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={showSequenceNumbers}
+              onChange={(e) => setShowSequenceNumbers(e.target.checked)}
+            />
+            Moment numbers
+          </label>
+          <label className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              checked={showPrepBadges}
+              onChange={(e) => setShowPrepBadges(e.target.checked)}
+            />
+            Prep badges
+          </label>
         </div>
 
         {advancedOpen && (
@@ -762,10 +775,7 @@ export default function TimelinePage() {
         )}
       </div>
 
-      <div className="flex shrink-0 flex-col gap-1">
-        <SceneSummaryStrip summary={sceneSummary} />
-        <p className="text-xs font-medium text-muted-foreground">{sceneLabel}</p>
-      </div>
+      <p className="shrink-0 text-xs font-medium text-muted-foreground">{scene.selectionLabel}</p>
 
       <div className="flex min-h-[40dvh] flex-1 flex-col overflow-hidden rounded-lg border border-border sm:min-h-0">
         {scene.momentsLoading ? (
@@ -777,11 +787,19 @@ export default function TimelinePage() {
         ) : scene.moments.length === 0 ? (
           <div className="p-3">
             <EmptyState
-              title={hasActiveFilters ? "No moments match these filters" : "No moments in this scene"}
+              title={
+                scene.selectedSceneIds.length === 0
+                  ? "No scenes selected"
+                  : hasActiveFilters
+                    ? "No moments match these filters"
+                    : "No moments in the selected scenes"
+              }
               description={
-                hasActiveFilters
-                  ? "Try clearing filters or choosing a different scene."
-                  : "Use structural edit to insert moments, or import a script if this production is empty."
+                scene.selectedSceneIds.length === 0
+                  ? "Choose one or more scenes to display."
+                  : hasActiveFilters
+                    ? "Try clearing filters or choosing different scenes."
+                    : "Use Edit Timeline to insert moments, or import a script if this production is empty."
               }
               actionLabel={hasActiveFilters ? "Clear filters" : undefined}
               onAction={hasActiveFilters ? clearAllFilters : undefined}
@@ -789,24 +807,28 @@ export default function TimelinePage() {
           </div>
         ) : (
           <TimelineMomentList
-            moments={scene.moments}
+            sections={scene.momentSections}
             characters={scene.characters}
             selectedMomentId={scene.selectedMomentId}
             onSelectMoment={scene.setSelectedMomentId}
             isHighlighted={(moment) =>
               isHighlightedMoment(moment, highlightCharacterIds, scene.characters)
             }
-            showPrepBadges
-            canManagePreparation={canManagePreparation}
+            showPrepBadges={showPrepBadges}
+            showSequenceNumbers={showSequenceNumbers}
+            showTypeBadge={showStructuralControls}
+            showStructuralControls={showStructuralControls}
             structuralSaving={structuralSaving}
             onMoveUp={(moment) => void handleMoveMoment(moment, "up")}
             onMoveDown={(moment) => void handleMoveMoment(moment, "down")}
-            onInsertAfter={(sequenceNumber) => {
+            onInsertAfter={(sequenceNumber, targetSceneId) => {
               resetInsertForm();
               setInsertAfterSequence(sequenceNumber);
+              setInsertSceneId(targetSceneId);
             }}
             onDelete={(momentId) => void handleDeleteMoment(momentId)}
             insertAfterSequence={insertAfterSequence}
+            insertSceneId={insertSceneId}
             insertFormSlot={() => (
               <InsertMomentForm
                 momentTypes={scene.momentTypes}
@@ -824,7 +846,7 @@ export default function TimelinePage() {
               />
             )}
             footerSlot={
-              canManagePreparation ? (
+              showStructuralControls && scene.selectedSceneId !== null ? (
                 <li className="border-t border-border px-3 py-2">
                   {insertAtEnd ? (
                     <InsertMomentForm
@@ -848,6 +870,7 @@ export default function TimelinePage() {
                       onClick={() => {
                         resetInsertForm();
                         setInsertAtEnd(true);
+                        setInsertSceneId(scene.selectedSceneId);
                       }}
                       className="text-sm text-primary hover:underline disabled:opacity-50"
                     >
@@ -914,6 +937,8 @@ function InsertMomentForm({
   onSubmit: (event: React.FormEvent) => void;
   onCancel: () => void;
 }) {
+  const sortedCharacters = sortByName(characters);
+
   return (
     <form
       onSubmit={onSubmit}
@@ -946,7 +971,7 @@ function InsertMomentForm({
           className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
         >
           <option value="">Speaking character…</option>
-          {characters.map((character) => (
+          {sortedCharacters.map((character) => (
             <option key={character.id} value={String(character.id)}>
               {character.name}
             </option>

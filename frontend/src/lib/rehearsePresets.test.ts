@@ -132,6 +132,15 @@ describe("rehearse presets", () => {
     ).toBe(false);
   });
 
+  it("blur my lines does not force custom away from a filtering preset", () => {
+    expect(
+      togglesMatchPreset("line_cues", {
+        ...PRESET_DEFAULT_TOGGLES.line_cues,
+        blurMyLines: true,
+      }),
+    ).toBe(true);
+  });
+
   it("applyRehearsePreset preserves order", () => {
     const result = applyRehearsePreset("line_cues", moments, myIds, characters as never);
     expect(result.map((moment) => moment.sequence_number)).toEqual([1, 2, 3]);

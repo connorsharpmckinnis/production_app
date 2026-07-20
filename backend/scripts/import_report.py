@@ -14,6 +14,7 @@ from app.services.importer import import_script
 
 def main() -> None:
     settings = Settings(
+        _env_file=None,
         DATABASE_URL="sqlite://",
         SECRET_KEY="report",
         ADMIN_USERNAME="admin",

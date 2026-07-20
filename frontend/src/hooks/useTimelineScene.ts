@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { TimelineSection } from "@/components/TimelineMomentList";
 import { useAuth } from "@/context/AuthContext";
 import { api, ApiError } from "@/lib/api";
+import { deriveSceneSummary } from "@/lib/sceneSummary";
 import type {
   ActSummary,
   AppSettingsResponse,
@@ -17,6 +19,7 @@ import type {
   SetPieceResponse,
   SongDetailResponse,
 } from "@/lib/types";
+import { formatSceneSectionLabel, sortByName } from "@/lib/utils";
 
 export interface TimelineFilterInput {
   characterFilter: "all" | "mine" | string;
@@ -86,6 +89,10 @@ function buildMomentFilters(
   };
 }
 
+function allSceneIdsFromActs(acts: ActSummary[]): number[] {
+  return acts.flatMap((act) => act.scenes.map((scene) => scene.id));
+}
+
 export function useTimelineScene({
   productionId,
   momentFilters: explicitMomentFilters,
@@ -108,15 +115,16 @@ export function useTimelineScene({
     show_parsed_text: true,
     default_message_rotation_seconds: 20,
   });
-  const [selectedActId, setSelectedActId] = useState<number | null>(null);
-  const [selectedSceneId, setSelectedSceneId] = useState<number | null>(null);
+  const [selectedSceneIds, setSelectedSceneIds] = useState<number[]>([]);
   const [moments, setMoments] = useState<MomentSummary[]>([]);
+  const [momentSections, setMomentSections] = useState<TimelineSection[]>([]);
   const [selectedMomentId, setSelectedMomentId] = useState<number | null>(null);
   const [momentDetail, setMomentDetail] = useState<MomentDetailResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [momentsLoading, setMomentsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [momentsRefreshKey, setMomentsRefreshKey] = useState(0);
+  const silentRefreshRef = useRef(false);
 
   const myCharacterIds = useMemo(() => {
     if (!user) return [];
@@ -130,15 +138,43 @@ export function useTimelineScene({
     return buildMomentFilters(filterInput, myCharacterIds);
   }, [explicitMomentFilters, filterInput, myCharacterIds]);
 
-  const selectedAct = useMemo(
-    () => acts.find((act) => act.id === selectedActId) ?? null,
-    [acts, selectedActId],
-  );
+  const sortedCharacters = useMemo(() => sortByName(characters), [characters]);
+
+  const sceneLookup = useMemo(() => {
+    const map = new Map<number, { act: ActSummary; scene: SceneSummary }>();
+    for (const act of acts) {
+      for (const scene of act.scenes) {
+        map.set(scene.id, { act, scene });
+      }
+    }
+    return map;
+  }, [acts]);
+
+  /** When exactly one scene is selected, expose it for structural insert-at-end helpers. */
+  const selectedSceneId = selectedSceneIds.length === 1 ? selectedSceneIds[0] : null;
 
   const selectedScene: SceneSummary | null = useMemo(() => {
-    if (!selectedAct || selectedSceneId === null) return null;
-    return selectedAct.scenes.find((scene) => scene.id === selectedSceneId) ?? null;
-  }, [selectedAct, selectedSceneId]);
+    if (selectedSceneId === null) return null;
+    return sceneLookup.get(selectedSceneId)?.scene ?? null;
+  }, [selectedSceneId, sceneLookup]);
+
+  const selectedAct = useMemo(() => {
+    if (selectedSceneId === null) return null;
+    return sceneLookup.get(selectedSceneId)?.act ?? null;
+  }, [selectedSceneId, sceneLookup]);
+
+  const selectionLabel = useMemo(() => {
+    if (selectedSceneIds.length === 0) return "No scenes selected";
+    const allIds = allSceneIdsFromActs(acts);
+    if (allIds.length > 0 && selectedSceneIds.length === allIds.length) {
+      return "Full script";
+    }
+    if (selectedSceneIds.length === 1 && selectedScene) {
+      const actNumber = selectedAct?.number ?? 0;
+      return formatSceneSectionLabel(actNumber, selectedScene);
+    }
+    return `${selectedSceneIds.length} scenes`;
+  }, [acts, selectedSceneIds, selectedScene, selectedAct]);
 
   useEffect(() => {
     const requests: [
@@ -195,13 +231,7 @@ export function useTimelineScene({
         setMomentTypes(typeData);
         setAppSettings(settingsData);
         setGroups(groupData ?? []);
-        if (actData.length > 0) {
-          const firstAct = actData[0];
-          setSelectedActId(firstAct.id);
-          if (firstAct.scenes.length > 0) {
-            setSelectedSceneId(firstAct.scenes[0].id);
-          }
-        }
+        setSelectedSceneIds(allSceneIdsFromActs(actData));
       })
       .catch((err: unknown) => {
         setError(err instanceof ApiError ? String(err.detail) : "Failed to load timeline");
@@ -212,24 +242,77 @@ export function useTimelineScene({
   useEffect(() => {
     setSelectedMomentId(null);
     setMomentDetail(null);
-  }, [productionId, selectedSceneId, momentFilters]);
+  }, [productionId, selectedSceneIds, momentFilters]);
 
   useEffect(() => {
-    if (selectedSceneId === null) {
+    if (selectedSceneIds.length === 0) {
       setMoments([]);
+      setMomentSections([]);
       return;
     }
 
-    setMomentsLoading(true);
+    const silent = silentRefreshRef.current;
+    silentRefreshRef.current = false;
+    if (!silent) {
+      setMomentsLoading(true);
+    }
 
-    void api
-      .listMoments(productionId, selectedSceneId, momentFilters)
-      .then(setMoments)
-      .catch((err: unknown) => {
-        setError(err instanceof ApiError ? String(err.detail) : "Failed to load moments");
+    const orderedSceneIds = allSceneIdsFromActs(acts).filter((id) =>
+      selectedSceneIds.includes(id),
+    );
+
+    let cancelled = false;
+
+    void Promise.all(
+      orderedSceneIds.map(async (sceneId) => {
+        const sceneMoments = await api.listMoments(productionId, sceneId, momentFilters);
+        return { sceneId, moments: sceneMoments };
+      }),
+    )
+      .then((results) => {
+        if (cancelled) return;
+
+        const sections: TimelineSection[] = [];
+        const flat: MomentSummary[] = [];
+
+        for (const result of results) {
+          const lookup = sceneLookup.get(result.sceneId);
+          if (!lookup) continue;
+          const label = formatSceneSectionLabel(lookup.act.number, lookup.scene);
+          sections.push({
+            sceneId: result.sceneId,
+            label,
+            moments: result.moments,
+            summary: deriveSceneSummary(result.moments, characters, songs),
+          });
+          flat.push(...result.moments);
+        }
+
+        setMomentSections(sections);
+        setMoments(flat);
       })
-      .finally(() => setMomentsLoading(false));
-  }, [productionId, selectedSceneId, momentFilters, momentsRefreshKey]);
+      .catch((err: unknown) => {
+        if (!cancelled) {
+          setError(err instanceof ApiError ? String(err.detail) : "Failed to load moments");
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setMomentsLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    productionId,
+    selectedSceneIds,
+    momentFilters,
+    momentsRefreshKey,
+    acts,
+    sceneLookup,
+    characters,
+    songs,
+  ]);
 
   useEffect(() => {
     if (selectedMomentId === null) {
@@ -245,22 +328,23 @@ export function useTimelineScene({
       });
   }, [productionId, selectedMomentId]);
 
-  function handleActChange(actId: number) {
-    setSelectedActId(actId);
-    const act = acts.find((item) => item.id === actId);
-    setSelectedSceneId(act?.scenes[0]?.id ?? null);
-  }
+  const selectSceneById = useCallback(
+    (sceneId: number): boolean => {
+      if (!sceneLookup.has(sceneId)) return false;
+      setSelectedSceneIds([sceneId]);
+      return true;
+    },
+    [sceneLookup],
+  );
 
-  const selectSceneById = useCallback((sceneId: number): boolean => {
-    for (const act of acts) {
-      if (act.scenes.some((item) => item.id === sceneId)) {
-        setSelectedActId(act.id);
-        setSelectedSceneId(sceneId);
-        return true;
+  function sceneIdForMoment(momentId: number): number | null {
+    for (const section of momentSections) {
+      if (section.moments.some((moment) => moment.id === momentId)) {
+        return section.sceneId;
       }
     }
-    return false;
-  }, [acts]);
+    return null;
+  }
 
   async function refreshMomentDetail() {
     if (selectedMomentId === null) return;
@@ -269,6 +353,7 @@ export function useTimelineScene({
   }
 
   function refreshMomentsList() {
+    silentRefreshRef.current = true;
     setMomentsRefreshKey((key) => key + 1);
   }
 
@@ -280,7 +365,7 @@ export function useTimelineScene({
   return {
     productionTitle,
     acts,
-    characters,
+    characters: sortedCharacters,
     groups,
     songs,
     propsCatalog,
@@ -289,11 +374,14 @@ export function useTimelineScene({
     cueCategories,
     momentTypes,
     appSettings,
-    selectedActId,
+    selectedSceneIds,
+    setSelectedSceneIds,
     selectedSceneId,
     selectedAct,
     selectedScene,
+    selectionLabel,
     moments,
+    momentSections,
     selectedMomentId,
     setSelectedMomentId,
     momentDetail,
@@ -303,9 +391,8 @@ export function useTimelineScene({
     error,
     myCharacterIds,
     canManagePreparation,
-    handleActChange,
     selectSceneById,
-    setSelectedSceneId,
+    sceneIdForMoment,
     refreshMomentDetail,
     refreshMomentsList,
     sceneHasStageMovements,

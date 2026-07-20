@@ -592,7 +592,7 @@ The importer creates a Timeline from a Markdown (`.md`) or Word (`.docx`) script
 
 It does not create a finished production.
 
-**Importer approach:** Format adapters extract lines; a shared classifier reads line by line with regex pattern matching. Full fail on first unrecognized line with line number and reason. Production title is admin-owned (create-time name is not overwritten by the script title page). See [IMPORT_SPEC.md](IMPORT_SPEC.md) and [PHASE_7.md](PHASE_7.md).
+**Importer approach:** Format adapters extract lines; a shared classifier reads line by line with regex pattern matching. Collect all classification issues in one pass, then fail with a full rollback (no partial timeline). Song-block problems collapse to one issue per song. Production title is admin-owned (create-time name is not overwritten by the script title page). See [IMPORT_SPEC.md](IMPORT_SPEC.md) and [PHASE_7.md](PHASE_7.md).
 
 Imported information should remain intact while allowing structured production data to be layered on top.
 

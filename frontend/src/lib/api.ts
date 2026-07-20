@@ -19,7 +19,7 @@ import type {
   EntranceExitSheetGroup,
   BlockingSheetEntry,
   GroupResponse,
-  ImportLineErrorDetail,
+  ImportErrorsDetail,
   ImportSuccessResponse,
   LoginRequest,
   MicrophoneResponse,
@@ -74,7 +74,7 @@ export class ApiError extends Error {
       typeof detail === "string"
         ? detail
         : typeof detail === "object" && detail !== null && "message" in detail
-          ? String((detail as ImportLineErrorDetail).message)
+          ? String((detail as { message: unknown }).message)
           : "Request failed";
     super(message);
     this.name = "ApiError";
@@ -83,15 +83,14 @@ export class ApiError extends Error {
   }
 }
 
-export function isImportLineError(
+export function isImportErrorsDetail(
   detail: unknown,
-): detail is ImportLineErrorDetail {
+): detail is ImportErrorsDetail {
   return (
     typeof detail === "object" &&
     detail !== null &&
-    "line_number" in detail &&
-    "line_content" in detail &&
-    "message" in detail
+    "errors" in detail &&
+    Array.isArray((detail as ImportErrorsDetail).errors)
   );
 }
 

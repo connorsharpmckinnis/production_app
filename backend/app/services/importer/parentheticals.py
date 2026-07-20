@@ -1,22 +1,10 @@
-"""Parse character names from dialogue speaker labels."""
+"""Compatibility helpers for character names in imported scripts."""
 
-import re
-
+from app.services.importer.grammar import parse_performer_line, parse_speaker_list
 
 def parse_speaker_names(raw: str) -> list[str]:
-    """Split 'SHACKLETON, WORSLEY' or 'VERA & MOM' into individual names."""
-    names: list[str] = []
-    for part in re.split(r"\s+and\s+", raw, flags=re.IGNORECASE):
-        for segment in part.split(","):
-            segment = segment.strip()
-            if " & " in segment:
-                for sub in segment.split(" & "):
-                    cleaned = sub.strip()
-                    if cleaned:
-                        names.append(cleaned)
-            elif segment:
-                names.append(segment)
-    return names
+    """Validate and split a shared speaker-list expression."""
+    return parse_speaker_list(raw)
 
 
 def parse_singer_line(line: str, dialogue_characters: set[str]) -> list[str] | None:
@@ -26,15 +14,4 @@ def parse_singer_line(line: str, dialogue_characters: set[str]) -> list[str] | N
 
     Returns None when the line is not a singer attribution (e.g. it is a lyric).
     """
-    stripped = line.strip()
-    if not stripped:
-        return None
-
-    names = parse_speaker_names(stripped)
-    if not names:
-        return None
-
-    if all(name in dialogue_characters for name in names):
-        return names
-
-    return None
+    return parse_performer_line(line.strip(), dialogue_characters)

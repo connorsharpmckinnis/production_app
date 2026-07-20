@@ -20,7 +20,7 @@ MOJIBAKE_REPLACEMENTS: list[tuple[str, str]] = [
 
 # Google Docs Markdown escapes that should not remain in sacred Timeline text.
 # Only unescape punctuation that is a Markdown artifact, not a real backslash.
-_MD_UNESCAPE = re.compile(r"\\([!\\\-.#*_`\[\]])")
+_MD_UNESCAPE = re.compile(r"\\([!\\\-.#*_`\[\]\(\)])")
 
 
 class ScriptDecodeError(ValueError):

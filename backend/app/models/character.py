@@ -28,8 +28,12 @@ class Character(Base):
     actor_assignment: Mapped["UserCharacterAssignment | None"] = relationship(
         back_populates="character",
         uselist=False,
+        cascade="all, delete-orphan",
     )
-    notes: Mapped[list["Note"]] = relationship(back_populates="character")
+    notes: Mapped[list["Note"]] = relationship(
+        back_populates="character",
+        cascade="all, delete-orphan",
+    )
     groups: Mapped[list["Group"]] = relationship(
         secondary="character_groups",
         back_populates="characters",

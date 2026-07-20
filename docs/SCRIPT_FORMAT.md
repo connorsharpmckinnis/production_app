@@ -1,6 +1,6 @@
 # Theater App Script Format
 
-**Version:** 0.3
+**Version:** 0.4
 
 This document defines the **Theater App Standard Script Format** — the default format scripts are expected to follow when imported into Theater App.
 
@@ -266,7 +266,9 @@ For multiple characters speaking together:
 
 ### Rules
 
-- **Character name** is ALL CAPS.
+- **Character name** is ALL CAPS and contains at least one letter.
+- Names may contain multiple words, digits, and internal apostrophes, periods,
+  or hyphens: `MS. ELEPHANT`, `BRI'ISH NEWSIE`, `ORDE-LEES`, and `CREW 2`.
 - A **colon and space** (`: `) follow the character name.
 - Everything after the colon is dialogue text, in normal sentence case.
 - One line of dialogue = one Moment (after parenthetical extraction; see below).
@@ -314,6 +316,8 @@ SHACKLETON, WORSLEY, CREAN: – another presence, as though Providence himself w
 ```
 
 The importer treats each name as a participant in the same dialogue Moment.
+Supported group separators are comma, ` & `, and lowercase ` and `. Do not use
+dangling or repeated separators.
 
 ### Examples
 
@@ -364,6 +368,8 @@ Songs are distinct sequences within a scene. A song block has three parts: **tit
 - Use `(REPRISE)`, `(PRE-PRISE)`, `(VERSE 2)`, or a **number** when the same song appears multiple times in fragments: `US WHO TRAVEL (2)` is the second time that song appears — functionally similar to `(REPRISE)` but numbered for shows that reuse songs in many small pieces.
 - The full title line (including parenthetical) is one Song record and one Moment.
 - **Word / Google Docs:** use **Heading 3** for song titles. A hyperlink on the title is optional (a personal convenience) — not required for import. Do not rely on a special font; the Heading 3 style is the distinguishing signal.
+- Heading 3 is reserved for real song titles. Do not style performer lines such
+  as `ALL` or `ENSEMBLE` as Heading 3; use Body or Heading 4 ALL CAPS.
 - Optional song **description** (sentence case, not ALL CAPS) may follow the title — centered Heading 4 / Body in Word exports — and is stored on the Song record, not as a Moment.
 
 ### Performer attribution line
@@ -385,7 +391,12 @@ Songs are distinct sequences within a scene. A song block has three parts: **tit
 
 - Each lyric line is written in ALL CAPS on its own line.
 - One lyric line = one Moment.
-- Punctuation and ellipses are preserved as written.
+- Apostrophes, straight/curly quotes, periods, commas, ellipses, `!`, `?`,
+  `;`, hyphens, en/em dashes, ampersands, balanced parentheses, `/` for dual
+  lyric lines (for example `I'M/HE'S`), and footnote markers such as `[^9]`
+  are allowed and preserved as written.
+- Lowercase prose is not a lyric. Use `Note:` for retained context or italics
+  for a performance stage direction.
 - **Word / Google Docs:** singer labels and lyrics are normal (Body) text in ALL CAPS, typically centered — not a special heading level. The importer keys off ALL CAPS (and Heading 4 ALL CAPS when present), not a unique font.
 
 ### Full song example
@@ -444,7 +455,11 @@ When characters "walk and sing together" or otherwise perform a song as part of 
 
 - Character names are **ALL CAPS** in dialogue attribution (`CREAN:`, `SHACKLETON, WORSLEY, CREAN:`).
 - Use a single consistent spelling throughout the script. The importer uses dialogue appearances to build the Character list.
-- Hyphenated names, multi-word names, and titles are allowed: `ORDE-LEES`, `VERA`, `SHACKLETON`.
+- Hyphenated names, multi-word names, digits, and punctuated titles are allowed:
+  `ORDE-LEES`, `MS. ELEPHANT`, `BRI'ISH NEWSIE`, and `CREW 2`.
+- Names may not start with punctuation and must remain consistently ALL CAPS in
+  dialogue labels. The importer reports mixed-case labels instead of changing
+  the script.
 - In stage directions, ALL CAPS is recommended when you want a guaranteed Character link for actor filtering. Mixed case is acceptable in prose.
 
 ### First appearance
@@ -596,6 +611,7 @@ This section previews how the MVP importer will read the format. The full import
 
 | Version | Date | Notes |
 |---------|------|-------|
+| 0.4 | 2026-07-18 | Shared punctuated speaker-list grammar, broader lyric punctuation, and malformed song-header guidance |
 | 0.1 | 2026-07-08 | Initial draft derived from production script example |
 | 0.3 | 2026-07-13 | DOCX import path; title page does not rename production; song titles via Heading 3 without required hyperlink; lyrics/singers as ALL CAPS Body text |
 | 0.2 | 2026-07-08 | Resolved open questions: digit numbering, title page, song instance labels, parenthetical handling, character reference guidance |

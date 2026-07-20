@@ -51,12 +51,12 @@ export function togglesMatchPreset(
   toggles: RehearseDisplayToggles,
 ): boolean {
   const defaults = PRESET_DEFAULT_TOGGLES[preset];
+  // blurMyLines is display-only and orthogonal to preset filtering.
   return (
     toggles.highlightMyLines === defaults.highlightMyLines &&
     toggles.showStageDirections === defaults.showStageDirections &&
     toggles.showLyricsAndSongs === defaults.showLyricsAndSongs &&
-    toggles.showPrepBadges === defaults.showPrepBadges &&
-    toggles.blurMyLines === defaults.blurMyLines
+    toggles.showPrepBadges === defaults.showPrepBadges
   );
 }
 

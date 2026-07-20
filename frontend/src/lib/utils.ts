@@ -29,3 +29,16 @@ export function formatActLabel(act: { number: number; title: string }): string {
   }
   return act.title;
 }
+
+/** Case-insensitive alphabetical sort by a display name field. */
+export function sortByName<T extends { name: string }>(items: T[]): T[] {
+  return [...items].sort((a, b) => a.name.localeCompare(b.name, undefined, { sensitivity: "base" }));
+}
+
+export function formatSceneSectionLabel(
+  actNumber: number,
+  scene: { number: number; title: string | null },
+): string {
+  const base = `Act ${actNumber} › Scene ${scene.number}`;
+  return scene.title ? `${base} — ${scene.title}` : base;
+}

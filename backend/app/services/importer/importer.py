@@ -18,18 +18,22 @@ from app.models import (
     StageDirection,
 )
 from app.services.importer.builtins import BUILTIN_CHARACTER_NAMES, BUILTIN_SINGER_NAMES
-from app.services.importer.errors import ImportLineError
-from app.services.importer.parentheticals import parse_speaker_names, parse_singer_line
-from app.services.importer.extract import extract_script_lines
+from app.services.importer.errors import ImportIssue, ImportLineError
+from app.services.importer.extract import ExtractedLine, extract_script
+from app.services.importer.grammar import (
+    SpeakerListError,
+    is_all_caps_lyric,
+    parse_dialogue_line,
+    parse_performer_line,
+    validate_song_title,
+)
 from app.services.importer.patterns import (
     RE_ACT,
     RE_ACT_PLAIN,
-    RE_ALL_CAPS_LINE,
     RE_AUTHOR,
     RE_AUTHOR_NOTE,
     RE_AUTHOR_NOTE_H4,
     RE_AUTHOR_PLAIN,
-    RE_DIALOGUE,
     RE_END_OF_ACT,
     RE_END_OF_SCENE,
     RE_FOOTNOTE_DEF,
@@ -65,6 +69,11 @@ class ImportState:
     characters: dict[str, Character] = field(default_factory=dict)
     dialogue_character_names: set[str] = field(default_factory=set)
     moment_types: dict[str, MomentType] = field(default_factory=dict)
+    source_format: str | None = None
+    line_metadata: list[ExtractedLine] = field(default_factory=list)
+    # After a structural or song-block failure, skip lines until a safe resume point.
+    # "act_or_scene" resumes on Act/Scene; "song_boundary" also resumes on song headers.
+    recovery_mode: str | None = None
 
 
 @dataclass
@@ -86,9 +95,13 @@ def _collect_dialogue_character_names(lines: list[str]) -> set[str]:
     """Pre-scan script for speaker names from dialogue lines, plus built-in singers."""
     names: set[str] = set(BUILTIN_SINGER_NAMES)
     for line in lines:
-        if match := RE_DIALOGUE.match(line):
-            for name in parse_speaker_names(match.group(1).strip()):
-                names.add(name)
+        try:
+            dialogue = parse_dialogue_line(line)
+        except SpeakerListError:
+            continue
+        if dialogue is not None:
+            speakers, _ = dialogue
+            names.update(speakers)
     return names
 
 
@@ -101,9 +114,124 @@ def _ensure_builtin_characters(
         _get_or_create_character(db, production, state, name)
 
 
-def _require_scene(state: ImportState, line_number: int, line_content: str) -> Scene:
+_CONTEXT_BEFORE = 3
+_CONTEXT_LINE_MAX = 100
+
+
+def _truncate_context_line(text: str) -> str:
+    if len(text) <= _CONTEXT_LINE_MAX:
+        return text
+    return text[:_CONTEXT_LINE_MAX] + "..."
+
+
+def _build_context_snippet(state: ImportState, line_number: int) -> str | None:
+    """Return a short preview of lines leading up to and including the failure."""
+    if not state.line_metadata or line_number < 1:
+        return None
+    error_index = line_number - 1
+    if error_index >= len(state.line_metadata):
+        return None
+
+    preceding: list[str] = []
+    for meta in reversed(state.line_metadata[:error_index]):
+        text = meta.text.strip()
+        if not text:
+            continue
+        preceding.append(_truncate_context_line(text))
+        if len(preceding) >= _CONTEXT_BEFORE:
+            break
+    preceding.reverse()
+
+    error_text = state.line_metadata[error_index].text.strip() or "(blank line)"
+    preceding.append(_truncate_context_line(error_text))
+    return "\n".join(preceding)
+
+
+def _annotate_error(
+    state: ImportState,
+    line_number: int,
+    line_content: str,
+    message: str,
+) -> ImportLineError:
+    meta = None
+    if 1 <= line_number <= len(state.line_metadata):
+        meta = state.line_metadata[line_number - 1]
+    issue = ImportIssue(
+        line_number=line_number,
+        line_content=line_content,
+        message=message,
+        source_format=state.source_format,
+        paragraph_number=meta.paragraph_number if meta else None,
+        paragraph_style=meta.paragraph_style if meta else None,
+        context_snippet=_build_context_snippet(state, line_number),
+    )
+    return ImportLineError(issue)
+
+
+def _is_act_or_scene_line(line: str) -> bool:
+    return bool(
+        RE_ACT.match(line)
+        or RE_ACT_PLAIN.match(line)
+        or RE_SCENE.match(line)
+        or RE_SCENE_PLAIN.match(line)
+    )
+
+
+def _is_song_header_line(line: str) -> bool:
+    return bool(RE_SONG_HEADER.match(line) or RE_SONG_HEADER_PLAIN.match(line))
+
+
+def _is_song_boundary_line(line: str) -> bool:
+    return _is_act_or_scene_line(line) or _is_song_header_line(line)
+
+
+def _is_structural_context_error(message: str) -> bool:
+    return message.startswith("No Scene defined yet") or message.startswith(
+        "Scene heading before any Act"
+    )
+
+
+def _error_is_in_song_context(state: ImportState, line: str) -> bool:
+    if state.current_song is not None:
+        return True
+    return _is_song_header_line(line)
+
+
+def _to_song_issue(state: ImportState, issue: ImportIssue) -> ImportIssue:
+    title = state.current_song.title if state.current_song is not None else None
+    if title:
+        message = (
+            f'Something\'s wrong with the song "{title}". '
+            "Skipping the rest of this song block. "
+            f"First problem: {issue.message}"
+        )
+    else:
+        message = (
+            "Something's wrong with this song block. "
+            "Skipping until the next Act, Scene, or song header. "
+            f"First problem: {issue.message}"
+        )
+    return ImportIssue(
+        line_number=issue.line_number,
+        line_content=issue.line_content,
+        message=message,
+        source_format=issue.source_format,
+        paragraph_number=issue.paragraph_number,
+        paragraph_style=issue.paragraph_style,
+        context_snippet=issue.context_snippet,
+        kind="song",
+        song_title=title,
+    )
+
+
+def _require_scene(
+    state: ImportState,
+    line_number: int,
+    line_content: str,
+) -> Scene:
     if state.current_scene is None:
-        raise ImportLineError(
+        raise _annotate_error(
+            state,
             line_number,
             line_content,
             "No Scene defined yet — moment line before first Scene heading",
@@ -144,9 +272,10 @@ def _create_moment(
     state: ImportState,
     moment_type_name: str,
     original_text: str,
+    line_number: int,
     parsed_text: str | None = None,
 ) -> Moment:
-    scene = _require_scene(state, 0, original_text)
+    scene = _require_scene(state, line_number, original_text)
     moment_type = state.moment_types[moment_type_name]
     moment = Moment(
         scene_id=scene.id,
@@ -165,8 +294,9 @@ def _handle_stage_direction(
     db: Session,
     state: ImportState,
     line: str,
+    line_number: int,
 ) -> None:
-    moment = _create_moment(db, state, "stage_direction", line)
+    moment = _create_moment(db, state, "stage_direction", line, line_number)
     inner = line.strip("*").strip()
     db.add(StageDirection(moment_id=moment.id, direction_text=inner))
 
@@ -176,16 +306,23 @@ def _handle_dialogue(
     production: Production,
     state: ImportState,
     line: str,
-    speaker_raw: str,
+    speakers: list[str],
     dialogue_text: str,
+    line_number: int,
 ) -> None:
-    speakers = parse_speaker_names(speaker_raw)
     for speaker in speakers:
         _get_or_create_character(db, production, state, speaker)
 
     # MVP: keep all parentheticals inline (vocal cues and stage action alike).
     text = dialogue_text.strip()
-    moment = _create_moment(db, state, "dialogue", line, parsed_text=text or None)
+    moment = _create_moment(
+        db,
+        state,
+        "dialogue",
+        line,
+        line_number,
+        parsed_text=text or None,
+    )
     for speaker in speakers:
         character = state.characters[speaker]
         db.add(
@@ -200,25 +337,45 @@ def _handle_dialogue(
 def _classify_song_block_line(
     state: ImportState,
     content: str,
+    line_number: int,
 ) -> str:
     """Return moment type name: song_attribution or lyric."""
     stripped = content.strip()
-    if parse_singer_line(stripped, state.dialogue_character_names):
+    if parse_performer_line(stripped, state.dialogue_character_names):
         return "song_attribution"
-    if len(stripped) >= 4 and RE_ALL_CAPS_LINE.match(stripped):
+    if is_all_caps_lyric(stripped):
         return "lyric"
-    raise ImportLineError(0, stripped, "Cannot classify line in song block")
+    raise _annotate_error(
+        state,
+        line_number,
+        stripped,
+        "Cannot classify line in song block",
+    )
 
 
 def _handle_h4_line(
     db: Session,
     state: ImportState,
     content: str,
+    line_number: int,
     line_prefix: str = "#### ",
 ) -> None:
     stripped = content.strip()
     if not stripped:
         return
+
+    if (
+        stripped[0].islower()
+        and any(character.isupper() for character in stripped[1:])
+        and not any(character.isspace() for character in stripped)
+    ):
+        raise _annotate_error(
+            state,
+            line_number,
+            stripped,
+            f'Ambiguous mixed-case song marker "{stripped}" — use an ALL-CAPS '
+            "performer name or sentence-case song description",
+        )
 
     if RE_H4_ITALIC.match(stripped) or any(c.islower() for c in stripped):
         if state.current_song is not None:
@@ -229,18 +386,25 @@ def _handle_h4_line(
             )
         return
 
-    moment_type = _classify_song_block_line(state, stripped)
-    _create_moment(db, state, moment_type, f"{line_prefix}{stripped}")
+    moment_type = _classify_song_block_line(state, stripped, line_number)
+    _create_moment(
+        db,
+        state,
+        moment_type,
+        f"{line_prefix}{stripped}",
+        line_number,
+    )
 
 
 def _handle_plain_caps_in_song(
     db: Session,
     state: ImportState,
     line: str,
+    line_number: int,
 ) -> None:
     stripped = line.strip()
-    moment_type = _classify_song_block_line(state, stripped)
-    _create_moment(db, state, moment_type, stripped)
+    moment_type = _classify_song_block_line(state, stripped, line_number)
+    _create_moment(db, state, moment_type, stripped, line_number)
 
 
 def _is_ignored_line(line: str) -> bool:
@@ -292,7 +456,12 @@ def _classify_and_process_line(
 
     if match := RE_SCENE.match(line) or RE_SCENE_PLAIN.match(line):
         if state.current_act is None:
-            raise ImportLineError(line_number, line, "Scene heading before any Act")
+            raise _annotate_error(
+                state,
+                line_number,
+                line,
+                "Scene heading before any Act",
+            )
         number = parse_number(match.group(1))
         title = match.group(2).strip()
         scene = Scene(
@@ -308,58 +477,79 @@ def _classify_and_process_line(
         state.sequence_number = 0
         return
 
+    # Author notes before H4 so "#### Note:" is not treated as song description.
+    if match := RE_AUTHOR_NOTE.match(line) or RE_AUTHOR_NOTE_H4.match(line):
+        _create_moment(db, state, "author_note", line, line_number)
+        return
+
     if match := RE_SONG_HEADER.match(line) or RE_SONG_HEADER_PLAIN.match(line):
         title = match.group(1).strip()
+        try:
+            validate_song_title(title, state.dialogue_character_names)
+        except ValueError as exc:
+            raise _annotate_error(state, line_number, line, str(exc)) from exc
         song = Song(production_id=production.id, title=title)
         db.add(song)
         db.flush()
         state.current_song = song
-        _create_moment(db, state, "song_header", line)
+        _create_moment(db, state, "song_header", line, line_number)
         return
 
     if match := RE_H4.match(line):
         if state.current_song is None:
-            raise ImportLineError(
+            raise _annotate_error(
+                state,
                 line_number,
                 line,
                 "H4 line outside of song block context",
             )
         try:
-            _handle_h4_line(db, state, match.group(1))
+            _handle_h4_line(db, state, match.group(1), line_number)
         except ImportLineError as exc:
-            raise ImportLineError(line_number, line, exc.message) from exc
+            raise _annotate_error(state, line_number, line, exc.message) from exc
         return
 
     if state.current_song is not None and line.strip() in ("####", "#### "):
         return
 
-    if state.current_song is not None and RE_ALL_CAPS_LINE.match(line.strip()):
-        try:
-            _handle_plain_caps_in_song(db, state, line)
-        except ImportLineError as exc:
-            raise ImportLineError(line_number, line, exc.message) from exc
-        return
-
     if match := RE_STAGE_DIRECTION.match(line):
-        _handle_stage_direction(db, state, line)
+        _handle_stage_direction(db, state, line, line_number)
         return
 
-    if match := RE_DIALOGUE.match(line):
+    try:
+        dialogue = parse_dialogue_line(line)
+    except SpeakerListError as exc:
+        raise _annotate_error(state, line_number, line, str(exc)) from exc
+    if dialogue is not None:
+        speakers, dialogue_text = dialogue
         _handle_dialogue(
             db,
             production,
             state,
             line,
-            match.group(1).strip(),
-            match.group(2),
+            speakers,
+            dialogue_text,
+            line_number,
         )
         return
 
-    if match := RE_AUTHOR_NOTE.match(line) or RE_AUTHOR_NOTE_H4.match(line):
-        _create_moment(db, state, "author_note", line)
+    if state.current_song is not None and (
+        parse_performer_line(line.strip(), state.dialogue_character_names)
+        or is_all_caps_lyric(line.strip())
+    ):
+        try:
+            _handle_plain_caps_in_song(db, state, line, line_number)
+        except ImportLineError as exc:
+            raise _annotate_error(state, line_number, line, exc.message) from exc
         return
 
-    raise ImportLineError(line_number, line, f'Unrecognized format — "{line}"')
+    raise _annotate_error(
+        state,
+        line_number,
+        line,
+        'Unrecognized prose outside a Moment. Use "Note:" for an author note '
+        "or italics for a stage direction.",
+    )
 
 
 def import_script(
@@ -368,6 +558,7 @@ def import_script(
     content: bytes | str,
     *,
     filename: str | None = None,
+    dry_run: bool = False,
 ) -> ImportResult:
     """
     Import script content into an existing production.
@@ -376,23 +567,42 @@ def import_script(
     before shared preprocessing and classification. Inline string tests may omit
     ``filename`` and go straight through ``preprocess_script``.
 
-    Rolls back the entire transaction on any line error.
-
-    Production title is admin-owned: script title-page Title is parsed into
-    ``ImportResult.script_title`` but never written to ``production.title``.
-    Author is still applied from the script when present.
+    Rolls back the entire transaction when any issues are found. When
+    ``dry_run`` is True, successful classification is also rolled back so
+    nothing is committed. Classification continues after recoverable line
+    errors so the response can list every issue in one pass.
     """
     existing_acts = db.query(Act).filter(Act.production_id == production.id).count()
     if existing_acts > 0:
         raise ValueError("Production already has imported content; re-import is not allowed")
 
+    source_format: str | None = None
+    line_metadata: list[ExtractedLine] = []
+
     try:
         if filename is not None:
             if isinstance(content, str):
                 content = content.encode("utf-8")
-            lines = preprocess_lines(extract_script_lines(filename, content))
+            extraction = extract_script(filename, content)
+            source_format = extraction.source_format
+            line_metadata = extraction.lines
+            lines = preprocess_lines([item.text for item in line_metadata])
+            # Keep metadata aligned with preprocessed text values.
+            line_metadata = [
+                ExtractedLine(
+                    text=text,
+                    paragraph_number=meta.paragraph_number,
+                    paragraph_style=meta.paragraph_style,
+                )
+                for text, meta in zip(lines, line_metadata, strict=True)
+            ]
         else:
             lines = preprocess_script(content)
+            line_metadata = [
+                ExtractedLine(text=text, paragraph_number=index)
+                for index, text in enumerate(lines, start=1)
+            ]
+            source_format = "md"
     except ScriptDecodeError as exc:
         raise ValueError(str(exc)) from exc
     except ValueError:
@@ -401,14 +611,41 @@ def import_script(
     state = ImportState(
         moment_types=_load_moment_types(db),
         dialogue_character_names=_collect_dialogue_character_names(lines),
+        source_format=source_format,
+        line_metadata=line_metadata,
     )
     result = ImportResult()
+    issues: list[ImportIssue] = []
 
     try:
         _ensure_builtin_characters(db, production, state)
 
         for line_number, line in enumerate(lines, start=1):
-            _classify_and_process_line(db, production, state, line_number, line)
+            if state.recovery_mode == "act_or_scene":
+                if not line.strip() or not _is_act_or_scene_line(line):
+                    continue
+                state.recovery_mode = None
+            elif state.recovery_mode == "song_boundary":
+                if not line.strip() or not _is_song_boundary_line(line):
+                    continue
+                state.recovery_mode = None
+
+            try:
+                _classify_and_process_line(db, production, state, line_number, line)
+            except ImportLineError as exc:
+                issue = exc.issues[0]
+                if _error_is_in_song_context(state, line):
+                    issues.append(_to_song_issue(state, issue))
+                    state.current_song = None
+                    state.recovery_mode = "song_boundary"
+                elif _is_structural_context_error(issue.message):
+                    issues.append(issue)
+                    state.recovery_mode = "act_or_scene"
+                else:
+                    issues.append(issue)
+
+        if issues:
+            raise ImportLineError(issues)
 
         # Admin create-time title wins — do not assign production.title here.
         result.script_title = state.production_title
@@ -438,8 +675,14 @@ def import_script(
             db.query(Song).filter(Song.production_id == production.id).count()
         )
 
-        db.commit()
+        if dry_run:
+            db.rollback()
+        else:
+            db.commit()
         return result
     except ImportLineError:
+        db.rollback()
+        raise
+    except Exception:
         db.rollback()
         raise

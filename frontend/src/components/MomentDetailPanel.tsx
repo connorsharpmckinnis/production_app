@@ -22,7 +22,7 @@ import type {
   SetPieceResponse,
   SongDetailResponse,
 } from "@/lib/types";
-import { cn, momentTypeLabel } from "@/lib/utils";
+import { cn, momentTypeLabel, sortByName } from "@/lib/utils";
 
 export interface MomentDetailPanelHandle {
   flushPendingSaves: () => Promise<void>;
@@ -69,6 +69,8 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
   ) {
     const confirm = useConfirm();
     const toast = useToast();
+
+    const sortedCharacters = sortByName(characters);
 
     const isSongRelated =
       detail.song_id != null ||
@@ -620,11 +622,13 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                 value={stageDirectionText}
                 onChange={(e) => setStageDirectionText(e.target.value)}
                 onBlur={() => void saveStageDirection()}
-                rows={3}
-                className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-base italic"
+                rows={1}
+                className="mt-2 field-sizing-content min-h-[3rem] w-full resize-none overflow-hidden whitespace-pre-wrap rounded-md border border-input bg-background px-3 py-2 text-base italic leading-relaxed"
               />
             ) : (
-              <p className="mt-1 text-base italic leading-relaxed">{detail.stage_direction}</p>
+              <p className="mt-1 whitespace-pre-wrap text-base italic leading-relaxed">
+                {detail.stage_direction}
+              </p>
             )}
           </div>
         )}
@@ -647,7 +651,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                         }
                         className="rounded-md border border-input bg-background px-2 py-1 text-sm"
                       >
-                        {characters.map((character) => (
+                        {sortedCharacters.map((character) => (
                           <option key={character.id} value={character.id}>
                             {character.name}
                           </option>
@@ -877,7 +881,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     >
                       <option value="">No carrier character</option>
-                      {characters.map((character) => (
+                      {sortedCharacters.map((character) => (
                         <option key={character.id} value={String(character.id)}>
                           {character.name}
                         </option>
@@ -975,7 +979,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     >
                       <option value="">No wearer character</option>
-                      {characters.map((character) => (
+                      {sortedCharacters.map((character) => (
                         <option key={character.id} value={String(character.id)}>
                           {character.name}
                         </option>
@@ -1045,7 +1049,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
                   <option value="">Select character…</option>
-                  {characters.map((character) => (
+                  {sortedCharacters.map((character) => (
                     <option key={character.id} value={String(character.id)}>
                       {character.name}
                     </option>
@@ -1080,7 +1084,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
                   <option value="">Select character…</option>
-                  {characters.map((character) => (
+                  {sortedCharacters.map((character) => (
                     <option key={character.id} value={String(character.id)}>
                       {character.name}
                     </option>
@@ -1112,7 +1116,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
                   <option value="">Select character…</option>
-                  {characters.map((character) => (
+                  {sortedCharacters.map((character) => (
                     <option key={character.id} value={String(character.id)}>
                       {character.name}
                     </option>

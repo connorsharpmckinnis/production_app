@@ -8,10 +8,14 @@ from docx import Document
 from docx.oxml.ns import qn
 from docx.text.paragraph import Paragraph
 
-
 def extract_docx_lines(content: bytes) -> list[str]:
+    """Map DOCX paragraphs to the Markdown dialect the classifier understands."""
+    return [item.text for item in extract_docx_extracted_lines(content)]
+
+
+def extract_docx_extracted_lines(content: bytes):
     """
-    Map DOCX paragraphs to the Markdown dialect the classifier understands.
+    Map DOCX paragraphs to classifier-shaped lines with paragraph metadata.
 
     Recommended Google Docs / Word styles:
     - Title → production title page (parsed, does not rename the production)
@@ -23,6 +27,8 @@ def extract_docx_lines(content: bytes) -> list[str]:
     - Body ALL CAPS → singer label / lyric (gold-standard scripts also center these)
     - Body ``NAME:`` → dialogue
     """
+    from app.services.importer.extract import ExtractedLine
+
     try:
         document = Document(BytesIO(content))
     except Exception as exc:
@@ -31,7 +37,17 @@ def extract_docx_lines(content: bytes) -> list[str]:
             "from Google Docs (File → Download → Microsoft Word).",
         ) from exc
 
-    return [_paragraph_to_line(paragraph) for paragraph in document.paragraphs]
+    lines: list[ExtractedLine] = []
+    for index, paragraph in enumerate(document.paragraphs, start=1):
+        style = _style_name(paragraph)
+        lines.append(
+            ExtractedLine(
+                text=_paragraph_to_line(paragraph),
+                paragraph_number=index,
+                paragraph_style=style or None,
+            ),
+        )
+    return lines
 
 
 def _style_name(paragraph: Paragraph) -> str:
@@ -41,7 +57,9 @@ def _style_name(paragraph: Paragraph) -> str:
 
 
 def _paragraph_text(paragraph: Paragraph) -> str:
-    return "".join(run.text for run in paragraph.runs) if paragraph.runs else paragraph.text
+    # ``paragraph.runs`` omits text inside modern ``w:hyperlink`` elements.
+    # ``paragraph.text`` preserves visible content in document order.
+    return paragraph.text
 
 
 def _is_effectively_italic(paragraph: Paragraph) -> bool:

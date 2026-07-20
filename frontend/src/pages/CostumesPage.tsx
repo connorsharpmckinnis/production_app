@@ -17,6 +17,7 @@ import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { api, ApiError } from "@/lib/api";
 import type { ActSummary, CostumeResponse } from "@/lib/types";
+import { sortByName } from "@/lib/utils";
 
 export default function CostumesPage() {
   const { id } = useParams<{ id: string }>();
@@ -62,7 +63,7 @@ export default function CostumesPage() {
         api.listCostumes(productionId),
       ]);
       setActs(actData);
-      setCharacters(characterData);
+      setCharacters(sortByName(characterData));
       setCostumes(costumeData);
     } catch (err) {
       setError(err instanceof ApiError ? String(err.detail) : "Failed to load costumes");

@@ -226,9 +226,9 @@ class TestEnduranceScene1:
 
         assert result.acts_created == 1
         assert result.scenes_created == 1
-        assert result.songs_created >= 2
-        assert result.characters_created >= 6  # dialogue chars + ALL + ENSEMBLE
-        assert result.moments_created >= 30
+        assert result.songs_created == 2
+        assert result.characters_created == 7
+        assert result.moments_created == 90
 
         act = seeded_db.query(Act).one()
         assert act.number == 1
@@ -273,9 +273,9 @@ class TestDocxImport:
 
         assert result.acts_created == 1
         assert result.scenes_created == 1
-        assert result.songs_created >= 2
-        assert result.characters_created >= 6
-        assert result.moments_created >= 30
+        assert result.songs_created == 2
+        assert result.characters_created == 7
+        assert result.moments_created == 90
 
         seeded_db.refresh(production)
         assert production.title == "Test Production"

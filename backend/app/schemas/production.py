@@ -48,10 +48,21 @@ class ProductionOverviewResponse(BaseModel):
     spotlight: list[SpotlightMessage]
 
 
-class ImportErrorResponse(BaseModel):
+class ImportIssueResponse(BaseModel):
     line_number: int
     line_content: str
     message: str
+    kind: str = "line"
+    source_format: str | None = None
+    paragraph_number: int | None = None
+    paragraph_style: str | None = None
+    context_snippet: str | None = None
+    song_title: str | None = None
+
+
+class ImportErrorResponse(BaseModel):
+    message: str
+    errors: list[ImportIssueResponse]
 
 
 class ImportSuccessResponse(BaseModel):

@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import MomentDetailSheet from "@/components/MomentDetailSheet";
-import SceneSummaryStrip from "@/components/SceneSummaryStrip";
-import TimelineMomentList from "@/components/TimelineMomentList";
+import SceneMultiSelect from "@/components/SceneMultiSelect";
+import TimelineMomentList, { type TimelineSection } from "@/components/TimelineMomentList";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTimelineScene } from "@/hooks/useTimelineScene";
 import { isMyMoment, isMySpokenLine } from "@/lib/momentHighlight";
@@ -15,8 +15,6 @@ import {
   type RehearseDisplayToggles,
   type RehearsePresetId,
 } from "@/lib/rehearsePresets";
-import { deriveSceneSummary } from "@/lib/sceneSummary";
-import { formatActLabel } from "@/lib/utils";
 
 const rehearseStorageKey = (productionId: number) => `rehearse-${productionId}`;
 
@@ -83,32 +81,51 @@ export default function RehearsePage() {
     return togglesMatchPreset(preset, toggles) ? preset : "custom";
   }, [preset, toggles]);
 
-  const displayMoments = useMemo(() => {
+  const displaySections: TimelineSection[] = useMemo(() => {
     const basePreset =
       effectivePreset === "custom" ? "scene_run_through" : effectivePreset;
-    const presetFiltered = applyRehearsePreset(
-      basePreset,
-      scene.moments,
-      scene.myCharacterIds,
-      scene.characters,
-    );
-    return applyRehearseToggles(presetFiltered, toggles);
-  }, [scene.moments, scene.myCharacterIds, scene.characters, effectivePreset, toggles]);
 
-  const sceneSummary = useMemo(
-    () => deriveSceneSummary(scene.moments, scene.characters, scene.songs),
-    [scene.moments, scene.characters, scene.songs],
+    return scene.momentSections
+      .map((section) => {
+        const presetFiltered = applyRehearsePreset(
+          basePreset,
+          section.moments,
+          scene.myCharacterIds,
+          scene.characters,
+        );
+        return {
+          ...section,
+          summary: section.summary,
+          moments: applyRehearseToggles(presetFiltered, toggles),
+        };
+      })
+      .filter((section) => section.moments.length > 0);
+  }, [
+    scene.momentSections,
+    scene.myCharacterIds,
+    scene.characters,
+    effectivePreset,
+    toggles,
+  ]);
+
+  const displayMomentCount = useMemo(
+    () => displaySections.reduce((sum, section) => sum + section.moments.length, 0),
+    [displaySections],
   );
 
   function handlePresetChange(nextPreset: Exclude<RehearsePresetId, "custom">) {
     setPreset(nextPreset);
-    setToggles(PRESET_DEFAULT_TOGGLES[nextPreset]);
+    setToggles({
+      ...PRESET_DEFAULT_TOGGLES[nextPreset],
+      // Keep blur preference when switching presets — it is orthogonal to filtering.
+      blurMyLines: toggles.blurMyLines,
+    });
   }
 
   function handleToggleChange(field: keyof RehearseDisplayToggles, value: boolean) {
-    setToggles((current) => ({ ...current, [field]: value }));
-    if (preset !== "custom") {
-      const nextToggles = { ...toggles, [field]: value };
+    const nextToggles = { ...toggles, [field]: value };
+    setToggles(nextToggles);
+    if (preset !== "custom" && field !== "blurMyLines") {
       if (!togglesMatchPreset(preset, nextToggles)) {
         setPreset("custom");
       }
@@ -145,21 +162,18 @@ export default function RehearsePage() {
     );
   }
 
-  const sceneLabel = scene.selectedScene
-    ? `Act ${scene.selectedAct?.number} › Scene ${scene.selectedScene.number}${
-        scene.selectedScene.title ? ` — ${scene.selectedScene.title}` : ""
-      }`
-    : "Select a scene";
-
   const emptyMessage = (() => {
+    if (scene.selectedSceneIds.length === 0) {
+      return "Choose one or more scenes to rehearse.";
+    }
     if (scene.myCharacterIds.length === 0) {
-      return "No cast characters — showing full scene.";
+      return "No cast characters — showing full selection.";
     }
     if (
       (effectivePreset === "my_lines" || effectivePreset === "line_cues") &&
-      displayMoments.length === 0
+      displayMomentCount === 0
     ) {
-      return "You have no lines in this scene.";
+      return "You have no lines in the selected scenes.";
     }
     return "No moments match these filters.";
   })();
@@ -186,31 +200,11 @@ export default function RehearsePage() {
 
       <div className="flex shrink-0 flex-col gap-1.5 lg:flex-row lg:items-end lg:justify-between">
         <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center">
-          <select
-            value={scene.selectedActId ?? ""}
-            onChange={(e) => scene.handleActChange(Number(e.target.value))}
-            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-          >
-            {scene.acts.map((act) => (
-              <option key={act.id} value={act.id}>
-                {formatActLabel(act)}
-              </option>
-            ))}
-          </select>
-
-          <select
-            value={scene.selectedSceneId ?? ""}
-            onChange={(e) => scene.setSelectedSceneId(Number(e.target.value))}
-            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-            disabled={!scene.selectedAct?.scenes.length}
-          >
-            {scene.selectedAct?.scenes.map((item) => (
-              <option key={item.id} value={item.id}>
-                Scene {item.number}
-                {item.title ? `: ${item.title}` : ""}
-              </option>
-            ))}
-          </select>
+          <SceneMultiSelect
+            acts={scene.acts}
+            selectedSceneIds={scene.selectedSceneIds}
+            onChange={scene.setSelectedSceneIds}
+          />
 
           <select
             value={effectivePreset === "custom" ? "custom" : effectivePreset}
@@ -247,7 +241,7 @@ export default function RehearsePage() {
           <input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search this scene…"
+            placeholder="Search timeline…"
             className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm"
           />
           <button
@@ -302,10 +296,7 @@ export default function RehearsePage() {
         </label>
       </div>
 
-      <div className="flex shrink-0 flex-col gap-1">
-        <SceneSummaryStrip summary={sceneSummary} />
-        <p className="text-xs font-medium text-muted-foreground">{sceneLabel}</p>
-      </div>
+      <p className="shrink-0 text-xs font-medium text-muted-foreground">{scene.selectionLabel}</p>
 
       <div className="flex min-h-[40dvh] flex-1 flex-col overflow-hidden rounded-lg border border-border sm:min-h-0">
         {scene.momentsLoading ? (
@@ -314,11 +305,11 @@ export default function RehearsePage() {
               <Skeleton key={index} className="h-10 w-full" />
             ))}
           </div>
-        ) : displayMoments.length === 0 ? (
+        ) : displayMomentCount === 0 ? (
           <p className="p-3 text-sm text-muted-foreground">{emptyMessage}</p>
         ) : (
           <TimelineMomentList
-            moments={displayMoments}
+            sections={displaySections}
             characters={scene.characters}
             selectedMomentId={scene.selectedMomentId}
             onSelectMoment={scene.setSelectedMomentId}
@@ -327,6 +318,8 @@ export default function RehearsePage() {
               isMyMoment(moment, scene.myCharacterIds, scene.characters)
             }
             showPrepBadges={toggles.showPrepBadges}
+            showSequenceNumbers={false}
+            showTypeBadge={false}
             blurMyLines={toggles.blurMyLines}
             isMyLine={(moment) => isMySpokenLine(moment, scene.myCharacterIds)}
           />

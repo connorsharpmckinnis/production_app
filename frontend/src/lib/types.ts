@@ -53,6 +53,17 @@ export interface ImportLineErrorDetail {
   line_number: number;
   line_content: string;
   message: string;
+  kind?: string | null;
+  source_format?: string | null;
+  paragraph_number?: number | null;
+  paragraph_style?: string | null;
+  context_snippet?: string | null;
+  song_title?: string | null;
+}
+
+export interface ImportErrorsDetail {
+  message: string;
+  errors: ImportLineErrorDetail[];
 }
 
 export interface CatalogImportRowError {

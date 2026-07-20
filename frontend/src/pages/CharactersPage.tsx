@@ -5,6 +5,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { api, ApiError } from "@/lib/api";
 import type { CastableUserResponse, CharacterDetailResponse } from "@/lib/types";
+import { sortByName } from "@/lib/utils";
 
 export default function CharactersPage() {
   const { id } = useParams<{ id: string }>();
@@ -24,10 +25,14 @@ export default function CharactersPage() {
     setError(null);
     try {
       const characterData = await api.listCharacters(productionId);
-      setCharacters(characterData);
+      setCharacters(sortByName(characterData));
       if (canManagePreparation) {
         const users = await api.listCastableUsers(productionId);
-        setCastableUsers(users);
+        setCastableUsers(
+          [...users].sort((a, b) =>
+            a.display_name.localeCompare(b.display_name, undefined, { sensitivity: "base" }),
+          ),
+        );
       }
     } catch (err) {
       setError(err instanceof ApiError ? String(err.detail) : "Failed to load characters");

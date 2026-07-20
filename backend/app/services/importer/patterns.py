@@ -29,17 +29,16 @@ RE_SONG_HEADER = re.compile(r"^###\s+\[(.+?)\]\([^)]+\)\s*$")
 RE_SONG_HEADER_PLAIN = re.compile(r"^###\s+(.+)$")
 RE_H4 = re.compile(r"^####\s+(.+)$")
 
-# Performer names in song blocks (legacy regex; classification uses dialogue + built-in names).
+# Legacy song/dialogue regexes kept for reference and older docs. Classification
+# uses shared helpers in grammar.py instead of these patterns.
 RE_PERFORMER = re.compile(
     r"^(ALL|[A-Z][A-Z0-9' ]+(?:\s*&\s*[A-Z][A-Z0-9' ]+)*(?:,\s*[A-Z][A-Z0-9' ]+)*)$",
 )
-
-# Plain ALL CAPS lines (lyrics / performers without #### prefix)
 RE_ALL_CAPS_LINE = re.compile(
     r"^[A-Z0-9'’ &,…\.\-]+(?:\s+[A-Z0-9'’ &,…\.\-]+)*\s*$",
 )
 
-# Stage direction and dialogue (curly apostrophe allowed in speaker names)
+# Stage direction remains regex-based; dialogue uses grammar.parse_dialogue_line.
 RE_STAGE_DIRECTION = re.compile(r"^\*(.+)\*\s*$")
 RE_DIALOGUE = re.compile(r"^([A-Z][A-Z0-9'’ ,&-]+):\s*(.*)$")
 

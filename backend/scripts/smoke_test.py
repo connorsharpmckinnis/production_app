@@ -323,14 +323,19 @@ def run_smoke_test(base_url: str = BASE_URL) -> SmokeTestReport:
                 passed = False
                 detail_text = detail
             else:
+                errors = detail.get("errors") or []
+                first = errors[0] if errors else {}
                 passed = (
                     bad_import.status_code == 400
-                    and detail.get("line_number") == 1
-                    and bool(detail.get("message"))
+                    and isinstance(errors, list)
+                    and len(errors) >= 1
+                    and first.get("line_number") == 1
+                    and bool(first.get("message") or detail.get("message"))
                 )
                 detail_text = (
-                    f"line_number={detail.get('line_number')}, "
-                    f"message={detail.get('message')!r}"
+                    f"errors={len(errors) if isinstance(errors, list) else 0}, "
+                    f"line_number={first.get('line_number')}, "
+                    f"message={first.get('message') or detail.get('message')!r}"
                 )
             report.record("6. Invalid import error with line_number", passed, detail_text)
         except httpx.HTTPError as exc:
