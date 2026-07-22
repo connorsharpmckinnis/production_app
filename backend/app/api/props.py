@@ -186,9 +186,10 @@ async def import_props(
 def list_moment_props(
     production_id: int,
     moment_id: int,
-    _user: User = Depends(require_authenticated),
+    user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> list[MomentPropResponse]:
+    get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     moment_props = (
         db.query(MomentProp)

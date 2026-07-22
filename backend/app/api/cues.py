@@ -201,9 +201,10 @@ async def import_cue_categories(
 def list_moment_cues(
     production_id: int,
     moment_id: int,
-    _user: User = Depends(require_authenticated),
+    user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> list[CueResponse]:
+    get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     cues = (
         db.query(Cue)

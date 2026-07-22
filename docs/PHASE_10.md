@@ -1,6 +1,6 @@
 # Phase 10 — Deployment Security, Container Standardization & Private Multi-Device Access
 
-**Status:** Implementation in progress (2026-07-21) — hardening landed; **day-to-day path consolidated to Dev + Tailscale Serve on 5173**; nginx preview kept only as optional Tier B smoke tooling
+**Status:** Complete (2026-07-22) — hardening + Dev/Tailscale day-to-day path; optional nginx preview retained
 **Goal:** Make the laptop-hosted Docker stack secure enough for real script content, reachable from the owner’s phone/tablet via Tailscale, and ready for a future VPS — without opening the app to the public internet.
 
 Phases 6–8 deferred deployment hardening. [PRE_AUGUST_STP_PREP.md](PRE_AUGUST_STP_PREP.md) and [SECURITY_REVIEW.md](SECURITY_REVIEW.md) already list the P0 “don’t leak a script / don’t ship a soft pilot on hope” items. Phase 10 turns that into an executable plan and adds the **access path** for multi-device testing.
@@ -219,7 +219,7 @@ Implementation may use Compose `profiles`, a `docker-compose.preview.yml` overri
 
 - `.env.example` documents required prod vars and a one-liner for generating `SECRET_KEY`.
 - When `ENVIRONMENT=prod`, refuse known default `SECRET_KEY` and weak/default `ADMIN_PASSWORD`.
-- Seed on start: only when `ENVIRONMENT=dev` **or** explicit `SEED_ON_START=true` (St5).
+- Seed on start: only when `ENVIRONMENT=dev` (demo director/actor seeds; no separate `SEED_ON_START` flag was added).
 
 
 ---
@@ -278,12 +278,12 @@ Also cheap if it falls out of S1: centralize `_get_production_or_404` into share
 
 **Tasks**
 
-- [ ] Confirm MagicDNS is enabled on the tailnet (Tailscale admin / client settings)
-- [ ] Document **Serve** happy path: bind preview (and optionally backend) to `127.0.0.1`, then `tailscale serve` (or equivalent) to the frontend port
-- [ ] Document MagicDNS-only fallback (`http://<magicdns>:<port>`) and its LAN caveat
-- [ ] Document CORS origin(s) to set for the Serve hostname
-- [ ] Explicit “do not use Cloudflare Tunnel as default”; optional one-paragraph emergency demo note
-- [ ] Write [DEPLOY.md](DEPLOY.md) (or equivalent) section: start Compose → Serve → open on phone → tear-down / sleep laptop expectations
+- [ ] Confirm MagicDNS is enabled on the tailnet (Tailscale admin / client settings) — owner confirms on Mac
+- [x] Document **Serve** happy path: Tailscale Serve → Vite **5173** (day-to-day); optional preview on `:80` documented in DEPLOY.md
+- [x] Document MagicDNS-only fallback (`http://<magicdns>:<port>`) and its LAN caveat
+- [x] Document CORS origin(s) to set for the Serve hostname
+- [x] Explicit “do not use Cloudflare Tunnel as default”; optional one-paragraph emergency demo note
+- [x] Write [DEPLOY.md](DEPLOY.md): start Compose → Serve → open on phone → tear-down / sleep laptop expectations
 
 **Done when:** From a cold start, the owner can follow the runbook and load the app on phone over Tailscale without using a LAN IP or public tunnel.
 
@@ -295,13 +295,13 @@ Also cheap if it falls out of S1: centralize `_get_production_or_404` into share
 
 **Tasks**
 
-- [ ] Fix `frontend/nginx.conf` `proxy_pass` so `/api/...` reaches the backend with the `/api` prefix intact
-- [ ] Add Compose profile or override for frontend `target: prod`, port mapping suitable for Serve (`127.0.0.1:…:80`)
-- [ ] Keep default `docker compose up -d --build` as Vite **dev** (no behavior surprise)
-- [ ] Smoke script or documented curl: preview UI → `/api/health` and login
-- [ ] Optional: CI job that builds frontend `prod` and fails if nginx config is wrong (lightweight)
+- [x] Fix `frontend/nginx.conf` `proxy_pass` so `/api/...` reaches the backend with the `/api` prefix intact
+- [x] Add Compose profile or override for frontend `target: prod`, port mapping suitable for Serve (`127.0.0.1:…:80`)
+- [x] Keep default `docker compose up -d --build` as Vite **dev** (no behavior surprise)
+- [x] Smoke script or documented curl: preview UI → `/api/health` and login
+- [ ] Optional: CI job that builds frontend `prod` and fails if nginx config is wrong (lightweight) — deferred
 
-**Done when:** Preview stack login works through nginx; README / DEPLOY.md show both commands.
+**Done when:** Preview stack login works through nginx; README / DEPLOY.md show both commands. Day-to-day remains Dev + Serve on **5173**; preview is optional.
 
 
 
@@ -311,11 +311,11 @@ Also cheap if it falls out of S1: centralize `_get_production_or_404` into share
 
 **Tasks**
 
-- [ ] Config validation: `ENVIRONMENT=prod` rejects default/known `SECRET_KEY` and weak/default `ADMIN_PASSWORD`
-- [ ] Seed demo director/actor only in `dev` (or `SEED_ON_START`); admin bootstrap rules remain documented
-- [ ] Disable `/docs`, `/redoc`, `/openapi.json` when prod
-- [ ] `CORS_ORIGINS` (or similar) from env; update `.env.example`
-- [ ] Tests for config refusal and docs disabled in prod
+- [x] Config validation: `ENVIRONMENT=prod` rejects default/known `SECRET_KEY` and weak/default `ADMIN_PASSWORD`
+- [x] Seed demo director/actor only when `ENVIRONMENT=dev` (no separate `SEED_ON_START` env; seed gated by environment); admin bootstrap rules remain documented
+- [x] Disable `/docs`, `/redoc`, `/openapi.json` when prod
+- [x] `CORS_ORIGINS` (or similar) from env; update `.env.example`
+- [x] Tests for config refusal; docs/`redoc`/`openapi` disabled in code when `ENVIRONMENT=prod`
 
 **Done when:** Compose with `ENVIRONMENT=prod` + default secrets fails loudly; with strong secrets, app serves without OpenAPI UI.
 
@@ -327,12 +327,12 @@ Also cheap if it falls out of S1: centralize `_get_production_or_404` into share
 
 **Tasks**
 
-- [ ] Introduce shared deps: `get_production_or_404`, `require_production_access`, and related helpers
-- [ ] Apply to all production-scoped routes (timeline, catalogs, overview, notes, bookmarks, import, reports, etc.)
-- [ ] Actor: only productions with a `UserCharacterAssignment`; Admin/Director: org productions (single-tenant OK)
-- [ ] Reports: director/admin + production access (S7)
-- [ ] Bookmark/note operations cannot cross productions (S11)
-- [ ] API tests: uncast actor `GET /productions/{other}` → 403/404; reports denied for actors
+- [x] Introduce shared deps: `get_production_or_404`, `require_production_access`, `get_accessible_production`, and related helpers
+- [x] Apply to all production-scoped routes (timeline, catalogs, overview, notes, bookmarks, import, reports, etc.); moment satellite lists fixed
+- [x] Actor: only productions with a `UserCharacterAssignment`; Admin/Director: org productions (single-tenant OK)
+- [x] Reports: director/admin + production access (S7)
+- [x] Bookmark/note operations cannot cross productions (S11)
+- [x] API tests: uncast actor `GET /productions/{other}` → 403/404; reports denied for actors
 
 **Done when:** IDOR tests pass; reports are not actor-readable via API.
 
@@ -344,11 +344,11 @@ Also cheap if it falls out of S1: centralize `_get_production_or_404` into share
 
 **Tasks**
 
-- [ ] Script import max size (e.g. 2–5 MB) + clear 413; basic decode/content checks
-- [ ] Password `min_length=8` (or project-agreed floor) on create/reset
-- [ ] Login rate limit (per-IP and optionally per-username) — prefer in-app so preview and future VPS share behavior
-- [ ] Timeline filter query validation → 422 (St2)
-- [ ] Tests for oversized import, rate limit behavior (within reason), password validation, bad filters
+- [x] Script import max size (e.g. 2–5 MB) + clear 413; basic decode/content checks
+- [x] Password `min_length=8` (or project-agreed floor) on create/reset
+- [x] Login rate limit (per-IP and optionally per-username) — prefer in-app so preview and future VPS share behavior
+- [x] Timeline filter query validation → 422 (St2)
+- [x] Tests for oversized import, rate limit behavior (within reason), password validation, bad filters
 
 **Done when:** SECURITY_REVIEW before-beta items S3, S4, S6, St2 are closed with tests.
 
@@ -360,14 +360,14 @@ Also cheap if it falls out of S1: centralize `_get_production_or_404` into share
 
 **Tasks**
 
-- [ ] Add [DEPLOY.md](DEPLOY.md): Tier A Tailscale + Compose dev/preview; secrets generation; checklist from SECURITY_REVIEW “Suggested beta deploy checklist”
-- [ ] Short Tier B sketch: VPS + TLS + same images; what changes (DNS, CORS, always-on); what stays (Docker, prod env rules)
-- [ ] Update [README.md](../README.md) with pointers to DEPLOY.md and preview command
-- [ ] Update [PROJECT.md](PROJECT.md) Phase 10 tracker when shipping
-- [ ] Tick / reference Pre-August P0 security & deploy bullets once done
-- [ ] Update [SECURITY_REVIEW.md](SECURITY_REVIEW.md) status notes or “addressed in Phase 10” pointers (light touch)
+- [x] Add [DEPLOY.md](DEPLOY.md): Tier A Tailscale + Compose Dev (Serve on 5173); optional preview; secrets generation; checklist from SECURITY_REVIEW “Suggested beta deploy checklist”
+- [x] Short Tier B sketch: VPS + TLS + same images; what changes (DNS, CORS, always-on); what stays (Docker, prod env rules)
+- [x] Update [README.md](../README.md) with pointers to DEPLOY.md and preview command
+- [x] Update [PROJECT.md](PROJECT.md) Phase 10 tracker when shipping
+- [x] Tick / reference Pre-August P0 security & deploy bullets once done
+- [x] Update [SECURITY_REVIEW.md](SECURITY_REVIEW.md) status notes or “addressed in Phase 10” pointers (light touch)
 
-**Done when:** A cold reader can start preview on Tailscale and know what “real hosting later” means.
+**Done when:** A cold reader can start Dev + Tailscale Serve (or localhost without Tailscale) and know what “real hosting later” means.
 
 
 
@@ -457,6 +457,8 @@ WP0 and WP1 can overlap. Do **not** advertise phone access as “safe for real s
 | 2026-07-21 | Phase 10 absorbs Pre-August / SECURITY_REVIEW before-beta app hardening |
 | 2026-07-21 | Tier B optimized for cost + hands-off; Connor deploys; self-host not preferred end state |
 | 2026-07-21 | Defer cookie auth, multi-tenant isolation, non-root images, public hosting provisioning |
+| 2026-07-22 | Localhost-only testing OK without Tailscale on secondary machines; Tailscale runbook remains for the primary Mac |
+| 2026-07-22 | Phase 10 complete — single day-to-day path is Dev + Serve on **5173**; optional nginx preview retained for Tier B smoke |
 
 
 ---

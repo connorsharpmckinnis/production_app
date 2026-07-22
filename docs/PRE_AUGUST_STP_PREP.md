@@ -101,14 +101,14 @@ These are the “don’t embarrass yourself / don’t leak a script” items.
 
 ### Security & deploy (from [SECURITY_REVIEW.md](SECURITY_REVIEW.md))
 
-Tracked and sequenced in **[PHASE_10.md](PHASE_10.md)** (Tier A Tailscale on Dev stack + before-beta hardening).
+Tracked and sequenced in **[PHASE_10.md](PHASE_10.md)** (Tier A Tailscale on Dev stack + before-beta hardening). **Addressed in Phase 10** — see [DEPLOY.md](DEPLOY.md) for the day-to-day runbook (Dev + Tailscale Serve on 5173; localhost OK without Tailscale).
 
-- [ ] **Fix production IDOR** — actors (any auth’d user) must not read another production by guessing an ID. Shared `require_production_access` on every production-scoped route + tests.
-- [ ] **Prod secrets hygiene** — refuse default `SECRET_KEY` / weak `ADMIN_PASSWORD` when `ENVIRONMENT=prod`; no demo director/actor seeds in prod.
-- [ ] **Cap script uploads** (size + basic content checks).
-- [ ] **Login rate limiting** (or nginx equivalent) if the host is network-reachable.
-- [ ] **One-page deploy notes** for a single-org pilot host (secrets generation, compose prod frontend target, password story). Fix nginx `/api` proxy if using the prod frontend image. Private multi-device access via Tailscale (not public IP:port).
-- [ ] **Include basic dev-level 'public' accessibility across multiple devices** -- I need to be able to run the app on a machine (laptop, server, etc) and access things from other devices (preferably in a halfway-pleasant URL instead of just IP:port). Simple routing for prototype and possible first-production server state, all still containerized and easy/quick to bring down, rebuild, and redeploy without data loss. 
+- [x] **Fix production IDOR** — actors (any auth’d user) must not read another production by guessing an ID. Shared `require_production_access` on every production-scoped route + tests.
+- [x] **Prod secrets hygiene** — refuse default `SECRET_KEY` / weak `ADMIN_PASSWORD` when `ENVIRONMENT=prod`; no demo director/actor seeds in prod.
+- [x] **Cap script uploads** (size + basic content checks).
+- [x] **Login rate limiting** (or nginx equivalent) if the host is network-reachable.
+- [x] **One-page deploy notes** for a single-org pilot host (secrets generation, compose prod frontend target, password story). Fix nginx `/api` proxy if using the prod frontend image. Private multi-device access via Tailscale (not public IP:port).
+- [x] **Include basic dev-level 'public' accessibility across multiple devices** — documented via Tailscale Serve on 5173; localhost testing OK without Tailscale on secondary machines. Containerized Compose stack remains easy to bring down, rebuild, and redeploy without data loss. 
 
 
 

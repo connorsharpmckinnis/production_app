@@ -98,6 +98,34 @@ def test_actor_cannot_read_reports(seeded_client: TestClient, db_session: Sessio
     assert response.status_code == 403
 
 
+def test_uncast_actor_cannot_list_moment_satellites(
+    seeded_client: TestClient, db_session: Session
+) -> None:
+    """Auth alone must not grant moment attachment reads (IDOR)."""
+    production_id = _imported_production(seeded_client, db_session)
+    director_headers = _login(seeded_client, "director", "director")
+    acts = seeded_client.get(f"/api/productions/{production_id}/acts", headers=director_headers).json()
+    scene_id = acts[0]["scenes"][0]["id"]
+    moments = seeded_client.get(
+        f"/api/productions/{production_id}/scenes/{scene_id}/moments",
+        headers=director_headers,
+    ).json()
+    moment_id = moments[0]["id"]
+    actor_headers = _login(seeded_client, "actor", "actor")
+
+    for path in (
+        f"/api/productions/{production_id}/moments/{moment_id}/entrances",
+        f"/api/productions/{production_id}/moments/{moment_id}/exits",
+        f"/api/productions/{production_id}/moments/{moment_id}/blocking",
+        f"/api/productions/{production_id}/moments/{moment_id}/cues",
+        f"/api/productions/{production_id}/moments/{moment_id}/props",
+        f"/api/productions/{production_id}/moments/{moment_id}/microphones",
+        f"/api/productions/{production_id}/moments/{moment_id}/set-pieces",
+    ):
+        response = seeded_client.get(path, headers=actor_headers)
+        assert response.status_code == 404, path
+
+
 def test_prod_settings_reject_default_secret() -> None:
     with pytest.raises(ValidationError):
         Settings(

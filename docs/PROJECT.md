@@ -931,14 +931,14 @@ Summary:
 
 ## Phase 10 — Deployment Security, Container Standardization & Private Multi-Device Access
 
-See [PHASE_10.md](PHASE_10.md) for the execution plan.
+**Shipped / complete (2026-07-22).** See [PHASE_10.md](PHASE_10.md) and [DEPLOY.md](DEPLOY.md).
 
 Summary:
 
-- **Tier A (now):** laptop Docker host + Tailscale Serve on **5173** (Vite dev stack) for owner devices only; laptop-awake OK
+- **Tier A (now):** laptop Docker host + Tailscale Serve on **5173** (Vite **dev** stack) for owner multi-device access when Tailscale is available; laptop-awake OK. Localhost-only testing is fine without Tailscale on secondary machines.
 - **Tier B (later):** cheap hands-off VPS + TLS; same images; decide with STP after pilot signal
-- Compose **dev** (Vite) is the only day-to-day path; optional nginx preview overlay kept for future VPS smoke-tests
-- Absorb Pre-August / [SECURITY_REVIEW.md](SECURITY_REVIEW.md) before-beta items: IDOR, secrets, upload caps, rate limit, report RBAC, password floor, prod docs/CORS
+- One day-to-day path: Compose **dev** (Vite); optional nginx preview overlay kept for future VPS smoke-tests
+- Before-beta hardening from Pre-August / [SECURITY_REVIEW.md](SECURITY_REVIEW.md): IDOR, secrets, upload caps, rate limit, report RBAC, password floor, prod docs/CORS, nginx `/api` fix
 - One-page deploy + Tailscale runbook; avoid Cloudflare Tunnel as the default path
 
 **Explicitly out of Phase 10:** public internet as default access, VPS provisioning, cookie-auth redesign, full multi-tenant isolation, inviting cast onto the tailnet.

@@ -2,7 +2,7 @@
 
 How to run The Theater Thing on your laptop day to day, reach it from your phone over Tailscale, and (later) move to a real host.
 
-Companion to [PHASE_10.md](PHASE_10.md). **One stack for daily use:** Docker Compose with the Vite **dev** frontend. Tailscale Serve on port **5173** for private multi-device access.
+Companion to [PHASE_10.md](PHASE_10.md). **One stack for daily use:** Docker Compose with the Vite **dev** frontend. Tailscale Serve on port **5173** for private multi-device access when Tailscale is available.
 
 ---
 
@@ -26,13 +26,13 @@ Stop:
 docker compose down
 ```
 
-That is the only Compose command you need for normal work and phone testing.
+That is the only Compose command you need for normal work. On a machine **without Tailscale** (for example a secondary Windows laptop), browser testing at `http://localhost:5173` is enough — leave the Tailscale steps for the machine that has Tailscale installed.
 
 ---
 
 ## Phone / tablet via Tailscale Serve
 
-Goal: one bookmarkable private HTTPS URL. The laptop must be awake and online.
+Goal: one bookmarkable private HTTPS URL. The laptop must be awake and online. Skip this section until Tailscale is installed on the host machine.
 
 1. Install/sign in to Tailscale on the laptop and phone (same account/tailnet).
 2. Start the app: `docker compose up -d --build`.

@@ -20,6 +20,30 @@ For a **single-production beta**, the work that matters most is:
 
 Everything else in this document is real and worth doing, but can be sequenced around that bar.
 
+### Phase 10 status (2026-07-22)
+
+Phase 10 addressed the before-beta items **S1–S4, S6–S8, S10–S11, St2, St5, St6 (nginx `/api` fix)** — see [PHASE_10.md](PHASE_10.md) and [DEPLOY.md](DEPLOY.md). Day-to-day path is Dev + Tailscale Serve on **5173** (localhost OK without Tailscale). Optional nginx preview retained; CI nginx smoke still optional.
+
+| Ref | Status |
+| --- | --- |
+| **S1** IDOR / production access | Addressed — shared `require_production_access` / `get_accessible_production` + tests |
+| **S2** Default secrets in prod | Addressed — prod refuses known defaults |
+| **S3** Unbounded script upload | Addressed — size cap + content checks |
+| **S4** Login rate limiting | Addressed — in-app throttle |
+| **S5** JWT in localStorage / no revocation | Deferred (after beta) |
+| **S6** Password min length | Addressed |
+| **S7** Reports API RBAC | Addressed — director/admin + production access |
+| **S8** nginx `/api` strip | Addressed — proxy fixed; preview optional |
+| **S9** Org isolation | Deferred — single org per deploy |
+| **S10** OpenAPI / CORS | Addressed — docs off in prod; `CORS_ORIGINS` env-driven |
+| **S11** Bookmark / note consistency | Addressed — tied to production access |
+| **S12** Cue payload size | Deferred |
+| **St1** Concurrent reorder locking | Deferred (during/after beta) |
+| **St2** Bad timeline filters → 500 | Addressed — 422 |
+| **St4** Non-root images / published ports | Deferred (after beta); Tailscale + localhost testing documented |
+| **St5** Seed on every start | Addressed — seed gated by `ENVIRONMENT=dev` |
+| **St6** Prod frontend untested | Partially addressed — nginx fixed; optional CI smoke still open |
+
 ---
 
 ## Review assumptions
@@ -397,15 +421,15 @@ Copy into a runbook when standing up the pilot host:
 
 ## Testing gaps to close with the above
 
-| Gap | Related |
-| --- | --- |
-| Actor can `GET /productions/{other_id}` | S1 |
-| Actor can `GET .../reports/*` | S7 |
-| Import of oversized file returns 413 | S3 |
-| Prod settings reject default `SECRET_KEY` | S2 |
-| Invalid `character_ids` query → 422 | St2 |
-| Concurrent reorder preserves uniqueness | St1 |
-| Frontend `prod` image login through nginx | S8 |
+| Gap | Related | Status |
+| --- | --- | --- |
+| Actor can `GET /productions/{other_id}` | S1 | Closed (Phase 10) |
+| Actor can `GET .../reports/*` | S7 | Closed (Phase 10) |
+| Import of oversized file returns 413 | S3 | Closed (Phase 10) |
+| Prod settings reject default `SECRET_KEY` | S2 | Closed (Phase 10) |
+| Invalid `character_ids` query → 422 | St2 | Closed (Phase 10) |
+| Concurrent reorder preserves uniqueness | St1 | Open (deferred) |
+| Frontend `prod` image login through nginx | S8 | nginx fixed (Phase 10); optional CI smoke still open |
 
 ---
 
