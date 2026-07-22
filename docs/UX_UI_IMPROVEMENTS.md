@@ -214,7 +214,7 @@ These are already captured in [PROJECT.md](PROJECT.md) and [SCRATCH_NOTES.md](SC
 | **Reports** | TOC/tabs; clickable moments; print |
 | **Import** | Format help; drag-drop; success toast |
 | **Users / Settings** | Dialog password reset; fewer text actions; toast on save |
-| **About** | Editable `aboutContent.ts`; feedback mailto |
+| **About** | Editable `aboutContent.ts`; in-app Send feedback + mailto fallback |
 | **Login** | Fine for MVP; forgot-password not required for internal share |
 
 ---

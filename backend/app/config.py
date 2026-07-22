@@ -20,6 +20,16 @@ class Settings(BaseSettings):
     ENVIRONMENT: Literal["dev", "prod"] = "dev"
     # Comma-separated browser origins allowed to call the API (CORS).
     CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
+    # Optional: fine-grained PAT (or classic) with Issues: Read and write on GITHUB_REPO.
+    GITHUB_TOKEN: str | None = None
+    GITHUB_REPO: str = "connorsharpmckinnis/production_app"
+
+    @field_validator("GITHUB_TOKEN", mode="before")
+    @classmethod
+    def empty_github_token_as_none(cls, value: object) -> object:
+        if isinstance(value, str) and not value.strip():
+            return None
+        return value
 
     @field_validator("CORS_ORIGINS", mode="before")
     @classmethod

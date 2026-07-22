@@ -28,6 +28,8 @@ services:
       ORG_NAME: ${ORG_NAME:-Default Organization}
       ENVIRONMENT: ${ENVIRONMENT:-dev}
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://127.0.0.1:5173}
+      GITHUB_TOKEN: ${GITHUB_TOKEN:-}
+      GITHUB_REPO: ${GITHUB_REPO:-connorsharpmckinnis/production_app}
     ports:
       - "8000:8000"
 

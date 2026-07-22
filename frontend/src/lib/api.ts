@@ -18,6 +18,8 @@ import type {
   CueSheetCategory,
   EntranceExitSheetGroup,
   BlockingSheetEntry,
+  FeedbackCreate,
+  FeedbackResponse,
   GroupResponse,
   ImportErrorsDetail,
   ImportSuccessResponse,
@@ -1007,5 +1009,12 @@ export const api = {
     return request<BlockingSheetEntry[]>(
       `/productions/${productionId}/reports/blocking-sheet`,
     );
+  },
+
+  submitFeedback(body: FeedbackCreate) {
+    return request<FeedbackResponse>("/feedback", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
   },
 };

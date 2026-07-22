@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useParams } from "react-router-dom";
+import FeedbackDialog from "@/components/FeedbackDialog";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
@@ -24,6 +25,7 @@ export default function AppShell() {
   const [productionTitle, setProductionTitle] = useState<string | null>(null);
   const [productionHasScript, setProductionHasScript] = useState(true);
   const [bookmarksOpen, setBookmarksOpen] = useState(false);
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [bookmarks, setBookmarks] = useState<
     Awaited<ReturnType<typeof api.listBookmarks>>
   >([]);
@@ -211,6 +213,16 @@ export default function AppShell() {
                 >
                   About the App
                 </Link>
+                <button
+                  type="button"
+                  className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                  onClick={() => {
+                    setMenuOpen(false);
+                    setFeedbackOpen(true);
+                  }}
+                >
+                  Send feedback
+                </button>
                 <div className="border-t border-border px-3 py-2">
                   <ThemeToggle compact />
                 </div>
@@ -404,6 +416,8 @@ export default function AppShell() {
           </div>
         </main>
       </div>
+
+      <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
     </div>
   );
 }

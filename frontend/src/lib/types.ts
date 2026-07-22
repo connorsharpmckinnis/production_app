@@ -28,6 +28,21 @@ export interface UserResponse {
   roles: AppRole[];
 }
 
+export type FeedbackKind = "bug" | "idea";
+
+export interface FeedbackCreate {
+  kind: FeedbackKind;
+  title: string;
+  description: string;
+  page_path?: string | null;
+  user_agent?: string | null;
+}
+
+export interface FeedbackResponse {
+  issue_number: number;
+  issue_url: string;
+}
+
 export interface ProductionCreate {
   title: string;
   season?: string | null;

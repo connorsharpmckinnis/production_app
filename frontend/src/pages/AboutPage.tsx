@@ -87,10 +87,12 @@ export default function AboutPage() {
         </div>
         <div className="rounded-lg border border-border bg-muted/30 p-4">
           <p className="text-sm text-muted-foreground">
-            Have feedback or ideas?{" "}
-            <span className="font-medium text-foreground">{ABOUT_FEEDBACK_EMAIL}</span>
+            Prefer the in-app form: open your name in the header and choose{" "}
+            <span className="font-medium text-foreground">Send feedback</span> (bug or
+            idea). Or email{" "}
+            <span className="font-medium text-foreground">{ABOUT_FEEDBACK_EMAIL}</span>.
           </p>
-          <Button asChild className="mt-3">
+          <Button asChild className="mt-3" variant="outline">
             <a href={feedbackMailtoHref()}>
               <Mail />
               Email me

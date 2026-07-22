@@ -5,6 +5,7 @@ from app.api import (
     characters,
     costumes,
     cues,
+    feedback,
     groups,
     microphones,
     notes,
@@ -22,6 +23,7 @@ api_router = APIRouter()
 api_router.include_router(auth.router)
 api_router.include_router(users.router)
 api_router.include_router(settings.router)
+api_router.include_router(feedback.router)
 api_router.include_router(productions.router)
 api_router.include_router(timeline.router)
 api_router.include_router(timeline.lookup_router)

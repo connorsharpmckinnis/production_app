@@ -180,7 +180,7 @@ Pick a few that directors will feel in the first hour:
 ### Soft pilot packaging
 
 - [ ] Decide and document the **pilot ask**: one show, who gets Admin vs Director accounts, how feedback is collected, what you promise to fix in-week.
-- [ ] Include easy bug reporting, changelogging, and feature requesting in-app
+- [x] Include easy bug reporting and feature requesting in-app (user menu → Send feedback → GitHub Issues via backend). Changelogging still open.
 - [ ] Refresh [STP_PRODUCT_OVERVIEW.md](STP_PRODUCT_OVERVIEW.md) Phase A/B/C language so it matches what you’ll say in the room (Emmy already has the summary; keep consistency).
 
 ---
