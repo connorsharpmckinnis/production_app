@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Pencil } from "lucide-react";
+import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import CatalogCsvImport from "@/components/CatalogCsvImport";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import {
 } from "@/components/ui/dialog";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
-import { api, ApiError } from "@/lib/api";
+import { api, formatApiError } from "@/lib/api";
 import type { SongDetailResponse } from "@/lib/types";
 
 export default function SongsPage() {
@@ -40,7 +41,7 @@ export default function SongsPage() {
       const songData = await api.listSongs(productionId);
       setSongs(songData);
     } catch (err) {
-      setError(err instanceof ApiError ? String(err.detail) : "Failed to load songs");
+      setError(formatApiError(err, "Failed to load songs"));
     } finally {
       setLoading(false);
     }
@@ -98,11 +99,10 @@ export default function SongsPage() {
       await loadData();
     } catch (err) {
       toast.error(
-        err instanceof ApiError
-          ? String(err.detail)
-          : editingSong
-            ? "Failed to update song"
-            : "Failed to create song",
+        formatApiError(
+          err,
+          editingSong ? "Failed to update song" : "Failed to create song",
+        ),
       );
     } finally {
       setSaving(false);
@@ -110,7 +110,7 @@ export default function SongsPage() {
   }
 
   if (loading) {
-    return <p className="text-muted-foreground">Loading songs…</p>;
+    return <CatalogPageSkeleton />;
   }
 
   return (

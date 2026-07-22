@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/sheet";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
-import { api, ApiError } from "@/lib/api";
+import { api, ApiError, formatApiError } from "@/lib/api";
 import type {
   AppSettingsResponse,
   CharacterDetailResponse,
@@ -24,6 +24,22 @@ import type {
 } from "@/lib/types";
 import { cn, momentTypeLabel, sortByName } from "@/lib/utils";
 
+function costumesPagePath(
+  productionId: number,
+  sceneId: number | null,
+  detail: MomentDetailResponse,
+): string {
+  const params = new URLSearchParams();
+  if (sceneId !== null) {
+    params.set("sceneId", String(sceneId));
+  }
+  if (detail.dialogue.length === 1) {
+    params.set("characterId", String(detail.dialogue[0].character_id));
+  }
+  const query = params.toString();
+  return `/productions/${productionId}/costumes${query ? `?${query}` : ""}`;
+}
+
 export interface MomentDetailPanelHandle {
   flushPendingSaves: () => Promise<void>;
 }
@@ -31,6 +47,7 @@ export interface MomentDetailPanelHandle {
 interface MomentDetailPanelProps {
   productionId: number;
   detail: MomentDetailResponse;
+  sceneId: number | null;
   canEdit: boolean;
   canChooseVisibility: boolean;
   characters: CharacterDetailResponse[];
@@ -51,6 +68,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     {
       productionId,
       detail,
+      sceneId,
       canEdit,
       canChooseVisibility,
       characters,
@@ -153,7 +171,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         if (err instanceof ApiError && err.status === 409) {
           const proceed = await confirm({
             title: "Change moment type?",
-            description: `${String(err.detail)} Structured dialogue or stage direction data will be orphaned.`,
+            description: `${formatApiError(err, "Conflict")} Structured dialogue or stage direction data will be orphaned.`,
             confirmLabel: "Change type",
           });
           if (proceed) {
@@ -161,7 +179,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             return;
           }
         } else {
-          toast.error(err instanceof ApiError ? String(err.detail) : "Failed to save moment");
+          toast.error(formatApiError(err, "Failed to save moment"));
         }
       } finally {
         setSaving(false);
@@ -181,9 +199,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         await onChanged();
         toast.success("Stage direction saved");
       } catch (err) {
-        toast.error(
-          err instanceof ApiError ? String(err.detail) : "Failed to save stage direction",
-        );
+        toast.error(formatApiError(err, "Failed to save stage direction"));
       } finally {
         setSaving(false);
       }
@@ -212,7 +228,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         }
         onChanged();
       } catch (err) {
-        toast.error(err instanceof ApiError ? String(err.detail) : "Bookmark action failed");
+        toast.error(formatApiError(err, "Bookmark action failed"));
       } finally {
         setSaving(false);
       }
@@ -233,7 +249,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         onChanged();
         toast.success("Note added");
       } catch (err) {
-        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to add note");
+        toast.error(formatApiError(err, "Failed to add note"));
       } finally {
         setSaving(false);
       }
@@ -254,7 +270,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         onChanged();
         toast.success("Note deleted");
       } catch (err) {
-        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to delete note");
+        toast.error(formatApiError(err, "Failed to delete note"));
       } finally {
         setSaving(false);
       }
@@ -270,7 +286,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         await onChanged();
         toast.success("Dialogue updated");
       } catch (err) {
-        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to update dialogue");
+        toast.error(formatApiError(err, "Failed to update dialogue"));
       } finally {
         setSaving(false);
       }
@@ -293,7 +309,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         onChanged();
         toast.success("Prop added");
       } catch (err) {
-        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to attach prop");
+        toast.error(formatApiError(err, "Failed to attach prop"));
       } finally {
         setSaving(false);
       }
@@ -313,7 +329,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         onChanged();
         toast.success("Prop removed");
       } catch (err) {
-        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to detach prop");
+        toast.error(formatApiError(err, "Failed to detach prop"));
       } finally {
         setSaving(false);
       }
@@ -336,7 +352,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         onChanged();
         toast.success("Microphone added");
       } catch (err) {
-        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to attach microphone");
+        toast.error(formatApiError(err, "Failed to attach microphone"));
       } finally {
         setSaving(false);
       }
@@ -356,7 +372,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         onChanged();
         toast.success("Microphone removed");
       } catch (err) {
-        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to detach microphone");
+        toast.error(formatApiError(err, "Failed to detach microphone"));
       } finally {
         setSaving(false);
       }
@@ -377,7 +393,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         onChanged();
         toast.success("Set piece added");
       } catch (err) {
-        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to attach set piece");
+        toast.error(formatApiError(err, "Failed to attach set piece"));
       } finally {
         setSaving(false);
       }
@@ -397,7 +413,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         onChanged();
         toast.success("Set piece removed");
       } catch (err) {
-        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to detach set piece");
+        toast.error(formatApiError(err, "Failed to detach set piece"));
       } finally {
         setSaving(false);
       }
@@ -418,7 +434,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         onChanged();
         toast.success("Entrance added");
       } catch (err) {
-        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to attach entrance");
+        toast.error(formatApiError(err, "Failed to attach entrance"));
       } finally {
         setSaving(false);
       }
@@ -438,7 +454,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         onChanged();
         toast.success("Entrance removed");
       } catch (err) {
-        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to detach entrance");
+        toast.error(formatApiError(err, "Failed to detach entrance"));
       } finally {
         setSaving(false);
       }
@@ -459,7 +475,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         onChanged();
         toast.success("Exit added");
       } catch (err) {
-        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to attach exit");
+        toast.error(formatApiError(err, "Failed to attach exit"));
       } finally {
         setSaving(false);
       }
@@ -479,7 +495,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         onChanged();
         toast.success("Exit removed");
       } catch (err) {
-        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to detach exit");
+        toast.error(formatApiError(err, "Failed to detach exit"));
       } finally {
         setSaving(false);
       }
@@ -500,7 +516,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         onChanged();
         toast.success("Blocking added");
       } catch (err) {
-        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to attach blocking");
+        toast.error(formatApiError(err, "Failed to attach blocking"));
       } finally {
         setSaving(false);
       }
@@ -516,7 +532,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         onChanged();
         toast.success("Blocking updated");
       } catch (err) {
-        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to update blocking");
+        toast.error(formatApiError(err, "Failed to update blocking"));
       } finally {
         setSaving(false);
       }
@@ -536,7 +552,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         onChanged();
         toast.success("Blocking removed");
       } catch (err) {
-        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to detach blocking");
+        toast.error(formatApiError(err, "Failed to detach blocking"));
       } finally {
         setSaving(false);
       }
@@ -558,7 +574,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         onChanged();
         toast.success("Cue added");
       } catch (err) {
-        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to add cue");
+        toast.error(formatApiError(err, "Failed to add cue"));
       } finally {
         setSaving(false);
       }
@@ -578,7 +594,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         onChanged();
         toast.success("Cue removed");
       } catch (err) {
-        toast.error(err instanceof ApiError ? String(err.detail) : "Failed to delete cue");
+        toast.error(formatApiError(err, "Failed to delete cue"));
       } finally {
         setSaving(false);
       }
@@ -845,7 +861,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             <p className="mt-2 text-xs text-muted-foreground">
               Costumes are assigned by character and scene — manage them on the{" "}
               <Link
-                to={`/productions/${productionId}/costumes`}
+                to={costumesPagePath(productionId, sceneId, detail)}
                 className="underline hover:text-foreground"
               >
                 Costumes

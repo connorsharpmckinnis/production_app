@@ -1,5 +1,6 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { Circle, KeyRound, UserX } from "lucide-react";
+import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -14,7 +15,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
-import { api, ApiError } from "@/lib/api";
+import { api, formatApiError } from "@/lib/api";
 import type { AppRole, UserResponse } from "@/lib/types";
 
 const ROLES: AppRole[] = ["Admin", "Director", "Actor"];
@@ -48,7 +49,7 @@ export default function UsersPage() {
       .listUsers()
       .then(setUsers)
       .catch((err: unknown) => {
-        setError(err instanceof ApiError ? String(err.detail) : "Failed to load users");
+        setError(formatApiError(err, "Failed to load users"));
       })
       .finally(() => setLoading(false));
   }
@@ -84,7 +85,7 @@ export default function UsersPage() {
       toast.success("User created");
       loadUsers();
     } catch (err) {
-      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to create user");
+      toast.error(formatApiError(err, "Failed to create user"));
     }
   }
 
@@ -102,7 +103,7 @@ export default function UsersPage() {
       toast.success("Password reset");
       loadUsers();
     } catch (err) {
-      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to reset password");
+      toast.error(formatApiError(err, "Failed to reset password"));
     }
   }
 
@@ -121,7 +122,7 @@ export default function UsersPage() {
       toast.success("User deactivated");
       loadUsers();
     } catch (err) {
-      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to deactivate user");
+      toast.error(formatApiError(err, "Failed to deactivate user"));
     }
   }
 
@@ -259,7 +260,7 @@ export default function UsersPage() {
       </Dialog>
 
       {loading ? (
-        <p className="text-muted-foreground">Loading users…</p>
+        <CatalogPageSkeleton showBreadcrumb={false} />
       ) : users.length === 0 ? (
         <EmptyState
           title="No users yet"

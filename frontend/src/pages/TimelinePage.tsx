@@ -7,12 +7,19 @@ import SceneMultiSelect from "@/components/SceneMultiSelect";
 import TimelineMomentList from "@/components/TimelineMomentList";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
+import { useIsMediumScreen } from "@/hooks/useIsMediumScreen";
 import { useTimelineScene } from "@/hooks/useTimelineScene";
-import { api, ApiError } from "@/lib/api";
+import { api, formatApiError } from "@/lib/api";
 import { isHighlightedMoment } from "@/lib/momentHighlight";
 import type {
   CharacterDetailResponse,
@@ -20,7 +27,7 @@ import type {
   MomentSummary,
   MomentTypeResponse,
 } from "@/lib/types";
-import { momentTypeLabel, sortByName } from "@/lib/utils";
+import { momentTypeLabel, sortByName, cn } from "@/lib/utils";
 
 type CharacterFilterValue = "all" | "mine" | string;
 type GroupFilterValue = "all" | string;
@@ -33,6 +40,7 @@ export default function TimelinePage() {
   const confirm = useConfirm();
   const toast = useToast();
   const { isAdmin } = useAuth();
+  const isMediumScreen = useIsMediumScreen();
   const pendingMomentIdRef = useRef<number | null>(null);
 
   const [searchInput, setSearchInput] = useState("");
@@ -399,7 +407,7 @@ export default function TimelinePage() {
       scene.refreshMomentsList();
       toast.success("Moment inserted");
     } catch (err) {
-      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to insert moment");
+      toast.error(formatApiError(err, "Failed to insert moment"));
     } finally {
       setStructuralSaving(false);
     }
@@ -424,7 +432,7 @@ export default function TimelinePage() {
       scene.refreshMomentsList();
       toast.success("Moment deleted");
     } catch (err) {
-      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to delete moment");
+      toast.error(formatApiError(err, "Failed to delete moment"));
     } finally {
       setStructuralSaving(false);
     }
@@ -443,7 +451,7 @@ export default function TimelinePage() {
       }
       scene.refreshMomentsList();
     } catch (err) {
-      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to reorder moment");
+      toast.error(formatApiError(err, "Failed to reorder moment"));
     } finally {
       setStructuralSaving(false);
     }
@@ -591,161 +599,86 @@ export default function TimelinePage() {
           </label>
         </div>
 
-        {advancedOpen && (
-          <div className="flex flex-col gap-1.5 rounded-md border border-border bg-muted/20 p-2 sm:flex-row sm:flex-wrap sm:items-center">
-            {canManagePreparation && groups.length > 0 && (
-              <select
-                value={groupFilter}
-                onChange={(e) => {
-                  setGroupFilter(e.target.value as GroupFilterValue);
-                  setCharacterFilter("all");
-                }}
-                className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-              >
-                <option value="all">All groups</option>
-                {groups.map((group) => (
-                  <option key={group.id} value={String(group.id)}>
-                    {group.name}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            {canManagePreparation && (
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={costumeOnly}
-                  onChange={(e) => setCostumeOnly(e.target.checked)}
-                />
-                Costume moments only
-              </label>
-            )}
-
-            {canManagePreparation && (
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={entranceOnly}
-                  onChange={(e) => setEntranceOnly(e.target.checked)}
-                />
-                Entrance moments only
-              </label>
-            )}
-
-            {canManagePreparation && (
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={exitOnly}
-                  onChange={(e) => setExitOnly(e.target.checked)}
-                />
-                Exit moments only
-              </label>
-            )}
-
-            {canManagePreparation && (
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  checked={blockingOnly}
-                  onChange={(e) => setBlockingOnly(e.target.checked)}
-                />
-                Blocking moments only
-              </label>
-            )}
-
-            {canManagePreparation && (
-              <select
-                value={blockingCharacterFilter}
-                onChange={(e) => setBlockingCharacterFilter(e.target.value as ResourceFilterValue)}
-                className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-              >
-                <option value="all">All blocking characters</option>
-                {scene.characters.map((character) => (
-                  <option key={character.id} value={String(character.id)}>
-                    Blocking: {character.name}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            {scene.songs.length > 0 && (
-              <select
-                value={songFilter}
-                onChange={(e) => setSongFilter(e.target.value as ResourceFilterValue)}
-                className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-              >
-                <option value="all">All songs</option>
-                {scene.songs.map((song) => (
-                  <option key={song.id} value={String(song.id)}>
-                    {song.title}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            {canManagePreparation && scene.propsCatalog.length > 0 && (
-              <select
-                value={propFilter}
-                onChange={(e) => setPropFilter(e.target.value as ResourceFilterValue)}
-                className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-              >
-                <option value="all">All props</option>
-                {scene.propsCatalog.map((prop) => (
-                  <option key={prop.id} value={String(prop.id)}>
-                    {prop.name}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            {canManagePreparation && scene.cueCategories.length > 0 && (
-              <select
-                value={cueCategoryFilter}
-                onChange={(e) => setCueCategoryFilter(e.target.value as ResourceFilterValue)}
-                className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-              >
-                <option value="all">All cue categories</option>
-                {scene.cueCategories.map((category) => (
-                  <option key={category.id} value={String(category.id)}>
-                    {category.name}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            {canManagePreparation && scene.microphonesCatalog.length > 0 && (
-              <select
-                value={microphoneFilter}
-                onChange={(e) => setMicrophoneFilter(e.target.value as ResourceFilterValue)}
-                className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-              >
-                <option value="all">All microphones</option>
-                {scene.microphonesCatalog.map((mic) => (
-                  <option key={mic.id} value={String(mic.id)}>
-                    {mic.identifier}
-                  </option>
-                ))}
-              </select>
-            )}
-
-            {canManagePreparation && scene.setPiecesCatalog.length > 0 && (
-              <select
-                value={setPieceFilter}
-                onChange={(e) => setSetPieceFilter(e.target.value as ResourceFilterValue)}
-                className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-              >
-                <option value="all">All set pieces</option>
-                {scene.setPiecesCatalog.map((piece) => (
-                  <option key={piece.id} value={String(piece.id)}>
-                    {piece.name}
-                  </option>
-                ))}
-              </select>
-            )}
-          </div>
+        {advancedOpen && isMediumScreen && (
+          <AdvancedFiltersPanel
+            canManagePreparation={canManagePreparation}
+            groups={groups}
+            groupFilter={groupFilter}
+            setGroupFilter={setGroupFilter}
+            setCharacterFilter={setCharacterFilter}
+            costumeOnly={costumeOnly}
+            setCostumeOnly={setCostumeOnly}
+            entranceOnly={entranceOnly}
+            setEntranceOnly={setEntranceOnly}
+            exitOnly={exitOnly}
+            setExitOnly={setExitOnly}
+            blockingOnly={blockingOnly}
+            setBlockingOnly={setBlockingOnly}
+            blockingCharacterFilter={blockingCharacterFilter}
+            setBlockingCharacterFilter={setBlockingCharacterFilter}
+            songFilter={songFilter}
+            setSongFilter={setSongFilter}
+            propFilter={propFilter}
+            setPropFilter={setPropFilter}
+            cueCategoryFilter={cueCategoryFilter}
+            setCueCategoryFilter={setCueCategoryFilter}
+            microphoneFilter={microphoneFilter}
+            setMicrophoneFilter={setMicrophoneFilter}
+            setPieceFilter={setPieceFilter}
+            setSetPieceFilter={setSetPieceFilter}
+            characters={scene.characters}
+            songs={scene.songs}
+            propsCatalog={scene.propsCatalog}
+            cueCategories={scene.cueCategories}
+            microphonesCatalog={scene.microphonesCatalog}
+            setPiecesCatalog={scene.setPiecesCatalog}
+          />
         )}
+
+        <Sheet
+          open={advancedOpen && !isMediumScreen}
+          onOpenChange={setAdvancedOpen}
+        >
+          <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+            <SheetHeader>
+              <SheetTitle>Advanced filters</SheetTitle>
+            </SheetHeader>
+            <AdvancedFiltersPanel
+              canManagePreparation={canManagePreparation}
+              groups={groups}
+              groupFilter={groupFilter}
+              setGroupFilter={setGroupFilter}
+              setCharacterFilter={setCharacterFilter}
+              costumeOnly={costumeOnly}
+              setCostumeOnly={setCostumeOnly}
+              entranceOnly={entranceOnly}
+              setEntranceOnly={setEntranceOnly}
+              exitOnly={exitOnly}
+              setExitOnly={setExitOnly}
+              blockingOnly={blockingOnly}
+              setBlockingOnly={setBlockingOnly}
+              blockingCharacterFilter={blockingCharacterFilter}
+              setBlockingCharacterFilter={setBlockingCharacterFilter}
+              songFilter={songFilter}
+              setSongFilter={setSongFilter}
+              propFilter={propFilter}
+              setPropFilter={setPropFilter}
+              cueCategoryFilter={cueCategoryFilter}
+              setCueCategoryFilter={setCueCategoryFilter}
+              microphoneFilter={microphoneFilter}
+              setMicrophoneFilter={setMicrophoneFilter}
+              setPieceFilter={setPieceFilter}
+              setSetPieceFilter={setSetPieceFilter}
+              characters={scene.characters}
+              songs={scene.songs}
+              propsCatalog={scene.propsCatalog}
+              cueCategories={scene.cueCategories}
+              microphonesCatalog={scene.microphonesCatalog}
+              setPiecesCatalog={scene.setPiecesCatalog}
+              className="border-0 bg-transparent p-0"
+            />
+          </SheetContent>
+        </Sheet>
 
         {hasActiveFilters && activeFilterChips.length > 0 && (
           <div className="flex flex-wrap items-center gap-2">
@@ -891,6 +824,11 @@ export default function TimelinePage() {
           if (!open) scene.setSelectedMomentId(null);
         }}
         momentDetail={scene.momentDetail}
+        sceneId={
+          scene.selectedMomentId !== null
+            ? scene.sceneIdForMoment(scene.selectedMomentId)
+            : null
+        }
         canEdit={canManagePreparation}
         characters={scene.characters}
         songs={scene.songs}
@@ -906,6 +844,235 @@ export default function TimelinePage() {
           scene.refreshMomentsList();
         }}
       />
+    </div>
+  );
+}
+
+function AdvancedFiltersPanel({
+  canManagePreparation,
+  groups,
+  groupFilter,
+  setGroupFilter,
+  setCharacterFilter,
+  costumeOnly,
+  setCostumeOnly,
+  entranceOnly,
+  setEntranceOnly,
+  exitOnly,
+  setExitOnly,
+  blockingOnly,
+  setBlockingOnly,
+  blockingCharacterFilter,
+  setBlockingCharacterFilter,
+  songFilter,
+  setSongFilter,
+  propFilter,
+  setPropFilter,
+  cueCategoryFilter,
+  setCueCategoryFilter,
+  microphoneFilter,
+  setMicrophoneFilter,
+  setPieceFilter,
+  setSetPieceFilter,
+  characters,
+  songs,
+  propsCatalog,
+  cueCategories,
+  microphonesCatalog,
+  setPiecesCatalog,
+  className,
+}: {
+  canManagePreparation: boolean;
+  groups: { id: number; name: string }[];
+  groupFilter: GroupFilterValue;
+  setGroupFilter: (value: GroupFilterValue) => void;
+  setCharacterFilter: (value: CharacterFilterValue) => void;
+  costumeOnly: boolean;
+  setCostumeOnly: (value: boolean) => void;
+  entranceOnly: boolean;
+  setEntranceOnly: (value: boolean) => void;
+  exitOnly: boolean;
+  setExitOnly: (value: boolean) => void;
+  blockingOnly: boolean;
+  setBlockingOnly: (value: boolean) => void;
+  blockingCharacterFilter: ResourceFilterValue;
+  setBlockingCharacterFilter: (value: ResourceFilterValue) => void;
+  songFilter: ResourceFilterValue;
+  setSongFilter: (value: ResourceFilterValue) => void;
+  propFilter: ResourceFilterValue;
+  setPropFilter: (value: ResourceFilterValue) => void;
+  cueCategoryFilter: ResourceFilterValue;
+  setCueCategoryFilter: (value: ResourceFilterValue) => void;
+  microphoneFilter: ResourceFilterValue;
+  setMicrophoneFilter: (value: ResourceFilterValue) => void;
+  setPieceFilter: ResourceFilterValue;
+  setSetPieceFilter: (value: ResourceFilterValue) => void;
+  characters: CharacterDetailResponse[];
+  songs: { id: number; title: string }[];
+  propsCatalog: { id: number; name: string }[];
+  cueCategories: { id: number; name: string }[];
+  microphonesCatalog: { id: number; identifier: string }[];
+  setPiecesCatalog: { id: number; name: string }[];
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        "flex flex-col gap-1.5 rounded-md border border-border bg-muted/20 p-2 sm:flex-row sm:flex-wrap sm:items-center",
+        className,
+      )}
+    >
+      {canManagePreparation && groups.length > 0 && (
+        <select
+          value={groupFilter}
+          onChange={(e) => {
+            setGroupFilter(e.target.value as GroupFilterValue);
+            setCharacterFilter("all");
+          }}
+          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+        >
+          <option value="all">All groups</option>
+          {groups.map((group) => (
+            <option key={group.id} value={String(group.id)}>
+              {group.name}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {canManagePreparation && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={costumeOnly}
+            onChange={(e) => setCostumeOnly(e.target.checked)}
+          />
+          Costume moments only
+        </label>
+      )}
+
+      {canManagePreparation && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={entranceOnly}
+            onChange={(e) => setEntranceOnly(e.target.checked)}
+          />
+          Entrance moments only
+        </label>
+      )}
+
+      {canManagePreparation && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={exitOnly}
+            onChange={(e) => setExitOnly(e.target.checked)}
+          />
+          Exit moments only
+        </label>
+      )}
+
+      {canManagePreparation && (
+        <label className="flex items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={blockingOnly}
+            onChange={(e) => setBlockingOnly(e.target.checked)}
+          />
+          Blocking moments only
+        </label>
+      )}
+
+      {canManagePreparation && (
+        <select
+          value={blockingCharacterFilter}
+          onChange={(e) => setBlockingCharacterFilter(e.target.value as ResourceFilterValue)}
+          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+        >
+          <option value="all">All blocking characters</option>
+          {characters.map((character) => (
+            <option key={character.id} value={String(character.id)}>
+              Blocking: {character.name}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {songs.length > 0 && (
+        <select
+          value={songFilter}
+          onChange={(e) => setSongFilter(e.target.value as ResourceFilterValue)}
+          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+        >
+          <option value="all">All songs</option>
+          {songs.map((song) => (
+            <option key={song.id} value={String(song.id)}>
+              {song.title}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {canManagePreparation && propsCatalog.length > 0 && (
+        <select
+          value={propFilter}
+          onChange={(e) => setPropFilter(e.target.value as ResourceFilterValue)}
+          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+        >
+          <option value="all">All props</option>
+          {propsCatalog.map((prop) => (
+            <option key={prop.id} value={String(prop.id)}>
+              {prop.name}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {canManagePreparation && cueCategories.length > 0 && (
+        <select
+          value={cueCategoryFilter}
+          onChange={(e) => setCueCategoryFilter(e.target.value as ResourceFilterValue)}
+          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+        >
+          <option value="all">All cue categories</option>
+          {cueCategories.map((category) => (
+            <option key={category.id} value={String(category.id)}>
+              {category.name}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {canManagePreparation && microphonesCatalog.length > 0 && (
+        <select
+          value={microphoneFilter}
+          onChange={(e) => setMicrophoneFilter(e.target.value as ResourceFilterValue)}
+          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+        >
+          <option value="all">All microphones</option>
+          {microphonesCatalog.map((mic) => (
+            <option key={mic.id} value={String(mic.id)}>
+              {mic.identifier}
+            </option>
+          ))}
+        </select>
+      )}
+
+      {canManagePreparation && setPiecesCatalog.length > 0 && (
+        <select
+          value={setPieceFilter}
+          onChange={(e) => setSetPieceFilter(e.target.value as ResourceFilterValue)}
+          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+        >
+          <option value="all">All set pieces</option>
+          {setPiecesCatalog.map((piece) => (
+            <option key={piece.id} value={String(piece.id)}>
+              {piece.name}
+            </option>
+          ))}
+        </select>
+      )}
     </div>
   );
 }
@@ -979,13 +1146,13 @@ function InsertMomentForm({
         </select>
       )}
       <div className="flex gap-2">
-        <button
+        <Button
           type="submit"
+          size="sm"
           disabled={saving || !insertTypeId || !insertText.trim()}
-          className="rounded-md bg-primary px-3 py-1.5 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
         >
           Insert
-        </button>
+        </Button>
         <button
           type="button"
           onClick={onCancel}

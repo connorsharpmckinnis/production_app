@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Pencil, Trash2 } from "lucide-react";
+import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import CatalogCsvImport from "@/components/CatalogCsvImport";
 import { Button } from "@/components/ui/button";
@@ -15,13 +16,14 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
-import { api, ApiError } from "@/lib/api";
+import { api, formatApiError } from "@/lib/api";
 import type { ActSummary, CostumeResponse } from "@/lib/types";
 import { sortByName } from "@/lib/utils";
 
 export default function CostumesPage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
+  const [searchParams] = useSearchParams();
   const { canManagePreparation } = useAuth();
   const confirm = useConfirm();
   const toast = useToast();
@@ -66,7 +68,7 @@ export default function CostumesPage() {
       setCharacters(sortByName(characterData));
       setCostumes(costumeData);
     } catch (err) {
-      setError(err instanceof ApiError ? String(err.detail) : "Failed to load costumes");
+      setError(formatApiError(err, "Failed to load costumes"));
     } finally {
       setLoading(false);
     }
@@ -76,10 +78,26 @@ export default function CostumesPage() {
     void loadData();
   }, [productionId]);
 
+  function resolvePrefillSceneId(): string {
+    const param = searchParams.get("sceneId");
+    if (!param) return "";
+    const parsed = Number(param);
+    if (!Number.isFinite(parsed)) return "";
+    return scenes.some((scene) => scene.id === parsed) ? String(parsed) : "";
+  }
+
+  function resolvePrefillCharacterId(): string {
+    const param = searchParams.get("characterId");
+    if (!param) return "";
+    const parsed = Number(param);
+    if (!Number.isFinite(parsed)) return "";
+    return characters.some((character) => character.id === parsed) ? String(parsed) : "";
+  }
+
   function openCreateDialog() {
     setEditingCostume(null);
-    setCharacterId("");
-    setSceneId("");
+    setCharacterId(resolvePrefillCharacterId());
+    setSceneId(resolvePrefillSceneId());
     setName("");
     setDescription("");
     setDialogOpen(true);
@@ -126,11 +144,10 @@ export default function CostumesPage() {
       await loadData();
     } catch (err) {
       toast.error(
-        err instanceof ApiError
-          ? String(err.detail)
-          : editingCostume
-            ? "Failed to update costume"
-            : "Failed to create costume",
+        formatApiError(
+          err,
+          editingCostume ? "Failed to update costume" : "Failed to create costume",
+        ),
       );
     } finally {
       setSaving(false);
@@ -151,14 +168,14 @@ export default function CostumesPage() {
       toast.success("Costume deleted");
       await loadData();
     } catch (err) {
-      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to delete costume");
+      toast.error(formatApiError(err, "Failed to delete costume"));
     } finally {
       setSaving(false);
     }
   }
 
   if (loading) {
-    return <p className="text-muted-foreground">Loading costumes…</p>;
+    return <CatalogPageSkeleton />;
   }
 
   return (

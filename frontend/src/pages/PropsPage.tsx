@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Pencil, Trash2 } from "lucide-react";
+import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import CatalogCsvImport from "@/components/CatalogCsvImport";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
-import { api, ApiError } from "@/lib/api";
+import { api, formatApiError } from "@/lib/api";
 import type { PropResponse } from "@/lib/types";
 
 export default function PropsPage() {
@@ -41,7 +42,7 @@ export default function PropsPage() {
       const propData = await api.listProps(productionId);
       setProps(propData);
     } catch (err) {
-      setError(err instanceof ApiError ? String(err.detail) : "Failed to load props");
+      setError(formatApiError(err, "Failed to load props"));
     } finally {
       setLoading(false);
     }
@@ -97,11 +98,10 @@ export default function PropsPage() {
       await loadData();
     } catch (err) {
       toast.error(
-        err instanceof ApiError
-          ? String(err.detail)
-          : editingProp
-            ? "Failed to update prop"
-            : "Failed to create prop",
+        formatApiError(
+          err,
+          editingProp ? "Failed to update prop" : "Failed to create prop",
+        ),
       );
     } finally {
       setSaving(false);
@@ -122,14 +122,14 @@ export default function PropsPage() {
       toast.success("Prop deleted");
       await loadData();
     } catch (err) {
-      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to delete prop");
+      toast.error(formatApiError(err, "Failed to delete prop"));
     } finally {
       setSaving(false);
     }
   }
 
   if (loading) {
-    return <p className="text-muted-foreground">Loading props…</p>;
+    return <CatalogPageSkeleton />;
   }
 
   return (

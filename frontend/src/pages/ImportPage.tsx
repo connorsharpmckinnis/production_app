@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { useToast } from "@/context/ToastContext";
-import { api, ApiError, isImportErrorsDetail } from "@/lib/api";
+import { api, ApiError, formatApiError, isImportErrorsDetail } from "@/lib/api";
 import type { ImportErrorsDetail, ImportLineErrorDetail } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -160,7 +161,7 @@ export default function ImportPage() {
         if (isImportErrorsDetail(err.detail)) {
           setImportErrors(err.detail);
         } else {
-          setError(String(err.detail));
+          setError(formatApiError(err, "Import failed"));
         }
       } else {
         setError("Import failed");
@@ -244,13 +245,9 @@ export default function ImportPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-3">
-          <button
-            type="submit"
-            disabled={importing || !file}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
+          <Button type="submit" disabled={importing || !file}>
             {importing ? "Importing…" : "Import Script"}
-          </button>
+          </Button>
           {file && (
             <button
               type="button"

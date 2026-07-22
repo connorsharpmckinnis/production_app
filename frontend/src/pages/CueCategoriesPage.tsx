@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Pencil, Trash2 } from "lucide-react";
+import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import CatalogCsvImport from "@/components/CatalogCsvImport";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
-import { api, ApiError } from "@/lib/api";
+import { api, formatApiError } from "@/lib/api";
 import type { CueCategoryResponse } from "@/lib/types";
 
 const COMMON_CATEGORIES = ["Lighting", "Sound", "Music", "Projection", "FX"];
@@ -42,7 +43,7 @@ export default function CueCategoriesPage() {
       const categoryData = await api.listCueCategories(productionId);
       setCategories(categoryData);
     } catch (err) {
-      setError(err instanceof ApiError ? String(err.detail) : "Failed to load cue categories");
+      setError(formatApiError(err, "Failed to load cue categories"));
     } finally {
       setLoading(false);
     }
@@ -94,11 +95,10 @@ export default function CueCategoriesPage() {
       await loadData();
     } catch (err) {
       toast.error(
-        err instanceof ApiError
-          ? String(err.detail)
-          : editingCategory
-            ? "Failed to update category"
-            : "Failed to create category",
+        formatApiError(
+          err,
+          editingCategory ? "Failed to update category" : "Failed to create category",
+        ),
       );
     } finally {
       setSaving(false);
@@ -125,9 +125,7 @@ export default function CueCategoriesPage() {
       );
       await loadData();
     } catch (err) {
-      toast.error(
-        err instanceof ApiError ? String(err.detail) : "Failed to add common categories",
-      );
+      toast.error(formatApiError(err, "Failed to add common categories"));
     } finally {
       setSaving(false);
     }
@@ -147,14 +145,14 @@ export default function CueCategoriesPage() {
       toast.success("Category deleted");
       await loadData();
     } catch (err) {
-      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to delete category");
+      toast.error(formatApiError(err, "Failed to delete category"));
     } finally {
       setSaving(false);
     }
   }
 
   if (loading) {
-    return <p className="text-muted-foreground">Loading cue categories…</p>;
+    return <CatalogPageSkeleton />;
   }
 
   return (

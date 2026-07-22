@@ -1,0 +1,40 @@
+---
+description: How the project owner collaborates with AI — clarify before assuming, plan before building, keep scopes small
+alwaysApply: true
+---
+
+# AI Collaboration Defaults
+
+These rules apply to every task in this repo unless the user explicitly overrides them.
+
+## Ask before assuming
+
+Ask any questions that still need deciding or clarifying before assuming.
+
+Do not guess product intent, UX flow, schema meaning, security posture, or deployment choices when the docs or request are ambiguous. Prefer a short, concrete question list over silent invention.
+
+Safe to proceed without asking: following an existing pattern, fixing an obvious bug, or implementing something the docs already specify clearly.
+
+## Plan vs build
+
+If the user asks for a plan, audit, recommendation, phase doc, or strategy: stay read-only until they explicitly authorize implementation.
+
+If the user asks to implement and material decisions are still open: ask those questions first, then implement.
+
+## Smallest change that fully works
+
+Do the smallest, simplest tweak that fully accomplishes the goal and stays aligned with the project strategy.
+
+Prefer existing patterns. Park larger ideas as wishlist / future-phase notes instead of silently expanding scope.
+
+## Tradeoffs
+
+When options matter, lead with a recommendation, then list viable alternatives with cost, risk, and fit for this project's stage. Say what you are intentionally deferring.
+
+## Docs stay in sync
+
+When work changes status (shipped, deferred, decided), update the relevant phase doc, scratch notes, README, or backlog so the owner does not rediscover finished work.
+
+## Authorization boundaries
+
+Do not commit, push, deploy, or change remote systems unless explicitly asked. Preserve existing uncommitted work.

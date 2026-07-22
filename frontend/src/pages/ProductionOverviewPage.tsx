@@ -6,7 +6,7 @@ import OverviewSpotlight from "@/components/OverviewSpotlight";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/AuthContext";
-import { api, ApiError } from "@/lib/api";
+import { api, formatApiError } from "@/lib/api";
 import { dimensionHref } from "@/lib/overviewSpotlight";
 import type {
   CharacterDetailResponse,
@@ -35,7 +35,7 @@ export default function ProductionOverviewPage() {
       const data = await api.getProductionOverview(productionId);
       setOverview(data);
     } catch (err) {
-      setError(err instanceof ApiError ? String(err.detail) : "Failed to load overview");
+      setError(formatApiError(err, "Failed to load overview"));
     } finally {
       setLoading(false);
     }
@@ -68,9 +68,7 @@ export default function ProductionOverviewPage() {
       })
       .catch((err) => {
         if (!cancelled) {
-          setRolesError(
-            err instanceof ApiError ? String(err.detail) : "Could not load your roles.",
-          );
+          setRolesError(formatApiError(err, "Could not load your roles."));
         }
       })
       .finally(() => {

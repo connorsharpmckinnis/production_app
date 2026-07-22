@@ -1,8 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
 
-export type ThemePreference = "light" | "dark" | "system" | "color";
+export type ThemePreference = "light" | "dark" | "system" | "color" | "footlights";
 
 const STORAGE_KEY = "theme";
+const PALETTE_CLASSES = ["color", "footlights"] as const;
 
 interface ThemeContextValue {
   preference: ThemePreference;
@@ -17,13 +18,25 @@ function getSystemTheme(): "light" | "dark" {
   return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
 }
 
+function isThemePreference(value: string | null): value is ThemePreference {
+  return (
+    value === "light" ||
+    value === "dark" ||
+    value === "system" ||
+    value === "color" ||
+    value === "footlights"
+  );
+}
+
 function readStoredPreference(): ThemePreference {
   if (typeof window === "undefined") return "system";
   const stored = localStorage.getItem(STORAGE_KEY);
-  if (stored === "light" || stored === "dark" || stored === "system" || stored === "color") {
-    return stored;
-  }
+  if (isThemePreference(stored)) return stored;
   return "system";
+}
+
+function usesSystemBrightness(preference: ThemePreference): boolean {
+  return preference === "system" || preference === "color" || preference === "footlights";
 }
 
 function resolveTheme(preference: ThemePreference): "light" | "dark" {
@@ -34,7 +47,12 @@ function resolveTheme(preference: ThemePreference): "light" | "dark" {
 
 function applyThemeClasses(preference: ThemePreference, resolved: "light" | "dark") {
   const root = document.documentElement;
-  root.classList.toggle("color", preference === "color");
+  for (const className of PALETTE_CLASSES) {
+    root.classList.remove(className);
+  }
+  if (preference === "color" || preference === "footlights") {
+    root.classList.add(preference);
+  }
   root.classList.toggle("dark", resolved === "dark");
 }
 
@@ -59,7 +77,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   }, [preference]);
 
   useEffect(() => {
-    if (preference !== "system" && preference !== "color") return;
+    if (!usesSystemBrightness(preference)) return;
 
     const mediaQuery = window.matchMedia("(prefers-color-scheme: dark)");
     const onChange = () => {

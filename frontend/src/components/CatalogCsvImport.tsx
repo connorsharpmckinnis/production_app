@@ -9,7 +9,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { useToast } from "@/context/ToastContext";
-import { api, ApiError } from "@/lib/api";
+import { api, formatApiError } from "@/lib/api";
 import {
   CATALOG_CSV_CONFIGS,
   formatByteSize,
@@ -96,9 +96,7 @@ export default function CatalogCsvImport({
     try {
       await api.downloadCatalogCsvTemplate(productionId, kind);
     } catch (err) {
-      toast.error(
-        err instanceof ApiError ? String(err.detail) : "Failed to download template",
-      );
+      toast.error(formatApiError(err, "Failed to download template"));
     } finally {
       setDownloading(false);
     }
@@ -141,7 +139,7 @@ export default function CatalogCsvImport({
         );
       }
     } catch (err) {
-      setError(err instanceof ApiError ? String(err.detail) : "Import failed");
+      setError(formatApiError(err, "Import failed"));
     } finally {
       setImporting(false);
     }

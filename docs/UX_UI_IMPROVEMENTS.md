@@ -72,7 +72,7 @@ Timeline already uses Lucide icon buttons for structural actions, bookmark, deta
 - [x] Catalog **create/edit** in a Dialog or Sheet instead of cramped inline table editing (especially on mobile).
 - [x] Groups **member editor**: Dialog/Sheet with search instead of expanding huge checkbox grids on the page.
 - [x] User **password reset**: Dialog, not inline in the table.
-- [ ] Timeline **Advanced filters**: Sheet on small screens; keep desktop collapsible panel.
+- [x] Timeline **Advanced filters**: Sheet on small screens; keep desktop collapsible panel.
 - [x] Bookmarks: leave the banner for now *or* move toward a dropdown / dedicated view (see Wish) — at minimum, **deep-link to the bookmarked moment**, not just `/timeline`.
 - [x] Continue the **Add to moment → sub-form** pattern; shorten submit labels (“Add” / “Attach”) so the panel stays scannable.
 
@@ -81,7 +81,7 @@ Timeline already uses Lucide icon buttons for structural actions, bookmark, deta
 - [x] Cue categories: one-click “Add common categories” (Lighting, Sound, Music, …) using existing placeholders as a seed list.
 - [x] Remember last-opened production for admin nav (optional, previously noted in Phase 4).
 - [x] Persist Rehearse presets in `localStorage` (today: `sessionStorage` only).
-- [ ] Costumes form: if navigated from Timeline with a scene in context, default that scene.
+- [x] Costumes form: if navigated from Timeline with a scene in context, default that scene.
 
 ### Empty states & loading
 - [x] Unify empty states (dashed card + short explanation + CTA) across catalogs, groups, Overview, and filtered timeline results. Role-aware copy where it helps (actor vs director/admin).
@@ -96,7 +96,7 @@ Timeline already uses Lucide icon buttons for structural actions, bookmark, deta
 - [ ] Multi-select character filter (OR); multi-select prop/cue category filters with badge chips on rows.
 - [ ] Shared act/scene/search toolbar between Timeline and Rehearse for consistency.
 - [x] Speaker column: tooltip on truncated names.
-- [ ] On mobile, consider badge overflow (“+N”) when prep badges wrap the row.
+- [x] On mobile, consider badge overflow (“+N”) when prep badges wrap the row.
 
 ### Overview & navigation
 - [x] Overview quick links: add **Rehearse**, Songs, Props, and Import (when needed).

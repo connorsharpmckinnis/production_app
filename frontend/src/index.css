@@ -68,52 +68,11 @@
 }
 
 /**
- * Color mode — warm atelier palette.
- * Large surfaces: cream / charcoal / dark brown.
- * Attention colors: moss, terracotta, teal for badges, pills, highlights.
- * Raw tokens use Material-style naming; shadcn tokens below are mapped from them.
- * Note: shadcn `--accent` is a calm hover wash; vibrant teal lives on `--highlight`.
+ * Shared mapping from Material-style palette tokens → shadcn / moment tokens.
+ * Applied by both Warm (.color) and Stage (.footlights) presets.
  */
-.color {
-  /* Walnut — primary actions & links */
-  --primary: oklch(0.4 0.07 48);
-  --on-primary: oklch(0.98 0.012 85);
-  /* Soft moss — stage-direction badges */
-  --primary-variant: oklch(0.92 0.07 145);
-  --on-primary-variant: oklch(0.32 0.09 145);
-
-  /* Warm stone — secondary buttons & calm pills */
-  --secondary: oklch(0.9 0.025 75);
-  --on-secondary: oklch(0.32 0.035 50);
-  /* Soft terracotta — song badges */
-  --secondary-variant: oklch(0.92 0.07 42);
-  --on-secondary-variant: oklch(0.38 0.11 38);
-
-  /* Soft teal — dialogue badges (variant family) */
-  --accent-variant: oklch(0.93 0.055 215);
-  --on-accent-variant: oklch(0.34 0.1 220);
-  /* Vibrant teal — row highlights / attention border */
-  --attention: oklch(0.52 0.1 210);
-
-  /* Cream paper surfaces, warm charcoal ink */
-  --surface: oklch(0.975 0.014 85);
-  --surface-variant: oklch(0.9 0.018 78);
-  --on-surface: oklch(0.24 0.025 50);
-  --on-surface-low: oklch(0.46 0.025 55);
-  --outline: oklch(0.62 0.025 70);
-  --outline-variant: oklch(0.86 0.018 78);
-
-  --error: oklch(0.52 0.18 25);
-  --on-error: oklch(0.99 0.005 25);
-  --error-variant: oklch(0.93 0.04 25);
-  --on-error-variant: oklch(0.4 0.15 25);
-
-  --container-lowest: oklch(0.995 0.008 88);
-  --container-low: oklch(0.96 0.014 85);
-  --container-medium: oklch(0.94 0.016 82);
-  --container-high: oklch(0.91 0.018 80);
-  --container-highest: oklch(0.88 0.02 78);
-
+.color,
+.footlights {
   --background: var(--surface);
   --foreground: var(--on-surface);
   --card: var(--container-low);
@@ -124,7 +83,6 @@
   --secondary-foreground: var(--on-secondary);
   --muted: var(--container-medium);
   --muted-foreground: var(--on-surface-low);
-  /* Calm hover wash — not the vibrant attention teal */
   --accent: var(--container-high);
   --accent-foreground: var(--on-surface);
   --destructive: var(--error);
@@ -143,72 +101,148 @@
   --highlight-muted: var(--accent-variant);
 }
 
+/**
+ * Warm — energetic atelier (retuned).
+ * Cleaner paper surfaces; coral primary; brighter moss / coral / teal accents.
+ */
+.color {
+  --primary: oklch(0.48 0.14 35);
+  --on-primary: oklch(0.99 0.01 85);
+  --primary-variant: oklch(0.93 0.09 145);
+  --on-primary-variant: oklch(0.3 0.1 145);
+
+  --secondary: oklch(0.93 0.02 70);
+  --on-secondary: oklch(0.3 0.04 45);
+  --secondary-variant: oklch(0.93 0.09 30);
+  --on-secondary-variant: oklch(0.36 0.13 30);
+
+  --accent-variant: oklch(0.93 0.07 210);
+  --on-accent-variant: oklch(0.32 0.11 220);
+  --attention: oklch(0.55 0.14 205);
+
+  --surface: oklch(0.985 0.01 80);
+  --surface-variant: oklch(0.94 0.015 75);
+  --on-surface: oklch(0.22 0.02 45);
+  --on-surface-low: oklch(0.45 0.02 50);
+  --outline: oklch(0.6 0.03 60);
+  --outline-variant: oklch(0.88 0.015 75);
+
+  --error: oklch(0.52 0.19 25);
+  --on-error: oklch(0.99 0.005 25);
+  --error-variant: oklch(0.94 0.04 25);
+  --on-error-variant: oklch(0.4 0.15 25);
+
+  --container-lowest: oklch(0.995 0.006 85);
+  --container-low: oklch(0.97 0.01 80);
+  --container-medium: oklch(0.95 0.012 78);
+  --container-high: oklch(0.92 0.015 75);
+  --container-highest: oklch(0.89 0.018 72);
+}
+
 .color.dark {
-  /* Warm sand on dark — primary actions & links */
-  --primary: oklch(0.82 0.055 70);
-  --on-primary: oklch(0.28 0.04 48);
-  /* Deep moss — stage-direction badges */
-  --primary-variant: oklch(0.34 0.07 145);
-  --on-primary-variant: oklch(0.9 0.06 145);
+  --primary: oklch(0.78 0.12 40);
+  --on-primary: oklch(0.24 0.05 35);
+  --primary-variant: oklch(0.34 0.08 145);
+  --on-primary-variant: oklch(0.9 0.07 145);
 
-  /* Charcoal-brown — secondary buttons & calm pills */
-  --secondary: oklch(0.32 0.025 55);
-  --on-secondary: oklch(0.92 0.015 80);
-  /* Deep terracotta — song badges */
-  --secondary-variant: oklch(0.36 0.08 40);
-  --on-secondary-variant: oklch(0.92 0.05 42);
+  --secondary: oklch(0.3 0.025 50);
+  --on-secondary: oklch(0.93 0.015 80);
+  --secondary-variant: oklch(0.38 0.1 30);
+  --on-secondary-variant: oklch(0.93 0.05 35);
 
-  /* Deep teal — dialogue badges */
-  --accent-variant: oklch(0.34 0.07 215);
-  --on-accent-variant: oklch(0.9 0.05 215);
-  /* Bright teal — row highlights / attention border */
-  --attention: oklch(0.78 0.1 210);
+  --accent-variant: oklch(0.34 0.08 210);
+  --on-accent-variant: oklch(0.9 0.05 210);
+  --attention: oklch(0.78 0.12 205);
 
-  /* Dark brown / charcoal surfaces, cream ink */
-  --surface: oklch(0.17 0.018 50);
-  --surface-variant: oklch(0.3 0.022 52);
-  --on-surface: oklch(0.95 0.012 85);
-  --on-surface-low: oklch(0.74 0.018 75);
-  --outline: oklch(0.62 0.022 65);
-  --outline-variant: oklch(0.34 0.02 52);
+  --surface: oklch(0.16 0.015 45);
+  --surface-variant: oklch(0.28 0.02 48);
+  --on-surface: oklch(0.96 0.01 80);
+  --on-surface-low: oklch(0.74 0.015 70);
+  --outline: oklch(0.6 0.025 55);
+  --outline-variant: oklch(0.32 0.02 48);
 
-  --error: oklch(0.75 0.13 25);
-  --on-error: oklch(0.28 0.08 25);
-  --error-variant: oklch(0.38 0.12 25);
+  --error: oklch(0.75 0.14 25);
+  --on-error: oklch(0.26 0.08 25);
+  --error-variant: oklch(0.36 0.12 25);
   --on-error-variant: oklch(0.95 0.02 25);
 
-  --container-lowest: oklch(0.13 0.015 48);
-  --container-low: oklch(0.2 0.018 50);
-  --container-medium: oklch(0.24 0.02 52);
-  --container-high: oklch(0.28 0.022 52);
-  --container-highest: oklch(0.32 0.024 54);
+  --container-lowest: oklch(0.12 0.012 42);
+  --container-low: oklch(0.19 0.015 45);
+  --container-medium: oklch(0.23 0.018 48);
+  --container-high: oklch(0.27 0.02 48);
+  --container-highest: oklch(0.31 0.022 50);
+}
 
-  --background: var(--surface);
-  --foreground: var(--on-surface);
-  --card: var(--container-low);
-  --card-foreground: var(--on-surface);
-  --popover: var(--container-lowest);
-  --popover-foreground: var(--on-surface);
-  --primary-foreground: var(--on-primary);
-  --secondary-foreground: var(--on-secondary);
-  --muted: var(--container-medium);
-  --muted-foreground: var(--on-surface-low);
-  --accent: var(--container-high);
-  --accent-foreground: var(--on-surface);
-  --destructive: var(--error);
-  --destructive-foreground: var(--on-error);
-  --border: var(--outline-variant);
-  --input: var(--outline-variant);
-  --ring: var(--outline);
+/**
+ * Stage — cool footlights / LED wash.
+ * Cool slate surfaces; electric violet primary; cyan / magenta / chartreuse accents.
+ */
+.footlights {
+  --primary: oklch(0.45 0.18 290);
+  --on-primary: oklch(0.98 0.01 300);
+  --primary-variant: oklch(0.93 0.1 130);
+  --on-primary-variant: oklch(0.3 0.12 135);
 
-  --moment-dialogue: var(--accent-variant);
-  --moment-dialogue-foreground: var(--on-accent-variant);
-  --moment-stage-direction: var(--primary-variant);
-  --moment-stage-direction-foreground: var(--on-primary-variant);
-  --moment-song: var(--secondary-variant);
-  --moment-song-foreground: var(--on-secondary-variant);
-  --highlight: var(--attention);
-  --highlight-muted: var(--accent-variant);
+  --secondary: oklch(0.93 0.02 260);
+  --on-secondary: oklch(0.3 0.04 280);
+  --secondary-variant: oklch(0.93 0.09 340);
+  --on-secondary-variant: oklch(0.36 0.14 340);
+
+  --accent-variant: oklch(0.93 0.07 220);
+  --on-accent-variant: oklch(0.32 0.12 230);
+  --attention: oklch(0.55 0.16 250);
+
+  --surface: oklch(0.985 0.008 265);
+  --surface-variant: oklch(0.94 0.015 260);
+  --on-surface: oklch(0.22 0.03 275);
+  --on-surface-low: oklch(0.45 0.03 270);
+  --outline: oklch(0.58 0.03 270);
+  --outline-variant: oklch(0.88 0.015 265);
+
+  --error: oklch(0.52 0.2 20);
+  --on-error: oklch(0.99 0.005 20);
+  --error-variant: oklch(0.94 0.04 20);
+  --on-error-variant: oklch(0.4 0.16 20);
+
+  --container-lowest: oklch(0.995 0.005 270);
+  --container-low: oklch(0.97 0.01 265);
+  --container-medium: oklch(0.95 0.012 262);
+  --container-high: oklch(0.92 0.015 260);
+  --container-highest: oklch(0.89 0.018 258);
+}
+
+.footlights.dark {
+  --primary: oklch(0.78 0.14 295);
+  --on-primary: oklch(0.22 0.06 290);
+  --primary-variant: oklch(0.34 0.09 135);
+  --on-primary-variant: oklch(0.9 0.07 135);
+
+  --secondary: oklch(0.28 0.03 275);
+  --on-secondary: oklch(0.93 0.015 270);
+  --secondary-variant: oklch(0.38 0.12 340);
+  --on-secondary-variant: oklch(0.93 0.05 340);
+
+  --accent-variant: oklch(0.34 0.09 220);
+  --on-accent-variant: oklch(0.9 0.05 220);
+  --attention: oklch(0.78 0.14 250);
+
+  --surface: oklch(0.15 0.02 275);
+  --surface-variant: oklch(0.27 0.03 275);
+  --on-surface: oklch(0.96 0.01 270);
+  --on-surface-low: oklch(0.74 0.02 270);
+  --outline: oklch(0.58 0.03 270);
+  --outline-variant: oklch(0.32 0.025 275);
+
+  --error: oklch(0.75 0.15 20);
+  --on-error: oklch(0.26 0.08 20);
+  --error-variant: oklch(0.36 0.12 20);
+  --on-error-variant: oklch(0.95 0.02 20);
+
+  --container-lowest: oklch(0.11 0.015 275);
+  --container-low: oklch(0.18 0.02 275);
+  --container-medium: oklch(0.22 0.025 275);
+  --container-high: oklch(0.26 0.028 275);
+  --container-highest: oklch(0.3 0.03 275);
 }
 
 @theme inline {

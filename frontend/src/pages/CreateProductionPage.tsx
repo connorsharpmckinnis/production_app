@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { api, ApiError } from "@/lib/api";
+import { Button } from "@/components/ui/button";
+import { api, formatApiError } from "@/lib/api";
 
 export default function CreateProductionPage() {
   const navigate = useNavigate();
@@ -21,9 +22,7 @@ export default function CreateProductionPage() {
       });
       navigate(`/productions/${production.id}/import`);
     } catch (err) {
-      const message =
-        err instanceof ApiError ? String(err.detail) : "Failed to create production";
-      setError(message);
+      setError(formatApiError(err, "Failed to create production"));
     } finally {
       setSubmitting(false);
     }
@@ -74,13 +73,9 @@ export default function CreateProductionPage() {
         </div>
 
         <div className="flex gap-3 pt-2">
-          <button
-            type="submit"
-            disabled={submitting}
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-          >
+          <Button type="submit" disabled={submitting}>
             {submitting ? "Creating…" : "Create Production"}
-          </button>
+          </Button>
           <Link
             to="/productions"
             className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"

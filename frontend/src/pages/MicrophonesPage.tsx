@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Pencil, Trash2 } from "lucide-react";
+import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import CatalogCsvImport from "@/components/CatalogCsvImport";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
-import { api, ApiError } from "@/lib/api";
+import { api, formatApiError } from "@/lib/api";
 import type { MicrophoneResponse } from "@/lib/types";
 
 export default function MicrophonesPage() {
@@ -40,7 +41,7 @@ export default function MicrophonesPage() {
       const data = await api.listMicrophones(productionId);
       setMicrophones(data);
     } catch (err) {
-      setError(err instanceof ApiError ? String(err.detail) : "Failed to load microphones");
+      setError(formatApiError(err, "Failed to load microphones"));
     } finally {
       setLoading(false);
     }
@@ -90,11 +91,10 @@ export default function MicrophonesPage() {
       await loadData();
     } catch (err) {
       toast.error(
-        err instanceof ApiError
-          ? String(err.detail)
-          : editingMic
-            ? "Failed to update microphone"
-            : "Failed to create microphone",
+        formatApiError(
+          err,
+          editingMic ? "Failed to update microphone" : "Failed to create microphone",
+        ),
       );
     } finally {
       setSaving(false);
@@ -115,14 +115,14 @@ export default function MicrophonesPage() {
       toast.success("Microphone deleted");
       await loadData();
     } catch (err) {
-      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to delete microphone");
+      toast.error(formatApiError(err, "Failed to delete microphone"));
     } finally {
       setSaving(false);
     }
   }
 
   if (loading) {
-    return <p className="text-muted-foreground">Loading microphones…</p>;
+    return <CatalogPageSkeleton />;
   }
 
   return (

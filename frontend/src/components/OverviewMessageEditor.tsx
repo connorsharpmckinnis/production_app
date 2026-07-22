@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/context/ToastContext";
-import { api, ApiError } from "@/lib/api";
+import { api, formatApiError } from "@/lib/api";
 import {
   isValidRotationSeconds,
   ROTATION_MAX_SECONDS,
@@ -88,9 +88,7 @@ export default function OverviewMessageEditor({
         ),
       );
     } catch (err) {
-      toast.error(
-        err instanceof ApiError ? String(err.detail) : "Failed to load overview messages",
-      );
+      toast.error(formatApiError(err, "Failed to load overview messages"));
       if (closeOnError) {
         setOpen(false);
       }
@@ -152,9 +150,7 @@ export default function OverviewMessageEditor({
           })),
         );
       } catch (err) {
-        toast.error(
-          err instanceof ApiError ? String(err.detail) : "Failed to save overview messages",
-        );
+        toast.error(formatApiError(err, "Failed to save overview messages"));
         return;
       }
 
@@ -165,8 +161,12 @@ export default function OverviewMessageEditor({
         });
         setSettings(updatedSettings);
       } catch (err) {
-        const detail = err instanceof ApiError ? ` ${String(err.detail)}` : "";
-        toast.error(`Messages were saved, but rotation failed to save.${detail}`);
+        const detail = formatApiError(err, "");
+        toast.error(
+          detail
+            ? `Messages were saved, but rotation failed to save. ${detail}`
+            : "Messages were saved, but rotation failed to save.",
+        );
         onSaved();
         await loadEditor(false);
         return;

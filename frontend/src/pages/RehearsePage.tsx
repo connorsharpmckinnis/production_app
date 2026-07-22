@@ -333,6 +333,11 @@ export default function RehearsePage() {
           if (!open) scene.setSelectedMomentId(null);
         }}
         momentDetail={scene.momentDetail}
+        sceneId={
+          scene.selectedMomentId !== null
+            ? scene.sceneIdForMoment(scene.selectedMomentId)
+            : null
+        }
         canEdit={scene.canManagePreparation}
         characters={scene.characters}
         songs={scene.songs}

@@ -24,6 +24,7 @@ interface MomentDetailSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   momentDetail: MomentDetailResponse | null;
+  sceneId: number | null;
   canEdit: boolean;
   characters: CharacterDetailResponse[];
   songs: SongDetailResponse[];
@@ -42,6 +43,7 @@ export default function MomentDetailSheet({
   open,
   onOpenChange,
   momentDetail,
+  sceneId,
   canEdit,
   characters,
   songs,
@@ -109,6 +111,7 @@ export default function MomentDetailSheet({
             ref={detailPanelRef}
             productionId={productionId}
             detail={momentDetail}
+            sceneId={sceneId}
             canEdit={canEdit}
             canChooseVisibility={canEdit}
             characters={characters}

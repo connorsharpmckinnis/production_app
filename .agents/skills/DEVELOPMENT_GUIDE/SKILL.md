@@ -260,6 +260,8 @@ Avoid unnecessary animations.
 
 Avoid custom controls unless they provide significant value.
 
+Follow [docs/UI_STANDARDS.md](../../docs/UI_STANDARDS.md) for interaction patterns (full-row click targets, theme modes, Timeline filters, etc.).
+
 
 # Styling
 
@@ -345,22 +347,37 @@ Do not mix unrelated changes.
 Write meaningful commit messages.
 
 
+# AI Collaboration
+
+Project-wide collaboration defaults live in:
+
+* `.cursor/rules/ai-collaboration.mdc` — always applied
+* [AI_COLLABORATION](../AI_COLLABORATION/SKILL.md) — ask-before-assuming, decision gate, scope, tradeoffs
+* [PLAN_THEN_BUILD](../PLAN_THEN_BUILD/SKILL.md) — plan/audit stays read-only until build is authorized
+* [FEATURE_CLOSEOUT](../FEATURE_CLOSEOUT/SKILL.md) — sync phase docs, scratch notes, and status after shipping
+
+Core directive: ask any questions that still need deciding or clarifying before assuming.
+
+
 # AI Coding Expectations
 
 When implementing features:
 
 1. Read [docs/PROJECT.md](../../docs/PROJECT.md), [docs/DATABASE.md](../../docs/DATABASE.md), and [docs/SCRIPT_FORMAT.md](../../docs/SCRIPT_FORMAT.md) first.
-2. Follow existing patterns.
-3. Do not invent new architectural styles.
-4. Reuse existing components whenever practical.
-5. Explain significant design decisions.
-6. Keep generated code understandable.
+2. Follow the AI Collaboration skills above (clarify open decisions before coding).
+3. Follow existing patterns.
+4. Do not invent new architectural styles.
+5. Reuse existing components whenever practical.
+6. Prefer the smallest change that fully solves the problem.
+7. Explain significant design decisions.
+8. Keep generated code understandable.
+9. After meaningful work, run feature closeout so docs and scratch notes stay accurate.
 
 Before introducing a new dependency, architectural pattern, database table, or API style, ask: "Does this match the existing project philosophy?"
 
 If uncertain:
 
-Choose the simpler solution.
+Choose the simpler solution. Ask the owner when the uncertainty is a product, schema, UX, security, or deploy decision.
 
 
 # AI Response Expectations
@@ -373,6 +390,8 @@ Explain:
 * why it changed
 * any tradeoffs
 * any future improvements
+
+When recommending among options: lead with the recommendation, then alternatives, costs/risks, and what is deferred.
 
 Do not simply provide code without explanation.
 

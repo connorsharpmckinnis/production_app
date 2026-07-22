@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Pencil, Trash2 } from "lucide-react";
+import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,7 +14,7 @@ import {
 } from "@/components/ui/dialog";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
-import { api, ApiError } from "@/lib/api";
+import { api, formatApiError } from "@/lib/api";
 import type {
   CastableUserResponse,
   CharacterDetailResponse,
@@ -58,7 +59,7 @@ export default function GroupsPage() {
       setCharacters(characterData);
       setCastableUsers(userData);
     } catch (err) {
-      setError(err instanceof ApiError ? String(err.detail) : "Failed to load groups");
+      setError(formatApiError(err, "Failed to load groups"));
     } finally {
       setLoading(false);
     }
@@ -78,7 +79,7 @@ export default function GroupsPage() {
       toast.success("Group created");
       await loadData();
     } catch (err) {
-      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to create group");
+      toast.error(formatApiError(err, "Failed to create group"));
     }
   }
 
@@ -104,7 +105,7 @@ export default function GroupsPage() {
       toast.success("Group members updated");
       await loadData();
     } catch (err) {
-      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to save group members");
+      toast.error(formatApiError(err, "Failed to save group members"));
     }
   }
 
@@ -121,12 +122,12 @@ export default function GroupsPage() {
       toast.success("Group deleted");
       await loadData();
     } catch (err) {
-      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to delete group");
+      toast.error(formatApiError(err, "Failed to delete group"));
     }
   }
 
   if (loading) {
-    return <p className="text-muted-foreground">Loading groups…</p>;
+    return <CatalogPageSkeleton />;
   }
 
   return (
@@ -157,12 +158,7 @@ export default function GroupsPage() {
           placeholder="Group name (e.g. Ensemble)"
           className="rounded-md border border-input bg-background px-3 py-2 text-sm"
         />
-        <button
-          type="submit"
-          className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90"
-        >
-          Create group
-        </button>
+        <Button type="submit">Create group</Button>
       </form>
 
       {groups.length === 0 ? (

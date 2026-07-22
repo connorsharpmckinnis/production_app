@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Skeleton } from "@/components/ui/skeleton";
-import { api, ApiError } from "@/lib/api";
+import { api, formatApiError } from "@/lib/api";
 import type {
   ActSummary,
   BlockingSheetEntry,
@@ -64,7 +64,7 @@ export default function ReportsPage() {
         setSceneIdMap(buildSceneIdMap(acts));
       })
       .catch((err: unknown) => {
-        setError(err instanceof ApiError ? String(err.detail) : "Failed to load reports");
+        setError(formatApiError(err, "Failed to load reports"));
       })
       .finally(() => setLoading(false));
   }, [productionId]);

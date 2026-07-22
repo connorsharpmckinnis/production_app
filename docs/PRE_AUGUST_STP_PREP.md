@@ -128,7 +128,7 @@ Emmy’s meeting will go sideways if “import the real STP script” fails live
 
 ### Demo-ready polish (small, high visibility)
 
-- [ ] **Productions list:** whole card clickable (Open centering / affordance) — [SCRATCH_NOTES.md](SCRATCH_NOTES.md).
+- [x] **Productions list:** whole card clickable (Open centering / affordance) — [SCRATCH_NOTES.md](SCRATCH_NOTES.md).
 - [ ] **Overview:** bottom padding so CTAs aren’t flush with the screen edge.
 - [ ] Smoke the [DEMO_WALKTHROUGH.md](DEMO_WALKTHROUGH.md) path yourself end-to-end on a fresh deploy.
 
@@ -211,11 +211,11 @@ Build only if P0–P1 are in good shape. Otherwise bring these as **slides / tal
 
 ### Small leftovers worth grabbing if idle
 
-- [ ] Encouragement chrome: remove “Encouragement 2 of 5” / transport buttons — keep subtle ([SCRATCH_NOTES.md](SCRATCH_NOTES.md)).
+- [x] Encouragement chrome: remove “Encouragement 2 of 5” / transport buttons — keep subtle ([SCRATCH_NOTES.md](SCRATCH_NOTES.md)).
 - [ ] About page: GitHub repo link + simple “open an issue” link.
-- [ ] Costumes form: default scene when navigated from Timeline ([UX_UI_IMPROVEMENTS.md](UX_UI_IMPROVEMENTS.md)).
+- [x] Costumes form: default scene when navigated from Timeline ([UX_UI_IMPROVEMENTS.md](UX_UI_IMPROVEMENTS.md)).
 - [ ] Catalog **usage counts** before delete.
-- [ ] Mobile advanced-filters Sheet; badge overflow `+N`.
+- [x] Mobile advanced-filters Sheet; badge overflow `+N`.
 
 ---
 

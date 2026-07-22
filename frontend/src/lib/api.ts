@@ -94,6 +94,41 @@ export function isImportErrorsDetail(
   );
 }
 
+export function formatApiError(err: unknown, fallback = "Request failed"): string {
+  if (err instanceof ApiError) {
+    const detail = err.detail;
+    if (typeof detail === "string" && detail.trim()) return detail;
+    if (Array.isArray(detail)) {
+      const parts = detail
+        .map((item) => {
+          if (typeof item === "string") return item;
+          if (item && typeof item === "object") {
+            if ("msg" in item && item.msg != null) return String(item.msg);
+            if ("message" in item && item.message != null) return String(item.message);
+          }
+          return null;
+        })
+        .filter(Boolean);
+      if (parts.length) return parts.join("; ");
+    }
+    if (isImportErrorsDetail(detail)) {
+      const msgs = detail.errors.map((e) => e.message ?? String(e)).filter(Boolean);
+      if (msgs.length) {
+        return (
+          msgs.slice(0, 5).join("; ") + (msgs.length > 5 ? ` (+${msgs.length - 5} more)` : "")
+        );
+      }
+    }
+    if (detail && typeof detail === "object" && "message" in detail) {
+      return String((detail as { message: unknown }).message);
+    }
+    if (err.message && err.message !== "Request failed") return err.message;
+    return fallback;
+  }
+  if (err instanceof Error && err.message) return err.message;
+  return fallback;
+}
+
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers = new Headers(options.headers);

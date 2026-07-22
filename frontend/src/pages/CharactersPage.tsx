@@ -1,9 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
-import { api, ApiError } from "@/lib/api";
+import { api, formatApiError } from "@/lib/api";
 import type { CastableUserResponse, CharacterDetailResponse } from "@/lib/types";
 import { sortByName } from "@/lib/utils";
 
@@ -35,7 +37,7 @@ export default function CharactersPage() {
         );
       }
     } catch (err) {
-      setError(err instanceof ApiError ? String(err.detail) : "Failed to load characters");
+      setError(formatApiError(err, "Failed to load characters"));
     } finally {
       setLoading(false);
     }
@@ -53,7 +55,7 @@ export default function CharactersPage() {
       toast.success(parsedUserId == null ? "Actor unassigned" : "Actor assigned");
       await loadData();
     } catch (err) {
-      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to update casting");
+      toast.error(formatApiError(err, "Failed to update casting"));
     } finally {
       setSavingId(null);
     }
@@ -71,14 +73,14 @@ export default function CharactersPage() {
       toast.success("Character created");
       await loadData();
     } catch (err) {
-      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to add character");
+      toast.error(formatApiError(err, "Failed to add character"));
     } finally {
       setSavingId(null);
     }
   }
 
   if (loading) {
-    return <p className="text-muted-foreground">Loading characters…</p>;
+    return <CatalogPageSkeleton />;
   }
 
   return (
@@ -114,13 +116,9 @@ export default function CharactersPage() {
                 placeholder="Character name"
                 className="rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
-              <button
-                type="submit"
-                disabled={savingId === -1}
-                className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-              >
+              <Button type="submit" disabled={savingId === -1}>
                 Add character
-              </button>
+              </Button>
               <button
                 type="button"
                 onClick={() => setShowAddForm(false)}

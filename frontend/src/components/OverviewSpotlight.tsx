@@ -3,7 +3,6 @@ import type { SpotlightMessage } from "@/lib/types";
 import {
   localDayKey,
   nextSpotlightIndex,
-  previousSpotlightIndex,
   shouldRotateSpotlight,
   spotlightStartIndex,
 } from "@/lib/overviewSpotlight";
@@ -14,13 +13,6 @@ interface OverviewSpotlightProps {
   messages: SpotlightMessage[];
   rotationSeconds: number;
   className?: string;
-}
-
-function kindLabel(kind: string): string {
-  if (kind === "scripture") return "Scripture";
-  if (kind === "announcement") return "Announcement";
-  if (kind === "encouragement") return "Encouragement";
-  return kind;
 }
 
 export default function OverviewSpotlight({
@@ -56,62 +48,48 @@ export default function OverviewSpotlight({
 
   const safeIndex = index % messages.length;
   const message = messages[safeIndex];
+  const showKindLabel = message.kind === "announcement";
 
   return (
     <section
       aria-labelledby={labelId}
       className={cn(
-        "rounded-lg border border-border bg-muted/30 px-4 py-4 sm:px-5",
+        "rounded-lg bg-muted/25 px-4 py-3 sm:px-5",
         className,
       )}
+      onMouseEnter={() => setPaused(true)}
+      onMouseLeave={() => setPaused(false)}
     >
-      <p
-        id={labelId}
-        className="text-xs font-medium uppercase tracking-wide text-muted-foreground"
-      >
-        {kindLabel(message.kind)}
-        {messages.length > 1 && (
-          <span className="ml-2 font-normal normal-case tracking-normal">
-            {safeIndex + 1} of {messages.length}
-          </span>
-        )}
-      </p>
+      {showKindLabel ? (
+        <p
+          id={labelId}
+          className="text-xs font-medium text-muted-foreground"
+        >
+          Announcement
+        </p>
+      ) : (
+        <span id={labelId} className="sr-only">
+          {message.kind === "scripture" ? "Scripture" : "Encouragement"}
+        </span>
+      )}
       {message.title && (
-        <p className="mt-1 text-sm font-medium text-foreground">{message.title}</p>
-      )}
-      <p className="mt-1 text-base leading-relaxed text-foreground">{message.body}</p>
-      {messages.length > 1 && (
-        <div className="mt-4 flex flex-wrap items-center gap-2" aria-label="Spotlight controls">
-          <button
-            type="button"
-            className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
-            onClick={() =>
-              setIndex((current) => previousSpotlightIndex(current, messages.length))
-            }
-          >
-            Previous
-          </button>
-          {rotationSeconds > 0 && (
-            <button
-              type="button"
-              className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
-              onClick={() => setPaused((current) => !current)}
-              aria-pressed={paused}
-            >
-              {paused ? "Resume" : "Pause"}
-            </button>
+        <p
+          className={cn(
+            "text-sm font-medium text-foreground",
+            showKindLabel ? "mt-1" : undefined,
           )}
-          <button
-            type="button"
-            className="rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
-            onClick={() =>
-              setIndex((current) => nextSpotlightIndex(current, messages.length))
-            }
-          >
-            Next
-          </button>
-        </div>
+        >
+          {message.title}
+        </p>
       )}
+      <p
+        className={cn(
+          "text-base leading-relaxed text-foreground",
+          message.title || showKindLabel ? "mt-1" : undefined,
+        )}
+      >
+        {message.body}
+      </p>
     </section>
   );
 }

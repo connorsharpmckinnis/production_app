@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/context/ToastContext";
-import { api, ApiError } from "@/lib/api";
+import { api, formatApiError } from "@/lib/api";
 import {
   isValidRotationSeconds,
   ROTATION_MAX_SECONDS,
@@ -39,7 +40,7 @@ export default function SettingsPage() {
       setRotationInput(String(settingsData.default_message_rotation_seconds));
       setQuotesText(linesFromDefaults(defaultsData));
     } catch (err) {
-      setError(err instanceof ApiError ? String(err.detail) : "Failed to load settings");
+      setError(formatApiError(err, "Failed to load settings"));
     } finally {
       setLoading(false);
     }
@@ -61,7 +62,7 @@ export default function SettingsPage() {
       setSettings(updated);
       toast.success("Settings updated");
     } catch (err) {
-      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to update settings");
+      toast.error(formatApiError(err, "Failed to update settings"));
     } finally {
       setSaving(false);
     }
@@ -86,7 +87,7 @@ export default function SettingsPage() {
       setRotationInput(String(updated.default_message_rotation_seconds));
       toast.success("Default rotation saved");
     } catch (err) {
-      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to save rotation");
+      toast.error(formatApiError(err, "Failed to save rotation"));
     } finally {
       setSaving(false);
     }
@@ -117,16 +118,14 @@ export default function SettingsPage() {
       setQuotesText(linesFromDefaults(saved));
       toast.success("Rotating messages saved");
     } catch (err) {
-      toast.error(
-        err instanceof ApiError ? String(err.detail) : "Failed to save rotating messages",
-      );
+      toast.error(formatApiError(err, "Failed to save rotating messages"));
     } finally {
       setSavingQuotes(false);
     }
   }
 
   if (loading) {
-    return <p className="text-muted-foreground">Loading settings…</p>;
+    return <CatalogPageSkeleton variant="block" />;
   }
 
   return (

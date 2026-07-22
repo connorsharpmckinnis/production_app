@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 export default function EmptyState({
@@ -20,22 +21,15 @@ export default function EmptyState({
   let action: ReactNode = null;
   if (actionLabel && actionTo) {
     action = (
-      <Link
-        to={actionTo}
-        className="mt-4 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-      >
-        {actionLabel}
-      </Link>
+      <Button asChild className="mt-4">
+        <Link to={actionTo}>{actionLabel}</Link>
+      </Button>
     );
   } else if (actionLabel && onAction) {
     action = (
-      <button
-        type="button"
-        onClick={onAction}
-        className="mt-4 inline-flex rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-      >
+      <Button type="button" onClick={onAction} className="mt-4">
         {actionLabel}
-      </button>
+      </Button>
     );
   }
 

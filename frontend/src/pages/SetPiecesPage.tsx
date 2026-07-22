@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Pencil, Trash2 } from "lucide-react";
+import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import CatalogCsvImport from "@/components/CatalogCsvImport";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import {
 import { useAuth } from "@/context/AuthContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
-import { api, ApiError } from "@/lib/api";
+import { api, formatApiError } from "@/lib/api";
 import type { SetPieceResponse } from "@/lib/types";
 
 export default function SetPiecesPage() {
@@ -41,7 +42,7 @@ export default function SetPiecesPage() {
       const data = await api.listSetPieces(productionId);
       setSetPieces(data);
     } catch (err) {
-      setError(err instanceof ApiError ? String(err.detail) : "Failed to load set pieces");
+      setError(formatApiError(err, "Failed to load set pieces"));
     } finally {
       setLoading(false);
     }
@@ -97,11 +98,10 @@ export default function SetPiecesPage() {
       await loadData();
     } catch (err) {
       toast.error(
-        err instanceof ApiError
-          ? String(err.detail)
-          : editingPiece
-            ? "Failed to update set piece"
-            : "Failed to create set piece",
+        formatApiError(
+          err,
+          editingPiece ? "Failed to update set piece" : "Failed to create set piece",
+        ),
       );
     } finally {
       setSaving(false);
@@ -122,14 +122,14 @@ export default function SetPiecesPage() {
       toast.success("Set piece deleted");
       await loadData();
     } catch (err) {
-      toast.error(err instanceof ApiError ? String(err.detail) : "Failed to delete set piece");
+      toast.error(formatApiError(err, "Failed to delete set piece"));
     } finally {
       setSaving(false);
     }
   }
 
   if (loading) {
-    return <p className="text-muted-foreground">Loading set pieces…</p>;
+    return <CatalogPageSkeleton />;
   }
 
   return (

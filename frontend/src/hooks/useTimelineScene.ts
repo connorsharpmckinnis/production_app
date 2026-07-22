@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { TimelineSection } from "@/components/TimelineMomentList";
 import { useAuth } from "@/context/AuthContext";
-import { api, ApiError } from "@/lib/api";
+import { api, formatApiError } from "@/lib/api";
 import { deriveSceneSummary } from "@/lib/sceneSummary";
 import type {
   ActSummary,
@@ -234,7 +234,7 @@ export function useTimelineScene({
         setSelectedSceneIds(allSceneIdsFromActs(actData));
       })
       .catch((err: unknown) => {
-        setError(err instanceof ApiError ? String(err.detail) : "Failed to load timeline");
+        setError(formatApiError(err, "Failed to load timeline"));
       })
       .finally(() => setLoading(false));
   }, [productionId, canManagePreparation]);
@@ -293,7 +293,7 @@ export function useTimelineScene({
       })
       .catch((err: unknown) => {
         if (!cancelled) {
-          setError(err instanceof ApiError ? String(err.detail) : "Failed to load moments");
+          setError(formatApiError(err, "Failed to load moments"));
         }
       })
       .finally(() => {
@@ -324,7 +324,7 @@ export function useTimelineScene({
       .getMoment(productionId, selectedMomentId)
       .then(setMomentDetail)
       .catch((err: unknown) => {
-        setError(err instanceof ApiError ? String(err.detail) : "Failed to load moment detail");
+        setError(formatApiError(err, "Failed to load moment detail"));
       });
   }, [productionId, selectedMomentId]);
 

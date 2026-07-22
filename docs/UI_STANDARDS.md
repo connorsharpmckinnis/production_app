@@ -43,10 +43,17 @@ Global nav: Productions; User Management (Admin only).
 
 ### Production List
 
-* Table of productions (title, season, author, created date).
-* **Admin:** "New Production" button; Delete action.
-* **All roles:** **Open** button for imported productions (Admin: Import for unimported).
+* Table of productions (title, season, status, created date).
+* **Admin:** "New Production" button; Delete action (icon; stops row navigation).
+* **Row click:** the whole row opens the production (or Import for unimported admin rows). Use a chevron affordance, not a separate Open button.
 * **Actor empty state:** "No productions yet — ask your director to cast you."
+
+### Lists & selection
+
+* Prefer **full-row click targets** for opening or selecting an object (productions, timeline moments, etc.). People expect “click anywhere on this row.”
+* Keep keyboard support (`Enter` / `Space` or a real link) and a visible hover state.
+* Icon / destructive / secondary actions on the row must `stopPropagation` so they do not also trigger open/select.
+* Do not rely on a lone text “Open” button as the primary way into an object when a row already represents that object.
 
 ### Create Production / Upload & Import
 
@@ -228,9 +235,9 @@ Use shadcn/ui throughout ([DEVELOPMENT_GUIDE](../.agents/skills/DEVELOPMENT_GUID
 * `sessionStorage` persistence for Rehearse controls per production
 * **Scene summary strip** — client-side character/song chips and props-used count below act/scene selectors (Timeline + Rehearse)
 * Shared `TimelineMomentList` — full-row click targets, keyboard accessible, shared highlight styles
-* Timeline **Advanced filters** disclosure for director prep controls; cue-only checkbox removed
+* Timeline **Advanced filters** disclosure for director prep controls; cue-only checkbox removed; Sheet on small screens
 * Moment detail: **Imported data** label; **Add to moment** menu; on-stage block removed; irrelevant fields hidden
-* **Theme** — light/dark/system toggle (Settings + user menu); accent colors centralized in `index.css`
+* **Theme** — light/dark/system plus Warm and Stage palette presets (Settings + user menu); tokens in `index.css`
 
 ---
 

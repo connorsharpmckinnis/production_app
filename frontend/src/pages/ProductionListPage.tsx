@@ -1,20 +1,22 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
-import { Trash2 } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { ChevronRight, Trash2 } from "lucide-react";
+import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
-import { api, ApiError } from "@/lib/api";
+import { api, formatApiError } from "@/lib/api";
 import type { ProductionResponse } from "@/lib/types";
 import { useAuth } from "@/context/AuthContext";
-import { formatDate } from "@/lib/utils";
+import { cn, formatDate } from "@/lib/utils";
 
 export default function ProductionListPage() {
   const { isAdmin, isActorOnly } = useAuth();
   const confirm = useConfirm();
   const toast = useToast();
+  const navigate = useNavigate();
   const [productions, setProductions] = useState<ProductionResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -25,7 +27,7 @@ export default function ProductionListPage() {
       .listProductions()
       .then(setProductions)
       .catch((err: unknown) => {
-        setError(err instanceof ApiError ? String(err.detail) : "Failed to load productions");
+        setError(formatApiError(err, "Failed to load productions"));
       })
       .finally(() => setLoading(false));
   }, []);
@@ -45,16 +47,21 @@ export default function ProductionListPage() {
       setProductions((prev) => prev.filter((p) => p.id !== id));
       toast.success("Production deleted");
     } catch (err) {
-      const message =
-        err instanceof ApiError ? String(err.detail) : "Failed to delete production";
+      const message = formatApiError(err, "Failed to delete production");
       toast.error(message);
     } finally {
       setDeletingId(null);
     }
   }
 
+  function productionHref(production: ProductionResponse): string | null {
+    if (production.author) return `/productions/${production.id}`;
+    if (isAdmin) return `/productions/${production.id}/import`;
+    return null;
+  }
+
   if (loading) {
-    return <p className="text-muted-foreground">Loading productions…</p>;
+    return <CatalogPageSkeleton showBreadcrumb={false} />;
   }
 
   return (
@@ -65,12 +72,9 @@ export default function ProductionListPage() {
           <p className="text-sm text-muted-foreground">Manage productions</p>
         </div>
         {isAdmin && (
-          <Link
-            to="/productions/new"
-            className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90"
-          >
-            New Production
-          </Link>
+          <Button asChild>
+            <Link to="/productions/new">New Production</Link>
+          </Button>
         )}
       </div>
 
@@ -106,26 +110,45 @@ export default function ProductionListPage() {
                 <th className="px-4 py-3 text-left font-medium">Season</th>
                 <th className="px-4 py-3 text-left font-medium">Status</th>
                 <th className="px-4 py-3 text-left font-medium">Created</th>
-                <th className="px-4 py-3 text-right font-medium">Actions</th>
+                <th className="px-4 py-3 text-right font-medium">
+                  <span className="sr-only">Actions</span>
+                </th>
               </tr>
             </thead>
             <tbody>
               {productions.map((production) => {
                 const ready = Boolean(production.author);
+                const href = productionHref(production);
+                const clickable = Boolean(href);
+
                 return (
-                  <tr key={production.id} className="border-b border-border last:border-0">
-                    <td className="px-4 py-3 font-medium">
-                      {ready ? (
-                        <Link
-                          to={`/productions/${production.id}`}
-                          className="hover:underline"
-                        >
-                          {production.title}
-                        </Link>
-                      ) : (
-                        production.title
-                      )}
-                    </td>
+                  <tr
+                    key={production.id}
+                    className={cn(
+                      "border-b border-border last:border-0",
+                      clickable && "cursor-pointer hover:bg-muted/50",
+                    )}
+                    onClick={() => {
+                      if (href) navigate(href);
+                    }}
+                    onKeyDown={(event) => {
+                      if (!href) return;
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        navigate(href);
+                      }
+                    }}
+                    tabIndex={clickable ? 0 : undefined}
+                    role={clickable ? "link" : undefined}
+                    aria-label={
+                      clickable
+                        ? ready
+                          ? `Open ${production.title}`
+                          : `Import script for ${production.title}`
+                        : undefined
+                    }
+                  >
+                    <td className="px-4 py-3 font-medium">{production.title}</td>
                     <td className="px-4 py-3 text-muted-foreground">
                       {production.season ?? "—"}
                     </td>
@@ -140,22 +163,16 @@ export default function ProductionListPage() {
                       {formatDate(production.created_at)}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <div className="flex justify-end gap-2">
-                        {ready ? (
-                          <Link
-                            to={`/productions/${production.id}`}
-                            className="rounded-md border border-border px-3 py-1 text-xs hover:bg-muted"
-                          >
-                            Open
-                          </Link>
-                        ) : isAdmin ? (
-                          <Link
-                            to={`/productions/${production.id}/import`}
-                            className="rounded-md border border-border px-3 py-1 text-xs hover:bg-muted"
-                          >
-                            Import
-                          </Link>
-                        ) : null}
+                      <div
+                        className="flex items-center justify-end gap-1"
+                        onClick={(event) => event.stopPropagation()}
+                        onKeyDown={(event) => event.stopPropagation()}
+                      >
+                        {!ready && isAdmin && (
+                          <Button asChild variant="outline" size="sm">
+                            <Link to={`/productions/${production.id}/import`}>Import</Link>
+                          </Button>
+                        )}
                         {isAdmin && (
                           <Button
                             type="button"
@@ -169,6 +186,12 @@ export default function ProductionListPage() {
                           >
                             <Trash2 />
                           </Button>
+                        )}
+                        {clickable && (
+                          <ChevronRight
+                            className="size-4 text-muted-foreground"
+                            aria-hidden
+                          />
                         )}
                       </div>
                     </td>

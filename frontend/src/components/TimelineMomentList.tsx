@@ -52,6 +52,25 @@ export interface TimelineMomentListProps {
   footerSlot?: React.ReactNode;
 }
 
+const MOBILE_VISIBLE_PREP_BADGES = 2;
+
+type PrepBadgeDescriptor = {
+  label: string;
+};
+
+function buildPrepBadgeDescriptors(moment: MomentSummary): PrepBadgeDescriptor[] {
+  const badges: PrepBadgeDescriptor[] = [];
+  if (moment.has_props) badges.push({ label: "Prop" });
+  if (moment.has_cues) badges.push({ label: "Cue" });
+  if (moment.has_microphone) badges.push({ label: "Mic" });
+  if (moment.has_set_piece) badges.push({ label: "Set" });
+  if (moment.has_costume) badges.push({ label: "Costume" });
+  if (moment.has_entrance) badges.push({ label: "Entrance" });
+  if (moment.has_exit) badges.push({ label: "Exit" });
+  if (moment.has_blocking) badges.push({ label: "Blocking" });
+  return badges;
+}
+
 function speakingCharacterName(
   moment: MomentSummary,
   characters: CharacterDetailResponse[],
@@ -113,6 +132,8 @@ function MomentRow({
   setBlurRevealMode: (mode: "hover" | "tap" | null) => void;
 }) {
   const speaker = speakingCharacterName(moment, characters);
+  const prepBadges = showPrepBadges ? buildPrepBadgeDescriptors(moment) : [];
+  const hiddenPrepBadges = prepBadges.slice(MOBILE_VISIBLE_PREP_BADGES);
   const highlighted = isHighlighted(moment);
   const selected = selectedMomentId === moment.id;
   const shouldBlur = blurMyLines && isMyLine?.(moment);
@@ -214,47 +235,25 @@ function MomentRow({
       </span>
 
       <div
-        className="flex shrink-0 flex-wrap justify-end gap-1 self-start"
+        className="flex shrink-0 flex-wrap justify-end gap-1 self-start max-sm:flex-nowrap"
         onClick={(event) => event.stopPropagation()}
       >
-        {showPrepBadges && moment.has_props && (
-          <Badge variant="outline" className="text-xs">
-            Prop
+        {prepBadges.map((badge, index) => (
+          <Badge
+            key={badge.label}
+            variant="outline"
+            className={cn("text-xs", index >= MOBILE_VISIBLE_PREP_BADGES && "max-sm:hidden")}
+          >
+            {badge.label}
           </Badge>
-        )}
-        {showPrepBadges && moment.has_cues && (
-          <Badge variant="outline" className="text-xs">
-            Cue
-          </Badge>
-        )}
-        {showPrepBadges && moment.has_microphone && (
-          <Badge variant="outline" className="text-xs">
-            Mic
-          </Badge>
-        )}
-        {showPrepBadges && moment.has_set_piece && (
-          <Badge variant="outline" className="text-xs">
-            Set
-          </Badge>
-        )}
-        {showPrepBadges && moment.has_costume && (
-          <Badge variant="outline" className="text-xs">
-            Costume
-          </Badge>
-        )}
-        {showPrepBadges && moment.has_entrance && (
-          <Badge variant="outline" className="text-xs">
-            Entrance
-          </Badge>
-        )}
-        {showPrepBadges && moment.has_exit && (
-          <Badge variant="outline" className="text-xs">
-            Exit
-          </Badge>
-        )}
-        {showPrepBadges && moment.has_blocking && (
-          <Badge variant="outline" className="text-xs">
-            Blocking
+        ))}
+        {hiddenPrepBadges.length > 0 && (
+          <Badge
+            variant="outline"
+            className="text-xs sm:hidden"
+            title={hiddenPrepBadges.map((badge) => badge.label).join(", ")}
+          >
+            +{hiddenPrepBadges.length}
           </Badge>
         )}
         {showTypeBadge && (
