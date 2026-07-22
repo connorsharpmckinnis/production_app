@@ -10,7 +10,6 @@ from app.models import (
     MomentBlocking,
     MomentEntrance,
     MomentExit,
-    Production,
     Scene,
     User,
 )
@@ -25,13 +24,6 @@ from app.schemas.stage_movements import (
 )
 
 router = APIRouter(prefix="/productions", tags=["stage-movements"])
-
-
-def _get_production_or_404(db: Session, production_id: int) -> Production:
-    production = db.query(Production).filter(Production.id == production_id).first()
-    if production is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Production not found")
-    return production
 
 
 def _get_moment_in_production_or_404(

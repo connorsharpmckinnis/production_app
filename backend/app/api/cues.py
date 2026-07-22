@@ -6,9 +6,10 @@ from app.api.catalog_csv_routes import (
     catalog_template_response,
     read_catalog_upload,
 )
+from app.api.deps import get_accessible_production
 from app.auth.dependencies import require_authenticated, require_director_or_admin
 from app.db.session import get_db
-from app.models import Act, Cue, CueCategory, Moment, Production, Scene, User
+from app.models import Act, Cue, CueCategory, Moment, Scene, User
 from app.schemas.catalog_csv import CatalogImportResult
 from app.schemas.cues import (
     CueCategoryCreate,
@@ -25,13 +26,6 @@ from app.services.catalog_csv import (
 )
 
 router = APIRouter(prefix="/productions", tags=["cues"])
-
-
-def _get_production_or_404(db: Session, production_id: int) -> Production:
-    production = db.query(Production).filter(Production.id == production_id).first()
-    if production is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Production not found")
-    return production
 
 
 def _get_cue_category_or_404(
@@ -80,10 +74,10 @@ def _cue_response(cue: Cue) -> CueResponse:
 @router.get("/{production_id}/cue-categories", response_model=list[CueCategoryResponse])
 def list_cue_categories(
     production_id: int,
-    _user: User = Depends(require_authenticated),
+    user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> list[CueCategoryResponse]:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, user, production_id)
     categories = (
         db.query(CueCategory)
         .filter(CueCategory.production_id == production_id)
@@ -108,10 +102,10 @@ def list_cue_categories(
 def create_cue_category(
     production_id: int,
     body: CueCategoryCreate,
-    _director: User = Depends(require_director_or_admin),
+    director: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> CueCategoryResponse:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, director, production_id)
     category = CueCategory(
         production_id=production_id,
         name=body.name.strip(),
@@ -172,10 +166,10 @@ def delete_cue_category(
 @router.get("/{production_id}/cue-categories/import/template")
 def download_cue_categories_csv_template(
     production_id: int,
-    _director: User = Depends(require_director_or_admin),
+    director: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> Response:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, director, production_id)
     return catalog_template_response(
         "cue_categories_template.csv",
         CUE_CATEGORIES_COLUMNS,
@@ -189,10 +183,10 @@ def download_cue_categories_csv_template(
 async def import_cue_categories(
     production_id: int,
     file: UploadFile = File(...),
-    _director: User = Depends(require_director_or_admin),
+    director: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> CatalogImportResult:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, director, production_id)
     content = await read_catalog_upload(file)
     try:
         return import_cue_categories_csv(db, production_id, content)

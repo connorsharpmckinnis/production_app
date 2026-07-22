@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session, joinedload
 
-from app.auth.dependencies import require_authenticated
+from app.api.deps import get_accessible_production
+from app.auth.dependencies import require_director_or_admin
 from app.db.session import get_db
 from app.models import (
     Act,
@@ -13,7 +14,6 @@ from app.models import (
     MomentEntrance,
     MomentExit,
     MomentProp,
-    Production,
     Prop,
     Scene,
     User,
@@ -33,13 +33,6 @@ from app.schemas.reports import (
 router = APIRouter(prefix="/productions", tags=["reports"])
 
 
-def _get_production_or_404(db: Session, production_id: int) -> Production:
-    production = db.query(Production).filter(Production.id == production_id).first()
-    if production is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Production not found")
-    return production
-
-
 def _timeline_moment_order(db: Session, production_id: int) -> list[tuple[Moment, Act, Scene]]:
     """Return all production moments in timeline order with act/scene context."""
     rows = (
@@ -56,10 +49,10 @@ def _timeline_moment_order(db: Session, production_id: int) -> list[tuple[Moment
 @router.get("/{production_id}/reports/prop-sheet", response_model=list[PropSheetEntry])
 def prop_sheet(
     production_id: int,
-    _user: User = Depends(require_authenticated),
+    user: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> list[PropSheetEntry]:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, user, production_id)
     timeline = _timeline_moment_order(db, production_id)
     moment_context = {moment.id: (moment, act, scene) for moment, act, scene in timeline}
 
@@ -126,10 +119,10 @@ def prop_sheet(
 @router.get("/{production_id}/reports/cue-sheet", response_model=list[CueSheetCategory])
 def cue_sheet(
     production_id: int,
-    _user: User = Depends(require_authenticated),
+    user: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> list[CueSheetCategory]:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, user, production_id)
     timeline = _timeline_moment_order(db, production_id)
     moment_context = {moment.id: (moment, act, scene) for moment, act, scene in timeline}
 
@@ -192,10 +185,10 @@ def cue_sheet(
 )
 def costumes_by_scene(
     production_id: int,
-    _user: User = Depends(require_authenticated),
+    user: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> list[CostumesBySceneGroup]:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, user, production_id)
 
     scenes = (
         db.query(Scene)
@@ -251,10 +244,10 @@ def costumes_by_scene(
 )
 def entrance_exit_sheet(
     production_id: int,
-    _user: User = Depends(require_authenticated),
+    user: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> list[EntranceExitSheetGroup]:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, user, production_id)
 
     scenes = (
         db.query(Scene)
@@ -342,10 +335,10 @@ def entrance_exit_sheet(
 )
 def blocking_sheet(
     production_id: int,
-    _user: User = Depends(require_authenticated),
+    user: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> list[BlockingSheetEntry]:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, user, production_id)
     timeline = _timeline_moment_order(db, production_id)
 
     blocking_rows = (

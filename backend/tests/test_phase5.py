@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.db.seed import seed_database
-from app.models import Moment, MomentType, Production
+from app.models import Moment, MomentType, Production, User
 from app.services.importer import import_script
 
 FIXTURE_PATH = Path(__file__).resolve().parents[2] / "fixtures" / "scripts" / "endurance-scene1.md"
@@ -151,6 +151,15 @@ def test_actor_forbidden_on_stage_movement_mutations(
     moments = _scene_moments(seeded_client, production_id, scene_id, director_headers)
     moment_id = moments[0]["id"]
     crean_id = _character_id_by_name(seeded_client, production_id, "CREAN", director_headers)
+
+    # Cast actor so production reads are allowed; mutations must still be 403.
+    actor = db_session.query(User).filter(User.username == "actor").one()
+    cast = seeded_client.put(
+        f"/api/productions/{production_id}/characters/{crean_id}/cast",
+        json={"user_id": actor.id},
+        headers=director_headers,
+    )
+    assert cast.status_code == 200
 
     assert (
         seeded_client.post(

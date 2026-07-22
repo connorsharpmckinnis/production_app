@@ -18,6 +18,8 @@ Companion documents:
 - [PHASE_6.md](PHASE_6.md) — Phase 6 execution plan (rehearsal UX & timeline polish)
 - [PHASE_7.md](PHASE_7.md) — Phase 7 execution plan (import hardening & DOCX)
 - [PHASE_8.md](PHASE_8.md) — Phase 8 execution plan (prep readiness & catalog CSV)
+- [PHASE_9.md](PHASE_9.md) — Phase 9 execution plan (dual-format import hardening)
+- [PHASE_10.md](PHASE_10.md) — Phase 10 execution plan (deploy security, containers, private access)
 - [ROLES.md](ROLES.md) — MVP role permissions
 - [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](../.agents/skills/DEVELOPMENT_GUIDE/SKILL.md) — coding standards for humans and AI
 
@@ -907,6 +909,39 @@ Summary:
 - Implementation references: [PREP_READINESS.md](PREP_READINESS.md) and [CATALOG_CSV.md](CATALOG_CSV.md)
 
 **Explicitly out of Phase 8:** event engine, org-wide inventory, CSV upsert modes, explicit “reviewed / intentionally blank” progress table, deployment hardening.
+
+---
+
+
+
+## Phase 9 — Dual-Format Script Import Hardening
+
+See [PHASE_9.md](PHASE_9.md) for the execution plan.
+
+Summary:
+
+- Harden Markdown + DOCX adapters so equivalent scripts produce the same production structure
+- Modern Google Docs hyperlink song titles, punctuated character names, lyric punctuation, MD↔DOCX parity
+
+**Explicitly out of Phase 9:** parser configuration UI, re-import, new file formats.
+
+---
+
+
+
+## Phase 10 — Deployment Security, Container Standardization & Private Multi-Device Access
+
+See [PHASE_10.md](PHASE_10.md) for the execution plan.
+
+Summary:
+
+- **Tier A (now):** laptop Docker host + Tailscale Serve on **5173** (Vite dev stack) for owner devices only; laptop-awake OK
+- **Tier B (later):** cheap hands-off VPS + TLS; same images; decide with STP after pilot signal
+- Compose **dev** (Vite) is the only day-to-day path; optional nginx preview overlay kept for future VPS smoke-tests
+- Absorb Pre-August / [SECURITY_REVIEW.md](SECURITY_REVIEW.md) before-beta items: IDOR, secrets, upload caps, rate limit, report RBAC, password floor, prod docs/CORS
+- One-page deploy + Tailscale runbook; avoid Cloudflare Tunnel as the default path
+
+**Explicitly out of Phase 10:** public internet as default access, VPS provisioning, cookie-auth redesign, full multi-tenant isolation, inviting cast onto the tailnet.
 
 ---
 

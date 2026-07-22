@@ -6,21 +6,15 @@ from app.api.catalog_csv_routes import (
     catalog_template_response,
     read_catalog_upload,
 )
+from app.api.deps import get_accessible_production
 from app.auth.dependencies import require_authenticated, require_director_or_admin
 from app.db.session import get_db
-from app.models import Act, Character, Moment, MomentProp, Production, Prop, Scene, User
+from app.models import Act, Character, Moment, MomentProp, Prop, Scene, User
 from app.schemas.catalog_csv import CatalogImportResult
 from app.schemas.props import MomentPropCreate, MomentPropResponse, PropCreate, PropResponse, PropUpdate
 from app.services.catalog_csv import CatalogCsvError, PROPS_COLUMNS, import_props_csv
 
 router = APIRouter(prefix="/productions", tags=["props"])
-
-
-def _get_production_or_404(db: Session, production_id: int) -> Production:
-    production = db.query(Production).filter(Production.id == production_id).first()
-    if production is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Production not found")
-    return production
 
 
 def _get_prop_or_404(db: Session, production_id: int, prop_id: int) -> Prop:
@@ -68,10 +62,10 @@ def _moment_prop_response(moment_prop: MomentProp) -> MomentPropResponse:
 @router.get("/{production_id}/props", response_model=list[PropResponse])
 def list_props(
     production_id: int,
-    _user: User = Depends(require_authenticated),
+    user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> list[PropResponse]:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, user, production_id)
     props = (
         db.query(Prop)
         .filter(Prop.production_id == production_id)
@@ -97,10 +91,10 @@ def list_props(
 def create_prop(
     production_id: int,
     body: PropCreate,
-    _director: User = Depends(require_director_or_admin),
+    director: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> PropResponse:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, director, production_id)
     prop = Prop(
         production_id=production_id,
         name=body.name.strip(),
@@ -160,10 +154,10 @@ def delete_prop(
 @router.get("/{production_id}/props/import/template")
 def download_props_csv_template(
     production_id: int,
-    _director: User = Depends(require_director_or_admin),
+    director: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> Response:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, director, production_id)
     return catalog_template_response("props_template.csv", PROPS_COLUMNS)
 
 
@@ -174,10 +168,10 @@ def download_props_csv_template(
 async def import_props(
     production_id: int,
     file: UploadFile = File(...),
-    _director: User = Depends(require_director_or_admin),
+    director: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> CatalogImportResult:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, director, production_id)
     content = await read_catalog_upload(file)
     try:
         return import_props_csv(db, production_id, content)

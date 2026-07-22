@@ -227,7 +227,7 @@ Theater production management platform — monorepo with FastAPI backend, React 
 3. Start all services:
 
    ```bash
-   docker compose up --build
+   docker compose up -d --build
    ```
 
 4. Open the app:
@@ -236,14 +236,14 @@ Theater production management platform — monorepo with FastAPI backend, React 
    |----------|------------------------------|
    | Frontend | http://localhost:5173        |
    | Backend  | http://localhost:8000/health |
-   | Database | localhost:5432 (internal)    |
+   | Database | internal only (not published)|
 
 5. Default admin login (development only):
 
    - **Username:** `admin`
    - **Password:** `admin`
 
-   Change these before any production deployment.
+   Change these before any shared or production-like deploy. For phone access over Tailscale (Serve on port 5173), see [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## Importing a script
 
@@ -262,18 +262,11 @@ See [docs/IMPORT_SPEC.md](docs/IMPORT_SPEC.md) and [docs/SCRIPT_FORMAT.md](docs/
 | `backend`| FastAPI API — migrations and seed run on startup | 8000 |
 | `frontend` | Vite dev server (hot reload)                   | 5173 |
 
-### Production frontend build
+### Phone access (Tailscale)
 
-To serve the built frontend with nginx on port 80, change the frontend service in `docker-compose.yml`:
+Day-to-day stack is the Vite **dev** frontend above. To open the same app on your phone over a private Tailscale URL (`tailscale serve --bg 5173`), see **[docs/DEPLOY.md](docs/DEPLOY.md)**.
 
-```yaml
-frontend:
-  build:
-    context: ./frontend
-    target: prod
-  ports:
-    - "80:80"
-```
+An optional nginx “preview” Compose overlay exists only for future VPS smoke-tests; it is not required for laptop + phone.
 
 ## Environment Variables
 
@@ -296,11 +289,13 @@ Set these in a root `.env` file or pass them to `docker compose`.
 | `ADMIN_USERNAME`  | No       | `admin`                    | Bootstrap admin username                         |
 | `ADMIN_PASSWORD`  | Prod: Yes| `admin` (dev only)         | Bootstrap admin password                         |
 | `ORG_NAME`        | No       | `Default Organization`     | Single organization display name                 |
-| `ENVIRONMENT`     | No       | `dev`                      | `dev` seeds test users; `prod` enforces security |
+| `ENVIRONMENT`     | No       | `dev`                      | `dev` seeds test users; `prod` refuses weak secrets / disables docs |
+| `CORS_ORIGINS`    | No       | localhost Vite             | Comma-separated allowed browser origins (add Tailscale Serve `https://…`) |
+
 
 \* Use a strong random value in production (32+ characters recommended for JWT).
 
-**Security:** The backend must refuse to start in production without `ADMIN_PASSWORD` set. See [docs/SEED_DATA.md](docs/SEED_DATA.md).
+**Security:** With `ENVIRONMENT=prod`, the backend refuses the documented default `SECRET_KEY` and weak `ADMIN_PASSWORD` values. See [docs/DEPLOY.md](docs/DEPLOY.md) and [docs/SEED_DATA.md](docs/SEED_DATA.md).
 
 ### Frontend (`frontend` service)
 

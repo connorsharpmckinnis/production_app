@@ -1,24 +1,53 @@
 from functools import lru_cache
 from typing import Literal
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# Known toy values that must never ship as prod secrets.
+_DEFAULT_SECRET_KEY = "dev-secret-change-in-production-32chars"
+_WEAK_ADMIN_PASSWORDS = frozenset({"admin", "password", "password123", "changeme"})
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
     DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/production_app"
-    SECRET_KEY: str = "dev-secret-change-in-production-32chars"
+    SECRET_KEY: str = _DEFAULT_SECRET_KEY
     ADMIN_USERNAME: str = "admin"
     ADMIN_PASSWORD: str | None = None
     ORG_NAME: str = "Default Organization"
     ENVIRONMENT: Literal["dev", "prod"] = "dev"
+    # Comma-separated browser origins allowed to call the API (CORS).
+    CORS_ORIGINS: str = "http://localhost:5173,http://127.0.0.1:5173"
+
+    @field_validator("CORS_ORIGINS", mode="before")
+    @classmethod
+    def strip_cors(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+    def cors_origin_list(self) -> list[str]:
+        origins = [part.strip() for part in self.CORS_ORIGINS.split(",")]
+        return [origin for origin in origins if origin]
 
     @model_validator(mode="after")
     def validate_production_settings(self) -> "Settings":
-        if self.ENVIRONMENT == "prod" and not self.ADMIN_PASSWORD:
+        if self.ENVIRONMENT != "prod":
+            return self
+        if not self.ADMIN_PASSWORD:
             raise ValueError("ADMIN_PASSWORD is required when ENVIRONMENT=prod")
+        if self.ADMIN_PASSWORD.lower() in _WEAK_ADMIN_PASSWORDS or len(self.ADMIN_PASSWORD) < 8:
+            raise ValueError(
+                "ADMIN_PASSWORD must be at least 8 characters and not a common default "
+                "when ENVIRONMENT=prod"
+            )
+        if self.SECRET_KEY == _DEFAULT_SECRET_KEY or len(self.SECRET_KEY) < 32:
+            raise ValueError(
+                "SECRET_KEY must be a unique value at least 32 characters "
+                "(not the documented default) when ENVIRONMENT=prod"
+            )
         return self
 
 

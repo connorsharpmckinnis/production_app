@@ -6,9 +6,10 @@ from app.api.catalog_csv_routes import (
     catalog_template_response,
     read_catalog_upload,
 )
+from app.api.deps import get_accessible_production
 from app.auth.dependencies import require_authenticated, require_director_or_admin
 from app.db.session import get_db
-from app.models import Act, Character, Microphone, Moment, MomentMicrophone, Production, Scene, User
+from app.models import Act, Character, Microphone, Moment, MomentMicrophone, Scene, User
 from app.schemas.catalog_csv import CatalogImportResult
 from app.schemas.microphones import (
     MicrophoneCreate,
@@ -24,13 +25,6 @@ from app.services.catalog_csv import (
 )
 
 router = APIRouter(prefix="/productions", tags=["microphones"])
-
-
-def _get_production_or_404(db: Session, production_id: int) -> Production:
-    production = db.query(Production).filter(Production.id == production_id).first()
-    if production is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Production not found")
-    return production
 
 
 def _get_microphone_or_404(db: Session, production_id: int, microphone_id: int) -> Microphone:
@@ -86,10 +80,10 @@ def _microphone_response(microphone: Microphone) -> MicrophoneResponse:
 @router.get("/{production_id}/microphones", response_model=list[MicrophoneResponse])
 def list_microphones(
     production_id: int,
-    _user: User = Depends(require_authenticated),
+    user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> list[MicrophoneResponse]:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, user, production_id)
     microphones = (
         db.query(Microphone)
         .filter(Microphone.production_id == production_id)
@@ -107,10 +101,10 @@ def list_microphones(
 def create_microphone(
     production_id: int,
     body: MicrophoneCreate,
-    _director: User = Depends(require_director_or_admin),
+    director: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> MicrophoneResponse:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, director, production_id)
     microphone = Microphone(
         production_id=production_id,
         identifier=body.identifier.strip(),
@@ -161,10 +155,10 @@ def delete_microphone(
 @router.get("/{production_id}/microphones/import/template")
 def download_microphones_csv_template(
     production_id: int,
-    _director: User = Depends(require_director_or_admin),
+    director: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> Response:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, director, production_id)
     return catalog_template_response("microphones_template.csv", MICROPHONES_COLUMNS)
 
 
@@ -175,10 +169,10 @@ def download_microphones_csv_template(
 async def import_microphones(
     production_id: int,
     file: UploadFile = File(...),
-    _director: User = Depends(require_director_or_admin),
+    director: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> CatalogImportResult:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, director, production_id)
     content = await read_catalog_upload(file)
     try:
         return import_microphones_csv(db, production_id, content)

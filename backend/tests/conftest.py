@@ -26,6 +26,15 @@ def fast_password_hashing(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr("app.auth.password.pwd_context", _FAST_PWD_CONTEXT)
 
 
+@pytest.fixture(autouse=True)
+def reset_login_rate_limits() -> None:
+    from app.auth.rate_limit import clear_login_rate_limits
+
+    clear_login_rate_limits()
+    yield
+    clear_login_rate_limits()
+
+
 @pytest.fixture
 def test_settings() -> Settings:
     return Settings(

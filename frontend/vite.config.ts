@@ -17,6 +17,8 @@ export default defineConfig(({ mode }) => {
     server: {
       host: true,
       port: 5173,
+      // Tailscale Serve / MagicDNS hostnames (e.g. machine.tailXXXX.ts.net)
+      allowedHosts: [".ts.net", "https://connors-macbook-air.tail9abcc3.ts.net"],
       proxy: {
         "/api": {
           target: apiTarget,

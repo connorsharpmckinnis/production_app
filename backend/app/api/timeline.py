@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
 
+from app.api.deps import get_accessible_production
 from app.api.notes import notes_visible_to_user
 from app.auth.dependencies import require_authenticated, require_director_or_admin, user_has_role
 from app.db.session import get_db
@@ -21,7 +22,6 @@ from app.models import (
     MomentSetPiece,
     MomentType,
     Note,
-    Production,
     Scene,
     SetPiece,
     Song,
@@ -76,13 +76,6 @@ from app.services.timeline_filters import (
 
 router = APIRouter(prefix="/productions", tags=["timeline"])
 lookup_router = APIRouter(tags=["timeline"])
-
-
-def _get_production_or_404(db: Session, production_id: int) -> Production:
-    production = db.query(Production).filter(Production.id == production_id).first()
-    if production is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Production not found")
-    return production
 
 
 def _get_moment_in_production_or_404(
@@ -208,10 +201,10 @@ def list_moment_types(
 @router.get("/{production_id}/acts", response_model=list[ActSummary])
 def list_acts(
     production_id: int,
-    _user: User = Depends(require_authenticated),
+    user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> list[Act]:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, user, production_id)
     return (
         db.query(Act)
         .options(joinedload(Act.scenes))
@@ -242,7 +235,7 @@ def list_scene_moments(
     user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> list[MomentSummary]:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, user, production_id)
     scene = (
         db.query(Scene)
         .join(Act)
@@ -252,7 +245,13 @@ def list_scene_moments(
     if scene is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Scene not found")
 
-    parsed_character_ids = parse_character_ids(character_ids)
+    try:
+        parsed_character_ids = parse_character_ids(character_ids)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        ) from exc
     character_names: list[str] | None = None
 
     if group_id is not None:
@@ -425,7 +424,7 @@ def get_moment_detail(
     user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> MomentDetailResponse:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, user, production_id)
     moment = (
         db.query(Moment)
         .options(
@@ -717,10 +716,10 @@ def insert_moment(
     production_id: int,
     scene_id: int,
     body: MomentCreate,
-    _director: User = Depends(require_director_or_admin),
+    director: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> MomentDetailResponse:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, director, production_id)
     _get_scene_in_production_or_404(db, production_id, scene_id)
 
     moment_type = db.query(MomentType).filter(MomentType.id == body.moment_type_id).first()
@@ -764,7 +763,7 @@ def insert_moment(
     )
 
     db.commit()
-    return get_moment_detail(production_id, moment.id, _director, db)
+    return get_moment_detail(production_id, moment.id, director, db)
 
 
 @router.delete(

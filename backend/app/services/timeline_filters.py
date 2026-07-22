@@ -15,7 +15,10 @@ ACTOR_HIDDEN_TYPES = frozenset({"author_note"})
 
 
 def parse_character_ids(raw: str | None) -> list[int] | None:
-    """Parse a comma-separated list of character IDs from a query string."""
+    """Parse a comma-separated list of character IDs from a query string.
+
+    Raises ValueError when a token is not an integer (callers map this to HTTP 422).
+    """
     if not raw:
         return None
     ids: list[int] = []
@@ -23,7 +26,10 @@ def parse_character_ids(raw: str | None) -> list[int] | None:
         part = part.strip()
         if not part:
             continue
-        ids.append(int(part))
+        try:
+            ids.append(int(part))
+        except ValueError as exc:
+            raise ValueError(f"Invalid character_ids value: {part!r}") from exc
     return ids or None
 
 

@@ -1,20 +1,14 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
 
+from app.api.deps import get_accessible_production
 from app.auth.dependencies import require_authenticated
 from app.db.session import get_db
-from app.models import Act, Bookmark, Character, Moment, Note, Production, Scene, User
+from app.models import Act, Bookmark, Character, Moment, Note, Scene, User
 from app.schemas.bookmarks import BookmarkCreate, BookmarkResponse
 from app.schemas.notes import NoteCreate, NoteResponse, NoteUpdate
 
 router = APIRouter(tags=["notes-bookmarks"])
-
-
-def _get_production_or_404(db: Session, production_id: int) -> Production:
-    production = db.query(Production).filter(Production.id == production_id).first()
-    if production is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Production not found")
-    return production
 
 
 def _user_display_name(user: User) -> str:
@@ -52,6 +46,27 @@ def _get_moment_in_production_or_404(
     return moment
 
 
+def _verify_note_in_production(db: Session, production_id: int, note: Note) -> None:
+    """Confirm a note's moment or character actually belongs to production_id.
+
+    Notes are looked up by note_id alone, so without this check a note from
+    one production could be edited or deleted through another production's URL.
+    """
+    if note.moment_id is not None:
+        _get_moment_in_production_or_404(db, production_id, note.moment_id)
+    elif note.character_id is not None:
+        character = (
+            db.query(Character)
+            .filter(Character.id == note.character_id, Character.production_id == production_id)
+            .first()
+        )
+        if character is None:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
+    else:
+        # A note should always have a moment_id or character_id; treat this as "not found" here.
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
+
+
 def notes_visible_to_user(notes: list[Note], user_id: int) -> list[Note]:
     """Public notes plus the caller's own private notes."""
     return [
@@ -69,7 +84,7 @@ def list_production_notes(
     user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> list[NoteResponse]:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, user, production_id)
     query = db.query(Note).options(joinedload(Note.user))
 
     if moment_id is not None:
@@ -106,7 +121,7 @@ def create_note(
     user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> NoteResponse:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, user, production_id)
 
     if body.moment_id is not None:
         _get_moment_in_production_or_404(db, production_id, body.moment_id)
@@ -141,7 +156,7 @@ def update_note(
     user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> NoteResponse:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, user, production_id)
     note = (
         db.query(Note)
         .options(joinedload(Note.user))
@@ -150,6 +165,7 @@ def update_note(
     )
     if note is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
+    _verify_note_in_production(db, production_id, note)
     if note.user_id != user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot edit another user's note")
 
@@ -170,10 +186,11 @@ def delete_note(
     user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> None:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, user, production_id)
     note = db.query(Note).filter(Note.id == note_id).first()
     if note is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
+    _verify_note_in_production(db, production_id, note)
     if note.user_id != user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot delete another user's note")
     db.delete(note)
@@ -195,6 +212,9 @@ def create_bookmark(
     if moment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Moment not found")
 
+    production = moment.scene.act.production
+    get_accessible_production(db, user, production.id)
+
     existing = (
         db.query(Bookmark)
         .filter(Bookmark.user_id == user.id, Bookmark.moment_id == body.moment_id)
@@ -211,7 +231,6 @@ def create_bookmark(
     db.add(bookmark)
     db.commit()
     db.refresh(bookmark)
-    production = moment.scene.act.production
     return BookmarkResponse(
         id=bookmark.id,
         moment_id=bookmark.moment_id,

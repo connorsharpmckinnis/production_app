@@ -51,6 +51,19 @@ def _first_scene_id(client: TestClient, production_id: int, headers: dict[str, s
     return acts[0]["scenes"][0]["id"]
 
 
+def _cast_dev_actor(client: TestClient, db_session: Session, production_id: int) -> None:
+    """Give the seeded actor user access to the production (IDOR-safe reads)."""
+    director_headers = _login(client, "director", "director")
+    crean_id = _crean_character_id(client, production_id, director_headers)
+    actor = db_session.query(User).filter(User.username == "actor").one()
+    cast = client.put(
+        f"/api/productions/{production_id}/characters/{crean_id}/cast",
+        json={"user_id": actor.id},
+        headers=director_headers,
+    )
+    assert cast.status_code == 200
+
+
 def test_actor_production_list_empty_before_casting(seeded_client: TestClient, db_session: Session) -> None:
     production_id = _imported_production(seeded_client, db_session)
     actor_headers = _login(seeded_client, "actor", "actor")
@@ -161,6 +174,7 @@ def test_character_filter_includes_dialogue_and_referenced_stage_directions(
 
 def test_actor_cannot_see_author_note_moments(seeded_client: TestClient, db_session: Session) -> None:
     production_id = _imported_production(seeded_client, db_session)
+    _cast_dev_actor(seeded_client, db_session, production_id)
     director_headers = _login(seeded_client, "director", "director")
     scene_id = _first_scene_id(seeded_client, production_id, director_headers)
 
@@ -183,6 +197,7 @@ def test_actor_cannot_see_author_note_moments(seeded_client: TestClient, db_sess
 
 def test_notes_visibility(seeded_client: TestClient, db_session: Session) -> None:
     production_id = _imported_production(seeded_client, db_session)
+    _cast_dev_actor(seeded_client, db_session, production_id)
     director_headers = _login(seeded_client, "director", "director")
     scene_id = _first_scene_id(seeded_client, production_id, director_headers)
     moment_id = seeded_client.get(
@@ -224,6 +239,7 @@ def test_notes_visibility(seeded_client: TestClient, db_session: Session) -> Non
 
 def test_bookmark_lifecycle(seeded_client: TestClient, db_session: Session) -> None:
     production_id = _imported_production(seeded_client, db_session)
+    _cast_dev_actor(seeded_client, db_session, production_id)
     headers = _login(seeded_client, "actor", "actor")
     scene_id = _first_scene_id(seeded_client, production_id, headers)
     moment_id = seeded_client.get(

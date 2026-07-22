@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
+from app.api.deps import get_accessible_production
 from app.auth.dependencies import (
     require_admin,
     require_authenticated,
@@ -35,13 +36,6 @@ from app.services.overview_messages import (
 from app.services.readiness import compute_readiness
 
 router = APIRouter(prefix="/productions", tags=["productions"])
-
-
-def _get_production_or_404(db: Session, production_id: int) -> Production:
-    production = db.query(Production).filter(Production.id == production_id).first()
-    if production is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Production not found")
-    return production
 
 
 @router.get("", response_model=list[ProductionResponse])
@@ -86,10 +80,10 @@ def create_production(
 @router.get("/{production_id}", response_model=ProductionResponse)
 def get_production(
     production_id: int,
-    _user: User = Depends(require_authenticated),
+    user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> Production:
-    return _get_production_or_404(db, production_id)
+    return get_accessible_production(db, user, production_id)
 
 
 @router.get("/{production_id}/overview", response_model=ProductionOverviewResponse)
@@ -98,7 +92,7 @@ def get_production_overview(
     user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> ProductionOverviewResponse:
-    production = _get_production_or_404(db, production_id)
+    production = get_accessible_production(db, user, production_id)
 
     act_count = (
         db.query(func.count(Act.id)).filter(Act.production_id == production_id).scalar() or 0
@@ -189,10 +183,10 @@ def get_production_overview(
 )
 def get_production_overview_messages(
     production_id: int,
-    _user: User = Depends(require_authenticated),
+    user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> list[ProductionOverviewMessageResponse]:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, user, production_id)
     return list_production_messages(db, production_id)
 
 
@@ -203,10 +197,10 @@ def get_production_overview_messages(
 def replace_production_overview_messages(
     production_id: int,
     body: ProductionOverviewMessagesReplace,
-    _user: User = Depends(require_director_or_admin),
+    user: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> list[ProductionOverviewMessageResponse]:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, user, production_id)
     return replace_production_messages(db, production_id, body.messages)
 
 
@@ -216,10 +210,10 @@ def replace_production_overview_messages(
 )
 def get_production_overview_settings(
     production_id: int,
-    _user: User = Depends(require_authenticated),
+    user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> ProductionOverviewSettingsResponse:
-    production = _get_production_or_404(db, production_id)
+    production = get_accessible_production(db, user, production_id)
     app_settings = get_or_create_app_settings(db)
     return ProductionOverviewSettingsResponse(
         message_rotation_seconds=production.message_rotation_seconds,
@@ -234,10 +228,10 @@ def get_production_overview_settings(
 def update_production_overview_settings(
     production_id: int,
     body: ProductionOverviewSettingsUpdate,
-    _user: User = Depends(require_director_or_admin),
+    user: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> ProductionOverviewSettingsResponse:
-    production = _get_production_or_404(db, production_id)
+    production = get_accessible_production(db, user, production_id)
     production.message_rotation_seconds = body.message_rotation_seconds
     db.commit()
     db.refresh(production)
@@ -251,10 +245,10 @@ def update_production_overview_settings(
 @router.delete("/{production_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_production(
     production_id: int,
-    _admin: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> None:
-    production = _get_production_or_404(db, production_id)
+    production = get_accessible_production(db, admin, production_id)
     db.delete(production)
     db.commit()
 
@@ -267,7 +261,7 @@ def delete_production(
 async def import_production_script(
     production_id: int,
     file: UploadFile = File(...),
-    _admin: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> ImportSuccessResponse:
     filename = file.filename or ""
@@ -278,8 +272,25 @@ async def import_production_script(
             detail="Only .md and .docx script files are accepted",
         )
 
-    production = _get_production_or_404(db, production_id)
+    production = get_accessible_production(db, admin, production_id)
     content = await file.read()
+
+    max_upload_bytes = 5 * 1024 * 1024
+    if len(content) > max_upload_bytes:
+        raise HTTPException(
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
+            detail="Script file is too large; the maximum size is 5 MB",
+        )
+
+    # .docx files are binary, so a UTF-8 decode check only makes sense for .md text files.
+    if lower_name.endswith(".md"):
+        try:
+            content.decode("utf-8")
+        except UnicodeDecodeError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Script file is not valid UTF-8 text",
+            ) from exc
 
     try:
         result = import_script(db, production, content, filename=filename)

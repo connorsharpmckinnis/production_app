@@ -6,9 +6,10 @@ from app.api.catalog_csv_routes import (
     catalog_template_response,
     read_catalog_upload,
 )
+from app.api.deps import get_accessible_production
 from app.auth.dependencies import require_authenticated, require_director_or_admin
 from app.db.session import get_db
-from app.models import Act, Moment, MomentSetPiece, Production, Scene, SetPiece, User
+from app.models import Act, Moment, MomentSetPiece, Scene, SetPiece, User
 from app.schemas.catalog_csv import CatalogImportResult
 from app.schemas.set_pieces import (
     MomentSetPieceCreate,
@@ -20,13 +21,6 @@ from app.schemas.set_pieces import (
 from app.services.catalog_csv import CatalogCsvError, SET_PIECES_COLUMNS, import_set_pieces_csv
 
 router = APIRouter(prefix="/productions", tags=["set-pieces"])
-
-
-def _get_production_or_404(db: Session, production_id: int) -> Production:
-    production = db.query(Production).filter(Production.id == production_id).first()
-    if production is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Production not found")
-    return production
 
 
 def _get_set_piece_or_404(db: Session, production_id: int, set_piece_id: int) -> SetPiece:
@@ -69,10 +63,10 @@ def _moment_set_piece_response(moment_set_piece: MomentSetPiece) -> MomentSetPie
 @router.get("/{production_id}/set-pieces", response_model=list[SetPieceResponse])
 def list_set_pieces(
     production_id: int,
-    _user: User = Depends(require_authenticated),
+    user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> list[SetPieceResponse]:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, user, production_id)
     set_pieces = (
         db.query(SetPiece)
         .filter(SetPiece.production_id == production_id)
@@ -98,10 +92,10 @@ def list_set_pieces(
 def create_set_piece(
     production_id: int,
     body: SetPieceCreate,
-    _director: User = Depends(require_director_or_admin),
+    director: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> SetPieceResponse:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, director, production_id)
     set_piece = SetPiece(
         production_id=production_id,
         name=body.name.strip(),
@@ -165,10 +159,10 @@ def delete_set_piece(
 @router.get("/{production_id}/set-pieces/import/template")
 def download_set_pieces_csv_template(
     production_id: int,
-    _director: User = Depends(require_director_or_admin),
+    director: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> Response:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, director, production_id)
     return catalog_template_response("set_pieces_template.csv", SET_PIECES_COLUMNS)
 
 
@@ -179,10 +173,10 @@ def download_set_pieces_csv_template(
 async def import_set_pieces(
     production_id: int,
     file: UploadFile = File(...),
-    _director: User = Depends(require_director_or_admin),
+    director: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> CatalogImportResult:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, director, production_id)
     content = await read_catalog_upload(file)
     try:
         return import_set_pieces_csv(db, production_id, content)

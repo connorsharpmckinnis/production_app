@@ -6,21 +6,15 @@ from app.api.catalog_csv_routes import (
     catalog_template_response,
     read_catalog_upload,
 )
+from app.api.deps import get_accessible_production
 from app.auth.dependencies import require_authenticated, require_director_or_admin
 from app.db.session import get_db
-from app.models import Act, Character, Costume, Production, Scene, User
+from app.models import Act, Character, Costume, Scene, User
 from app.schemas.catalog_csv import CatalogImportResult
 from app.schemas.costumes import CostumeCreate, CostumeResponse, CostumeUpdate
 from app.services.catalog_csv import CatalogCsvError, COSTUMES_COLUMNS, import_costumes_csv
 
 router = APIRouter(prefix="/productions", tags=["costumes"])
-
-
-def _get_production_or_404(db: Session, production_id: int) -> Production:
-    production = db.query(Production).filter(Production.id == production_id).first()
-    if production is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Production not found")
-    return production
 
 
 def _get_costume_or_404(db: Session, production_id: int, costume_id: int) -> Costume:
@@ -85,10 +79,10 @@ def _costume_response(costume: Costume) -> CostumeResponse:
 @router.get("/{production_id}/costumes", response_model=list[CostumeResponse])
 def list_costumes(
     production_id: int,
-    _user: User = Depends(require_authenticated),
+    user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> list[CostumeResponse]:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, user, production_id)
     costumes = (
         db.query(Costume)
         .options(
@@ -110,10 +104,10 @@ def list_costumes(
 def create_costume(
     production_id: int,
     body: CostumeCreate,
-    _director: User = Depends(require_director_or_admin),
+    director: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> CostumeResponse:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, director, production_id)
     _validate_character_in_production(db, production_id, body.character_id)
     _validate_scene_in_production(db, production_id, body.scene_id)
 
@@ -174,10 +168,10 @@ def delete_costume(
 @router.get("/{production_id}/costumes/import/template")
 def download_costumes_csv_template(
     production_id: int,
-    _director: User = Depends(require_director_or_admin),
+    director: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> Response:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, director, production_id)
     return catalog_template_response("costumes_template.csv", COSTUMES_COLUMNS)
 
 
@@ -188,10 +182,10 @@ def download_costumes_csv_template(
 async def import_costumes(
     production_id: int,
     file: UploadFile = File(...),
-    _director: User = Depends(require_director_or_admin),
+    director: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> CatalogImportResult:
-    _get_production_or_404(db, production_id)
+    get_accessible_production(db, director, production_id)
     content = await read_catalog_upload(file)
     try:
         return import_costumes_csv(db, production_id, content)

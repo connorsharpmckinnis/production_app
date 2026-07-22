@@ -1,9 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import get_current_user
 from app.auth.jwt import create_access_token
 from app.auth.password import verify_password
+from app.auth.rate_limit import check_login_rate_limit
 from app.db.session import get_db
 from app.models import User
 from app.schemas.auth import LoginRequest, TokenResponse, UserResponse
@@ -24,7 +25,14 @@ def _user_response(user: User) -> UserResponse:
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(body: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def login(
+    body: LoginRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> TokenResponse:
+    client_host = request.client.host if request.client else "unknown"
+    check_login_rate_limit(f"{client_host}:{body.username.casefold()}")
+
     user = db.query(User).filter(User.username == body.username).first()
     if user is None or not user.is_active or not verify_password(body.password, user.password_hash):
         raise HTTPException(

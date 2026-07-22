@@ -1,0 +1,24 @@
+# Optional preview overlay — nginx frontend (prod image).
+#
+# NOT the day-to-day path. Daily use is plain:
+#   docker compose up -d --build
+#   tailscale serve --bg 5173
+#
+# Use this only to smoke-test the production frontend image before a VPS:
+#   docker compose down
+#   docker compose -f docker-compose.yml -f docker-compose.preview.yml up -d --build
+#   open http://127.0.0.1:8080
+# See docs/DEPLOY.md appendix.
+
+services:
+  backend:
+    # Drop the base compose host port (8000). Frontend reaches backend:8000
+    # on the Docker network only.
+    ports: !reset []
+
+  frontend:
+    build:
+      context: ./frontend
+      target: prod
+    ports: !override
+      - "127.0.0.1:8080:80"

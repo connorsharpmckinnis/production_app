@@ -29,7 +29,7 @@ class UserResponse(BaseModel):
 
 class CreateUserRequest(BaseModel):
     username: str = Field(min_length=1, max_length=255)
-    password: str = Field(min_length=1)
+    password: str = Field(min_length=8)
     first_name: str
     last_name: str
     email: str | None = None
@@ -37,4 +37,4 @@ class CreateUserRequest(BaseModel):
 
 
 class ResetPasswordRequest(BaseModel):
-    password: str = Field(min_length=1)
+    password: str = Field(min_length=8)

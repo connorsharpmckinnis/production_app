@@ -189,8 +189,17 @@ def test_overview_hides_readiness_from_actor_only_but_not_staff_or_mixed_roles(
     seeded_client: TestClient, db_session: Session
 ) -> None:
     production_id = _imported_production(seeded_client, db_session, title="Role Scoped Overview")
-    actor_headers = _login(seeded_client, "actor", "actor")
     director_headers = _login(seeded_client, "director", "director")
+    actor = db_session.query(User).filter(User.username == "actor").one()
+    crean_id = _character_id_by_name(seeded_client, production_id, "CREAN", director_headers)
+    cast = seeded_client.put(
+        f"/api/productions/{production_id}/characters/{crean_id}/cast",
+        json={"user_id": actor.id},
+        headers=director_headers,
+    )
+    assert cast.status_code == 200
+
+    actor_headers = _login(seeded_client, "actor", "actor")
 
     actor_overview = seeded_client.get(
         f"/api/productions/{production_id}/overview",
@@ -210,7 +219,6 @@ def test_overview_hides_readiness_from_actor_only_but_not_staff_or_mixed_roles(
     assert isinstance(staff_data["readiness_percent"], int)
     assert staff_data["dimensions"]
 
-    actor = db_session.query(User).filter(User.username == "actor").one()
     director_role = db_session.query(AppRole).filter(AppRole.name == "Director").one()
     db_session.add(UserAppRole(user_id=actor.id, app_role_id=director_role.id))
     db_session.commit()
@@ -779,18 +787,18 @@ def test_production_message_roles(seeded_client: TestClient) -> None:
     )
     assert actor_settings.status_code == 403
 
+    # Uncast actors cannot read a production by ID (even empty ones).
     actor_read = seeded_client.get(
         f"/api/productions/{production_id}/overview",
         headers=actor_headers,
     )
-    assert actor_read.status_code == 200
-    assert "spotlight" in actor_read.json()
+    assert actor_read.status_code == 404
 
     listed = seeded_client.get(
         f"/api/productions/{production_id}/overview-messages",
         headers=actor_headers,
     )
-    assert listed.status_code == 200
+    assert listed.status_code == 404
 
     director_write = seeded_client.put(
         f"/api/productions/{production_id}/overview-messages",
