@@ -55,7 +55,7 @@ export const aboutContent = {
     sections: [
       {
         heading: "Sheets and reports that actually help tech",
-        body: "We've got basic prop, cue, entrance/exit, and blocking reports today. I want real call-sheet quality next: print-ready / PDF layouts, lav sheets with assisted lav-change charts (who has which mic when, and when they need to swap), set-piece sheets, song sheets, and per-character packs for what you're carrying. Same idea for a readiness dashboard — casting done? blocking in? props tagged? — so you can tell if you're actually ready for rehearsal instead of guessing.",
+        body: "We've got basic prop, cue, entrance/exit, and blocking reports today, plus an editable lav chart (wires + packs, propose, print). I still want call-sheet quality next: print-ready / PDF layouts, lav change-list sheets (when they swap), set-piece sheets, song sheets, and per-character packs for what you're carrying. Same idea for a readiness dashboard — casting done? blocking in? props tagged? — so you can tell if you're actually ready for rehearsal instead of guessing.",
       },
       {
         heading: "Entrances, exits, and blocking",

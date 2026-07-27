@@ -61,7 +61,19 @@ class Production(Base):
         back_populates="production",
         cascade="all, delete-orphan",
     )
-    microphones: Mapped[list["Microphone"]] = relationship(
+    wires: Mapped[list["Wire"]] = relationship(
+        back_populates="production",
+        cascade="all, delete-orphan",
+    )
+    packs: Mapped[list["Pack"]] = relationship(
+        back_populates="production",
+        cascade="all, delete-orphan",
+    )
+    lav_wire_assignments: Mapped[list["LavWireAssignment"]] = relationship(
+        back_populates="production",
+        cascade="all, delete-orphan",
+    )
+    lav_pack_assignments: Mapped[list["LavPackAssignment"]] = relationship(
         back_populates="production",
         cascade="all, delete-orphan",
     )

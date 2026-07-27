@@ -7,8 +7,9 @@ from app.api import (
     cues,
     feedback,
     groups,
-    microphones,
+    lav_chart,
     notes,
+    packs,
     productions,
     props,
     reports,
@@ -17,6 +18,7 @@ from app.api import (
     stage_movements,
     timeline,
     users,
+    wires,
 )
 
 api_router = APIRouter()
@@ -33,7 +35,9 @@ api_router.include_router(notes.router)
 api_router.include_router(props.router)
 api_router.include_router(cues.router)
 api_router.include_router(costumes.router)
-api_router.include_router(microphones.router)
+api_router.include_router(wires.router)
+api_router.include_router(packs.router)
+api_router.include_router(lav_chart.router)
 api_router.include_router(set_pieces.router)
 api_router.include_router(stage_movements.router)
 api_router.include_router(reports.router)

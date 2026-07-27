@@ -65,7 +65,8 @@ export function dimensionHref(
     case "props":
       return `${base}/props`;
     case "microphones":
-      return `${base}/microphones`;
+    case "lav_chart":
+      return `${base}/lav-chart`;
     case "set-pieces":
       return `${base}/set-pieces`;
     case "timeline":

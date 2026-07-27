@@ -82,7 +82,7 @@ Eventually the **Overview** page can include information about upcoming schedule
 
 ### 4. Preparation pages
 
-Separate pages hold the asset catalogs that Directors build once and reuse across the show: **Characters**, **Props**, **Costumes**, **Microphones**, **Set pieces**, **Songs**, **Groups**, **Cue Categories**.
+Separate pages hold the asset catalogs that Directors build once and reuse across the show: **Characters**, **Props**, **Costumes**, **Set pieces**, **Songs**, **Groups**, **Cue Categories**. Lav **wires** and **packs** are planned on the **Lav chart** (Director/Admin).
 Some assets can be re-used between completely different productions (props, costume pieces, lavs, etc). Integration with existing digital asset catalogs will allow directors to import or 'order' already-documented assets for use in their production. 
 
 ![Manage Props](docs/screenshots/prop-page.png?raw=true)
@@ -123,6 +123,8 @@ The **Timeline** is a beat-by-beat walk through the show. Directors live here fo
 - Costumes by scene  
 - Entrances & exits  
 - Blocking sheet  
+
+**Lav chart** (Preparation → Lav chart) is an editable wire/pack assignment matrix with Propose, conflict flags, and browser print — linked from Reports.
 
 Click a moment reference in a report and jump straight back to that spot on the Timeline.
 

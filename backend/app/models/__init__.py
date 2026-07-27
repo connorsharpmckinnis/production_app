@@ -9,26 +9,30 @@ from app.models.cue import Cue
 from app.models.cue_category import CueCategory
 from app.models.dialogue import Dialogue
 from app.models.group import CharacterGroup, Group, UserGroup
-from app.models.microphone import Microphone
+from app.models.lav_pack_assignment import LavPackAssignment
+from app.models.lav_wire_assignment import LavWireAssignment
+from app.models.lyric_line import LyricLine
 from app.models.moment import Moment
 from app.models.moment_blocking import MomentBlocking
 from app.models.moment_entrance import MomentEntrance
 from app.models.moment_exit import MomentExit
-from app.models.moment_microphone import MomentMicrophone
 from app.models.moment_prop import MomentProp
 from app.models.moment_set_piece import MomentSetPiece
 from app.models.moment_type import MomentType
 from app.models.note import Note
 from app.models.organization import Organization
+from app.models.pack import Pack
 from app.models.production import Production
 from app.models.production_overview_message import ProductionOverviewMessage
 from app.models.prop import Prop
 from app.models.scene import Scene
 from app.models.set_piece import SetPiece
 from app.models.song import Song
+from app.models.song_attribution_character import SongAttributionCharacter
 from app.models.stage_direction import StageDirection
 from app.models.user import User
 from app.models.user_character_assignment import UserCharacterAssignment
+from app.models.wire import Wire
 
 __all__ = [
     "Act",
@@ -43,26 +47,30 @@ __all__ = [
     "CueCategory",
     "Dialogue",
     "Group",
-    "Microphone",
+    "LavPackAssignment",
+    "LavWireAssignment",
+    "LyricLine",
     "Moment",
     "MomentBlocking",
     "MomentEntrance",
     "MomentExit",
-    "MomentMicrophone",
     "MomentProp",
     "MomentSetPiece",
     "MomentType",
     "Note",
     "Organization",
+    "Pack",
     "Production",
     "ProductionOverviewMessage",
     "Prop",
     "Scene",
     "SetPiece",
     "Song",
+    "SongAttributionCharacter",
     "StageDirection",
     "User",
     "UserAppRole",
     "UserCharacterAssignment",
     "UserGroup",
+    "Wire",
 ]

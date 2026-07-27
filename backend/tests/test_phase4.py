@@ -352,30 +352,13 @@ def test_costume_only_timeline_filter(
     assert all(moment["has_costume"] for moment in filtered)
 
 
-def test_microphones_and_set_pieces_attach_detach(
+def test_set_pieces_attach_detach(
     seeded_client: TestClient, db_session: Session
 ) -> None:
     production_id = _imported_production(seeded_client, db_session)
     director_headers = _login(seeded_client, "director", "director")
     scene_id = _first_scene_id(seeded_client, production_id, director_headers)
     moment = _first_dialogue_moment(seeded_client, production_id, scene_id, director_headers)
-    crean_id = _character_id_by_name(seeded_client, production_id, "CREAN", director_headers)
-
-    microphone = seeded_client.post(
-        f"/api/productions/{production_id}/microphones",
-        json={"identifier": "Lav 1"},
-        headers=director_headers,
-    )
-    assert microphone.status_code == 201
-    microphone_id = microphone.json()["id"]
-
-    mic_attached = seeded_client.post(
-        f"/api/productions/{production_id}/moments/{moment['id']}/microphones",
-        json={"microphone_id": microphone_id, "character_id": crean_id},
-        headers=director_headers,
-    )
-    assert mic_attached.status_code == 201
-    moment_microphone_id = mic_attached.json()["id"]
 
     set_piece = seeded_client.post(
         f"/api/productions/{production_id}/set-pieces",
@@ -397,7 +380,6 @@ def test_microphones_and_set_pieces_attach_detach(
         f"/api/productions/{production_id}/moments/{moment['id']}",
         headers=director_headers,
     ).json()
-    assert len(detail["microphones"]) == 1
     assert len(detail["set_pieces"]) == 1
 
     summary = seeded_client.get(
@@ -405,20 +387,15 @@ def test_microphones_and_set_pieces_attach_detach(
         headers=director_headers,
     ).json()
     matched = next(item for item in summary if item["id"] == moment["id"])
-    assert matched["has_microphone"] is True
     assert matched["has_set_piece"] is True
 
-    mic_filtered = seeded_client.get(
+    piece_filtered = seeded_client.get(
         f"/api/productions/{production_id}/scenes/{scene_id}/moments",
-        params={"microphone_id": microphone_id},
+        params={"set_piece_id": set_piece_id},
         headers=director_headers,
     ).json()
-    assert any(item["id"] == moment["id"] for item in mic_filtered)
+    assert any(item["id"] == moment["id"] for item in piece_filtered)
 
-    seeded_client.delete(
-        f"/api/productions/{production_id}/moments/{moment['id']}/microphones/{moment_microphone_id}",
-        headers=director_headers,
-    )
     seeded_client.delete(
         f"/api/productions/{production_id}/moments/{moment['id']}/set-pieces/{moment_set_piece_id}",
         headers=director_headers,

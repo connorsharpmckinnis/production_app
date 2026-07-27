@@ -10,11 +10,13 @@ from app.models import (
     Act,
     Character,
     Dialogue,
+    LyricLine,
     Moment,
     MomentType,
     Production,
     Scene,
     Song,
+    SongAttributionCharacter,
     StageDirection,
 )
 from app.services.importer.builtins import BUILTIN_CHARACTER_NAMES, BUILTIN_SINGER_NAMES
@@ -23,6 +25,7 @@ from app.services.importer.extract import ExtractedLine, extract_script
 from app.services.importer.grammar import (
     SpeakerListError,
     is_all_caps_lyric,
+    is_song_section_label,
     parse_dialogue_line,
     parse_performer_line,
     validate_song_title,
@@ -64,6 +67,7 @@ class ImportState:
     current_act: Act | None = None
     current_scene: Scene | None = None
     current_song: Song | None = None
+    current_performers: list[str] = field(default_factory=list)
     sequence_number: int = 0
     title_page_complete: bool = False
     characters: dict[str, Character] = field(default_factory=dict)
@@ -74,6 +78,11 @@ class ImportState:
     # After a structural or song-block failure, skip lines until a safe resume point.
     # "act_or_scene" resumes on Act/Scene; "song_boundary" also resumes on song headers.
     recovery_mode: str | None = None
+
+
+def _clear_song_context(state: ImportState) -> None:
+    state.current_song = None
+    state.current_performers = []
 
 
 @dataclass
@@ -338,13 +347,18 @@ def _classify_song_block_line(
     state: ImportState,
     content: str,
     line_number: int,
-) -> str:
-    """Return moment type name: song_attribution or lyric."""
+) -> tuple[str, list[str] | None]:
+    """Return (moment type, performer names for attribution or None for lyric)."""
     stripped = content.strip()
-    if parse_performer_line(stripped, state.dialogue_character_names):
-        return "song_attribution"
+    performers = parse_performer_line(
+        stripped,
+        state.dialogue_character_names,
+        allow_new_parenthetical_names=True,
+    )
+    if performers is not None:
+        return "song_attribution", performers
     if is_all_caps_lyric(stripped):
-        return "lyric"
+        return "lyric", None
     raise _annotate_error(
         state,
         line_number,
@@ -353,8 +367,96 @@ def _classify_song_block_line(
     )
 
 
+def _persist_song_attribution(
+    db: Session,
+    production: Production,
+    state: ImportState,
+    performers: list[str],
+    original_text: str,
+    line_number: int,
+) -> Moment:
+    for name in performers:
+        _get_or_create_character(db, production, state, name)
+    state.current_performers = list(performers)
+    moment = _create_moment(db, state, "song_attribution", original_text, line_number)
+    for name in performers:
+        character = state.characters[name]
+        db.add(
+            SongAttributionCharacter(
+                moment_id=moment.id,
+                character_id=character.id,
+            ),
+        )
+    return moment
+
+
+def _persist_lyric(
+    db: Session,
+    state: ImportState,
+    original_text: str,
+    line_number: int,
+) -> Moment:
+    if not state.current_performers:
+        raise _annotate_error(
+            state,
+            line_number,
+            original_text,
+            "Lyric line before any performer attribution — add a singer line "
+            "(for example ALL or SHACKLETON) after the song title",
+        )
+    lyric_text = original_text.removeprefix("#### ").strip()
+    moment = _create_moment(
+        db,
+        state,
+        "lyric",
+        original_text,
+        line_number,
+        parsed_text=lyric_text or None,
+    )
+    for name in state.current_performers:
+        character = state.characters[name]
+        db.add(
+            LyricLine(
+                moment_id=moment.id,
+                character_id=character.id,
+                lyric_text=lyric_text,
+            ),
+        )
+    return moment
+
+
+def _handle_song_block_moment(
+    db: Session,
+    production: Production,
+    state: ImportState,
+    content: str,
+    line_number: int,
+    *,
+    line_prefix: str = "",
+) -> None:
+    stripped = content.strip()
+    if is_song_section_label(stripped):
+        # Structural markers (VERSE / CHORUS / …) — not Moments; keep performers.
+        return
+    moment_type, performers = _classify_song_block_line(state, stripped, line_number)
+    original_text = f"{line_prefix}{stripped}"
+    if moment_type == "song_attribution":
+        assert performers is not None
+        _persist_song_attribution(
+            db,
+            production,
+            state,
+            performers,
+            original_text,
+            line_number,
+        )
+        return
+    _persist_lyric(db, state, original_text, line_number)
+
+
 def _handle_h4_line(
     db: Session,
+    production: Production,
     state: ImportState,
     content: str,
     line_number: int,
@@ -386,25 +488,24 @@ def _handle_h4_line(
             )
         return
 
-    moment_type = _classify_song_block_line(state, stripped, line_number)
-    _create_moment(
+    _handle_song_block_moment(
         db,
+        production,
         state,
-        moment_type,
-        f"{line_prefix}{stripped}",
+        stripped,
         line_number,
+        line_prefix=line_prefix,
     )
 
 
 def _handle_plain_caps_in_song(
     db: Session,
+    production: Production,
     state: ImportState,
     line: str,
     line_number: int,
 ) -> None:
-    stripped = line.strip()
-    moment_type = _classify_song_block_line(state, stripped, line_number)
-    _create_moment(db, state, moment_type, stripped, line_number)
+    _handle_song_block_moment(db, production, state, line, line_number)
 
 
 def _is_ignored_line(line: str) -> bool:
@@ -449,7 +550,7 @@ def _classify_and_process_line(
         db.flush()
         state.current_act = act
         state.current_scene = None
-        state.current_song = None
+        _clear_song_context(state)
         state.sequence_number = 0
         state.title_page_complete = True
         return
@@ -473,7 +574,7 @@ def _classify_and_process_line(
         db.add(scene)
         db.flush()
         state.current_scene = scene
-        state.current_song = None
+        _clear_song_context(state)
         state.sequence_number = 0
         return
 
@@ -492,6 +593,7 @@ def _classify_and_process_line(
         db.add(song)
         db.flush()
         state.current_song = song
+        state.current_performers = []
         _create_moment(db, state, "song_header", line, line_number)
         return
 
@@ -504,7 +606,7 @@ def _classify_and_process_line(
                 "H4 line outside of song block context",
             )
         try:
-            _handle_h4_line(db, state, match.group(1), line_number)
+            _handle_h4_line(db, production, state, match.group(1), line_number)
         except ImportLineError as exc:
             raise _annotate_error(state, line_number, line, exc.message) from exc
         return
@@ -534,11 +636,16 @@ def _classify_and_process_line(
         return
 
     if state.current_song is not None and (
-        parse_performer_line(line.strip(), state.dialogue_character_names)
+        is_song_section_label(line.strip())
+        or parse_performer_line(
+            line.strip(),
+            state.dialogue_character_names,
+            allow_new_parenthetical_names=True,
+        )
         or is_all_caps_lyric(line.strip())
     ):
         try:
-            _handle_plain_caps_in_song(db, state, line, line_number)
+            _handle_plain_caps_in_song(db, production, state, line, line_number)
         except ImportLineError as exc:
             raise _annotate_error(state, line_number, line, exc.message) from exc
         return
@@ -636,7 +743,7 @@ def import_script(
                 issue = exc.issues[0]
                 if _error_is_in_song_context(state, line):
                     issues.append(_to_song_issue(state, issue))
-                    state.current_song = None
+                    _clear_song_context(state)
                     state.recovery_mode = "song_boundary"
                 elif _is_structural_context_error(issue.message):
                     issues.append(issue)

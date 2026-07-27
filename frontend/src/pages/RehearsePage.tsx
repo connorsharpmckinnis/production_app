@@ -342,7 +342,6 @@ export default function RehearsePage() {
         characters={scene.characters}
         songs={scene.songs}
         propsCatalog={scene.propsCatalog}
-        microphonesCatalog={scene.microphonesCatalog}
         setPiecesCatalog={scene.setPiecesCatalog}
         cueCategories={scene.cueCategories}
         momentTypes={scene.momentTypes}

@@ -1,6 +1,6 @@
 """Production prep readiness scoring (derived, not stored).
 
-Soft catalog dimensions (cues, props, microphones, set pieces):
+Soft catalog dimensions (cues, props, lav chart, set pieces):
   score = (40 if catalog has ≥1 row else 0) + 60 * (scenes_with_use / scene_count)
 
 When scene_count == 0, soft coverage has no denominator — the dimension is N/A
@@ -31,17 +31,19 @@ from app.models import (
     Cue,
     CueCategory,
     Dialogue,
-    Microphone,
+    LavPackAssignment,
+    LavWireAssignment,
     Moment,
     MomentBlocking,
     MomentEntrance,
     MomentExit,
-    MomentMicrophone,
     MomentProp,
     MomentSetPiece,
+    Pack,
     Prop,
     Scene,
     SetPiece,
+    Wire,
 )
 from app.services.importer.builtins import BUILTIN_CHARACTER_NAMES
 
@@ -82,8 +84,12 @@ def compute_readiness(db: Session, production_id: int) -> ReadinessResult:
 
     cue_scenes = _scenes_with_cues(db, production_id)
     prop_scenes = _scenes_with_attachment(db, production_id, MomentProp)
-    mic_scenes = _scenes_with_attachment(db, production_id, MomentMicrophone)
+    lav_scenes = _scenes_with_lav_assignments(db, production_id)
     set_piece_scenes = _scenes_with_attachment(db, production_id, MomentSetPiece)
+    lav_catalog_count = (
+        _count_for_production(db, Wire, production_id)
+        + _count_for_production(db, Pack, production_id)
+    )
 
     dimensions = [
         _casting_dimension(db, production_id),
@@ -117,18 +123,18 @@ def compute_readiness(db: Session, production_id: int) -> ReadinessResult:
             gaps=_soft_scene_gaps(scenes, prop_scenes, "no props"),
         ),
         _soft_catalog_dimension(
-            key="microphones",
-            label="Microphones",
-            href_hint="microphones",
-            catalog_count=_count_for_production(db, Microphone, production_id),
-            scenes_with_use=len(mic_scenes),
+            key="lav_chart",
+            label="Lav chart",
+            href_hint="lav-chart",
+            catalog_count=lav_catalog_count,
+            scenes_with_use=len(lav_scenes),
             scene_count=scene_count,
-            empty_catalog_summary="No microphones in the catalog yet",
-            unused_summary="Microphone catalog seeded but unused on the timeline",
+            empty_catalog_summary="No wires or packs in the lav inventory yet",
+            unused_summary="Lav inventory seeded but no scene assignments on the lav chart",
             coverage_summary_fn=lambda used, total: (
-                f"{used} of {total} scenes have at least one microphone"
+                f"{used} of {total} scenes have lav wire/pack assignments"
             ),
-            gaps=_soft_scene_gaps(scenes, mic_scenes, "no microphones"),
+            gaps=_soft_scene_gaps(scenes, lav_scenes, "no lav assignments"),
         ),
         _soft_catalog_dimension(
             key="set_pieces",
@@ -358,6 +364,21 @@ def _scenes_with_attachment(db: Session, production_id: int, attachment_model: t
         .all()
     )
     return {row[0] for row in rows}
+
+
+def _scenes_with_lav_assignments(db: Session, production_id: int) -> set[int]:
+    """Scene IDs that appear in lav wire or pack assignments for this production."""
+    wire_rows = (
+        db.query(distinct(LavWireAssignment.scene_id))
+        .filter(LavWireAssignment.production_id == production_id)
+        .all()
+    )
+    pack_rows = (
+        db.query(distinct(LavPackAssignment.scene_id))
+        .filter(LavPackAssignment.production_id == production_id)
+        .all()
+    )
+    return {row[0] for row in wire_rows} | {row[0] for row in pack_rows}
 
 
 def _soft_scene_gaps(

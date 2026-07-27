@@ -8,8 +8,8 @@ import CreateProductionPage from "@/pages/CreateProductionPage";
 import CueCategoriesPage from "@/pages/CueCategoriesPage";
 import GroupsPage from "@/pages/GroupsPage";
 import ImportPage from "@/pages/ImportPage";
+import LavChartPage from "@/pages/LavChartPage";
 import LoginPage from "@/pages/LoginPage";
-import MicrophonesPage from "@/pages/MicrophonesPage";
 import ProductionOverviewPage from "@/pages/ProductionOverviewPage";
 import ProductionListPage from "@/pages/ProductionListPage";
 import PropsPage from "@/pages/PropsPage";
@@ -38,12 +38,12 @@ export default function App() {
           <Route path="productions/:id/songs" element={<SongsPage />} />
           <Route path="productions/:id/props" element={<PropsPage />} />
           <Route path="productions/:id/costumes" element={<CostumesPage />} />
-          <Route path="productions/:id/microphones" element={<MicrophonesPage />} />
           <Route path="productions/:id/set-pieces" element={<SetPiecesPage />} />
           <Route path="productions/:id/cue-categories" element={<CueCategoriesPage />} />
 
           <Route element={<ProtectedRoute directorOnly />}>
             <Route path="productions/:id/groups" element={<GroupsPage />} />
+            <Route path="productions/:id/lav-chart" element={<LavChartPage />} />
             <Route path="productions/:id/reports" element={<ReportsPage />} />
           </Route>
 

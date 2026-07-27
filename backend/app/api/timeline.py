@@ -12,12 +12,11 @@ from app.models import (
     Cue,
     Dialogue,
     Group,
-    Microphone,
+    LyricLine,
     Moment,
     MomentBlocking,
     MomentEntrance,
     MomentExit,
-    MomentMicrophone,
     MomentProp,
     MomentSetPiece,
     MomentType,
@@ -25,11 +24,11 @@ from app.models import (
     Scene,
     SetPiece,
     Song,
+    SongAttributionCharacter,
     StageDirection,
     User,
 )
 from app.schemas.cues import CueResponse
-from app.schemas.microphones import MomentMicrophoneResponse
 from app.schemas.notes import NoteResponse
 from app.schemas.props import MomentPropResponse
 from app.schemas.set_pieces import MomentSetPieceResponse
@@ -42,6 +41,7 @@ from app.schemas.stage_movements import (
 from app.schemas.timeline import (
     ActSummary,
     DialogueLineResponse,
+    LyricLineResponse,
     MomentDetailResponse,
     MomentSummary,
 )
@@ -67,7 +67,6 @@ from app.services.timeline_filters import (
     load_scene_moments,
     moment_ids_with_cue_category,
     moment_ids_with_cues,
-    moment_ids_with_microphone,
     moment_ids_with_prop,
     moment_ids_with_set_piece,
     moment_speaking_character_ids,
@@ -124,22 +123,6 @@ def _moment_prop_response(moment_prop: MomentProp) -> MomentPropResponse:
         character_id=moment_prop.character_id,
         character_name=character_name,
         notes=moment_prop.notes,
-    )
-
-
-def _moment_microphone_response(
-    moment_microphone: MomentMicrophone,
-) -> MomentMicrophoneResponse:
-    character_name = None
-    if moment_microphone.character is not None:
-        character_name = moment_microphone.character.name
-    return MomentMicrophoneResponse(
-        id=moment_microphone.id,
-        microphone_id=moment_microphone.microphone_id,
-        microphone_identifier=moment_microphone.microphone.identifier,
-        character_id=moment_microphone.character_id,
-        character_name=character_name,
-        notes=moment_microphone.notes,
     )
 
 
@@ -225,7 +208,6 @@ def list_scene_moments(
     song_id: int | None = Query(default=None),
     prop_id: int | None = Query(default=None),
     cue_category_id: int | None = Query(default=None),
-    microphone_id: int | None = Query(default=None),
     set_piece_id: int | None = Query(default=None),
     costume_only: bool = Query(default=False),
     entrance_only: bool = Query(default=False),
@@ -313,21 +295,6 @@ def list_scene_moments(
                 detail="Cue category not found",
             )
 
-    if microphone_id is not None:
-        microphone = (
-            db.query(Microphone)
-            .filter(
-                Microphone.id == microphone_id,
-                Microphone.production_id == production_id,
-            )
-            .first()
-        )
-        if microphone is None:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Microphone not found",
-            )
-
     if set_piece_id is not None:
         set_piece = (
             db.query(SetPiece)
@@ -347,11 +314,6 @@ def list_scene_moments(
     category_moment_ids = (
         moment_ids_with_cue_category(db, scene_id, cue_category_id)
         if cue_category_id is not None
-        else None
-    )
-    microphone_moment_ids = (
-        moment_ids_with_microphone(db, scene_id, microphone_id)
-        if microphone_id is not None
         else None
     )
     set_piece_moment_ids = (
@@ -379,7 +341,6 @@ def list_scene_moments(
         song_id=song_id,
         prop_id=prop_id,
         cue_category_id=cue_category_id,
-        microphone_id=microphone_id,
         set_piece_id=set_piece_id,
         costume_only=costume_only,
         entrance_only=entrance_only,
@@ -389,7 +350,6 @@ def list_scene_moments(
         moment_ids_with_cues=cued_moment_ids,
         moment_ids_with_prop=prop_moment_ids,
         moment_ids_with_cue_category=category_moment_ids,
-        moment_ids_with_microphone=microphone_moment_ids,
         moment_ids_with_set_piece=set_piece_moment_ids,
         costume_character_ids=costume_char_ids,
     )
@@ -405,7 +365,6 @@ def list_scene_moments(
             speaking_character_ids=moment_speaking_character_ids(moment),
             has_props=len(moment.moment_props) > 0,
             has_cues=len(moment.cues) > 0,
-            has_microphone=len(moment.moment_microphones) > 0,
             has_set_piece=len(moment.moment_set_pieces) > 0,
             has_costume=moment_has_costume(moment, costume_char_ids),
             has_entrance=len(moment.moment_entrances) > 0,
@@ -430,13 +389,15 @@ def get_moment_detail(
         .options(
             joinedload(Moment.moment_type),
             joinedload(Moment.dialogue_lines).joinedload(Dialogue.character),
+            joinedload(Moment.lyric_lines).joinedload(LyricLine.character),
+            joinedload(Moment.song_attribution_characters).joinedload(
+                SongAttributionCharacter.character,
+            ),
             joinedload(Moment.stage_directions),
             joinedload(Moment.song),
             joinedload(Moment.notes).joinedload(Note.user),
             joinedload(Moment.moment_props).joinedload(MomentProp.prop),
             joinedload(Moment.moment_props).joinedload(MomentProp.character),
-            joinedload(Moment.moment_microphones).joinedload(MomentMicrophone.microphone),
-            joinedload(Moment.moment_microphones).joinedload(MomentMicrophone.character),
             joinedload(Moment.moment_set_pieces).joinedload(MomentSetPiece.set_piece),
             joinedload(Moment.moment_entrances).joinedload(MomentEntrance.character),
             joinedload(Moment.moment_exits).joinedload(MomentExit.character),
@@ -484,11 +445,17 @@ def get_moment_detail(
             )
             for line in moment.dialogue_lines
         ],
+        lyrics=[
+            LyricLineResponse(
+                id=line.id,
+                character_id=line.character_id,
+                character_name=line.character.name,
+                lyric_text=line.lyric_text,
+            )
+            for line in moment.lyric_lines
+        ],
         stage_direction=stage_direction,
         props=[_moment_prop_response(moment_prop) for moment_prop in moment.moment_props],
-        microphones=[
-            _moment_microphone_response(item) for item in moment.moment_microphones
-        ],
         set_pieces=[
             _moment_set_piece_response(item) for item in moment.moment_set_pieces
         ],
@@ -528,6 +495,10 @@ def update_moment(
             orphaned: list[str] = []
             if moment.dialogue_lines and new_type != "dialogue":
                 orphaned.append("dialogue lines")
+            if moment.lyric_lines and new_type != "lyric":
+                orphaned.append("lyric lines")
+            if moment.song_attribution_characters and new_type != "song_attribution":
+                orphaned.append("song attribution characters")
             if moment.stage_directions and new_type != "stage_direction":
                 orphaned.append("stage direction")
             if orphaned:

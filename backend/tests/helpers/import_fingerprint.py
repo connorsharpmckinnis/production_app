@@ -35,22 +35,47 @@ def semantic_import_fingerprint(db: Session, production: Production) -> dict:
                 key=lambda item: (item.sequence_number, item.id),
             ):
                 moment_type = moment.moment_type.name
-                speakers = tuple(
-                    dialogue.character.name
-                    for dialogue in sorted(
-                        moment.dialogue_lines,
-                        key=lambda item: item.id,
-                    )
-                )
                 if moment_type == "dialogue":
+                    speakers = tuple(
+                        dialogue.character.name
+                        for dialogue in sorted(
+                            moment.dialogue_lines,
+                            key=lambda item: item.id,
+                        )
+                    )
                     semantic_text = normalize_source_markup(moment.parsed_text)
+                elif moment_type == "lyric":
+                    speakers = tuple(
+                        line.character.name
+                        for line in sorted(
+                            moment.lyric_lines,
+                            key=lambda item: item.id,
+                        )
+                    )
+                    semantic_text = normalize_source_markup(
+                        moment.original_text.removeprefix("#### ").strip(),
+                    )
+                elif moment_type == "song_attribution":
+                    speakers = tuple(
+                        row.character.name
+                        for row in sorted(
+                            moment.song_attribution_characters,
+                            key=lambda item: item.id,
+                        )
+                    )
+                    semantic_text = normalize_source_markup(
+                        moment.original_text.removeprefix("#### ").strip(),
+                    )
                 elif moment_type == "stage_direction":
+                    speakers = ()
                     semantic_text = normalize_source_markup(
                         moment.stage_directions[0].direction_text,
                     )
                 elif moment_type == "song_header":
+                    speakers = ()
                     semantic_text = moment.song.title if moment.song else None
                 else:
+                    speakers = ()
                     semantic_text = normalize_source_markup(
                         moment.original_text.removeprefix("#### ").strip(),
                     )

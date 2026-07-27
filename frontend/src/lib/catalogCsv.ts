@@ -4,7 +4,6 @@ export const MAX_CATALOG_CSV_BYTES = 1 * 1024 * 1024; // 1 MiB
 
 export type CatalogCsvKind =
   | "props"
-  | "microphones"
   | "set-pieces"
   | "costumes"
   | "songs"
@@ -28,12 +27,6 @@ export const CATALOG_CSV_CONFIGS: Record<CatalogCsvKind, CatalogCsvConfig> = {
     label: "props",
     pathSegment: "props",
     templateFilename: "props_template.csv",
-  },
-  microphones: {
-    kind: "microphones",
-    label: "microphones",
-    pathSegment: "microphones",
-    templateFilename: "microphones_template.csv",
   },
   "set-pieces": {
     kind: "set-pieces",

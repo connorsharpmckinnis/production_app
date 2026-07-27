@@ -20,6 +20,9 @@ Companion documents:
 - [PHASE_8.md](PHASE_8.md) — Phase 8 execution plan (prep readiness & catalog CSV)
 - [PHASE_9.md](PHASE_9.md) — Phase 9 execution plan (dual-format import hardening)
 - [PHASE_10.md](PHASE_10.md) — Phase 10 execution plan (deploy security, containers, private access)
+- [PHASE_11.md](PHASE_11.md) — Phase 11 execution plan (singer attribution, footnotes, import leftovers)
+- [PHASE_12.md](PHASE_12.md) — Phase 12 execution plan (lav chart: wires, packs, propose, print)
+- [PHASE_13.md](PHASE_13.md) — Phase 13 WP-slim: retire Timeline microphones; lav chart owns lavs; derivation follow-on
 - [ROLES.md](ROLES.md) — MVP role permissions
 - [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](../.agents/skills/DEVELOPMENT_GUIDE/SKILL.md) — coding standards for humans and AI
 
@@ -942,6 +945,57 @@ Summary:
 - One-page deploy + Tailscale runbook; avoid Cloudflare Tunnel as the default path
 
 **Explicitly out of Phase 10:** public internet as default access, VPS provisioning, cookie-auth redesign, full multi-tenant isolation, inviting cast onto the tailnet.
+
+---
+
+
+
+## Phase 11 — Singer Attribution, Footnotes & Import Leftovers
+
+See [PHASE_11.md](PHASE_11.md) for the execution plan.
+
+Summary:
+
+- Persist singers on song attribution and lyric Moments (`lyric_lines` + attribution character links), mirroring dialogue→Character
+- Harden attribution vs lyric classification without a mandatory new glyph (colon escape hatch only if needed)
+- Ban/strip Markdown footnote markers; audit Phase 9 leftovers from issue #16
+- Foundation for later lav chart and character packets (explicitly out of this phase)
+
+**Explicitly out of Phase 11:** lav/mic chart, character packets, event-driven assets, import grammar UI, mixed-case speakers, re-import.
+
+---
+
+
+
+## Phase 12 — Lav Chart (Wires & Packs)
+
+See [PHASE_12.md](PHASE_12.md) for the execution plan.
+
+Summary:
+
+- Production-scoped **wires** and **packs** catalogs (separate from Timeline microphones)
+- Editable lav chart: actor rows × scene columns, wire sheet + pack sheet
+- **Propose chart** with whole-show / intermission-stable heuristics; feasibility and conflict flags
+- In-app rules copy; browser print; Timeline mic attachments unchanged
+
+**Explicitly out of Phase 12:** change-list sheet, event-driven “get pack on” Moments, org inventory, configurable rules UI, PDF/CSV export, character packets.
+
+---
+
+
+
+## Phase 13 — Retire Timeline Microphones (Lav Chart Owns Lavs)
+
+See [PHASE_13.md](PHASE_13.md) for the execution plan.
+
+Summary:
+
+- Drop Timeline `microphones` / `moment_microphones` (data discarded)
+- Lav chart (wires + packs) is the only lav planning surface (Director/Admin)
+- Overview readiness soft dimension retargeted to `lav_chart`
+- **Follow-on (documented, not built):** derive Timeline Moments when wire/pack assignments change between scenes
+
+**Explicitly out of Phase 13 WP-slim:** Timeline derivation implementation, handheld mics, org inventory, wire/pack CSV.
 
 ---
 

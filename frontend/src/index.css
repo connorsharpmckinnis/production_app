@@ -320,8 +320,13 @@ body {
   .app-shell-sidebar,
   .app-shell-overlay,
   .reports-toc,
-  .reports-print-hide {
+  .reports-print-hide,
+  .lav-print-hide {
     display: none !important;
+  }
+
+  .lav-print-only {
+    display: inline !important;
   }
 
   main {
@@ -332,6 +337,16 @@ body {
   .reports-section {
     break-inside: avoid;
     page-break-inside: avoid;
+  }
+
+  .lav-chart-table {
+    font-size: 10pt;
+  }
+
+  .lav-chart-table th,
+  .lav-chart-table td {
+    border: 1px solid #ccc;
+    padding: 0.2rem 0.35rem;
   }
 
   a {

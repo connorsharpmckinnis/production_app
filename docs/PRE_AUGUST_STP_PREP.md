@@ -116,12 +116,12 @@ Tracked and sequenced in **[PHASE_10.md](PHASE_10.md)** (Tier A Tailscale on Dev
 
 Emmy’s meeting will go sideways if “import the real STP script” fails live.
 
-- [ ] Finish Phase 9 hardening that still matters for a full STP script:
+- [x] Finish Phase 9 hardening that still matters for a full STP script:
   - DOCX modern hyperlink song titles
   - Punctuated character names (`MS. ELEPHANT`, etc.)
   - Lyric punctuation that matches real songs
   - MD ↔ DOCX parity expectations (same structure from the same show)
-- [ ] **Footnote artifacts** — stop polluting dialogue (`[^2]`, footnote bodies); consider importing footnotes as public notes on the moment ([SCRATCH_NOTES.md](SCRATCH_NOTES.md)).
+- [x] **Footnote artifacts** — stop polluting dialogue (`[^2]`, footnote bodies); consider importing footnotes as public notes on the moment ([SCRATCH_NOTES.md](SCRATCH_NOTES.md)). → **Phase 11:** strip markers; Notes-from-defs still deferred.
 - [ ] Keep a **cleaned full-script fixture** (or known-good export path) ready for demo — and know the Google Docs → `.md` / `.docx` recipe cold.
 
 
@@ -145,7 +145,7 @@ Work that makes the walkthrough feel like a product STP could actually use next 
 Stage Write leans visual blocking + prompt book. STP’s recurring pain (and your own STP overview) is **sheets and readiness**. Push printable usefulness, not a ground-plan clone.
 
 - [ ] **Per-character “what do I need tonight?” pack** — lines context + props + costume notes + entrances for one actor ([STP_PRODUCT_OVERVIEW.md](STP_PRODUCT_OVERVIEW.md) idea #1). Even a solid print view beats a PDF suite.
-- [ ] **Lav / mic change chart** — who has which mic when, and when they swap (idea #2). Classic community-theater headache; Stage Write doesn’t own this narrative for you.
+- [x] **Lav / mic change chart** — Phase 12 matrix MVP (wires + packs, propose, edit, print). Change-list / swap chart and Timeline integration still later.
 - [ ] Improve existing reports’ **print layouts** (CSS / section print) so prop, cue, entrance/exit, and blocking sheets look intentional under a projector or on paper.
 - [ ] Optional stretch inside P1: set-piece sheet or song sheet if the character pack + lav chart land early.
 
@@ -163,7 +163,7 @@ Emmy’s Stage Write doubt was partly **multi-show investment**. Lean into remou
 
 ### Import / song model gaps that break real musicals
 
-- [ ] **Singer attribution for songs** — lyric blocks need a singer like dialogue needs a speaker; support splits like `SHACKLETON (WILD)` ([SCRATCH_NOTES.md](SCRATCH_NOTES.md)). Musical-heavy STP shows will hit this.
+- [x] **Singer attribution for songs** — lyric blocks need a singer like dialogue needs a speaker; support splits like `SHACKLETON (WILD)` ([SCRATCH_NOTES.md](SCRATCH_NOTES.md)). Musical-heavy STP shows will hit this. → **Shipped Phase 11** ([PHASE_11.md](PHASE_11.md)).
 
 
 

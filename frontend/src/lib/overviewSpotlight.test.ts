@@ -77,6 +77,8 @@ describe("dimensionHref", () => {
     expect(dimensionHref(9, "cue-categories")).toBe(
       "/productions/9/cue-categories",
     );
+    expect(dimensionHref(9, "lav_chart")).toBe("/productions/9/lav-chart");
+    expect(dimensionHref(9, "microphones")).toBe("/productions/9/lav-chart");
   });
 
   it("falls back to the production overview for unknown hints", () => {

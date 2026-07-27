@@ -737,6 +737,8 @@ QUEEN: (rather confused) …No. I’ve come to wish you well on your journey and
 
 ####
 
+#### QUEEN
+
 #### VERSE
 
 #### O GOD WHOSE GLORY FILLS CREATION,

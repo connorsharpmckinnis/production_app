@@ -184,7 +184,8 @@ Use shadcn/ui throughout ([DEVELOPMENT_GUIDE](../.agents/skills/DEVELOPMENT_GUID
 | User management | Yes | Hidden | Hidden |
 | Casting controls | Yes | Yes | Hidden |
 | Groups / Cue Categories | Yes | Yes | Hidden |
-| Costumes / Microphones / Set Pieces catalog | Yes | Yes | Read-only |
+| Costumes / Set Pieces catalog | Yes | Yes | Read-only |
+| Lav chart (wires/packs) | Yes | Yes | Hidden (Director/Admin) |
 | App Settings | Yes | Hidden | Hidden |
 | Reports | Yes | Yes | Hidden |
 | Songs / Props catalog edit | Yes | Yes | Hidden (read-only) |
@@ -210,8 +211,8 @@ Use shadcn/ui throughout ([DEVELOPMENT_GUIDE](../.agents/skills/DEVELOPMENT_GUID
 * Parsed-data correction collapsed behind pencil toggle; global App Settings for original/parsed text visibility
 * Prose-like timeline rows with optional dialogue character column
 * Structural editing: insert (inline form), delete (confirm), move up/down
-* Prep catalog pages: Costumes (scene+character), Microphones, Set Pieces
-* Moment detail sections for microphones and set pieces (mirror props)
+* Prep catalog pages: Costumes (scene+character), Set Pieces; Lav chart for wires/packs
+* Moment detail sections for set pieces (mirror props); lav change Moments are a Phase 13 follow-on
 * Timeline filters: microphone, set piece, `costume_only` checkbox
 * Reports page: prop sheet, cue sheet, costumes-by-scene
 * Administration sidebar section (Users, App Settings)

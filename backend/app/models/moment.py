@@ -47,6 +47,14 @@ class Moment(Base):
         back_populates="moment",
         cascade="all, delete-orphan",
     )
+    lyric_lines: Mapped[list["LyricLine"]] = relationship(
+        back_populates="moment",
+        cascade="all, delete-orphan",
+    )
+    song_attribution_characters: Mapped[list["SongAttributionCharacter"]] = relationship(
+        back_populates="moment",
+        cascade="all, delete-orphan",
+    )
     stage_directions: Mapped[list["StageDirection"]] = relationship(
         back_populates="moment",
         cascade="all, delete-orphan",
@@ -64,10 +72,6 @@ class Moment(Base):
         cascade="all, delete-orphan",
     )
     cues: Mapped[list["Cue"]] = relationship(
-        back_populates="moment",
-        cascade="all, delete-orphan",
-    )
-    moment_microphones: Mapped[list["MomentMicrophone"]] = relationship(
         back_populates="moment",
         cascade="all, delete-orphan",
     )

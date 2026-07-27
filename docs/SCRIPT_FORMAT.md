@@ -1,6 +1,6 @@
 # Theater App Script Format
 
-**Version:** 0.4
+**Version:** 0.5
 
 This document defines the **Theater App Standard Script Format** — the default format scripts are expected to follow when imported into Theater App.
 
@@ -384,17 +384,30 @@ Songs are distinct sequences within a scene. A song block has three parts: **tit
 - `ALL` for full-cast numbers.
 - Single character: `SHACKLETON`
 - Multiple characters: `VERA & MOM`
+- Parenthetical alternates: `SHACKLETON (WILD)` — primary singer(s) outside the
+  parentheses, alternate singer(s) inside. Import links **all** named Characters
+  to following lyrics (segment-accurate ownership inside a line is future work).
 - The performer line is its own Moment.
 - Repeat the performer line when a new section of the song begins with different singers (see example below).
+- A line that is **only** a known speaker list is always attribution, never a lyric.
+  Do not write a lyric that is solely a comma/`&`-separated list of character names.
+- Performers own following lyric lines until the next performer line, a new song
+  title, or the song block ends. Blank lines between lyrics do **not** clear the
+  current singers.
+- Optional section markers such as `VERSE`, `CHORUS`, `CHORUS 2`, `BRIDGE`,
+  `REFRAIN`, `INTRO`, `OUTRO`, and `TAG` may appear on their own line inside a
+  song. They are ignored by import (not Moments) and do not change the current
+  singers.
 
 ### Lyric lines
 
 - Each lyric line is written in ALL CAPS on its own line.
 - One lyric line = one Moment.
 - Apostrophes, straight/curly quotes, periods, commas, ellipses, `!`, `?`,
-  `;`, hyphens, en/em dashes, ampersands, balanced parentheses, `/` for dual
-  lyric lines (for example `I'M/HE'S`), and footnote markers such as `[^9]`
-  are allowed and preserved as written.
+  `;`, hyphens, en/em dashes, ampersands, balanced parentheses, and `/` for dual
+  lyric lines (for example `I'M/HE'S`) are allowed and preserved as written.
+- **Do not** use Markdown footnote markers (`[^1]`) in scripts. They are banned;
+  the importer strips any leftover markers so they do not appear on the Timeline.
 - Lowercase prose is not a lyric. Use `Note:` for retained context or italics
   for a performance stage direction.
 - **Word / Google Docs:** singer labels and lyrics are normal (Body) text in ALL CAPS, typically centered — not a special heading level. The importer keys off ALL CAPS (and Heading 4 ALL CAPS when present), not a unique font.
@@ -592,8 +605,8 @@ This section previews how the MVP importer will read the format. The full import
 | Action parenthetical in dialogue | **Moment** (extracted adjacent to dialogue) | `stage_direction` |
 | Delivery parenthetical in dialogue | Stays in dialogue Moment text | (inline in `dialogue`) |
 | Song title line (with parenthetical) | **Song** record + **Moment** | `song_header` |
-| Performer line | **Moment** | `song_attribution` |
-| Lyric line | **Moment** (one line = one Moment) | `lyric` |
+| Performer line | **Moment** + attribution Character links | `song_attribution` |
+| Lyric line | **Moment** + **lyric_lines** (per current singer) | `lyric` |
 | `Note:` line | **Moment** (non-performance; hide from actor views) | `author_note` |
 
 ### Import tolerance (non-standard input)
@@ -611,6 +624,7 @@ This section previews how the MVP importer will read the format. The full import
 
 | Version | Date | Notes |
 |---------|------|-------|
+| 0.5 | 2026-07-25 | Singer ownership of lyrics; ban footnotes; optional VERSE/CHORUS markers; parenthetical splits |
 | 0.4 | 2026-07-18 | Shared punctuated speaker-list grammar, broader lyric punctuation, and malformed song-header guidance |
 | 0.1 | 2026-07-08 | Initial draft derived from production script example |
 | 0.3 | 2026-07-13 | DOCX import path; title page does not rename production; song titles via Heading 3 without required hyperlink; lyrics/singers as ALL CAPS Body text |

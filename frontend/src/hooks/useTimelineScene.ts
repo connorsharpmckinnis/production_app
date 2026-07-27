@@ -9,7 +9,6 @@ import type {
   CharacterDetailResponse,
   CueCategoryResponse,
   GroupResponse,
-  MicrophoneResponse,
   MomentDetailResponse,
   MomentListFilters,
   MomentSummary,
@@ -33,7 +32,6 @@ export interface TimelineFilterInput {
   songFilter: "all" | string;
   propFilter: "all" | string;
   cueCategoryFilter: "all" | string;
-  microphoneFilter: "all" | string;
   setPieceFilter: "all" | string;
 }
 
@@ -80,10 +78,6 @@ function buildMomentFilters(
       filterInput.cueCategoryFilter === "all"
         ? undefined
         : Number(filterInput.cueCategoryFilter),
-    microphoneId:
-      filterInput.microphoneFilter === "all"
-        ? undefined
-        : Number(filterInput.microphoneFilter),
     setPieceId:
       filterInput.setPieceFilter === "all" ? undefined : Number(filterInput.setPieceFilter),
   };
@@ -106,7 +100,6 @@ export function useTimelineScene({
   const [groups, setGroups] = useState<GroupResponse[]>([]);
   const [songs, setSongs] = useState<SongDetailResponse[]>([]);
   const [propsCatalog, setPropsCatalog] = useState<PropResponse[]>([]);
-  const [microphonesCatalog, setMicrophonesCatalog] = useState<MicrophoneResponse[]>([]);
   const [setPiecesCatalog, setSetPiecesCatalog] = useState<SetPieceResponse[]>([]);
   const [cueCategories, setCueCategories] = useState<CueCategoryResponse[]>([]);
   const [momentTypes, setMomentTypes] = useState<MomentTypeResponse[]>([]);
@@ -183,7 +176,6 @@ export function useTimelineScene({
       ReturnType<typeof api.listCharacters>,
       ReturnType<typeof api.listSongs>,
       ReturnType<typeof api.listProps>,
-      ReturnType<typeof api.listMicrophones>,
       ReturnType<typeof api.listSetPieces>,
       ReturnType<typeof api.listCueCategories>,
       ReturnType<typeof api.listMomentTypes>,
@@ -195,7 +187,6 @@ export function useTimelineScene({
       api.listCharacters(productionId),
       api.listSongs(productionId),
       api.listProps(productionId),
-      api.listMicrophones(productionId),
       api.listSetPieces(productionId),
       api.listCueCategories(productionId),
       api.listMomentTypes(),
@@ -213,7 +204,6 @@ export function useTimelineScene({
           characterData,
           songData,
           propData,
-          micData,
           setPieceData,
           categoryData,
           typeData,
@@ -225,7 +215,6 @@ export function useTimelineScene({
         setCharacters(characterData);
         setSongs(songData);
         setPropsCatalog(propData);
-        setMicrophonesCatalog(micData);
         setSetPiecesCatalog(setPieceData);
         setCueCategories(categoryData);
         setMomentTypes(typeData);
@@ -369,7 +358,6 @@ export function useTimelineScene({
     groups,
     songs,
     propsCatalog,
-    microphonesCatalog,
     setPiecesCatalog,
     cueCategories,
     momentTypes,

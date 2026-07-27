@@ -5,7 +5,7 @@ import re
 from sqlalchemy.orm import Session, joinedload
 
 from app.auth.dependencies import user_has_role
-from app.models import Costume, Cue, Dialogue, Moment, MomentBlocking, MomentEntrance, MomentExit, MomentMicrophone, MomentProp, MomentSetPiece, User
+from app.models import Costume, Cue, Dialogue, LyricLine, Moment, MomentBlocking, MomentEntrance, MomentExit, MomentProp, MomentSetPiece, SongAttributionCharacter, User
 
 # Moment types shown in cue-only rehearsal mode (Phase 2).
 CUE_ONLY_TYPES = frozenset({"stage_direction", "song_header", "song_attribution"})
@@ -50,15 +50,18 @@ def get_actor_character_ids(db: Session, user: User, production_id: int) -> list
 
 
 def load_scene_moments(db: Session, scene_id: int) -> list[Moment]:
-    """Load all moments for a scene with types, dialogue, props, and cues."""
+    """Load all moments for a scene with types, dialogue, lyrics, props, and cues."""
     return (
         db.query(Moment)
         .options(
             joinedload(Moment.moment_type),
             joinedload(Moment.dialogue_lines).joinedload(Dialogue.character),
+            joinedload(Moment.lyric_lines).joinedload(LyricLine.character),
+            joinedload(Moment.song_attribution_characters).joinedload(
+                SongAttributionCharacter.character,
+            ),
             joinedload(Moment.stage_directions),
             joinedload(Moment.moment_props),
-            joinedload(Moment.moment_microphones),
             joinedload(Moment.moment_set_pieces),
             joinedload(Moment.moment_entrances),
             joinedload(Moment.moment_exits),
@@ -133,17 +136,6 @@ def moment_ids_with_cue_category(
     return {row[0] for row in rows}
 
 
-def moment_ids_with_microphone(db: Session, scene_id: int, microphone_id: int) -> set[int]:
-    """Return moment IDs in this scene that have the given microphone attached."""
-    rows = (
-        db.query(MomentMicrophone.moment_id)
-        .join(Moment, Moment.id == MomentMicrophone.moment_id)
-        .filter(Moment.scene_id == scene_id, MomentMicrophone.microphone_id == microphone_id)
-        .all()
-    )
-    return {row[0] for row in rows}
-
-
 def moment_ids_with_set_piece(db: Session, scene_id: int, set_piece_id: int) -> set[int]:
     """Return moment IDs in this scene that have the given set piece attached."""
     rows = (
@@ -175,8 +167,11 @@ def moment_has_costume(moment: Moment, costume_character_ids: set[int]) -> bool:
 
 
 def moment_speaking_character_ids(moment: Moment) -> list[int]:
-    """Character IDs that speak in this moment (for highlighting)."""
-    return list({line.character_id for line in moment.dialogue_lines})
+    """Character IDs that speak or sing in this moment (for highlighting/filters)."""
+    ids = {line.character_id for line in moment.dialogue_lines}
+    ids.update(line.character_id for line in moment.lyric_lines)
+    ids.update(row.character_id for row in moment.song_attribution_characters)
+    return list(ids)
 
 
 def _character_name_patterns(names: list[str]) -> list[re.Pattern[str]]:
@@ -231,7 +226,6 @@ def apply_timeline_filters(
     song_id: int | None = None,
     prop_id: int | None = None,
     cue_category_id: int | None = None,
-    microphone_id: int | None = None,
     set_piece_id: int | None = None,
     costume_only: bool = False,
     entrance_only: bool = False,
@@ -241,7 +235,6 @@ def apply_timeline_filters(
     moment_ids_with_cues: set[int] | None = None,
     moment_ids_with_prop: set[int] | None = None,
     moment_ids_with_cue_category: set[int] | None = None,
-    moment_ids_with_microphone: set[int] | None = None,
     moment_ids_with_set_piece: set[int] | None = None,
     costume_character_ids: set[int] | None = None,
 ) -> list[Moment]:
@@ -273,10 +266,6 @@ def apply_timeline_filters(
     if cue_category_id is not None:
         category_ids = moment_ids_with_cue_category or set()
         filtered = [moment for moment in filtered if moment.id in category_ids]
-
-    if microphone_id is not None:
-        mic_ids = moment_ids_with_microphone or set()
-        filtered = [moment for moment in filtered if moment.id in mic_ids]
 
     if set_piece_id is not None:
         piece_ids = moment_ids_with_set_piece or set()

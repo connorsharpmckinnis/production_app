@@ -5,11 +5,12 @@ Sample CSV catalogs for Phase 8 bulk import. Headers match [docs/CATALOG_CSV.md]
 | File | Asset | Notes |
 |---|---|---|
 | `props.csv` | Props | `name`, optional `description` / `notes` |
-| `microphones.csv` | Microphones | `identifier`, optional `notes` |
 | `set_pieces.csv` | Set pieces | `mobile` is `true`/`false`/`1`/`0` |
 | `songs.csv` | Songs | Extra songs beyond those created by script import |
 | `cue_categories.csv` | Cue categories | Common tech categories |
 | `costumes.csv` | Costumes | Requires an imported production with matching character + scene titles |
+
+Lav wires/packs are added on the **Lav chart** (not CSV in this phase). Timeline microphones CSV was retired in Phase 13.
 
 ## Loading for a pilot
 
@@ -24,7 +25,6 @@ API paths:
 
 ```text
 POST /api/productions/{id}/props/import
-POST /api/productions/{id}/microphones/import
 POST /api/productions/{id}/set-pieces/import
 POST /api/productions/{id}/costumes/import
 POST /api/productions/{id}/songs/import

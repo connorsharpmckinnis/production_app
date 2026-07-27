@@ -66,7 +66,7 @@ Directors work primarily in the **Timeline**:
 
 - Review and adjust the structure (add, delete, reorder moments)  
 - Cast characters to actors  
-- Build catalogs: songs, props, costumes, microphones, set pieces, cue categories, groups  
+- Build catalogs: songs, props, costumes, set pieces, cue categories, groups; plan lavs on the Lav chart (wires/packs)
 - Attach prep to specific moments: props, cues, entrances, exits, blocking, notes  
 - Bookmark moments that need attention later  
 

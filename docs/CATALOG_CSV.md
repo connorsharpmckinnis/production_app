@@ -9,11 +9,12 @@ Roles: **Director** or **Admin**.
 | Asset | Import | Template |
 | ----- | ------ | -------- |
 | Props | `POST /api/productions/{production_id}/props/import` | `GET .../props/import/template` |
-| Microphones | `POST .../microphones/import` | `GET .../microphones/import/template` |
 | Set pieces | `POST .../set-pieces/import` | `GET .../set-pieces/import/template` |
 | Costumes | `POST .../costumes/import` | `GET .../costumes/import/template` |
 | Songs | `POST .../songs/import` | `GET .../songs/import/template` |
 | Cue categories | `POST .../cue-categories/import` | `GET .../cue-categories/import/template` |
+
+Lav **wires** and **packs** are managed on the Lav chart (manual add for now); they are not CSV-imported in this phase. Timeline `microphones` CSV was retired in Phase 13.
 
 - Multipart form field: `file`
 - Max size: **1 MiB**
@@ -46,7 +47,6 @@ Roles: **Director** or **Admin**.
 | Asset | Required | Optional | Duplicate key (skip) |
 | ----- | -------- | -------- | -------------------- |
 | Props | `name` | `description`, `notes` | `name` |
-| Microphones | `identifier` | `notes` | `identifier` |
 | Set pieces | `name` | `mobile`, `description` | `name` |
 | Costumes | `name`, `character`, `scene` | `act`, `description` | `name` + resolved character + resolved scene |
 | Songs | `title` | `composer`, `lyricist`, `description` | `title` |

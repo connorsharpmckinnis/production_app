@@ -9,7 +9,6 @@ import type {
   AppSettingsResponse,
   CharacterDetailResponse,
   CueCategoryResponse,
-  MicrophoneResponse,
   MomentDetailResponse,
   MomentTypeResponse,
   PropResponse,
@@ -29,7 +28,6 @@ interface MomentDetailSheetProps {
   characters: CharacterDetailResponse[];
   songs: SongDetailResponse[];
   propsCatalog: PropResponse[];
-  microphonesCatalog: MicrophoneResponse[];
   setPiecesCatalog: SetPieceResponse[];
   cueCategories: CueCategoryResponse[];
   momentTypes: MomentTypeResponse[];
@@ -48,7 +46,6 @@ export default function MomentDetailSheet({
   characters,
   songs,
   propsCatalog,
-  microphonesCatalog,
   setPiecesCatalog,
   cueCategories,
   momentTypes,
@@ -117,7 +114,6 @@ export default function MomentDetailSheet({
             characters={characters}
             songs={songs}
             propsCatalog={propsCatalog}
-            microphonesCatalog={microphonesCatalog}
             setPiecesCatalog={setPiecesCatalog}
             cueCategories={cueCategories}
             momentTypes={momentTypes}

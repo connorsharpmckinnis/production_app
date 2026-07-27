@@ -85,48 +85,6 @@ def _dimension(overview: dict, key: str) -> dict:
     return next(item for item in overview["dimensions"] if item["key"] == key)
 
 
-def test_microphone_catalog_notes_create_update_list(
-    seeded_client: TestClient, db_session: Session
-) -> None:
-    production_id = _empty_production(seeded_client)
-    director_headers = _login(seeded_client, "director", "director")
-
-    created = seeded_client.post(
-        f"/api/productions/{production_id}/microphones",
-        json={"identifier": "Lav 1", "notes": "Pack A — long cable"},
-        headers=director_headers,
-    )
-    assert created.status_code == 201
-    body = created.json()
-    assert body["identifier"] == "Lav 1"
-    assert body["notes"] == "Pack A — long cable"
-    microphone_id = body["id"]
-
-    listed = seeded_client.get(
-        f"/api/productions/{production_id}/microphones",
-        headers=director_headers,
-    )
-    assert listed.status_code == 200
-    assert listed.json()[0]["notes"] == "Pack A — long cable"
-
-    updated = seeded_client.patch(
-        f"/api/productions/{production_id}/microphones/{microphone_id}",
-        json={"notes": "Pack B"},
-        headers=director_headers,
-    )
-    assert updated.status_code == 200
-    assert updated.json()["notes"] == "Pack B"
-    assert updated.json()["identifier"] == "Lav 1"
-
-    without_notes = seeded_client.post(
-        f"/api/productions/{production_id}/microphones",
-        json={"identifier": "Lav 2"},
-        headers=director_headers,
-    )
-    assert without_notes.status_code == 201
-    assert without_notes.json()["notes"] is None
-
-
 def test_overview_empty_production_readiness_zero(seeded_client: TestClient) -> None:
     production_id = _empty_production(seeded_client)
     director_headers = _login(seeded_client, "director", "director")
@@ -172,7 +130,7 @@ def test_overview_imported_readiness_shape(
         "costumes",
         "cues",
         "props",
-        "microphones",
+        "lav_chart",
         "set_pieces",
         "entrances_exits",
         "blocking",

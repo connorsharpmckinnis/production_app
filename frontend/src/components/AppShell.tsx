@@ -93,13 +93,15 @@ export default function AppShell() {
       >
         Costumes
       </NavLink>
-      <NavLink
-        to={`/productions/${productionId}/microphones`}
-        className={navLinkClass}
-        onClick={() => setSidebarOpen(false)}
-      >
-        Microphones
-      </NavLink>
+      {canManagePreparation && (
+        <NavLink
+          to={`/productions/${productionId}/lav-chart`}
+          className={navLinkClass}
+          onClick={() => setSidebarOpen(false)}
+        >
+          Lav chart
+        </NavLink>
+      )}
       <NavLink
         to={`/productions/${productionId}/set-pieces`}
         className={navLinkClass}

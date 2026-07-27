@@ -77,7 +77,6 @@ def test_parse_speaker_list_rejects_invalid_names(raw):
         "“YES,” WE SING.",
         "ONE – TWO & THREE",
         "I'M/HE'S JUST A MAN",
-        "AMEN[^9]",
         "LEFT US HERE; ALONE WITH THAT FLOCK",
     ],
 )
@@ -92,6 +91,7 @@ def test_lyric_validator_accepts_approved_punctuation(lyric):
         "SHACKLETON: THIS IS DIALOGUE",
         "UNBALANCED (LYRIC",
         "NOT@APPROVED",
+        "AMEN[^9]",
     ],
 )
 def test_lyric_validator_rejects_non_lyrics(text):

@@ -1,6 +1,6 @@
 # Phase 9 — Dual-Format Script Import Hardening
 
-**Status:** In Progress (WP1–WP8 core complete; optional Admin preview UI deferred)
+**Status:** Complete (WP1–WP8 core shipped 2026-07-18; optional Admin preview UI deferred). Singer Character persistence and footnote stripping moved to [PHASE_11.md](PHASE_11.md).
 
 **Goal:** Make Markdown and DOCX imports produce the same production structure from the same script, including modern Google Docs hyperlinks, punctuated multi-word character names such as `MS. ELEPHANT`, and normal lyric punctuation.
 

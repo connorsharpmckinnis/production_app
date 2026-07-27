@@ -24,13 +24,11 @@ import type {
   ImportErrorsDetail,
   ImportSuccessResponse,
   LoginRequest,
-  MicrophoneResponse,
   MomentBlockingResponse,
   MomentEntranceResponse,
   MomentExitResponse,
   MomentDetailResponse,
   MomentListFilters,
-  MomentMicrophoneResponse,
   MomentPropResponse,
   MomentSetPieceResponse,
   MomentSummary,
@@ -38,6 +36,10 @@ import type {
   NoteResponse,
   OverviewMessageDefaultItem,
   OverviewMessageDefaultResponse,
+  PackResponse,
+  LavChartResponse,
+  LavPackCell,
+  LavWireCell,
   ProductionCreate,
   ProductionOverviewMessageItem,
   ProductionOverviewMessageResponse,
@@ -51,6 +53,7 @@ import type {
   SongDetailResponse,
   TokenResponse,
   UserResponse,
+  WireResponse,
 } from "./types";
 
 const TOKEN_KEY = "access_token";
@@ -183,9 +186,6 @@ function momentQuery(filters?: MomentListFilters): string {
   }
   if (filters.cueCategoryId) {
     params.set("cue_category_id", String(filters.cueCategoryId));
-  }
-  if (filters.microphoneId) {
-    params.set("microphone_id", String(filters.microphoneId));
   }
   if (filters.setPieceId) {
     params.set("set_piece_id", String(filters.setPieceId));
@@ -779,65 +779,81 @@ export const api = {
     return this.downloadCatalogCsvTemplate(productionId, "costumes");
   },
 
-  listMicrophones(productionId: number) {
-    return request<MicrophoneResponse[]>(`/productions/${productionId}/microphones`);
+  listWires(productionId: number) {
+    return request<WireResponse[]>(`/productions/${productionId}/wires`);
   },
 
-  createMicrophone(
-    productionId: number,
-    body: { identifier: string; notes?: string | null },
-  ) {
-    return request<MicrophoneResponse>(`/productions/${productionId}/microphones`, {
+  createWire(productionId: number, body: { identifier: string; notes?: string | null }) {
+    return request<WireResponse>(`/productions/${productionId}/wires`, {
       method: "POST",
       body: JSON.stringify(body),
     });
   },
 
-  updateMicrophone(
+  updateWire(
     productionId: number,
-    microphoneId: number,
+    wireId: number,
     body: { identifier?: string; notes?: string | null },
   ) {
-    return request<MicrophoneResponse>(
-      `/productions/${productionId}/microphones/${microphoneId}`,
-      { method: "PATCH", body: JSON.stringify(body) },
-    );
+    return request<WireResponse>(`/productions/${productionId}/wires/${wireId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
   },
 
-  deleteMicrophone(productionId: number, microphoneId: number) {
-    return request<void>(`/productions/${productionId}/microphones/${microphoneId}`, {
+  deleteWire(productionId: number, wireId: number) {
+    return request<void>(`/productions/${productionId}/wires/${wireId}`, {
       method: "DELETE",
     });
   },
 
-  importMicrophonesCsv(productionId: number, file: File) {
-    return this.importCatalogCsv(productionId, "microphones", file);
+  listPacks(productionId: number) {
+    return request<PackResponse[]>(`/productions/${productionId}/packs`);
   },
 
-  downloadMicrophonesCsvTemplate(productionId: number) {
-    return this.downloadCatalogCsvTemplate(productionId, "microphones");
+  createPack(productionId: number, body: { identifier: string; notes?: string | null }) {
+    return request<PackResponse>(`/productions/${productionId}/packs`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
   },
 
-  attachMomentMicrophone(
+  updatePack(
     productionId: number,
-    momentId: number,
-    body: { microphone_id: number; character_id?: number | null; notes?: string | null },
+    packId: number,
+    body: { identifier?: string; notes?: string | null },
   ) {
-    return request<MomentMicrophoneResponse>(
-      `/productions/${productionId}/moments/${momentId}/microphones`,
-      { method: "POST", body: JSON.stringify(body) },
-    );
+    return request<PackResponse>(`/productions/${productionId}/packs/${packId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
   },
 
-  detachMomentMicrophone(
+  deletePack(productionId: number, packId: number) {
+    return request<void>(`/productions/${productionId}/packs/${packId}`, {
+      method: "DELETE",
+    });
+  },
+
+  getLavChart(productionId: number) {
+    return request<LavChartResponse>(`/productions/${productionId}/lav-chart`);
+  },
+
+  saveLavChart(
     productionId: number,
-    momentId: number,
-    momentMicrophoneId: number,
+    body: { wire_cells: LavWireCell[]; pack_cells: LavPackCell[] },
   ) {
-    return request<void>(
-      `/productions/${productionId}/moments/${momentId}/microphones/${momentMicrophoneId}`,
-      { method: "DELETE" },
-    );
+    return request<LavChartResponse>(`/productions/${productionId}/lav-chart`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    });
+  },
+
+  proposeLavChart(productionId: number, sheets: string[] = ["wires", "packs"]) {
+    return request<LavChartResponse>(`/productions/${productionId}/lav-chart/propose`, {
+      method: "POST",
+      body: JSON.stringify({ sheets }),
+    });
   },
 
   listSetPieces(productionId: number) {

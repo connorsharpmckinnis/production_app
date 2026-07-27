@@ -62,7 +62,6 @@ function buildPrepBadgeDescriptors(moment: MomentSummary): PrepBadgeDescriptor[]
   const badges: PrepBadgeDescriptor[] = [];
   if (moment.has_props) badges.push({ label: "Prop" });
   if (moment.has_cues) badges.push({ label: "Cue" });
-  if (moment.has_microphone) badges.push({ label: "Mic" });
   if (moment.has_set_piece) badges.push({ label: "Set" });
   if (moment.has_costume) badges.push({ label: "Costume" });
   if (moment.has_entrance) badges.push({ label: "Entrance" });
@@ -75,11 +74,24 @@ function speakingCharacterName(
   moment: MomentSummary,
   characters: CharacterDetailResponse[],
 ): string | null {
-  if (moment.moment_type !== "dialogue" || moment.speaking_character_ids.length === 0) {
+  // Dialogue and lyrics share the same “who performs this line” column.
+  // Attribution rows keep the singer name in the body (the attribution Moment itself).
+  if (
+    (moment.moment_type !== "dialogue" && moment.moment_type !== "lyric") ||
+    moment.speaking_character_ids.length === 0
+  ) {
     return null;
   }
-  const character = characters.find((item) => item.id === moment.speaking_character_ids[0]);
-  return character?.name ?? null;
+  const names = moment.speaking_character_ids
+    .map((id) => characters.find((item) => item.id === id)?.name)
+    .filter((name): name is string => Boolean(name));
+  if (names.length === 0) {
+    return null;
+  }
+  if (names.length === 1) {
+    return names[0];
+  }
+  return names.join(" & ");
 }
 
 function MomentRow({

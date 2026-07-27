@@ -1,6 +1,6 @@
 # Import Specification
 
-**Version:** 0.3
+**Version:** 0.4
 
 Defines how the importer reads a script file (Markdown or DOCX) and creates database records.
 
@@ -120,7 +120,7 @@ Before classification, normalize each line (after format extraction):
 5. Normalize curly apostrophes/quotes to ASCII so character names match consistently.
 6. Strip trailing whitespace from each line.
 7. Do **not** strip leading whitespace (tabs after dialogue colons are preserved in content).
-8. Leave inline markdown footnote markers (`[^1]`) in `original_text`; do not expand footnote definitions during import.
+8. **Strip** inline Markdown footnote markers (`[^1]`, `[^9]`, etc.) from every line before classification. Do not expand footnote definitions; definition lines are ignored (see Ignored lines). Footnotes are banned in [SCRIPT_FORMAT.md](SCRIPT_FORMAT.md).
 
 ---
 
@@ -138,6 +138,7 @@ The importer maintains:
 | `current_act`         | Innermost open Act                                                                                               |
 | `current_scene`       | Innermost open Scene                                                                                             |
 | `current_song`        | Most recent Song record (for linking lyric/attribution moments)                                                  |
+| `current_performers`  | Character names from the latest `song_attribution` in the active song; applied to following `lyric` Moments      |
 | `sequence_number`     | Counter within `current_scene`; resets on new Scene                                                              |
 | `characters`          | Set of Character names discovered during import                                                                  |
 | `title_page_complete` | False until first Act heading ends title-page parsing                                                            |
@@ -254,9 +255,19 @@ When `current_song` is set, classify the captured content:
    parser used for dialogue.
 2. Always include built-in names `ALL` and `ENSEMBLE` (created as Character records on import; `ENSEMBLE` is reserved for a future Character Group).
 3. An ALL CAPS line is `song_attribution` when every comma, ` & `, or lowercase
-   ` and `-separated segment matches a name from that set.
+   ` and `-separated segment matches a name from that set (or is a valid
+   parenthetical alternate — see below).
+4. Parenthetical splits such as `SHACKLETON (WILD)` are attribution when the
+   primary name(s) are known; parenthetical names need only valid speaker
+   grammar and are created as Characters if new.
+5. Set `current_performers` from the attribution line. Blank lines do **not**
+   clear performers. Clear on new song header, Act, Scene, or song-context error.
+6. Persist `song_attribution_characters` for the attribution Moment.
+7. Structural markers `VERSE`, `CHORUS`, `CHORUS 2`, `BRIDGE`, `REFRAIN`,
+   `INTRO`, `OUTRO`, and `TAG` are skipped (no Moment) and do not clear
+   `current_performers`.
 
-Examples: `ALL`, `SHACKLETON`, `SHACKLETON, WORSLEY`, `ENSEMBLE`
+Examples: `ALL`, `SHACKLETON`, `SHACKLETON, WORSLEY`, `ENSEMBLE`, `SHACKLETON (WILD)`
 
 ### 8. Plain ALL CAPS line (song context)
 
@@ -265,10 +276,11 @@ When `current_song` is set and line does not match dialogue or stage direction:
 Lyrics must contain an ALL-CAPS letter and may contain digits, spaces or DOCX
 layout tabs, apostrophes, straight/curly quotation marks, periods, commas,
 ellipses, `!`, `?`, `;`, hyphens, en/em dashes, ampersands, balanced
-parentheses, `/` for dual lyric lines, and footnote markers such as `[^9]`.
+parentheses, and `/` for dual lyric lines. Footnote markers are stripped in
+preprocessing and are not part of stored lyric text.
 
-- If line is a valid speaker list matching known singers (dialogue characters + `ALL` + `ENSEMBLE`) → **Moment** `song_attribution`
-- Else if it is a valid lyric with length ≥ 4 characters → **Moment** `lyric`
+- If line is a valid speaker list matching known singers (dialogue characters + `ALL` + `ENSEMBLE`, including parenthetical splits) → **Moment** `song_attribution`; set `current_performers`; persist attribution characters
+- Else if it is a valid lyric with length ≥ 4 characters → **Moment** `lyric`; require non-empty `current_performers` or error; persist one `lyric_lines` row per current performer
 - Else → **Error**
 
 (Google Docs sometimes exports performers and lyrics without `####` prefixes — see `endurance-scene1.md`. DOCX gold-standard scripts use centered ALL CAPS Body text for the same content.)
@@ -363,8 +375,8 @@ Map word-form act/scene numbers to digits:
 | Stage direction  | `moments` + `stage_directions`                                     |
 | Dialogue         | `moments` + `dialogue` + `characters` (find or create)             |
 | Song header      | `songs` + `moments`                                                |
-| Song attribution | `moments` (links to `current_song`)                                |
-| Lyric line       | `moments` (links to `current_song`)                                |
+| Song attribution | `moments` + `song_attribution_characters` (links to `current_song`) |
+| Lyric line       | `moments` + `lyric_lines` (one row per current performer)           |
 | Author note      | `moments`                                                          |
 
 

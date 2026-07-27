@@ -25,6 +25,10 @@ class Character(Base):
 
     production: Mapped["Production"] = relationship(back_populates="characters")
     dialogue_lines: Mapped[list["Dialogue"]] = relationship(back_populates="character")
+    lyric_lines: Mapped[list["LyricLine"]] = relationship(back_populates="character")
+    song_attribution_characters: Mapped[list["SongAttributionCharacter"]] = relationship(
+        back_populates="character",
+    )
     actor_assignment: Mapped["UserCharacterAssignment | None"] = relationship(
         back_populates="character",
         uselist=False,
@@ -39,9 +43,6 @@ class Character(Base):
         back_populates="characters",
     )
     moment_props: Mapped[list["MomentProp"]] = relationship(back_populates="character")
-    moment_microphones: Mapped[list["MomentMicrophone"]] = relationship(
-        back_populates="character",
-    )
     costumes: Mapped[list["Costume"]] = relationship(back_populates="character")
     moment_entrances: Mapped[list["MomentEntrance"]] = relationship(
         back_populates="character",

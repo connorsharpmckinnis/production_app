@@ -15,7 +15,6 @@ import type {
   AppSettingsResponse,
   CharacterDetailResponse,
   CueCategoryResponse,
-  MicrophoneResponse,
   MomentDetailResponse,
   MomentTypeResponse,
   PropResponse,
@@ -53,7 +52,6 @@ interface MomentDetailPanelProps {
   characters: CharacterDetailResponse[];
   songs: SongDetailResponse[];
   propsCatalog: PropResponse[];
-  microphonesCatalog: MicrophoneResponse[];
   setPiecesCatalog: SetPieceResponse[];
   cueCategories: CueCategoryResponse[];
   momentTypes: MomentTypeResponse[];
@@ -74,7 +72,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       characters,
       songs,
       propsCatalog,
-      microphonesCatalog,
       setPiecesCatalog,
       cueCategories,
       momentTypes,
@@ -113,10 +110,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     const [attachPropId, setAttachPropId] = useState("");
     const [attachPropCharacterId, setAttachPropCharacterId] = useState("");
     const [attachPropNotes, setAttachPropNotes] = useState("");
-
-    const [attachMicId, setAttachMicId] = useState("");
-    const [attachMicCharacterId, setAttachMicCharacterId] = useState("");
-    const [attachMicNotes, setAttachMicNotes] = useState("");
 
     const [attachSetPieceId, setAttachSetPieceId] = useState("");
     const [attachSetPieceNotes, setAttachSetPieceNotes] = useState("");
@@ -330,49 +323,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         toast.success("Prop removed");
       } catch (err) {
         toast.error(formatApiError(err, "Failed to detach prop"));
-      } finally {
-        setSaving(false);
-      }
-    }
-
-    async function handleAttachMicrophone(event: React.FormEvent) {
-      event.preventDefault();
-      if (!attachMicId) return;
-
-      setSaving(true);
-      try {
-        await api.attachMomentMicrophone(productionId, detail.id, {
-          microphone_id: Number(attachMicId),
-          character_id: attachMicCharacterId ? Number(attachMicCharacterId) : null,
-          notes: attachMicNotes.trim() || null,
-        });
-        setAttachMicId("");
-        setAttachMicCharacterId("");
-        setAttachMicNotes("");
-        onChanged();
-        toast.success("Microphone added");
-      } catch (err) {
-        toast.error(formatApiError(err, "Failed to attach microphone"));
-      } finally {
-        setSaving(false);
-      }
-    }
-
-    async function handleDetachMicrophone(momentMicId: number) {
-      const ok = await confirm({
-        title: "Remove this microphone from the moment?",
-        confirmLabel: "Remove",
-        destructive: true,
-      });
-      if (!ok) return;
-
-      setSaving(true);
-      try {
-        await api.detachMomentMicrophone(productionId, detail.id, momentMicId);
-        onChanged();
-        toast.success("Microphone removed");
-      } catch (err) {
-        toast.error(formatApiError(err, "Failed to detach microphone"));
       } finally {
         setSaving(false);
       }
@@ -687,10 +637,25 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           </div>
         )}
 
-        {(detail.moment_type === "lyric" ||
-          detail.moment_type === "song_header" ||
-          detail.moment_type === "song_attribution") &&
-          detail.dialogue.length === 0 &&
+        {detail.moment_type === "lyric" && (detail.lyrics?.length ?? 0) > 0 && (
+          <div className="rounded-md bg-muted/60 px-3 py-3">
+            <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Lyric
+            </h3>
+            <ul className="mt-2 space-y-2">
+              {detail.lyrics.map((line) => (
+                <li key={line.id} className="text-base leading-relaxed">
+                  <span className="font-medium">{line.character_name}:</span>{" "}
+                  {line.lyric_text}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {(detail.moment_type === "song_header" ||
+          detail.moment_type === "song_attribution" ||
+          (detail.moment_type === "lyric" && (detail.lyrics?.length ?? 0) === 0)) &&
           (detail.parsed_text || detail.original_text) && (
             <div className="rounded-md bg-muted/60 px-3 py-3">
               <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -813,7 +778,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                 <option value="">Choose attachment type…</option>
                 {propsCatalog.length > 0 && <option value="prop">Prop</option>}
                 {cueCategories.length > 0 && <option value="cue">Cue</option>}
-                {microphonesCatalog.length > 0 && <option value="microphone">Microphone</option>}
                 {setPiecesCatalog.length > 0 && <option value="set_piece">Set piece</option>}
                 {characters.length > 0 && <option value="entrance">Entrance</option>}
                 {characters.length > 0 && <option value="exit">Exit</option>}
@@ -823,7 +787,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
             {propsCatalog.length === 0 &&
               cueCategories.length === 0 &&
-              microphonesCatalog.length === 0 &&
               setPiecesCatalog.length === 0 && (
                 <p className="mt-2 text-xs text-muted-foreground">
                   Need something to attach? Create items in{" "}
@@ -839,13 +802,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                     className="underline hover:text-foreground"
                   >
                     Cue Categories
-                  </Link>
-                  ,{" "}
-                  <Link
-                    to={`/productions/${productionId}/microphones`}
-                    className="underline hover:text-foreground"
-                  >
-                    Microphones
                   </Link>
                   , or{" "}
                   <Link
@@ -960,58 +916,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                 <button
                   type="submit"
                   disabled={saving || !newCueCategoryId || !newCueTitle.trim()}
-                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
-                >
-                  Add
-                </button>
-              </form>
-            )}
-
-            {addAttachmentType === "microphone" && microphonesCatalog.length > 0 && (
-              <form onSubmit={(e) => void handleAttachMicrophone(e)} className="mt-3 space-y-2">
-                <select
-                  value={attachMicId}
-                  onChange={(e) => {
-                    setAttachMicId(e.target.value);
-                    if (!e.target.value) {
-                      setAttachMicCharacterId("");
-                      setAttachMicNotes("");
-                    }
-                  }}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Select microphone…</option>
-                  {microphonesCatalog.map((mic) => (
-                    <option key={mic.id} value={String(mic.id)}>
-                      {mic.identifier}
-                    </option>
-                  ))}
-                </select>
-                {attachMicId && (
-                  <>
-                    <select
-                      value={attachMicCharacterId}
-                      onChange={(e) => setAttachMicCharacterId(e.target.value)}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                      <option value="">No wearer character</option>
-                      {sortedCharacters.map((character) => (
-                        <option key={character.id} value={String(character.id)}>
-                          {character.name}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      value={attachMicNotes}
-                      onChange={(e) => setAttachMicNotes(e.target.value)}
-                      placeholder="Notes (optional)"
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    />
-                  </>
-                )}
-                <button
-                  type="submit"
-                  disabled={saving || !attachMicId}
                   className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
                 >
                   Add
@@ -1175,22 +1079,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           }))}
           onDetach={handleDetachProp}
           catalogLength={propsCatalog.length}
-        />
-
-        <AttachmentSection
-          title="Microphones"
-          emptyMessage="No microphones attached."
-          canEdit={canEdit}
-          saving={saving}
-          defaultExpanded={detail.microphones.length > 0}
-          items={detail.microphones.map((mic) => ({
-            id: mic.id,
-            label: mic.microphone_identifier,
-            sublabel: mic.character_name ?? undefined,
-            notes: mic.notes ?? undefined,
-          }))}
-          onDetach={handleDetachMicrophone}
-          catalogLength={microphonesCatalog.length}
         />
 
         <AttachmentSection

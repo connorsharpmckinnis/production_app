@@ -88,7 +88,9 @@ Organization
 
     ├── Costume
 
-    ├── Microphone
+    ├── Wire
+
+    ├── Pack
 
     ├── CueCategory
 
@@ -225,7 +227,9 @@ One → Many Props
 
 One → Many Costumes
 
-One → Many Microphones
+One → Many Wires
+
+One → Many Packs
 
 One → Many CueCategories
 
@@ -423,6 +427,7 @@ Fields
 * id
 * scene_id
 * moment_type_id
+* song_id (optional — set for `song_header`, `song_attribution`, and `lyric` Moments)
 * sequence_number
 * original_text
 * parsed_text (optional)
@@ -433,7 +438,13 @@ Relationships
 
 Many → One MomentType
 
+Many → One Song (optional)
+
 One → Many Dialogue
+
+One → Many LyricLine
+
+One → Many SongAttributionCharacter
 
 One → Many StageDirections
 
@@ -471,6 +482,54 @@ Relationships
 Many → One Moment
 
 Many → One Character
+
+---
+
+# LYRIC_LINES
+
+Purpose
+
+Structured sung text — the song counterpart to Dialogue.
+
+Each lyric Moment has one row per active performer (from the latest
+`song_attribution` in that song block).
+
+Fields
+
+* id
+* moment_id
+* character_id
+* lyric_text
+
+Relationships
+
+Many → One Moment
+
+Many → One Character
+
+---
+
+# SONG_ATTRIBUTION_CHARACTERS
+
+Purpose
+
+Characters named on a `song_attribution` Moment (for example `VERA & MOM` or
+`SHACKLETON (WILD)`).
+
+Fields
+
+* id
+* moment_id
+* character_id
+
+Relationships
+
+Many → One Moment
+
+Many → One Character
+
+**Decision:** Parenthetical splits link all named Characters to following lyrics
+for filtering; segment-accurate ownership inside a single lyric line is future work.
 
 ---
 
@@ -594,7 +653,10 @@ Moments
 
 Characters
 
-**Decision:** Song lyrics are Moment records handled the same way as dialogue — typically one lyric line per Moment. Revisit post-MVP if song blocks need different treatment.
+**Decision:** Song lyrics are Moment records with `lyric_lines` Character links,
+mirroring dialogue→`dialogue` rows. Performer context comes from the latest
+`song_attribution` in the song block. Revisit post-MVP if song blocks need
+different treatment (for example segment-accurate parenthetical ownership).
 
 ---
 
@@ -633,24 +695,6 @@ Fields
 * notes (nullable)
 
 **Decision:** Unique `(moment_id, prop_id)` — one attachment row per prop per moment. See [PHASE_3.md](PHASE_3.md).
-
----
-
-# MOMENT_MICROPHONES
-
-Purpose
-
-Attach microphones to moments (Phase 4 junction table).
-
-Fields
-
-* id
-* moment_id
-* microphone_id
-* character_id (nullable — wearer)
-* notes (nullable)
-
-**Decision:** Unique `(moment_id, microphone_id)` — one attachment row per microphone per moment.
 
 ---
 
@@ -737,24 +781,71 @@ Fields
 
 ---
 
-# MICROPHONES
+# WIRES
+
+Purpose
+
+Production-scoped lav **wire** inventory for the lav chart (face/body mic element). Timeline moment attachments for mics were retired in Phase 13; planning lives on the lav chart. Future Timeline **change** Moments will be derived from this chart (see [PHASE_13.md](PHASE_13.md)).
 
 Fields
 
 * id
 * production_id
 * identifier
-* notes (nullable — catalog-level notes; distinct from moment attachment notes)
+* notes (nullable)
 
-Examples
+---
 
-Lav 1
+# PACKS
 
-Lav 2
+Purpose
 
-Lav 7
+Production-scoped lav **pack** (transceiver) inventory for the lav chart.
 
-Assignments occur through Moments. Moment-level `moment_microphones.notes` stay separate from catalog `notes`.
+Fields
+
+* id
+* production_id
+* identifier
+* notes (nullable)
+
+---
+
+# LAV_WIRE_ASSIGNMENTS
+
+Purpose
+
+Per-scene wire wear on the lav chart. Wearer is either a cast **user** (actor row) or an uncast **character**.
+
+Fields
+
+* id
+* production_id
+* scene_id
+* user_id (nullable — set for actor rows)
+* character_id (nullable — set for uncast character rows)
+* wire_id (nullable — SET NULL on wire delete)
+
+**Decision:** Exactly one of `user_id` / `character_id` is set. Unique per `(production_id, scene_id, user_id)` and `(production_id, scene_id, character_id)`. Editable source of truth for lav wear; Timeline display of changes is a Phase 13 follow-on.
+
+---
+
+# LAV_PACK_ASSIGNMENTS
+
+Purpose
+
+Per-scene pack wear on the lav chart (same wearer rules as wire assignments).
+
+Fields
+
+* id
+* production_id
+* scene_id
+* user_id (nullable)
+* character_id (nullable)
+* pack_id (nullable — SET NULL on pack delete)
+
+**Decision:** Same wearer check and uniqueness pattern as `lav_wire_assignments`.
 
 ---
 
@@ -839,7 +930,6 @@ Reference Fields (nullable)
 * song_id
 * prop_id
 * costume_id
-* microphone_id
 * cue_id
 * task_id
 * content
@@ -901,7 +991,7 @@ Entrances
 
 Exits
 
-Microphone Assignments
+Lav chart assignments (wires/packs — Phase 12+)
 
 State Changes
 

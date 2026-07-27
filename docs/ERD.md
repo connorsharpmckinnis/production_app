@@ -22,7 +22,8 @@ erDiagram
     productions ||--o{ songs : has
     productions ||--o{ props : has
     productions ||--o{ costumes : has
-    productions ||--o{ microphones : has
+    productions ||--o{ wires : has
+    productions ||--o{ packs : has
     productions ||--o{ cue_categories : has
     productions ||--o{ set_pieces : has
     productions ||--o{ performances : has
@@ -33,6 +34,11 @@ erDiagram
 
     scenes ||--o{ moments : has
     scenes ||--o{ costumes : "scene_id (MVP)"
+    scenes ||--o{ lav_wire_assignments : "lav chart"
+    scenes ||--o{ lav_pack_assignments : "lav chart"
+
+    wires ||--o{ lav_wire_assignments : assigned
+    packs ||--o{ lav_pack_assignments : assigned
 
     moment_types ||--o{ moments : classifies
 
@@ -58,7 +64,6 @@ erDiagram
     songs ||--o{ notes : "nullable FK"
     props ||--o{ notes : "nullable FK"
     costumes ||--o{ notes : "nullable FK"
-    microphones ||--o{ notes : "nullable FK"
     cues ||--o{ notes : "nullable FK"
     tasks ||--o{ notes : "nullable FK"
 ```
@@ -89,7 +94,7 @@ These are computed from Timeline data, not foreign keys:
 
 ## MVP Tables Not Shown in Detail
 
-`performances`, `tasks`, `bookmarks`, `set_pieces`, `microphones`, `props` — see [DATABASE.md](DATABASE.md). Included in diagram where they have direct FK relationships.
+`performances`, `tasks`, `bookmarks`, `set_pieces`, `wires`, `packs`, `props` — see [DATABASE.md](DATABASE.md). Included in diagram where they have direct FK relationships.
 
 ---
 

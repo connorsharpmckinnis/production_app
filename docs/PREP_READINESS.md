@@ -12,7 +12,7 @@ All division results and the overall average use Python's `round()` behavior and
 
 ### Soft catalog dimensions
 
-Cues, props, microphones, and set pieces reward both creating a catalog and using that catalog on the Timeline:
+Cues, props, lav chart (wires/packs), and set pieces reward both creating inventory and using it in prep:
 
 ```text
 seeded_credit = 40 if the production has at least one catalog row, otherwise 0
@@ -24,7 +24,7 @@ score         = round(seeded_credit + use_credit)
 
 - **Cues:** a scene has at least one cue attached to one of its Moments. The seeded catalog is cue categories.
 - **Props:** a scene has at least one Moment prop attachment.
-- **Microphones:** a scene has at least one Moment microphone attachment.
+- **Lav chart:** a scene has at least one wire or pack assignment on the lav chart. Seeded inventory is wires + packs (`key=lav_chart`, Overview link → Lav chart).
 - **Set pieces:** a scene has at least one Moment set-piece attachment.
 
 A seeded catalog with no Timeline use scores `40`. Full scene coverage with a seeded catalog scores `100`. Timeline use can exist while the catalog count is zero only with inconsistent data; the formula still reports the 60% use portion and identifies the catalog as empty.
@@ -67,7 +67,7 @@ Gaps are evidence behind a heuristic score, not tasks or proof that a director r
 
 - **Casting:** names of uncast, non-builtin characters.
 - **Costumes:** `Character in Act N / Scene Title — no costume` for uncovered speaking character-scene pairs.
-- **Cues, props, microphones, set pieces:** scenes with no corresponding Timeline use.
+- **Cues, props, lav chart, set pieces:** scenes with no corresponding prep use (Timeline attachment or lav assignment).
 - **Entrances / exits:** scenes with neither, no entrances, or no exits. A scene is complete only when both kinds exist.
 - **Blocking:** scenes with no blocking note.
 
@@ -134,7 +134,9 @@ docker compose up --build
 
 The backend startup path applies Alembic migrations and seeds missing application defaults. Phase 8 migrations are:
 
-- `013_microphone_notes.py` — adds nullable catalog-level microphone notes.
+- `013_microphone_notes.py` — historical (Timeline microphones retired in Phase 13 / migration `017`).
+- `016_wires_packs_lav_chart.py` — lav chart inventory + assignments.
+- `017_drop_timeline_microphones.py` — drops `moment_microphones` and `microphones`.
 - `014_overview_messages.py` — adds rotation settings, global encouragement defaults, and production Overview messages.
 
 For an existing development database, rebuild/restart the backend so migrations run. Schema details are in [DATABASE.md](DATABASE.md).

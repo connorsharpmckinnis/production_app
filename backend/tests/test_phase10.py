@@ -119,7 +119,6 @@ def test_uncast_actor_cannot_list_moment_satellites(
         f"/api/productions/{production_id}/moments/{moment_id}/blocking",
         f"/api/productions/{production_id}/moments/{moment_id}/cues",
         f"/api/productions/{production_id}/moments/{moment_id}/props",
-        f"/api/productions/{production_id}/moments/{moment_id}/microphones",
         f"/api/productions/{production_id}/moments/{moment_id}/set-pieces",
     ):
         response = seeded_client.get(path, headers=actor_headers)

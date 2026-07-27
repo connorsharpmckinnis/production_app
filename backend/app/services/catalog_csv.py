@@ -14,7 +14,6 @@ from app.models import (
     Character,
     Costume,
     CueCategory,
-    Microphone,
     Prop,
     Scene,
     SetPiece,
@@ -26,9 +25,6 @@ MAX_CSV_BYTES = 1 * 1024 * 1024  # 1 MiB
 
 PROPS_COLUMNS = ("name", "description", "notes")
 PROPS_REQUIRED = ("name",)
-
-MICROPHONES_COLUMNS = ("identifier", "notes")
-MICROPHONES_REQUIRED = ("identifier",)
 
 SET_PIECES_COLUMNS = ("name", "mobile", "description")
 SET_PIECES_REQUIRED = ("name",)
@@ -240,61 +236,6 @@ def import_props_csv(
                 production_id=production_id,
                 name=name,
                 description=optional_text(values.get("description")),
-                notes=optional_text(values.get("notes")),
-            )
-        )
-
-    if to_create:
-        db.add_all(to_create)
-        db.commit()
-
-    return _result(
-        created=len(to_create),
-        skipped=skipped,
-        errors=errors,
-        warnings=parsed.warnings,
-    )
-
-
-def import_microphones_csv(
-    db: Session,
-    production_id: int,
-    content: bytes,
-) -> CatalogImportResult:
-    parsed = parse_catalog_csv(
-        content,
-        required_headers=MICROPHONES_REQUIRED,
-        known_headers=MICROPHONES_COLUMNS,
-    )
-    existing = {
-        normalize_key(mic.identifier)
-        for mic in db.query(Microphone)
-        .filter(Microphone.production_id == production_id)
-        .all()
-    }
-    seen = set(existing)
-    to_create: list[Microphone] = []
-    skipped = 0
-    errors: list[CatalogImportRowError] = []
-
-    for row_number, values in parsed.rows:
-        if not values:
-            errors.append(_row_error(row_number, "Blank or malformed row"))
-            continue
-        try:
-            identifier = required_text(values.get("identifier"), "identifier")
-        except ValueError as exc:
-            errors.append(_row_error(row_number, str(exc)))
-            continue
-        key = normalize_key(identifier)
-        if key in seen:
-            skipped += 1
-            continue
-        seen.add(key)
-        to_create.append(
-            Microphone(
-                production_id=production_id,
-                identifier=identifier,
                 notes=optional_text(values.get("notes")),
             )
         )

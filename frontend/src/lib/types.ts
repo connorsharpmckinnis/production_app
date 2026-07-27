@@ -118,7 +118,6 @@ export interface MomentSummary {
   speaking_character_ids: number[];
   has_props: boolean;
   has_cues: boolean;
-  has_microphone: boolean;
   has_set_piece: boolean;
   has_costume: boolean;
   has_entrance: boolean;
@@ -132,6 +131,13 @@ export interface DialogueLineResponse {
   character_id: number;
   character_name: string;
   dialogue_text: string;
+}
+
+export interface LyricLineResponse {
+  id: number;
+  character_id: number;
+  character_name: string;
+  lyric_text: string;
 }
 
 export interface MomentTypeResponse {
@@ -191,15 +197,6 @@ export interface NoteResponse {
   is_mine: boolean;
 }
 
-export interface MomentMicrophoneResponse {
-  id: number;
-  microphone_id: number;
-  microphone_identifier: string;
-  character_id: number | null;
-  character_name: string | null;
-  notes: string | null;
-}
-
 export interface MomentSetPieceResponse {
   id: number;
   set_piece_id: number;
@@ -242,9 +239,9 @@ export interface MomentDetailResponse {
   song_id: number | null;
   song_title: string | null;
   dialogue: DialogueLineResponse[];
+  lyrics: LyricLineResponse[];
   stage_direction: string | null;
   props: MomentPropResponse[];
-  microphones: MomentMicrophoneResponse[];
   set_pieces: MomentSetPieceResponse[];
   entrances: MomentEntranceResponse[];
   exits: MomentExitResponse[];
@@ -326,10 +323,73 @@ export interface ReadinessDimension {
   gaps: string[];
 }
 
-export interface MicrophoneResponse {
+export interface WireResponse {
   id: number;
   identifier: string;
   notes: string | null;
+}
+
+export interface PackResponse {
+  id: number;
+  identifier: string;
+  notes: string | null;
+}
+
+export interface LavChartSceneColumn {
+  id: number;
+  act_id: number;
+  act_number: number;
+  act_title: string | null;
+  scene_number: number;
+  scene_title: string | null;
+}
+
+export interface LavChartRow {
+  row_key: string;
+  user_id: number | null;
+  character_id: number | null;
+  label: string;
+  character_ids: number[];
+  character_names: string[];
+  need_scene_ids: number[];
+}
+
+export interface LavWireCell {
+  row_key: string;
+  scene_id: number;
+  wire_id: number | null;
+}
+
+export interface LavPackCell {
+  row_key: string;
+  scene_id: number;
+  pack_id: number | null;
+}
+
+export interface LavChartIssue {
+  code: string;
+  severity: string;
+  message: string;
+  row_key: string | null;
+  scene_id: number | null;
+  asset_id: number | null;
+}
+
+export interface LavChartCatalogItem {
+  id: number;
+  identifier: string;
+  notes: string | null;
+}
+
+export interface LavChartResponse {
+  scenes: LavChartSceneColumn[];
+  rows: LavChartRow[];
+  wires: LavChartCatalogItem[];
+  packs: LavChartCatalogItem[];
+  wire_cells: LavWireCell[];
+  pack_cells: LavPackCell[];
+  issues: LavChartIssue[];
+  rules: string[];
 }
 
 export interface SetPieceResponse {
@@ -489,7 +549,6 @@ export interface MomentListFilters {
   songId?: number;
   propId?: number;
   cueCategoryId?: number;
-  microphoneId?: number;
   setPieceId?: number;
   costumeOnly?: boolean;
   entranceOnly?: boolean;

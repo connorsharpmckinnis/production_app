@@ -4,8 +4,8 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.db.base import Base
 
 
-class Microphone(Base):
-    __tablename__ = "microphones"
+class Wire(Base):
+    __tablename__ = "wires"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     production_id: Mapped[int] = mapped_column(
@@ -16,8 +16,7 @@ class Microphone(Base):
     identifier: Mapped[str] = mapped_column(String(255), nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
-    production: Mapped["Production"] = relationship(back_populates="microphones")
-    moment_attachments: Mapped[list["MomentMicrophone"]] = relationship(
-        back_populates="microphone",
-        cascade="all, delete-orphan",
+    production: Mapped["Production"] = relationship(back_populates="wires")
+    lav_assignments: Mapped[list["LavWireAssignment"]] = relationship(
+        back_populates="wire",
     )

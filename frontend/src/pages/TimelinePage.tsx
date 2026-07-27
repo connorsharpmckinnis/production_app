@@ -57,7 +57,6 @@ export default function TimelinePage() {
   const [songFilter, setSongFilter] = useState<ResourceFilterValue>("all");
   const [propFilter, setPropFilter] = useState<ResourceFilterValue>("all");
   const [cueCategoryFilter, setCueCategoryFilter] = useState<ResourceFilterValue>("all");
-  const [microphoneFilter, setMicrophoneFilter] = useState<ResourceFilterValue>("all");
   const [setPieceFilter, setSetPieceFilter] = useState<ResourceFilterValue>("all");
 
   const [editTimeline, setEditTimeline] = useState(false);
@@ -86,7 +85,6 @@ export default function TimelinePage() {
       songFilter,
       propFilter,
       cueCategoryFilter,
-      microphoneFilter,
       setPieceFilter,
     }),
     [
@@ -101,7 +99,6 @@ export default function TimelinePage() {
       songFilter,
       propFilter,
       cueCategoryFilter,
-      microphoneFilter,
       setPieceFilter,
     ],
   );
@@ -179,7 +176,6 @@ export default function TimelinePage() {
     songFilter !== "all",
     propFilter !== "all",
     cueCategoryFilter !== "all",
-    microphoneFilter !== "all",
     setPieceFilter !== "all",
   ].filter(Boolean).length;
 
@@ -295,17 +291,6 @@ export default function TimelinePage() {
       });
     }
 
-    if (microphoneFilter !== "all") {
-      const mic = scene.microphonesCatalog.find(
-        (item) => String(item.id) === microphoneFilter,
-      );
-      chips.push({
-        key: `mic-${microphoneFilter}`,
-        label: mic?.identifier ?? "Microphone",
-        onDismiss: () => setMicrophoneFilter("all"),
-      });
-    }
-
     if (setPieceFilter !== "all") {
       const piece = scene.setPiecesCatalog.find(
         (item) => String(item.id) === setPieceFilter,
@@ -330,13 +315,11 @@ export default function TimelinePage() {
     songFilter,
     propFilter,
     cueCategoryFilter,
-    microphoneFilter,
     setPieceFilter,
     scene.characters,
     scene.songs,
     scene.propsCatalog,
     scene.cueCategories,
-    scene.microphonesCatalog,
     scene.setPiecesCatalog,
     groups,
   ]);
@@ -359,7 +342,6 @@ export default function TimelinePage() {
     setSongFilter("all");
     setPropFilter("all");
     setCueCategoryFilter("all");
-    setMicrophoneFilter("all");
     setSetPieceFilter("all");
   }
 
@@ -622,15 +604,12 @@ export default function TimelinePage() {
             setPropFilter={setPropFilter}
             cueCategoryFilter={cueCategoryFilter}
             setCueCategoryFilter={setCueCategoryFilter}
-            microphoneFilter={microphoneFilter}
-            setMicrophoneFilter={setMicrophoneFilter}
             setPieceFilter={setPieceFilter}
             setSetPieceFilter={setSetPieceFilter}
             characters={scene.characters}
             songs={scene.songs}
             propsCatalog={scene.propsCatalog}
             cueCategories={scene.cueCategories}
-            microphonesCatalog={scene.microphonesCatalog}
             setPiecesCatalog={scene.setPiecesCatalog}
           />
         )}
@@ -665,15 +644,12 @@ export default function TimelinePage() {
               setPropFilter={setPropFilter}
               cueCategoryFilter={cueCategoryFilter}
               setCueCategoryFilter={setCueCategoryFilter}
-              microphoneFilter={microphoneFilter}
-              setMicrophoneFilter={setMicrophoneFilter}
               setPieceFilter={setPieceFilter}
               setSetPieceFilter={setSetPieceFilter}
               characters={scene.characters}
               songs={scene.songs}
               propsCatalog={scene.propsCatalog}
               cueCategories={scene.cueCategories}
-              microphonesCatalog={scene.microphonesCatalog}
               setPiecesCatalog={scene.setPiecesCatalog}
               className="border-0 bg-transparent p-0"
             />
@@ -833,7 +809,6 @@ export default function TimelinePage() {
         characters={scene.characters}
         songs={scene.songs}
         propsCatalog={scene.propsCatalog}
-        microphonesCatalog={scene.microphonesCatalog}
         setPiecesCatalog={scene.setPiecesCatalog}
         cueCategories={scene.cueCategories}
         momentTypes={scene.momentTypes}
@@ -870,15 +845,12 @@ function AdvancedFiltersPanel({
   setPropFilter,
   cueCategoryFilter,
   setCueCategoryFilter,
-  microphoneFilter,
-  setMicrophoneFilter,
   setPieceFilter,
   setSetPieceFilter,
   characters,
   songs,
   propsCatalog,
   cueCategories,
-  microphonesCatalog,
   setPiecesCatalog,
   className,
 }: {
@@ -903,15 +875,12 @@ function AdvancedFiltersPanel({
   setPropFilter: (value: ResourceFilterValue) => void;
   cueCategoryFilter: ResourceFilterValue;
   setCueCategoryFilter: (value: ResourceFilterValue) => void;
-  microphoneFilter: ResourceFilterValue;
-  setMicrophoneFilter: (value: ResourceFilterValue) => void;
   setPieceFilter: ResourceFilterValue;
   setSetPieceFilter: (value: ResourceFilterValue) => void;
   characters: CharacterDetailResponse[];
   songs: { id: number; title: string }[];
   propsCatalog: { id: number; name: string }[];
   cueCategories: { id: number; name: string }[];
-  microphonesCatalog: { id: number; identifier: string }[];
   setPiecesCatalog: { id: number; name: string }[];
   className?: string;
 }) {
@@ -1039,21 +1008,6 @@ function AdvancedFiltersPanel({
           {cueCategories.map((category) => (
             <option key={category.id} value={String(category.id)}>
               {category.name}
-            </option>
-          ))}
-        </select>
-      )}
-
-      {canManagePreparation && microphonesCatalog.length > 0 && (
-        <select
-          value={microphoneFilter}
-          onChange={(e) => setMicrophoneFilter(e.target.value as ResourceFilterValue)}
-          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
-        >
-          <option value="all">All microphones</option>
-          {microphonesCatalog.map((mic) => (
-            <option key={mic.id} value={String(mic.id)}>
-              {mic.identifier}
             </option>
           ))}
         </select>
