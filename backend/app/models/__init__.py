@@ -14,10 +14,11 @@ from app.models.lav_wire_assignment import LavWireAssignment
 from app.models.lyric_line import LyricLine
 from app.models.moment import Moment
 from app.models.moment_blocking import MomentBlocking
+from app.models.moment_costume_event import MomentCostumeEvent
 from app.models.moment_entrance import MomentEntrance
 from app.models.moment_exit import MomentExit
-from app.models.moment_prop import MomentProp
-from app.models.moment_set_piece import MomentSetPiece
+from app.models.moment_prop_event import MomentPropEvent
+from app.models.moment_set_piece_event import MomentSetPieceEvent
 from app.models.moment_type import MomentType
 from app.models.note import Note
 from app.models.organization import Organization
@@ -52,10 +53,11 @@ __all__ = [
     "LyricLine",
     "Moment",
     "MomentBlocking",
+    "MomentCostumeEvent",
     "MomentEntrance",
     "MomentExit",
-    "MomentProp",
-    "MomentSetPiece",
+    "MomentPropEvent",
+    "MomentSetPieceEvent",
     "MomentType",
     "Note",
     "Organization",

@@ -680,38 +680,49 @@ Characters
 
 ---
 
-# MOMENT_PROPS
+# MOMENT_PROP_EVENTS
 
 Purpose
 
-Attach props to moments (Phase 3 junction table).
+Prop **on/off** events on moments (Phase 14 WP2) — replaces the Phase 3 `moment_props` presence junction.
 
 Fields
 
 * id
 * moment_id
 * prop_id
-* character_id (nullable — carrier)
-* notes (nullable)
+* kind (`on` \| `off`)
+* character_id (nullable — person affiliation)
+* user_id (nullable — person affiliation)
+* notes (nullable — free text: location when `on`, exit/stow detail when `off`)
 
-**Decision:** Unique `(moment_id, prop_id)` — one attachment row per prop per moment. See [PHASE_3.md](PHASE_3.md).
+**Decision (Phase 14):** Exactly one of `character_id` / `user_id` may be set — `CHECK (character_id IS NULL OR user_id IS NULL)` — or neither. Unique `(moment_id, prop_id)`: at most one event per prop per Moment (a Moment can still change many different props).
+
+**Derivation (not stored):** Walk Moments in Act → Scene → `sequence_number` order, whole production. Each asset starts **off**. An `on` event puts it in play and sets current person/notes from that event; state (in-play, person, notes) **persists across scenes and acts** until the next event for that asset — no scene/act reset. A repeat `on` while already on **updates** person/notes in place (covers move/handoff without a new event kind). An `off` event takes it out of play and clears current person. See [PHASE_14.md](PHASE_14.md) for the full derivation write-up and worked examples.
+
+**Deprecated:** `moment_props` (Phase 3 presence junction) — dropped; no data migration, owner re-enters.
 
 ---
 
-# MOMENT_SET_PIECES
+# MOMENT_SET_PIECE_EVENTS
 
 Purpose
 
-Attach set pieces to moments (Phase 4 junction table).
+Set piece **on/off** events on moments (Phase 14 WP2) — replaces the Phase 4 `moment_set_pieces` presence junction.
 
 Fields
 
 * id
 * moment_id
 * set_piece_id
+* kind (`on` \| `off`)
+* character_id (nullable — person affiliation)
+* user_id (nullable — person affiliation)
 * notes (nullable)
 
-**Decision:** Unique `(moment_id, set_piece_id)` — one attachment row per set piece per moment.
+**Decision (Phase 14):** Same rules as `moment_prop_events` — `character_id` XOR `user_id` (or neither) via `CHECK (character_id IS NULL OR user_id IS NULL)`; unique `(moment_id, set_piece_id)`; same show-order derivation walk (persist across scenes/acts, re-`on` updates person/notes, `off` clears in-play). See [PHASE_14.md](PHASE_14.md).
+
+**Deprecated:** `moment_set_pieces` (Phase 4 presence junction) — dropped; no data migration, owner re-enters.
 
 ---
 
@@ -768,16 +779,42 @@ Fields
 
 # COSTUMES
 
+Purpose
+
+Costume/look catalog, scoped to a production and a default owning character. Timing (when a look is worn) lives on the Timeline via `moment_costume_events`, not on this table.
+
 Fields
 
 * id
 * production_id
-* character_id
-* scene_id
+* character_id — catalog default owner
 * name
 * description
 
-**Decision:** MVP uses a single `scene_id` per costume. Post-MVP, support multiple scenes through a join table.
+**Decision (Phase 14 WP5):** `scene_id` dropped — costumes are no longer assigned to a single scene. `character_id` stays as the catalog's default owner (who this look is normally for), but any production costume can be worn by any character via `moment_costume_events.costume_id` (catalog owner is a hint, not an enforced match). No data migration: existing scene assignments are gone; the owner re-enters wear/clear timing on the Timeline.
+
+---
+
+# MOMENT_COSTUME_EVENTS
+
+Purpose
+
+Costume **wear/clear** events on moments (Phase 14 WP5) — thin sibling of `moment_prop_events` / `moment_set_piece_events`, replacing the dropped `costumes.scene_id` assignment.
+
+Fields
+
+* id
+* moment_id
+* character_id (required — the wearer; no user option, unlike prop/set piece events)
+* kind (`on` \| `off` — UI labels these Wear/Clear)
+* costume_id (nullable — required when `kind = on`; `CHECK (kind = 'off') OR (costume_id IS NOT NULL)`)
+* notes (nullable)
+
+**Decision (Phase 14 WP5):** Unlike prop/set piece events, the wearer is always a `character_id` (no `user_id` option), and unique `(moment_id, character_id)` — a character can only make one costume change per Moment (as opposed to `(moment_id, prop_id)` for props, where one Moment can change many different props). `CHECK (kind IN ('on', 'off'))`.
+
+**Derivation (not stored):** Same show-order walk as `asset_state.py` (Act → Scene → `sequence_number`, whole production), keyed by `character_id` instead of asset id. Each character starts with nothing on. An `on` event sets that character's current costume + notes; state **persists across scenes and acts** until the next event for that character. A repeat `on` updates the costume/notes in place (handles an outfit change without a new event kind). An `off` event clears what they're wearing. See `compute_costume_state_by_moment` / `costume_states_at_moment` in `app/services/asset_state.py`.
+
+**Deprecated:** `costumes.scene_id` (dropped, see COSTUMES above) — no data migration, owner re-enters.
 
 ---
 
@@ -981,25 +1018,13 @@ Rehearsals
 
 Attendance
 
-Timeline Events
-
-Prop Assignments
-
-Blocking
-
-Entrances
-
-Exits
-
-Lav chart assignments (wires/packs — Phase 12+)
-
-State Changes
-
 AI Conversations
 
 Audit Logs
 
 Version History
+
+**Note:** Blocking, Entrances, Exits, and lav chart assignments (wires/packs) are no longer future work — see `MOMENT_BLOCKING`, `MOMENT_ENTRANCES`, `MOMENT_EXITS`, `LAV_WIRE_ASSIGNMENTS`, and `LAV_PACK_ASSIGNMENTS` above. Prop/set-piece/costume "state changes" shipped as `moment_prop_events`, `moment_set_piece_events`, and `moment_costume_events` (Phase 14) — see Planned Event Model below for what's still unscheduled.
 
 ---
 
@@ -1025,39 +1050,11 @@ These should be computed from Timeline relationships whenever possible.
 
 ---
 
-# Planned Event Model (Future)
+# Planned Event Model
 
-Eventually Moments should own structured production events.
+**Phase 14 (WP1–WP5 backend shipped 2026-07-27):** Props, set pieces, and costumes now ship as first-class **on/off** events (`moment_prop_events`, `moment_set_piece_events`, `moment_costume_events` — see above), with "currently in play" / "currently wearing" **derived** by walking the show in order rather than stored as presence rows (`app/services/asset_state.py`). This is a deliberately **scoped** slice — specialized event tables plus a shared derivation service — not the polymorphic event store sketched below. See [PHASE_14.md](PHASE_14.md).
 
-Possible event types:
-
-Dialogue
-
-Stage Direction
-
-Entrance
-
-Exit
-
-Blocking
-
-Cue
-
-Music Start
-
-Music Stop
-
-Prop Assignment
-
-Prop Transfer
-
-Costume Change
-
-Microphone Assignment
-
-Set Change
-
-This event system should eventually replace many specialized relationships while remaining backwards-compatible with the MVP schema.
+**Broader future (unscheduled):** Other Moment-attached data could eventually follow the same on/off-and-derive pattern — entrance, exit, cue execution, microphone assignment, set change, and so on. Lav wire/pack Timeline markers are one documented candidate, deferred until the props/sets engine proves out (see [PHASE_13.md](PHASE_13.md)). There is no committed plan to convert every relationship into a single unified event store; each domain is evaluated on its own rather than as a big-bang event-sourcing rewrite.
 
 ---
 
@@ -1092,7 +1089,6 @@ Most foundational decisions are captured above. Remaining work:
 
 * Write the formal import specification (line-classification rules derived from [SCRIPT_FORMAT.md](SCRIPT_FORMAT.md)).
 * Produce an ERD and Alembic migration baseline.
-* Design the post-MVP costume-to-scene join table.
 * Design the post-MVP preparation-progress table (derive completion from moment content and review state).
 
 ## Low Priority

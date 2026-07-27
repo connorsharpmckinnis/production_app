@@ -13,8 +13,13 @@ import { useToast } from "@/context/ToastContext";
 import { api, ApiError, formatApiError } from "@/lib/api";
 import type {
   AppSettingsResponse,
+  AssetEventKind,
+  CastableUserResponse,
   CharacterDetailResponse,
+  CostumeResponse,
+  CostumeWearingResponse,
   CueCategoryResponse,
+  MomentCostumeEventResponse,
   MomentDetailResponse,
   MomentTypeResponse,
   PropResponse,
@@ -23,15 +28,16 @@ import type {
 } from "@/lib/types";
 import { cn, momentTypeLabel, sortByName } from "@/lib/utils";
 
-function costumesPagePath(
-  productionId: number,
-  sceneId: number | null,
-  detail: MomentDetailResponse,
-): string {
+type PersonType = "none" | "character" | "user";
+
+function personTypeOf(characterId: number | null, userId: number | null): PersonType {
+  if (characterId !== null) return "character";
+  if (userId !== null) return "user";
+  return "none";
+}
+
+function costumesPagePath(productionId: number, detail: MomentDetailResponse): string {
   const params = new URLSearchParams();
-  if (sceneId !== null) {
-    params.set("sceneId", String(sceneId));
-  }
   if (detail.dialogue.length === 1) {
     params.set("characterId", String(detail.dialogue[0].character_id));
   }
@@ -50,9 +56,11 @@ interface MomentDetailPanelProps {
   canEdit: boolean;
   canChooseVisibility: boolean;
   characters: CharacterDetailResponse[];
+  castableUsers: CastableUserResponse[];
   songs: SongDetailResponse[];
   propsCatalog: PropResponse[];
   setPiecesCatalog: SetPieceResponse[];
+  costumesCatalog: CostumeResponse[];
   cueCategories: CueCategoryResponse[];
   momentTypes: MomentTypeResponse[];
   appSettings: AppSettingsResponse;
@@ -66,13 +74,14 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     {
       productionId,
       detail,
-      sceneId,
       canEdit,
       canChooseVisibility,
       characters,
+      castableUsers,
       songs,
       propsCatalog,
       setPiecesCatalog,
+      costumesCatalog,
       cueCategories,
       momentTypes,
       appSettings,
@@ -86,6 +95,9 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     const toast = useToast();
 
     const sortedCharacters = sortByName(characters);
+    const sortedCastableUsers = [...castableUsers].sort((a, b) =>
+      a.display_name.localeCompare(b.display_name, undefined, { sensitivity: "base" }),
+    );
 
     const isSongRelated =
       detail.song_id != null ||
@@ -108,11 +120,23 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     );
 
     const [attachPropId, setAttachPropId] = useState("");
+    const [attachPropKind, setAttachPropKind] = useState<AssetEventKind>("on");
+    const [attachPropPersonType, setAttachPropPersonType] = useState<PersonType>("none");
     const [attachPropCharacterId, setAttachPropCharacterId] = useState("");
+    const [attachPropUserId, setAttachPropUserId] = useState("");
     const [attachPropNotes, setAttachPropNotes] = useState("");
 
     const [attachSetPieceId, setAttachSetPieceId] = useState("");
+    const [attachSetPieceKind, setAttachSetPieceKind] = useState<AssetEventKind>("on");
+    const [attachSetPiecePersonType, setAttachSetPiecePersonType] = useState<PersonType>("none");
+    const [attachSetPieceCharacterId, setAttachSetPieceCharacterId] = useState("");
+    const [attachSetPieceUserId, setAttachSetPieceUserId] = useState("");
     const [attachSetPieceNotes, setAttachSetPieceNotes] = useState("");
+
+    const [attachCostumeCharacterId, setAttachCostumeCharacterId] = useState("");
+    const [attachCostumeKind, setAttachCostumeKind] = useState<AssetEventKind>("on");
+    const [attachCostumeId, setAttachCostumeId] = useState("");
+    const [attachCostumeNotes, setAttachCostumeNotes] = useState("");
 
     const [attachEntranceCharacterId, setAttachEntranceCharacterId] = useState("");
     const [attachEntranceNotes, setAttachEntranceNotes] = useState("");
@@ -288,21 +312,56 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     async function handleAttachProp(event: React.FormEvent) {
       event.preventDefault();
       if (!attachPropId) return;
+      if (attachPropPersonType === "character" && !attachPropCharacterId) return;
+      if (attachPropPersonType === "user" && !attachPropUserId) return;
 
       setSaving(true);
       try {
         await api.attachMomentProp(productionId, detail.id, {
           prop_id: Number(attachPropId),
-          character_id: attachPropCharacterId ? Number(attachPropCharacterId) : null,
+          kind: attachPropKind,
+          character_id:
+            attachPropPersonType === "character" && attachPropCharacterId
+              ? Number(attachPropCharacterId)
+              : null,
+          user_id:
+            attachPropPersonType === "user" && attachPropUserId
+              ? Number(attachPropUserId)
+              : null,
           notes: attachPropNotes.trim() || null,
         });
         setAttachPropId("");
+        setAttachPropKind("on");
+        setAttachPropPersonType("none");
         setAttachPropCharacterId("");
+        setAttachPropUserId("");
         setAttachPropNotes("");
         onChanged();
-        toast.success("Prop added");
+        toast.success("Prop event added");
       } catch (err) {
-        toast.error(formatApiError(err, "Failed to attach prop"));
+        toast.error(formatApiError(err, "Failed to add prop event"));
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function handleUpdateMomentProp(
+      momentPropId: number,
+      body: {
+        kind: AssetEventKind;
+        character_id: number | null;
+        user_id: number | null;
+        notes: string | null;
+      },
+    ) {
+      setSaving(true);
+      try {
+        await api.updateMomentProp(productionId, detail.id, momentPropId, body);
+        onChanged();
+        toast.success("Prop event updated");
+      } catch (err) {
+        toast.error(formatApiError(err, "Failed to update prop event"));
+        throw err;
       } finally {
         setSaving(false);
       }
@@ -310,7 +369,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
     async function handleDetachProp(momentPropId: number) {
       const ok = await confirm({
-        title: "Remove this prop from the moment?",
+        title: "Remove this prop event from the moment?",
         confirmLabel: "Remove",
         destructive: true,
       });
@@ -320,9 +379,9 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       try {
         await api.detachMomentProp(productionId, detail.id, momentPropId);
         onChanged();
-        toast.success("Prop removed");
+        toast.success("Prop event removed");
       } catch (err) {
-        toast.error(formatApiError(err, "Failed to detach prop"));
+        toast.error(formatApiError(err, "Failed to detach prop event"));
       } finally {
         setSaving(false);
       }
@@ -331,19 +390,56 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     async function handleAttachSetPiece(event: React.FormEvent) {
       event.preventDefault();
       if (!attachSetPieceId) return;
+      if (attachSetPiecePersonType === "character" && !attachSetPieceCharacterId) return;
+      if (attachSetPiecePersonType === "user" && !attachSetPieceUserId) return;
 
       setSaving(true);
       try {
         await api.attachMomentSetPiece(productionId, detail.id, {
           set_piece_id: Number(attachSetPieceId),
+          kind: attachSetPieceKind,
+          character_id:
+            attachSetPiecePersonType === "character" && attachSetPieceCharacterId
+              ? Number(attachSetPieceCharacterId)
+              : null,
+          user_id:
+            attachSetPiecePersonType === "user" && attachSetPieceUserId
+              ? Number(attachSetPieceUserId)
+              : null,
           notes: attachSetPieceNotes.trim() || null,
         });
         setAttachSetPieceId("");
+        setAttachSetPieceKind("on");
+        setAttachSetPiecePersonType("none");
+        setAttachSetPieceCharacterId("");
+        setAttachSetPieceUserId("");
         setAttachSetPieceNotes("");
         onChanged();
-        toast.success("Set piece added");
+        toast.success("Set piece event added");
       } catch (err) {
-        toast.error(formatApiError(err, "Failed to attach set piece"));
+        toast.error(formatApiError(err, "Failed to add set piece event"));
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function handleUpdateMomentSetPiece(
+      momentSetPieceId: number,
+      body: {
+        kind: AssetEventKind;
+        character_id: number | null;
+        user_id: number | null;
+        notes: string | null;
+      },
+    ) {
+      setSaving(true);
+      try {
+        await api.updateMomentSetPiece(productionId, detail.id, momentSetPieceId, body);
+        onChanged();
+        toast.success("Set piece event updated");
+      } catch (err) {
+        toast.error(formatApiError(err, "Failed to update set piece event"));
+        throw err;
       } finally {
         setSaving(false);
       }
@@ -351,7 +447,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
     async function handleDetachSetPiece(momentSetPieceId: number) {
       const ok = await confirm({
-        title: "Remove this set piece from the moment?",
+        title: "Remove this set piece event from the moment?",
         confirmLabel: "Remove",
         destructive: true,
       });
@@ -361,9 +457,72 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       try {
         await api.detachMomentSetPiece(productionId, detail.id, momentSetPieceId);
         onChanged();
-        toast.success("Set piece removed");
+        toast.success("Set piece event removed");
       } catch (err) {
-        toast.error(formatApiError(err, "Failed to detach set piece"));
+        toast.error(formatApiError(err, "Failed to detach set piece event"));
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function handleAttachCostume(event: React.FormEvent) {
+      event.preventDefault();
+      if (!attachCostumeCharacterId) return;
+      if (attachCostumeKind === "on" && !attachCostumeId) return;
+
+      setSaving(true);
+      try {
+        await api.attachMomentCostume(productionId, detail.id, {
+          character_id: Number(attachCostumeCharacterId),
+          kind: attachCostumeKind,
+          costume_id: attachCostumeId ? Number(attachCostumeId) : null,
+          notes: attachCostumeNotes.trim() || null,
+        });
+        setAttachCostumeCharacterId("");
+        setAttachCostumeKind("on");
+        setAttachCostumeId("");
+        setAttachCostumeNotes("");
+        onChanged();
+        toast.success("Costume event added");
+      } catch (err) {
+        toast.error(formatApiError(err, "Failed to add costume event"));
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function handleUpdateMomentCostume(
+      momentCostumeId: number,
+      body: { kind: AssetEventKind; costume_id: number | null; notes: string | null },
+    ) {
+      setSaving(true);
+      try {
+        await api.updateMomentCostume(productionId, detail.id, momentCostumeId, body);
+        onChanged();
+        toast.success("Costume event updated");
+      } catch (err) {
+        toast.error(formatApiError(err, "Failed to update costume event"));
+        throw err;
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function handleDetachCostume(momentCostumeId: number) {
+      const ok = await confirm({
+        title: "Remove this costume event from the moment?",
+        confirmLabel: "Remove",
+        destructive: true,
+      });
+      if (!ok) return;
+
+      setSaving(true);
+      try {
+        await api.detachMomentCostume(productionId, detail.id, momentCostumeId);
+        onChanged();
+        toast.success("Costume event removed");
+      } catch (err) {
+        toast.error(formatApiError(err, "Failed to detach costume event"));
       } finally {
         setSaving(false);
       }
@@ -779,6 +938,9 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                 {propsCatalog.length > 0 && <option value="prop">Prop</option>}
                 {cueCategories.length > 0 && <option value="cue">Cue</option>}
                 {setPiecesCatalog.length > 0 && <option value="set_piece">Set piece</option>}
+                {costumesCatalog.length > 0 && characters.length > 0 && (
+                  <option value="costume">Costume</option>
+                )}
                 {characters.length > 0 && <option value="entrance">Entrance</option>}
                 {characters.length > 0 && <option value="exit">Exit</option>}
                 {characters.length > 0 && <option value="blocking">Blocking</option>}
@@ -787,7 +949,8 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
             {propsCatalog.length === 0 &&
               cueCategories.length === 0 &&
-              setPiecesCatalog.length === 0 && (
+              setPiecesCatalog.length === 0 &&
+              costumesCatalog.length === 0 && (
                 <p className="mt-2 text-xs text-muted-foreground">
                   Need something to attach? Create items in{" "}
                   <Link
@@ -803,27 +966,23 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   >
                     Cue Categories
                   </Link>
-                  , or{" "}
+                  ,{" "}
                   <Link
                     to={`/productions/${productionId}/set-pieces`}
                     className="underline hover:text-foreground"
                   >
                     Set Pieces
+                  </Link>
+                  , or{" "}
+                  <Link
+                    to={costumesPagePath(productionId, detail)}
+                    className="underline hover:text-foreground"
+                  >
+                    Costumes
                   </Link>{" "}
                   first.
                 </p>
               )}
-
-            <p className="mt-2 text-xs text-muted-foreground">
-              Costumes are assigned by character and scene — manage them on the{" "}
-              <Link
-                to={costumesPagePath(productionId, sceneId, detail)}
-                className="underline hover:text-foreground"
-              >
-                Costumes
-              </Link>{" "}
-              page.
-            </p>
 
             {addAttachmentType === "prop" && propsCatalog.length > 0 && (
               <form onSubmit={(e) => void handleAttachProp(e)} className="mt-3 space-y-2">
@@ -832,7 +991,10 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   onChange={(e) => {
                     setAttachPropId(e.target.value);
                     if (!e.target.value) {
+                      setAttachPropKind("on");
+                      setAttachPropPersonType("none");
                       setAttachPropCharacterId("");
+                      setAttachPropUserId("");
                       setAttachPropNotes("");
                     }
                   }}
@@ -848,17 +1010,54 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                 {attachPropId && (
                   <>
                     <select
-                      value={attachPropCharacterId}
-                      onChange={(e) => setAttachPropCharacterId(e.target.value)}
+                      value={attachPropKind}
+                      onChange={(e) => setAttachPropKind(e.target.value as AssetEventKind)}
                       className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     >
-                      <option value="">No carrier character</option>
-                      {sortedCharacters.map((character) => (
-                        <option key={character.id} value={String(character.id)}>
-                          {character.name}
-                        </option>
-                      ))}
+                      <option value="on">On</option>
+                      <option value="off">Off</option>
                     </select>
+                    <select
+                      value={attachPropPersonType}
+                      onChange={(e) => {
+                        setAttachPropPersonType(e.target.value as PersonType);
+                        setAttachPropCharacterId("");
+                        setAttachPropUserId("");
+                      }}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="none">No person</option>
+                      <option value="character">Character</option>
+                      <option value="user">User</option>
+                    </select>
+                    {attachPropPersonType === "character" && (
+                      <select
+                        value={attachPropCharacterId}
+                        onChange={(e) => setAttachPropCharacterId(e.target.value)}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="">Select character…</option>
+                        {sortedCharacters.map((character) => (
+                          <option key={character.id} value={String(character.id)}>
+                            {character.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {attachPropPersonType === "user" && (
+                      <select
+                        value={attachPropUserId}
+                        onChange={(e) => setAttachPropUserId(e.target.value)}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="">Select user…</option>
+                        {sortedCastableUsers.map((castUser) => (
+                          <option key={castUser.id} value={String(castUser.id)}>
+                            {castUser.display_name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
                     <input
                       value={attachPropNotes}
                       onChange={(e) => setAttachPropNotes(e.target.value)}
@@ -869,7 +1068,12 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                 )}
                 <button
                   type="submit"
-                  disabled={saving || !attachPropId}
+                  disabled={
+                    saving ||
+                    !attachPropId ||
+                    (attachPropPersonType === "character" && !attachPropCharacterId) ||
+                    (attachPropPersonType === "user" && !attachPropUserId)
+                  }
                   className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
                 >
                   Add
@@ -929,7 +1133,13 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   value={attachSetPieceId}
                   onChange={(e) => {
                     setAttachSetPieceId(e.target.value);
-                    if (!e.target.value) setAttachSetPieceNotes("");
+                    if (!e.target.value) {
+                      setAttachSetPieceKind("on");
+                      setAttachSetPiecePersonType("none");
+                      setAttachSetPieceCharacterId("");
+                      setAttachSetPieceUserId("");
+                      setAttachSetPieceNotes("");
+                    }
                   }}
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 >
@@ -941,16 +1151,135 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   ))}
                 </select>
                 {attachSetPieceId && (
-                  <input
-                    value={attachSetPieceNotes}
-                    onChange={(e) => setAttachSetPieceNotes(e.target.value)}
-                    placeholder="Notes (optional)"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
+                  <>
+                    <select
+                      value={attachSetPieceKind}
+                      onChange={(e) => setAttachSetPieceKind(e.target.value as AssetEventKind)}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="on">On</option>
+                      <option value="off">Off</option>
+                    </select>
+                    <select
+                      value={attachSetPiecePersonType}
+                      onChange={(e) => {
+                        setAttachSetPiecePersonType(e.target.value as PersonType);
+                        setAttachSetPieceCharacterId("");
+                        setAttachSetPieceUserId("");
+                      }}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="none">No person</option>
+                      <option value="character">Character</option>
+                      <option value="user">User</option>
+                    </select>
+                    {attachSetPiecePersonType === "character" && (
+                      <select
+                        value={attachSetPieceCharacterId}
+                        onChange={(e) => setAttachSetPieceCharacterId(e.target.value)}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="">Select character…</option>
+                        {sortedCharacters.map((character) => (
+                          <option key={character.id} value={String(character.id)}>
+                            {character.name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    {attachSetPiecePersonType === "user" && (
+                      <select
+                        value={attachSetPieceUserId}
+                        onChange={(e) => setAttachSetPieceUserId(e.target.value)}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="">Select user…</option>
+                        {sortedCastableUsers.map((castUser) => (
+                          <option key={castUser.id} value={String(castUser.id)}>
+                            {castUser.display_name}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <input
+                      value={attachSetPieceNotes}
+                      onChange={(e) => setAttachSetPieceNotes(e.target.value)}
+                      placeholder="Notes (optional)"
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    />
+                  </>
                 )}
                 <button
                   type="submit"
-                  disabled={saving || !attachSetPieceId}
+                  disabled={
+                    saving ||
+                    !attachSetPieceId ||
+                    (attachSetPiecePersonType === "character" && !attachSetPieceCharacterId) ||
+                    (attachSetPiecePersonType === "user" && !attachSetPieceUserId)
+                  }
+                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
+                >
+                  Add
+                </button>
+              </form>
+            )}
+
+            {addAttachmentType === "costume" && costumesCatalog.length > 0 && (
+              <form onSubmit={(e) => void handleAttachCostume(e)} className="mt-3 space-y-2">
+                <select
+                  value={attachCostumeCharacterId}
+                  onChange={(e) => setAttachCostumeCharacterId(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select character…</option>
+                  {sortedCharacters.map((character) => (
+                    <option key={character.id} value={String(character.id)}>
+                      {character.name}
+                    </option>
+                  ))}
+                </select>
+                {attachCostumeCharacterId && (
+                  <>
+                    <select
+                      value={attachCostumeKind}
+                      onChange={(e) => {
+                        setAttachCostumeKind(e.target.value as AssetEventKind);
+                        if (e.target.value === "off") setAttachCostumeId("");
+                      }}
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    >
+                      <option value="on">Wear</option>
+                      <option value="off">Clear</option>
+                    </select>
+                    {attachCostumeKind === "on" && (
+                      <select
+                        value={attachCostumeId}
+                        onChange={(e) => setAttachCostumeId(e.target.value)}
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                      >
+                        <option value="">Select costume…</option>
+                        {costumesCatalog.map((costume) => (
+                          <option key={costume.id} value={String(costume.id)}>
+                            {costume.name} ({costume.character_name})
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                    <input
+                      value={attachCostumeNotes}
+                      onChange={(e) => setAttachCostumeNotes(e.target.value)}
+                      placeholder="Notes (optional)"
+                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                    />
+                  </>
+                )}
+                <button
+                  type="submit"
+                  disabled={
+                    saving ||
+                    !attachCostumeCharacterId ||
+                    (attachCostumeKind === "on" && !attachCostumeId)
+                  }
                   className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
                 >
                   Add
@@ -1065,35 +1394,73 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           </div>
         )}
 
-        <AttachmentSection
+        <AssetEventSection
           title="Props"
-          emptyMessage="No props attached."
+          emptyMessage="No prop events on this moment."
           canEdit={canEdit}
           saving={saving}
           defaultExpanded={detail.props.length > 0}
-          items={detail.props.map((prop) => ({
+          events={detail.props.map((prop) => ({
             id: prop.id,
-            label: prop.prop_name,
-            sublabel: prop.character_name ?? undefined,
-            notes: prop.notes ?? undefined,
+            assetName: prop.prop_name,
+            kind: prop.kind as AssetEventKind,
+            character_id: prop.character_id,
+            character_name: prop.character_name,
+            user_id: prop.user_id,
+            user_display_name: prop.user_display_name,
+            notes: prop.notes,
           }))}
+          characters={sortedCharacters}
+          castableUsers={sortedCastableUsers}
+          onUpdate={handleUpdateMomentProp}
           onDetach={handleDetachProp}
           catalogLength={propsCatalog.length}
+          inPlay={detail.props_in_play.map((item) => ({
+            key: `prop-in-play-${item.prop_id}`,
+            label: item.prop_name,
+            personLabel: item.character_name ?? item.user_display_name,
+            notes: item.notes,
+          }))}
         />
 
-        <AttachmentSection
+        <AssetEventSection
           title="Set pieces"
-          emptyMessage="No set pieces attached."
+          emptyMessage="No set piece events on this moment."
           canEdit={canEdit}
           saving={saving}
           defaultExpanded={detail.set_pieces.length > 0}
-          items={detail.set_pieces.map((piece) => ({
+          events={detail.set_pieces.map((piece) => ({
             id: piece.id,
-            label: piece.set_piece_name,
-            notes: piece.notes ?? undefined,
+            assetName: piece.set_piece_name,
+            kind: piece.kind as AssetEventKind,
+            character_id: piece.character_id,
+            character_name: piece.character_name,
+            user_id: piece.user_id,
+            user_display_name: piece.user_display_name,
+            notes: piece.notes,
           }))}
+          characters={sortedCharacters}
+          castableUsers={sortedCastableUsers}
+          onUpdate={handleUpdateMomentSetPiece}
           onDetach={handleDetachSetPiece}
           catalogLength={setPiecesCatalog.length}
+          inPlay={detail.set_pieces_in_play.map((item) => ({
+            key: `set-piece-in-play-${item.set_piece_id}`,
+            label: item.set_piece_name,
+            personLabel: item.character_name ?? item.user_display_name,
+            notes: item.notes,
+          }))}
+        />
+
+        <CostumeEventSection
+          canEdit={canEdit}
+          saving={saving}
+          defaultExpanded={detail.costume_events.length > 0}
+          events={detail.costume_events}
+          costumesCatalog={costumesCatalog}
+          onUpdate={handleUpdateMomentCostume}
+          onDetach={handleDetachCostume}
+          wearing={detail.costumes_wearing}
         />
 
         <AttachmentSection
@@ -1260,6 +1627,9 @@ function AttachmentSection({
   attachForm?: React.ReactNode;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  useEffect(() => {
+    setExpanded(defaultExpanded);
+  }, [defaultExpanded]);
   const hasContent = items.length > 0;
 
   return (
@@ -1328,6 +1698,575 @@ function AttachmentSection({
         </>
       )}
     </div>
+  );
+}
+
+interface AssetEventItem {
+  id: number;
+  assetName: string;
+  kind: AssetEventKind;
+  character_id: number | null;
+  character_name: string | null;
+  user_id: number | null;
+  user_display_name: string | null;
+  notes: string | null;
+}
+
+interface AssetInPlayItem {
+  key: string;
+  label: string;
+  personLabel: string | null;
+  notes: string | null;
+}
+
+function AssetEventSection({
+  title,
+  emptyMessage,
+  canEdit,
+  saving,
+  events,
+  characters,
+  castableUsers,
+  onUpdate,
+  onDetach,
+  catalogLength,
+  defaultExpanded = true,
+  inPlay,
+}: {
+  title: string;
+  emptyMessage: string;
+  canEdit: boolean;
+  saving: boolean;
+  events: AssetEventItem[];
+  characters: CharacterDetailResponse[];
+  castableUsers: CastableUserResponse[];
+  onUpdate: (
+    eventId: number,
+    body: {
+      kind: AssetEventKind;
+      character_id: number | null;
+      user_id: number | null;
+      notes: string | null;
+    },
+  ) => void | Promise<void>;
+  onDetach: (eventId: number) => void;
+  catalogLength: number;
+  defaultExpanded?: boolean;
+  inPlay: AssetInPlayItem[];
+}) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  useEffect(() => {
+    setExpanded(defaultExpanded);
+  }, [defaultExpanded]);
+
+  return (
+    <div className="border-t border-border pt-4">
+      <button
+        type="button"
+        onClick={() => setExpanded((open) => !open)}
+        className="flex w-full items-center justify-between gap-2 text-left"
+      >
+        <h3 className="text-sm font-medium">{title}</h3>
+        <span className="text-xs text-muted-foreground">
+          {events.length > 0 ? `${events.length}` : "—"} {expanded ? "▾" : "▸"}
+        </span>
+      </button>
+
+      {inPlay.length > 0 && (
+        <div className="mt-2 rounded-md bg-muted/40 px-3 py-2">
+          <h4 className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            Currently in play
+          </h4>
+          <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+            {inPlay.map((item) => (
+              <li key={item.key}>
+                <span className="font-medium text-foreground">{item.label}</span>
+                {item.personLabel ? ` — ${item.personLabel}` : ""}
+                {item.notes ? ` — ${item.notes}` : ""}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {expanded && (
+        <>
+          {events.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">{emptyMessage}</p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {events.map((event) => (
+                <AssetEventRow
+                  key={event.id}
+                  event={event}
+                  canEdit={canEdit}
+                  saving={saving}
+                  characters={characters}
+                  castableUsers={castableUsers}
+                  onUpdate={onUpdate}
+                  onDetach={onDetach}
+                />
+              ))}
+            </ul>
+          )}
+
+          {canEdit && catalogLength === 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Add {title.toLowerCase()} to the catalog to attach them here.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function AssetEventRow({
+  event,
+  canEdit,
+  saving,
+  characters,
+  castableUsers,
+  onUpdate,
+  onDetach,
+}: {
+  event: AssetEventItem;
+  canEdit: boolean;
+  saving: boolean;
+  characters: CharacterDetailResponse[];
+  castableUsers: CastableUserResponse[];
+  onUpdate: (
+    eventId: number,
+    body: {
+      kind: AssetEventKind;
+      character_id: number | null;
+      user_id: number | null;
+      notes: string | null;
+    },
+  ) => void | Promise<void>;
+  onDetach: (eventId: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [kind, setKind] = useState<AssetEventKind>(event.kind);
+  const [personType, setPersonType] = useState<PersonType>(
+    personTypeOf(event.character_id, event.user_id),
+  );
+  const [characterId, setCharacterId] = useState(
+    event.character_id !== null ? String(event.character_id) : "",
+  );
+  const [userId, setUserId] = useState(event.user_id !== null ? String(event.user_id) : "");
+  const [notes, setNotes] = useState(event.notes ?? "");
+
+  useEffect(() => {
+    setKind(event.kind);
+    setPersonType(personTypeOf(event.character_id, event.user_id));
+    setCharacterId(event.character_id !== null ? String(event.character_id) : "");
+    setUserId(event.user_id !== null ? String(event.user_id) : "");
+    setNotes(event.notes ?? "");
+  }, [event.id, event.kind, event.character_id, event.user_id, event.notes]);
+
+  const personLabel = event.character_name ?? event.user_display_name;
+  const personReady =
+    personType === "none" ||
+    (personType === "character" && Boolean(characterId)) ||
+    (personType === "user" && Boolean(userId));
+
+  async function handleSave() {
+    if (!personReady) return;
+    try {
+      await onUpdate(event.id, {
+        kind,
+        character_id: personType === "character" && characterId ? Number(characterId) : null,
+        user_id: personType === "user" && userId ? Number(userId) : null,
+        notes: notes.trim() || null,
+      });
+      setEditing(false);
+    } catch {
+      // Parent already toasted; keep the edit form open with the user's draft.
+    }
+  }
+
+  function handleCancel() {
+    setKind(event.kind);
+    setPersonType(personTypeOf(event.character_id, event.user_id));
+    setCharacterId(event.character_id !== null ? String(event.character_id) : "");
+    setUserId(event.user_id !== null ? String(event.user_id) : "");
+    setNotes(event.notes ?? "");
+    setEditing(false);
+  }
+
+  return (
+    <li className="rounded-md border border-border p-2 text-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium">{event.assetName}</span>
+            <Badge
+              variant={event.kind === "on" ? "default" : "secondary"}
+              className="uppercase"
+            >
+              {event.kind === "on" ? "On" : "Off"}
+            </Badge>
+          </div>
+          {personLabel && <p className="text-muted-foreground">{personLabel}</p>}
+          {!editing && event.notes && (
+            <p className="mt-1 text-muted-foreground">{event.notes}</p>
+          )}
+
+          {editing && (
+            <div className="mt-2 space-y-2">
+              <select
+                value={kind}
+                onChange={(e) => setKind(e.target.value as AssetEventKind)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="on">On</option>
+                <option value="off">Off</option>
+              </select>
+              <select
+                value={personType}
+                onChange={(e) => {
+                  setPersonType(e.target.value as PersonType);
+                  setCharacterId("");
+                  setUserId("");
+                }}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="none">No person</option>
+                <option value="character">Character</option>
+                <option value="user">User</option>
+              </select>
+              {personType === "character" && (
+                <select
+                  value={characterId}
+                  onChange={(e) => setCharacterId(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select character…</option>
+                  {characters.map((character) => (
+                    <option key={character.id} value={String(character.id)}>
+                      {character.name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              {personType === "user" && (
+                <select
+                  value={userId}
+                  onChange={(e) => setUserId(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select user…</option>
+                  {castableUsers.map((castUser) => (
+                    <option key={castUser.id} value={String(castUser.id)}>
+                      {castUser.display_name}
+                    </option>
+                  ))}
+                </select>
+              )}
+              <input
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Notes (optional)"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={saving || !personReady}
+                  onClick={() => void handleSave()}
+                >
+                  Save
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={saving}
+                  onClick={handleCancel}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+        {canEdit && !editing && (
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              disabled={saving}
+              onClick={() => setEditing(true)}
+              aria-label={`Edit ${event.assetName} event`}
+              title="Edit"
+            >
+              <Pencil />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              disabled={saving}
+              onClick={() => onDetach(event.id)}
+              aria-label={`Remove ${event.assetName} event`}
+              title="Remove"
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 />
+            </Button>
+          </div>
+        )}
+      </div>
+    </li>
+  );
+}
+
+function CostumeEventSection({
+  canEdit,
+  saving,
+  events,
+  costumesCatalog,
+  onUpdate,
+  onDetach,
+  defaultExpanded = true,
+  wearing,
+}: {
+  canEdit: boolean;
+  saving: boolean;
+  events: MomentCostumeEventResponse[];
+  costumesCatalog: CostumeResponse[];
+  onUpdate: (
+    eventId: number,
+    body: { kind: AssetEventKind; costume_id: number | null; notes: string | null },
+  ) => void | Promise<void>;
+  onDetach: (eventId: number) => void;
+  defaultExpanded?: boolean;
+  wearing: CostumeWearingResponse[];
+}) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  useEffect(() => {
+    setExpanded(defaultExpanded);
+  }, [defaultExpanded]);
+
+  return (
+    <div className="border-t border-border pt-4">
+      <button
+        type="button"
+        onClick={() => setExpanded((open) => !open)}
+        className="flex w-full items-center justify-between gap-2 text-left"
+      >
+        <h3 className="text-sm font-medium">Costumes</h3>
+        <span className="text-xs text-muted-foreground">
+          {events.length > 0 ? `${events.length}` : "—"} {expanded ? "▾" : "▸"}
+        </span>
+      </button>
+
+      {wearing.length > 0 && (
+        <div className="mt-2 rounded-md bg-muted/40 px-3 py-2">
+          <h4 className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            Currently wearing
+          </h4>
+          <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+            {wearing.map((item) => (
+              <li key={`wearing-${item.character_id}`}>
+                <span className="font-medium text-foreground">{item.character_name}</span>
+                {` — ${item.costume_name}`}
+                {item.notes ? ` — ${item.notes}` : ""}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {expanded && (
+        <>
+          {events.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              No costume events on this moment.
+            </p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {events.map((event) => (
+                <CostumeEventRow
+                  key={event.id}
+                  event={event}
+                  canEdit={canEdit}
+                  saving={saving}
+                  costumesCatalog={costumesCatalog}
+                  onUpdate={onUpdate}
+                  onDetach={onDetach}
+                />
+              ))}
+            </ul>
+          )}
+
+          {canEdit && costumesCatalog.length === 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Add costumes to the catalog to record wear/clear events here.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function CostumeEventRow({
+  event,
+  canEdit,
+  saving,
+  costumesCatalog,
+  onUpdate,
+  onDetach,
+}: {
+  event: MomentCostumeEventResponse;
+  canEdit: boolean;
+  saving: boolean;
+  costumesCatalog: CostumeResponse[];
+  onUpdate: (
+    eventId: number,
+    body: { kind: AssetEventKind; costume_id: number | null; notes: string | null },
+  ) => void | Promise<void>;
+  onDetach: (eventId: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [kind, setKind] = useState<AssetEventKind>(event.kind);
+  const [costumeId, setCostumeId] = useState(
+    event.costume_id !== null ? String(event.costume_id) : "",
+  );
+  const [notes, setNotes] = useState(event.notes ?? "");
+
+  useEffect(() => {
+    setKind(event.kind);
+    setCostumeId(event.costume_id !== null ? String(event.costume_id) : "");
+    setNotes(event.notes ?? "");
+  }, [event.id, event.kind, event.costume_id, event.notes]);
+
+  const ready = kind === "off" || Boolean(costumeId);
+
+  async function handleSave() {
+    if (!ready) return;
+    try {
+      await onUpdate(event.id, {
+        kind,
+        costume_id: kind === "on" && costumeId ? Number(costumeId) : null,
+        notes: notes.trim() || null,
+      });
+      setEditing(false);
+    } catch {
+      // Parent already toasted; keep the edit form open with the user's draft.
+    }
+  }
+
+  function handleCancel() {
+    setKind(event.kind);
+    setCostumeId(event.costume_id !== null ? String(event.costume_id) : "");
+    setNotes(event.notes ?? "");
+    setEditing(false);
+  }
+
+  return (
+    <li className="rounded-md border border-border p-2 text-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium">{event.character_name}</span>
+            <Badge variant={event.kind === "on" ? "default" : "secondary"}>
+              {event.kind === "on" ? "Wear" : "Clear"}
+            </Badge>
+          </div>
+          {event.costume_name && <p className="text-muted-foreground">{event.costume_name}</p>}
+          {!editing && event.notes && (
+            <p className="mt-1 text-muted-foreground">{event.notes}</p>
+          )}
+
+          {editing && (
+            <div className="mt-2 space-y-2">
+              <select
+                value={kind}
+                onChange={(e) => {
+                  setKind(e.target.value as AssetEventKind);
+                  if (e.target.value === "off") setCostumeId("");
+                }}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              >
+                <option value="on">Wear</option>
+                <option value="off">Clear</option>
+              </select>
+              {kind === "on" && (
+                <select
+                  value={costumeId}
+                  onChange={(e) => setCostumeId(e.target.value)}
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                >
+                  <option value="">Select costume…</option>
+                  {costumesCatalog.map((costume) => (
+                    <option key={costume.id} value={String(costume.id)}>
+                      {costume.name} ({costume.character_name})
+                    </option>
+                  ))}
+                </select>
+              )}
+              <input
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Notes (optional)"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={saving || !ready}
+                  onClick={() => void handleSave()}
+                >
+                  Save
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={saving}
+                  onClick={handleCancel}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+        {canEdit && !editing && (
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              disabled={saving}
+              onClick={() => setEditing(true)}
+              aria-label={`Edit ${event.character_name} costume event`}
+              title="Edit"
+            >
+              <Pencil />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              disabled={saving}
+              onClick={() => onDetach(event.id)}
+              aria-label={`Remove ${event.character_name} costume event`}
+              title="Remove"
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 />
+            </Button>
+          </div>
+        )}
+      </div>
+    </li>
   );
 }
 

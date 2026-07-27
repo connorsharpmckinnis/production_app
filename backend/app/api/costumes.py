@@ -9,9 +9,16 @@ from app.api.catalog_csv_routes import (
 from app.api.deps import get_accessible_production
 from app.auth.dependencies import require_authenticated, require_director_or_admin
 from app.db.session import get_db
-from app.models import Act, Character, Costume, Scene, User
+from app.models import Act, Character, Costume, Moment, MomentCostumeEvent, Scene, User
 from app.schemas.catalog_csv import CatalogImportResult
-from app.schemas.costumes import CostumeCreate, CostumeResponse, CostumeUpdate
+from app.schemas.costumes import (
+    CostumeCreate,
+    CostumeResponse,
+    CostumeUpdate,
+    MomentCostumeEventCreate,
+    MomentCostumeEventResponse,
+    MomentCostumeEventUpdate,
+)
 from app.services.catalog_csv import CatalogCsvError, COSTUMES_COLUMNS, import_costumes_csv
 
 router = APIRouter(prefix="/productions", tags=["costumes"])
@@ -20,10 +27,7 @@ router = APIRouter(prefix="/productions", tags=["costumes"])
 def _get_costume_or_404(db: Session, production_id: int, costume_id: int) -> Costume:
     costume = (
         db.query(Costume)
-        .options(
-            joinedload(Costume.character),
-            joinedload(Costume.scene),
-        )
+        .options(joinedload(Costume.character))
         .filter(Costume.id == costume_id, Costume.production_id == production_id)
         .first()
     )
@@ -48,19 +52,21 @@ def _validate_character_in_production(
     return character
 
 
-def _validate_scene_in_production(db: Session, production_id: int, scene_id: int) -> Scene:
-    scene = (
-        db.query(Scene)
+def _get_moment_in_production_or_404(
+    db: Session,
+    production_id: int,
+    moment_id: int,
+) -> Moment:
+    moment = (
+        db.query(Moment)
+        .join(Scene)
         .join(Act)
-        .filter(Scene.id == scene_id, Act.production_id == production_id)
+        .filter(Moment.id == moment_id, Act.production_id == production_id)
         .first()
     )
-    if scene is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Scene is not in this production",
-        )
-    return scene
+    if moment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Moment not found")
+    return moment
 
 
 def _costume_response(costume: Costume) -> CostumeResponse:
@@ -68,11 +74,20 @@ def _costume_response(costume: Costume) -> CostumeResponse:
         id=costume.id,
         character_id=costume.character_id,
         character_name=costume.character.name,
-        scene_id=costume.scene_id,
-        scene_number=costume.scene.number,
-        scene_title=costume.scene.title,
         name=costume.name,
         description=costume.description,
+    )
+
+
+def _moment_costume_event_response(event: MomentCostumeEvent) -> MomentCostumeEventResponse:
+    return MomentCostumeEventResponse(
+        id=event.id,
+        character_id=event.character_id,
+        character_name=event.character.name,
+        kind=event.kind,
+        costume_id=event.costume_id,
+        costume_name=event.costume.name if event.costume else None,
+        notes=event.notes,
     )
 
 
@@ -85,12 +100,9 @@ def list_costumes(
     get_accessible_production(db, user, production_id)
     costumes = (
         db.query(Costume)
-        .options(
-            joinedload(Costume.character),
-            joinedload(Costume.scene),
-        )
+        .options(joinedload(Costume.character))
         .filter(Costume.production_id == production_id)
-        .order_by(Costume.scene_id, Costume.character_id, Costume.name)
+        .order_by(Costume.character_id, Costume.name)
         .all()
     )
     return [_costume_response(costume) for costume in costumes]
@@ -109,12 +121,10 @@ def create_costume(
 ) -> CostumeResponse:
     get_accessible_production(db, director, production_id)
     _validate_character_in_production(db, production_id, body.character_id)
-    _validate_scene_in_production(db, production_id, body.scene_id)
 
     costume = Costume(
         production_id=production_id,
         character_id=body.character_id,
-        scene_id=body.scene_id,
         name=body.name.strip(),
         description=body.description,
     )
@@ -137,9 +147,6 @@ def update_costume(
     if body.character_id is not None:
         _validate_character_in_production(db, production_id, body.character_id)
         costume.character_id = body.character_id
-    if body.scene_id is not None:
-        _validate_scene_in_production(db, production_id, body.scene_id)
-        costume.scene_id = body.scene_id
     if body.name is not None:
         costume.name = body.name.strip()
     if body.description is not None:
@@ -191,3 +198,155 @@ async def import_costumes(
         return import_costumes_csv(db, production_id, content)
     except CatalogCsvError as exc:
         raise catalog_csv_error_http(exc) from exc
+
+
+@router.get(
+    "/{production_id}/moments/{moment_id}/costumes",
+    response_model=list[MomentCostumeEventResponse],
+)
+def list_moment_costume_events(
+    production_id: int,
+    moment_id: int,
+    user: User = Depends(require_authenticated),
+    db: Session = Depends(get_db),
+) -> list[MomentCostumeEventResponse]:
+    get_accessible_production(db, user, production_id)
+    _get_moment_in_production_or_404(db, production_id, moment_id)
+    events = (
+        db.query(MomentCostumeEvent)
+        .options(
+            joinedload(MomentCostumeEvent.character),
+            joinedload(MomentCostumeEvent.costume),
+        )
+        .filter(MomentCostumeEvent.moment_id == moment_id)
+        .order_by(MomentCostumeEvent.id)
+        .all()
+    )
+    return [_moment_costume_event_response(event) for event in events]
+
+
+@router.post(
+    "/{production_id}/moments/{moment_id}/costumes",
+    response_model=MomentCostumeEventResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_moment_costume_event(
+    production_id: int,
+    moment_id: int,
+    body: MomentCostumeEventCreate,
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> MomentCostumeEventResponse:
+    _get_moment_in_production_or_404(db, production_id, moment_id)
+    _validate_character_in_production(db, production_id, body.character_id)
+    if body.costume_id is not None:
+        _get_costume_or_404(db, production_id, body.costume_id)
+
+    existing = (
+        db.query(MomentCostumeEvent)
+        .filter(
+            MomentCostumeEvent.moment_id == moment_id,
+            MomentCostumeEvent.character_id == body.character_id,
+        )
+        .first()
+    )
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="This character already has a costume event on this moment",
+        )
+
+    event = MomentCostumeEvent(
+        moment_id=moment_id,
+        character_id=body.character_id,
+        kind=body.kind,
+        costume_id=body.costume_id,
+        notes=body.notes,
+    )
+    db.add(event)
+    db.commit()
+    event = (
+        db.query(MomentCostumeEvent)
+        .options(
+            joinedload(MomentCostumeEvent.character),
+            joinedload(MomentCostumeEvent.costume),
+        )
+        .filter(MomentCostumeEvent.id == event.id)
+        .one()
+    )
+    return _moment_costume_event_response(event)
+
+
+@router.patch(
+    "/{production_id}/moments/{moment_id}/costumes/{moment_costume_event_id}",
+    response_model=MomentCostumeEventResponse,
+)
+def update_moment_costume_event(
+    production_id: int,
+    moment_id: int,
+    moment_costume_event_id: int,
+    body: MomentCostumeEventUpdate,
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> MomentCostumeEventResponse:
+    _get_moment_in_production_or_404(db, production_id, moment_id)
+    event = (
+        db.query(MomentCostumeEvent)
+        .filter(
+            MomentCostumeEvent.id == moment_costume_event_id,
+            MomentCostumeEvent.moment_id == moment_id,
+        )
+        .first()
+    )
+    if event is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Costume event not found",
+        )
+    if body.costume_id is not None:
+        _get_costume_or_404(db, production_id, body.costume_id)
+
+    event.kind = body.kind
+    event.costume_id = body.costume_id
+    event.notes = body.notes
+
+    db.commit()
+    event = (
+        db.query(MomentCostumeEvent)
+        .options(
+            joinedload(MomentCostumeEvent.character),
+            joinedload(MomentCostumeEvent.costume),
+        )
+        .filter(MomentCostumeEvent.id == event.id)
+        .one()
+    )
+    return _moment_costume_event_response(event)
+
+
+@router.delete(
+    "/{production_id}/moments/{moment_id}/costumes/{moment_costume_event_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+)
+def delete_moment_costume_event(
+    production_id: int,
+    moment_id: int,
+    moment_costume_event_id: int,
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> None:
+    _get_moment_in_production_or_404(db, production_id, moment_id)
+    event = (
+        db.query(MomentCostumeEvent)
+        .filter(
+            MomentCostumeEvent.id == moment_costume_event_id,
+            MomentCostumeEvent.moment_id == moment_id,
+        )
+        .first()
+    )
+    if event is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Costume event not found",
+        )
+    db.delete(event)
+    db.commit()

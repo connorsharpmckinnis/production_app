@@ -1,27 +1,26 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session, joinedload
 
-from app.api.deps import get_accessible_production
+from app.api.deps import get_accessible_production, user_display_name
 from app.auth.dependencies import require_director_or_admin
 from app.db.session import get_db
 from app.models import (
     Act,
-    Costume,
     Cue,
     CueCategory,
     Moment,
     MomentBlocking,
+    MomentCostumeEvent,
     MomentEntrance,
     MomentExit,
-    MomentProp,
+    MomentPropEvent,
     Prop,
     Scene,
     User,
 )
 from app.schemas.reports import (
     BlockingSheetEntry,
-    CostumeBySceneEntry,
-    CostumesBySceneGroup,
+    CostumeChangeEntry,
     CueSheetCategory,
     CueSheetMomentReference,
     EntranceExitSheetGroup,
@@ -63,30 +62,30 @@ def prop_sheet(
         .all()
     )
 
-    moment_props = (
-        db.query(MomentProp)
+    prop_events = (
+        db.query(MomentPropEvent)
         .options(
-            joinedload(MomentProp.character),
-            joinedload(MomentProp.moment).joinedload(Moment.scene).joinedload(Scene.act),
+            joinedload(MomentPropEvent.character),
+            joinedload(MomentPropEvent.user),
+            joinedload(MomentPropEvent.moment).joinedload(Moment.scene).joinedload(Scene.act),
         )
-        .join(Moment, MomentProp.moment_id == Moment.id)
+        .join(Moment, MomentPropEvent.moment_id == Moment.id)
         .join(Scene, Moment.scene_id == Scene.id)
         .join(Act, Scene.act_id == Act.id)
         .filter(Act.production_id == production_id)
         .all()
     )
 
-    attachments_by_prop: dict[int, list[MomentProp]] = {prop.id: [] for prop in props}
-    for attachment in moment_props:
-        if attachment.prop_id in attachments_by_prop:
-            attachments_by_prop[attachment.prop_id].append(attachment)
+    events_by_prop: dict[int, list[MomentPropEvent]] = {prop.id: [] for prop in props}
+    for event in prop_events:
+        if event.prop_id in events_by_prop:
+            events_by_prop[event.prop_id].append(event)
 
     entries: list[PropSheetEntry] = []
     for prop in props:
         references: list[PropSheetMomentReference] = []
-        for attachment in attachments_by_prop[prop.id]:
-            moment, act, scene = moment_context[attachment.moment_id]
-            character_name = attachment.character.name if attachment.character else None
+        for event in events_by_prop[prop.id]:
+            moment, act, scene = moment_context[event.moment_id]
             references.append(
                 PropSheetMomentReference(
                     moment_id=moment.id,
@@ -94,8 +93,12 @@ def prop_sheet(
                     act_number=act.number,
                     scene_number=scene.number,
                     scene_title=scene.title,
-                    character_name=character_name,
-                    notes=attachment.notes,
+                    kind=event.kind,
+                    character_name=event.character.name if event.character else None,
+                    user_display_name=(
+                        user_display_name(event.user) if event.user else None
+                    ),
+                    notes=event.notes,
                 )
             )
         references.sort(
@@ -180,62 +183,53 @@ def cue_sheet(
 
 
 @router.get(
-    "/{production_id}/reports/costumes-by-scene",
-    response_model=list[CostumesBySceneGroup],
+    "/{production_id}/reports/costume-changes",
+    response_model=list[CostumeChangeEntry],
 )
-def costumes_by_scene(
+def costume_changes(
     production_id: int,
     user: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
-) -> list[CostumesBySceneGroup]:
+) -> list[CostumeChangeEntry]:
     get_accessible_production(db, user, production_id)
+    timeline = _timeline_moment_order(db, production_id)
 
-    scenes = (
-        db.query(Scene)
-        .join(Act)
-        .options(joinedload(Scene.act))
+    events = (
+        db.query(MomentCostumeEvent)
+        .options(
+            joinedload(MomentCostumeEvent.character),
+            joinedload(MomentCostumeEvent.costume),
+        )
+        .join(Moment, MomentCostumeEvent.moment_id == Moment.id)
+        .join(Scene, Moment.scene_id == Scene.id)
+        .join(Act, Scene.act_id == Act.id)
         .filter(Act.production_id == production_id)
-        .order_by(Act.sort_order, Scene.sort_order)
         .all()
     )
 
-    costumes = (
-        db.query(Costume)
-        .options(joinedload(Costume.character))
-        .filter(Costume.production_id == production_id)
-        .order_by(Costume.character_id, Costume.name)
-        .all()
-    )
+    moment_context = {moment.id: (moment, act, scene) for moment, act, scene in timeline}
 
-    costumes_by_scene: dict[int, list[Costume]] = {scene.id: [] for scene in scenes}
-    for costume in costumes:
-        if costume.scene_id in costumes_by_scene:
-            costumes_by_scene[costume.scene_id].append(costume)
-
-    groups: list[CostumesBySceneGroup] = []
-    for scene in scenes:
-        scene_costumes = costumes_by_scene[scene.id]
-        if not scene_costumes:
-            continue
-        groups.append(
-            CostumesBySceneGroup(
-                scene_id=scene.id,
-                act_number=scene.act.number,
+    entries: list[CostumeChangeEntry] = []
+    for event in events:
+        moment, act, scene = moment_context[event.moment_id]
+        entries.append(
+            CostumeChangeEntry(
+                moment_id=moment.id,
+                sequence_number=moment.sequence_number,
+                act_number=act.number,
                 scene_number=scene.number,
                 scene_title=scene.title,
-                costumes=[
-                    CostumeBySceneEntry(
-                        costume_id=costume.id,
-                        character_id=costume.character_id,
-                        character_name=costume.character.name,
-                        name=costume.name,
-                        description=costume.description,
-                    )
-                    for costume in scene_costumes
-                ],
+                character_id=event.character_id,
+                character_name=event.character.name,
+                kind=event.kind,
+                costume_id=event.costume_id,
+                costume_name=event.costume.name if event.costume else None,
+                notes=event.notes,
             )
         )
-    return groups
+
+    entries.sort(key=lambda entry: (entry.act_number, entry.scene_number, entry.sequence_number))
+    return entries
 
 
 @router.get(

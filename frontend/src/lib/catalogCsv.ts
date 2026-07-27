@@ -39,8 +39,6 @@ export const CATALOG_CSV_CONFIGS: Record<CatalogCsvKind, CatalogCsvConfig> = {
     label: "costumes",
     pathSegment: "costumes",
     templateFilename: "costumes_template.csv",
-    helpText:
-      "Scene can be the exact title, Act N / Title, shorthand like 2:1, or use act + scene number columns.",
   },
   songs: {
     kind: "songs",

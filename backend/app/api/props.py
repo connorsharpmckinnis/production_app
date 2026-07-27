@@ -6,12 +6,19 @@ from app.api.catalog_csv_routes import (
     catalog_template_response,
     read_catalog_upload,
 )
-from app.api.deps import get_accessible_production
+from app.api.deps import get_accessible_production, user_display_name, validate_optional_person
 from app.auth.dependencies import require_authenticated, require_director_or_admin
 from app.db.session import get_db
-from app.models import Act, Character, Moment, MomentProp, Prop, Scene, User
+from app.models import Act, Moment, MomentPropEvent, Prop, Scene, User
 from app.schemas.catalog_csv import CatalogImportResult
-from app.schemas.props import MomentPropCreate, MomentPropResponse, PropCreate, PropResponse, PropUpdate
+from app.schemas.props import (
+    MomentPropEventCreate,
+    MomentPropEventResponse,
+    MomentPropEventUpdate,
+    PropCreate,
+    PropResponse,
+    PropUpdate,
+)
 from app.services.catalog_csv import CatalogCsvError, PROPS_COLUMNS, import_props_csv
 
 router = APIRouter(prefix="/productions", tags=["props"])
@@ -45,17 +52,17 @@ def _get_moment_in_production_or_404(
     return moment
 
 
-def _moment_prop_response(moment_prop: MomentProp) -> MomentPropResponse:
-    character_name = None
-    if moment_prop.character is not None:
-        character_name = moment_prop.character.name
-    return MomentPropResponse(
-        id=moment_prop.id,
-        prop_id=moment_prop.prop_id,
-        prop_name=moment_prop.prop.name,
-        character_id=moment_prop.character_id,
-        character_name=character_name,
-        notes=moment_prop.notes,
+def _moment_prop_event_response(event: MomentPropEvent) -> MomentPropEventResponse:
+    return MomentPropEventResponse(
+        id=event.id,
+        prop_id=event.prop_id,
+        prop_name=event.prop.name,
+        kind=event.kind,
+        character_id=event.character_id,
+        character_name=event.character.name if event.character else None,
+        user_id=event.user_id,
+        user_display_name=user_display_name(event.user) if event.user else None,
+        notes=event.notes,
     )
 
 
@@ -181,111 +188,151 @@ async def import_props(
 
 @router.get(
     "/{production_id}/moments/{moment_id}/props",
-    response_model=list[MomentPropResponse],
+    response_model=list[MomentPropEventResponse],
 )
-def list_moment_props(
+def list_moment_prop_events(
     production_id: int,
     moment_id: int,
     user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
-) -> list[MomentPropResponse]:
+) -> list[MomentPropEventResponse]:
     get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
-    moment_props = (
-        db.query(MomentProp)
+    events = (
+        db.query(MomentPropEvent)
         .options(
-            joinedload(MomentProp.prop),
-            joinedload(MomentProp.character),
+            joinedload(MomentPropEvent.prop),
+            joinedload(MomentPropEvent.character),
+            joinedload(MomentPropEvent.user),
         )
-        .filter(MomentProp.moment_id == moment_id)
-        .order_by(MomentProp.id)
+        .filter(MomentPropEvent.moment_id == moment_id)
+        .order_by(MomentPropEvent.id)
         .all()
     )
-    return [_moment_prop_response(moment_prop) for moment_prop in moment_props]
+    return [_moment_prop_event_response(event) for event in events]
 
 
 @router.post(
     "/{production_id}/moments/{moment_id}/props",
-    response_model=MomentPropResponse,
+    response_model=MomentPropEventResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def attach_moment_prop(
+def create_moment_prop_event(
     production_id: int,
     moment_id: int,
-    body: MomentPropCreate,
+    body: MomentPropEventCreate,
     _director: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
-) -> MomentPropResponse:
+) -> MomentPropEventResponse:
     _get_moment_in_production_or_404(db, production_id, moment_id)
     _get_prop_or_404(db, production_id, body.prop_id)
-
-    if body.character_id is not None:
-        character = (
-            db.query(Character)
-            .filter(
-                Character.id == body.character_id,
-                Character.production_id == production_id,
-            )
-            .first()
-        )
-        if character is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Character is not in this production",
-            )
+    validate_optional_person(db, production_id, body.character_id, body.user_id)
 
     existing = (
-        db.query(MomentProp)
-        .filter(MomentProp.moment_id == moment_id, MomentProp.prop_id == body.prop_id)
+        db.query(MomentPropEvent)
+        .filter(MomentPropEvent.moment_id == moment_id, MomentPropEvent.prop_id == body.prop_id)
         .first()
     )
     if existing is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="This prop is already attached to the moment",
+            detail="This prop already has an event on this moment",
         )
 
-    moment_prop = MomentProp(
+    event = MomentPropEvent(
         moment_id=moment_id,
         prop_id=body.prop_id,
+        kind=body.kind,
         character_id=body.character_id,
+        user_id=body.user_id,
         notes=body.notes,
     )
-    db.add(moment_prop)
+    db.add(event)
     db.commit()
-    moment_prop = (
-        db.query(MomentProp)
+    event = (
+        db.query(MomentPropEvent)
         .options(
-            joinedload(MomentProp.prop),
-            joinedload(MomentProp.character),
+            joinedload(MomentPropEvent.prop),
+            joinedload(MomentPropEvent.character),
+            joinedload(MomentPropEvent.user),
         )
-        .filter(MomentProp.id == moment_prop.id)
+        .filter(MomentPropEvent.id == event.id)
         .one()
     )
-    return _moment_prop_response(moment_prop)
+    return _moment_prop_event_response(event)
+
+
+@router.patch(
+    "/{production_id}/moments/{moment_id}/props/{moment_prop_event_id}",
+    response_model=MomentPropEventResponse,
+)
+def update_moment_prop_event(
+    production_id: int,
+    moment_id: int,
+    moment_prop_event_id: int,
+    body: MomentPropEventUpdate,
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> MomentPropEventResponse:
+    _get_moment_in_production_or_404(db, production_id, moment_id)
+    event = (
+        db.query(MomentPropEvent)
+        .filter(
+            MomentPropEvent.id == moment_prop_event_id,
+            MomentPropEvent.moment_id == moment_id,
+        )
+        .first()
+    )
+    if event is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Prop event not found",
+        )
+    validate_optional_person(db, production_id, body.character_id, body.user_id)
+
+    event.kind = body.kind
+    event.character_id = body.character_id
+    event.user_id = body.user_id
+    event.notes = body.notes
+
+    db.commit()
+    event = (
+        db.query(MomentPropEvent)
+        .options(
+            joinedload(MomentPropEvent.prop),
+            joinedload(MomentPropEvent.character),
+            joinedload(MomentPropEvent.user),
+        )
+        .filter(MomentPropEvent.id == event.id)
+        .one()
+    )
+    return _moment_prop_event_response(event)
 
 
 @router.delete(
-    "/{production_id}/moments/{moment_id}/props/{moment_prop_id}",
+    "/{production_id}/moments/{moment_id}/props/{moment_prop_event_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-def detach_moment_prop(
+def delete_moment_prop_event(
     production_id: int,
     moment_id: int,
-    moment_prop_id: int,
+    moment_prop_event_id: int,
     _director: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> None:
     _get_moment_in_production_or_404(db, production_id, moment_id)
-    moment_prop = (
-        db.query(MomentProp)
-        .filter(MomentProp.id == moment_prop_id, MomentProp.moment_id == moment_id)
+    event = (
+        db.query(MomentPropEvent)
+        .filter(
+            MomentPropEvent.id == moment_prop_event_id,
+            MomentPropEvent.moment_id == moment_id,
+        )
         .first()
     )
-    if moment_prop is None:
+    if event is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Prop attachment not found",
+            detail="Prop event not found",
         )
-    db.delete(moment_prop)
+    db.delete(event)
     db.commit()

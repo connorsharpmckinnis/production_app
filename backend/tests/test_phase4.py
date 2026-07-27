@@ -250,25 +250,22 @@ def test_costumes_crud_and_validation(
 ) -> None:
     production_id = _imported_production(seeded_client, db_session)
     director_headers = _login(seeded_client, "director", "director")
-    scene_id = _first_scene_id(seeded_client, production_id, director_headers)
     crean_id = _character_id_by_name(seeded_client, production_id, "CREAN", director_headers)
 
-    bad_scene = seeded_client.post(
+    bad_character = seeded_client.post(
         f"/api/productions/{production_id}/costumes",
         json={
-            "character_id": crean_id,
-            "scene_id": 99999,
+            "character_id": 99999,
             "name": "Parka",
         },
         headers=director_headers,
     )
-    assert bad_scene.status_code == 400
+    assert bad_character.status_code == 400
 
     created = seeded_client.post(
         f"/api/productions/{production_id}/costumes",
         json={
             "character_id": crean_id,
-            "scene_id": scene_id,
             "name": "Expedition parka",
             "description": "Heavy wool coat",
         },
@@ -326,13 +323,14 @@ def test_costume_only_timeline_filter(
     ).json()
     assert crean_dialogue["id"] not in {moment["id"] for moment in before_costume}
 
-    seeded_client.post(
+    costume = seeded_client.post(
         f"/api/productions/{production_id}/costumes",
-        json={
-            "character_id": crean_id,
-            "scene_id": scene_id,
-            "name": "Expedition parka",
-        },
+        json={"character_id": crean_id, "name": "Expedition parka"},
+        headers=director_headers,
+    ).json()
+    seeded_client.post(
+        f"/api/productions/{production_id}/moments/{crean_dialogue['id']}/costumes",
+        json={"character_id": crean_id, "kind": "on", "costume_id": costume["id"]},
         headers=director_headers,
     )
 
@@ -370,7 +368,7 @@ def test_set_pieces_attach_detach(
 
     piece_attached = seeded_client.post(
         f"/api/productions/{production_id}/moments/{moment['id']}/set-pieces",
-        json={"set_piece_id": set_piece_id, "notes": "Stage left"},
+        json={"set_piece_id": set_piece_id, "kind": "on", "notes": "Stage left"},
         headers=director_headers,
     )
     assert piece_attached.status_code == 201
@@ -418,7 +416,7 @@ def test_reports_endpoints(
     ).json()
     seeded_client.post(
         f"/api/productions/{production_id}/moments/{moment['id']}/props",
-        json={"prop_id": prop["id"], "character_id": crean_id},
+        json={"prop_id": prop["id"], "kind": "on", "character_id": crean_id},
         headers=director_headers,
     )
 
@@ -433,13 +431,14 @@ def test_reports_endpoints(
         headers=director_headers,
     )
 
-    seeded_client.post(
+    costume = seeded_client.post(
         f"/api/productions/{production_id}/costumes",
-        json={
-            "character_id": crean_id,
-            "scene_id": scene_id,
-            "name": "Parka",
-        },
+        json={"character_id": crean_id, "name": "Parka"},
+        headers=director_headers,
+    ).json()
+    seeded_client.post(
+        f"/api/productions/{production_id}/moments/{moment['id']}/costumes",
+        json={"character_id": crean_id, "kind": "on", "costume_id": costume["id"]},
         headers=director_headers,
     )
 
@@ -462,10 +461,12 @@ def test_reports_endpoints(
     assert len(sound["cues"]) == 1
     assert sound["cues"][0]["title"] == "Wind cue"
 
-    costumes_report = seeded_client.get(
-        f"/api/productions/{production_id}/reports/costumes-by-scene",
+    costume_changes = seeded_client.get(
+        f"/api/productions/{production_id}/reports/costume-changes",
         headers=director_headers,
     )
-    assert costumes_report.status_code == 200
-    assert len(costumes_report.json()) >= 1
-    assert costumes_report.json()[0]["costumes"][0]["character_name"] == "CREAN"
+    assert costume_changes.status_code == 200
+    assert len(costume_changes.json()) >= 1
+    assert costume_changes.json()[0]["character_name"] == "CREAN"
+    assert costume_changes.json()[0]["costume_name"] == "Parka"
+    assert costume_changes.json()[0]["kind"] == "on"

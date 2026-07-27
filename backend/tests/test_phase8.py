@@ -247,16 +247,29 @@ def test_costume_gaps_and_builtins_excluded(
     for builtin in BUILTIN_CHARACTER_NAMES:
         assert not any(gap.startswith(f"{builtin} ") for gap in costumes_before["gaps"])
 
-    created = seeded_client.post(
+    costume = seeded_client.post(
         f"/api/productions/{production_id}/costumes",
-        json={
-            "character_id": crean_id,
-            "scene_id": scene_id,
-            "name": "Parka",
-        },
+        json={"character_id": crean_id, "name": "Parka"},
         headers=director_headers,
     )
-    assert created.status_code == 201
+    assert costume.status_code == 201
+
+    moments = seeded_client.get(
+        f"/api/productions/{production_id}/scenes/{scene_id}/moments",
+        headers=director_headers,
+    ).json()
+    crean_moment = next(
+        moment
+        for moment in moments
+        if moment["moment_type"] == "dialogue"
+        and crean_id in moment["speaking_character_ids"]
+    )
+    worn = seeded_client.post(
+        f"/api/productions/{production_id}/moments/{crean_moment['id']}/costumes",
+        json={"character_id": crean_id, "kind": "on", "costume_id": costume.json()["id"]},
+        headers=director_headers,
+    )
+    assert worn.status_code == 201
 
     after = seeded_client.get(
         f"/api/productions/{production_id}/overview",
@@ -424,7 +437,7 @@ def test_soft_dimension_seeded_plus_coverage_weights(
 
     attach = seeded_client.post(
         f"/api/productions/{production_id}/moments/{moments[0]['id']}/props",
-        json={"prop_id": prop.json()["id"]},
+        json={"prop_id": prop.json()["id"], "kind": "on"},
         headers=director_headers,
     )
     assert attach.status_code == 201

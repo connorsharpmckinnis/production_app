@@ -52,7 +52,7 @@ A short path through Theater App so someone can try it without a narrator. Assum
 ### 4. Reports from the timeline (director)
 
 1. As director/admin, open **Reports**.
-2. Use the sticky section links to jump between prop, cue, costume, entrance/exit, and blocking sheets.
+2. Use the sticky section links to jump between prop, cue, costume-change, entrance/exit, and blocking sheets.
 3. Click a moment reference — it should open that moment on the Timeline.
 4. Optional: **Print** for a basic browser print layout.
 
@@ -67,7 +67,7 @@ A short path through Theater App so someone can try it without a narrator. Assum
 
 **Is:** Script import → timeline prep → role-aware rehearsal → derived reports.
 
-**Is not:** PDF export polish, attendance, tasks, live cue calling, event-driven costumes, or a perfect full-script import of every draft markdown file.
+**Is not:** PDF export polish, attendance, tasks, live cue calling, costume **pieces**/outfits, or a perfect full-script import of every draft markdown file.
 
 If import fails on a line, the error names the line and reason — fix the markdown and retry. See [SCRIPT_FORMAT.md](SCRIPT_FORMAT.md) and the tips on the Import page.
 

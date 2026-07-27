@@ -6,7 +6,9 @@ import { deriveSceneSummary } from "@/lib/sceneSummary";
 import type {
   ActSummary,
   AppSettingsResponse,
+  CastableUserResponse,
   CharacterDetailResponse,
+  CostumeResponse,
   CueCategoryResponse,
   GroupResponse,
   MomentDetailResponse,
@@ -98,9 +100,11 @@ export function useTimelineScene({
   const [acts, setActs] = useState<ActSummary[]>([]);
   const [characters, setCharacters] = useState<CharacterDetailResponse[]>([]);
   const [groups, setGroups] = useState<GroupResponse[]>([]);
+  const [castableUsers, setCastableUsers] = useState<CastableUserResponse[]>([]);
   const [songs, setSongs] = useState<SongDetailResponse[]>([]);
   const [propsCatalog, setPropsCatalog] = useState<PropResponse[]>([]);
   const [setPiecesCatalog, setSetPiecesCatalog] = useState<SetPieceResponse[]>([]);
+  const [costumesCatalog, setCostumesCatalog] = useState<CostumeResponse[]>([]);
   const [cueCategories, setCueCategories] = useState<CueCategoryResponse[]>([]);
   const [momentTypes, setMomentTypes] = useState<MomentTypeResponse[]>([]);
   const [appSettings, setAppSettings] = useState<AppSettingsResponse>({
@@ -177,10 +181,12 @@ export function useTimelineScene({
       ReturnType<typeof api.listSongs>,
       ReturnType<typeof api.listProps>,
       ReturnType<typeof api.listSetPieces>,
+      ReturnType<typeof api.listCostumes>,
       ReturnType<typeof api.listCueCategories>,
       ReturnType<typeof api.listMomentTypes>,
       ReturnType<typeof api.getAppSettings>,
       Promise<GroupResponse[]>?,
+      Promise<CastableUserResponse[]>?,
     ] = [
       api.getProduction(productionId),
       api.listActs(productionId),
@@ -188,12 +194,14 @@ export function useTimelineScene({
       api.listSongs(productionId),
       api.listProps(productionId),
       api.listSetPieces(productionId),
+      api.listCostumes(productionId),
       api.listCueCategories(productionId),
       api.listMomentTypes(),
       api.getAppSettings(),
     ];
     if (canManagePreparation) {
       requests.push(api.listGroups(productionId));
+      requests.push(api.listActiveUsers(productionId));
     }
 
     void Promise.all(requests)
@@ -205,10 +213,12 @@ export function useTimelineScene({
           songData,
           propData,
           setPieceData,
+          costumeData,
           categoryData,
           typeData,
           settingsData,
           groupData,
+          castableUserData,
         ] = results;
         setProductionTitle(production.title);
         setActs(actData);
@@ -216,10 +226,12 @@ export function useTimelineScene({
         setSongs(songData);
         setPropsCatalog(propData);
         setSetPiecesCatalog(setPieceData);
+        setCostumesCatalog(costumeData);
         setCueCategories(categoryData);
         setMomentTypes(typeData);
         setAppSettings(settingsData);
         setGroups(groupData ?? []);
+        setCastableUsers(castableUserData ?? []);
         setSelectedSceneIds(allSceneIdsFromActs(actData));
       })
       .catch((err: unknown) => {
@@ -356,9 +368,11 @@ export function useTimelineScene({
     acts,
     characters: sortedCharacters,
     groups,
+    castableUsers,
     songs,
     propsCatalog,
     setPiecesCatalog,
+    costumesCatalog,
     cueCategories,
     momentTypes,
     appSettings,

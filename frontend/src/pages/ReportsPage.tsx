@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, formatApiError } from "@/lib/api";
 import type {
   ActSummary,
   BlockingSheetEntry,
-  CostumesBySceneGroup,
+  CostumeChangeEntry,
   CueSheetCategory,
   EntranceExitSheetGroup,
   PropSheetEntry,
@@ -14,7 +15,7 @@ import type {
 const REPORT_SECTIONS = [
   { id: "report-prop-sheet", label: "Prop sheet" },
   { id: "report-cue-sheet", label: "Cue sheet" },
-  { id: "report-costumes", label: "Costumes by scene" },
+  { id: "report-costumes", label: "Costume changes" },
   { id: "report-entrances-exits", label: "Entrances & exits" },
   { id: "report-blocking", label: "Blocking sheet" },
 ] as const;
@@ -39,7 +40,7 @@ export default function ReportsPage() {
 
   const [propSheet, setPropSheet] = useState<PropSheetEntry[]>([]);
   const [cueSheet, setCueSheet] = useState<CueSheetCategory[]>([]);
-  const [costumesReport, setCostumesReport] = useState<CostumesBySceneGroup[]>([]);
+  const [costumeChanges, setCostumeChanges] = useState<CostumeChangeEntry[]>([]);
   const [entranceExitReport, setEntranceExitReport] = useState<EntranceExitSheetGroup[]>([]);
   const [blockingReport, setBlockingReport] = useState<BlockingSheetEntry[]>([]);
   const [sceneIdMap, setSceneIdMap] = useState<Map<string, number>>(new Map());
@@ -50,15 +51,15 @@ export default function ReportsPage() {
     void Promise.all([
       api.getPropSheetReport(productionId),
       api.getCueSheetReport(productionId),
-      api.getCostumesBySceneReport(productionId),
+      api.getCostumeChangesReport(productionId),
       api.getEntranceExitSheetReport(productionId),
       api.getBlockingSheetReport(productionId),
       api.listActs(productionId),
     ])
-      .then(([props, cues, costumes, entranceExit, blocking, acts]) => {
+      .then(([props, cues, costumeChangeRows, entranceExit, blocking, acts]) => {
         setPropSheet(props);
         setCueSheet(cues);
-        setCostumesReport(costumes);
+        setCostumeChanges(costumeChangeRows);
         setEntranceExitReport(entranceExit);
         setBlockingReport(blocking);
         setSceneIdMap(buildSceneIdMap(acts));
@@ -183,15 +184,27 @@ export default function ReportsPage() {
                 <ul className="mt-2 space-y-1 text-sm">
                   {entry.moments.map((ref) => {
                     const sceneId = resolveSceneId(ref.act_number, ref.scene_number);
+                    const personLabel = ref.character_name ?? ref.user_display_name;
                     return (
-                      <li key={`${entry.prop_id}-${ref.moment_id}`}>
-                        Act {ref.act_number}, Scene {ref.scene_number}
-                        {ref.scene_title ? ` (${ref.scene_title})` : ""} —{" "}
-                        <MomentLink sceneId={sceneId} momentId={ref.moment_id}>
-                          Moment {ref.sequence_number}
-                        </MomentLink>
-                        {ref.character_name ? ` — ${ref.character_name}` : ""}
-                        {ref.notes ? ` — ${ref.notes}` : ""}
+                      <li
+                        key={`${entry.prop_id}-${ref.moment_id}`}
+                        className="flex flex-wrap items-baseline gap-x-1.5"
+                      >
+                        <Badge
+                          variant={ref.kind === "on" ? "default" : "secondary"}
+                          className="uppercase"
+                        >
+                          {ref.kind === "on" ? "On" : "Off"}
+                        </Badge>
+                        <span>
+                          Act {ref.act_number}, Scene {ref.scene_number}
+                          {ref.scene_title ? ` (${ref.scene_title})` : ""} —{" "}
+                          <MomentLink sceneId={sceneId} momentId={ref.moment_id}>
+                            Moment {ref.sequence_number}
+                          </MomentLink>
+                          {personLabel ? ` — ${personLabel}` : ""}
+                          {ref.notes ? ` — ${ref.notes}` : ""}
+                        </span>
                       </li>
                     );
                   })}
@@ -235,29 +248,35 @@ export default function ReportsPage() {
       </section>
 
       <section id="report-costumes" className="reports-section space-y-4 scroll-mt-20">
-        <h2 className="text-lg font-medium">Costumes by scene</h2>
-        {costumesReport.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No costume assignments.</p>
+        <h2 className="text-lg font-medium">Costume changes</h2>
+        {costumeChanges.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No costume events on the timeline.</p>
         ) : (
-          <div className="space-y-4">
-            {costumesReport.map((group) => (
-              <div key={group.scene_id} className="rounded-lg border border-border p-4">
-                <h3 className="font-medium">
-                  Act {group.act_number}, Scene {group.scene_number}
-                  {group.scene_title ? `: ${group.scene_title}` : ""}
-                </h3>
-                <ul className="mt-2 space-y-1 text-sm">
-                  {group.costumes.map((costume) => (
-                    <li key={costume.costume_id}>
-                      <span className="font-medium">{costume.character_name}</span> —{" "}
-                      {costume.name}
-                      {costume.description ? ` (${costume.description})` : ""}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            ))}
-          </div>
+          <ul className="space-y-1 text-sm">
+            {costumeChanges.map((entry) => {
+              const sceneId = resolveSceneId(entry.act_number, entry.scene_number);
+              return (
+                <li
+                  key={`${entry.moment_id}-${entry.character_id}`}
+                  className="flex flex-wrap items-baseline gap-x-1.5"
+                >
+                  <Badge variant={entry.kind === "on" ? "default" : "secondary"}>
+                    {entry.kind === "on" ? "Wear" : "Clear"}
+                  </Badge>
+                  <span>
+                    <span className="font-medium">{entry.character_name}</span>
+                    {entry.costume_name ? ` — ${entry.costume_name}` : ""} — Act{" "}
+                    {entry.act_number}, Scene {entry.scene_number}
+                    {entry.scene_title ? ` (${entry.scene_title})` : ""} —{" "}
+                    <MomentLink sceneId={sceneId} momentId={entry.moment_id}>
+                      Moment {entry.sequence_number}
+                    </MomentLink>
+                    {entry.notes ? ` — ${entry.notes}` : ""}
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
         )}
       </section>
 

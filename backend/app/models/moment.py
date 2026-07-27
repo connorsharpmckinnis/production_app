@@ -67,7 +67,7 @@ class Moment(Base):
         back_populates="moment",
         cascade="all, delete-orphan",
     )
-    moment_props: Mapped[list["MomentProp"]] = relationship(
+    moment_prop_events: Mapped[list["MomentPropEvent"]] = relationship(
         back_populates="moment",
         cascade="all, delete-orphan",
     )
@@ -75,7 +75,11 @@ class Moment(Base):
         back_populates="moment",
         cascade="all, delete-orphan",
     )
-    moment_set_pieces: Mapped[list["MomentSetPiece"]] = relationship(
+    moment_set_piece_events: Mapped[list["MomentSetPieceEvent"]] = relationship(
+        back_populates="moment",
+        cascade="all, delete-orphan",
+    )
+    moment_costume_events: Mapped[list["MomentCostumeEvent"]] = relationship(
         back_populates="moment",
         cascade="all, delete-orphan",
     )

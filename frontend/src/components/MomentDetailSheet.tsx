@@ -7,7 +7,9 @@ import { useIsLargeScreen } from "@/hooks/useIsLargeScreen";
 import { useDetailPanelWidth } from "@/hooks/useDetailPanelWidth";
 import type {
   AppSettingsResponse,
+  CastableUserResponse,
   CharacterDetailResponse,
+  CostumeResponse,
   CueCategoryResponse,
   MomentDetailResponse,
   MomentTypeResponse,
@@ -26,9 +28,11 @@ interface MomentDetailSheetProps {
   sceneId: number | null;
   canEdit: boolean;
   characters: CharacterDetailResponse[];
+  castableUsers: CastableUserResponse[];
   songs: SongDetailResponse[];
   propsCatalog: PropResponse[];
   setPiecesCatalog: SetPieceResponse[];
+  costumesCatalog: CostumeResponse[];
   cueCategories: CueCategoryResponse[];
   momentTypes: MomentTypeResponse[];
   appSettings: AppSettingsResponse;
@@ -44,9 +48,11 @@ export default function MomentDetailSheet({
   sceneId,
   canEdit,
   characters,
+  castableUsers,
   songs,
   propsCatalog,
   setPiecesCatalog,
+  costumesCatalog,
   cueCategories,
   momentTypes,
   appSettings,
@@ -112,9 +118,11 @@ export default function MomentDetailSheet({
             canEdit={canEdit}
             canChooseVisibility={canEdit}
             characters={characters}
+            castableUsers={castableUsers}
             songs={songs}
             propsCatalog={propsCatalog}
             setPiecesCatalog={setPiecesCatalog}
+            costumesCatalog={costumesCatalog}
             cueCategories={cueCategories}
             momentTypes={momentTypes}
             appSettings={appSettings}

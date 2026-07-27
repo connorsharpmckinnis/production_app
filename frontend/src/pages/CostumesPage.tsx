@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { Pencil, Trash2 } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
@@ -17,7 +17,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
-import type { ActSummary, CostumeResponse } from "@/lib/types";
+import type { CostumeResponse } from "@/lib/types";
 import { sortByName } from "@/lib/utils";
 
 export default function CostumesPage() {
@@ -28,7 +28,6 @@ export default function CostumesPage() {
   const confirm = useConfirm();
   const toast = useToast();
 
-  const [acts, setActs] = useState<ActSummary[]>([]);
   const [characters, setCharacters] = useState<
     Awaited<ReturnType<typeof api.listCharacters>>
   >([]);
@@ -38,33 +37,17 @@ export default function CostumesPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editingCostume, setEditingCostume] = useState<CostumeResponse | null>(null);
   const [characterId, setCharacterId] = useState("");
-  const [sceneId, setSceneId] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
 
-  const scenes = useMemo(
-    () =>
-      acts.flatMap((act) =>
-        act.scenes.map((scene) => ({
-          id: scene.id,
-          label: `Act ${act.number} › Scene ${scene.number}${
-            scene.title ? `: ${scene.title}` : ""
-          }`,
-        })),
-      ),
-    [acts],
-  );
-
   async function loadData() {
     setError(null);
     try {
-      const [actData, characterData, costumeData] = await Promise.all([
-        api.listActs(productionId),
+      const [characterData, costumeData] = await Promise.all([
         api.listCharacters(productionId),
         api.listCostumes(productionId),
       ]);
-      setActs(actData);
       setCharacters(sortByName(characterData));
       setCostumes(costumeData);
     } catch (err) {
@@ -78,14 +61,6 @@ export default function CostumesPage() {
     void loadData();
   }, [productionId]);
 
-  function resolvePrefillSceneId(): string {
-    const param = searchParams.get("sceneId");
-    if (!param) return "";
-    const parsed = Number(param);
-    if (!Number.isFinite(parsed)) return "";
-    return scenes.some((scene) => scene.id === parsed) ? String(parsed) : "";
-  }
-
   function resolvePrefillCharacterId(): string {
     const param = searchParams.get("characterId");
     if (!param) return "";
@@ -97,7 +72,6 @@ export default function CostumesPage() {
   function openCreateDialog() {
     setEditingCostume(null);
     setCharacterId(resolvePrefillCharacterId());
-    setSceneId(resolvePrefillSceneId());
     setName("");
     setDescription("");
     setDialogOpen(true);
@@ -106,7 +80,6 @@ export default function CostumesPage() {
   function openEditDialog(costume: CostumeResponse) {
     setEditingCostume(costume);
     setCharacterId(String(costume.character_id));
-    setSceneId(String(costume.scene_id));
     setName(costume.name);
     setDescription(costume.description ?? "");
     setDialogOpen(true);
@@ -119,14 +92,13 @@ export default function CostumesPage() {
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
-    if (!characterId || !sceneId || !name.trim()) return;
+    if (!characterId || !name.trim()) return;
 
     setSaving(true);
     try {
       if (editingCostume) {
         await api.updateCostume(productionId, editingCostume.id, {
           character_id: Number(characterId),
-          scene_id: Number(sceneId),
           name: name.trim(),
           description: description.trim() || null,
         });
@@ -134,7 +106,6 @@ export default function CostumesPage() {
       } else {
         await api.createCostume(productionId, {
           character_id: Number(characterId),
-          scene_id: Number(sceneId),
           name: name.trim(),
           description: description.trim() || null,
         });
@@ -156,7 +127,7 @@ export default function CostumesPage() {
 
   async function handleDelete(costumeId: number) {
     const ok = await confirm({
-      title: "Delete this costume assignment?",
+      title: "Delete this costume?",
       confirmLabel: "Delete",
       destructive: true,
     });
@@ -190,8 +161,8 @@ export default function CostumesPage() {
         <h1 className="text-2xl font-semibold tracking-tight">Costumes</h1>
         <p className="text-sm text-muted-foreground">
           {canManagePreparation
-            ? "Assign costumes to characters for specific scenes."
-            : "Costume assignments in this production."}
+            ? "Manage the costume/look catalog, then record wear/clear changes on the timeline."
+            : "Costumes in this production."}
         </p>
       </div>
 
@@ -217,7 +188,7 @@ export default function CostumesPage() {
       {costumes.length === 0 ? (
         <EmptyState
           title="No costumes yet"
-          description="Assign costumes to characters for specific scenes."
+          description="Add looks to the catalog, then record wear/clear changes on the timeline."
           actionLabel={canManagePreparation ? "Add costume" : undefined}
           onAction={canManagePreparation ? openCreateDialog : undefined}
         />
@@ -227,7 +198,6 @@ export default function CostumesPage() {
             <thead className="border-b border-border bg-muted/50">
               <tr>
                 <th className="px-4 py-3 text-left font-medium">Character</th>
-                <th className="px-4 py-3 text-left font-medium">Scene</th>
                 <th className="px-4 py-3 text-left font-medium">Costume</th>
                 <th className="px-4 py-3 text-left font-medium">Description</th>
                 {canManagePreparation && (
@@ -239,10 +209,6 @@ export default function CostumesPage() {
               {costumes.map((costume) => (
                 <tr key={costume.id}>
                   <td className="px-4 py-3 font-medium">{costume.character_name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
-                    Scene {costume.scene_number}
-                    {costume.scene_title ? `: ${costume.scene_title}` : ""}
-                  </td>
                   <td className="px-4 py-3 font-medium">{costume.name}</td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {costume.description ?? "—"}
@@ -295,8 +261,8 @@ export default function CostumesPage() {
               <DialogTitle>{editingCostume ? "Edit costume" : "Add costume"}</DialogTitle>
               <DialogDescription>
                 {editingCostume
-                  ? "Update this costume assignment."
-                  : "Assign a costume to a character for a specific scene."}
+                  ? "Update this costume in the catalog."
+                  : "Add a look to the catalog. Record when it's worn from the timeline."}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-4">
@@ -309,18 +275,6 @@ export default function CostumesPage() {
                 {characters.map((character) => (
                   <option key={character.id} value={String(character.id)}>
                     {character.name}
-                  </option>
-                ))}
-              </select>
-              <select
-                value={sceneId}
-                onChange={(e) => setSceneId(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Select scene…</option>
-                {scenes.map((scene) => (
-                  <option key={scene.id} value={String(scene.id)}>
-                    {scene.label}
                   </option>
                 ))}
               </select>
@@ -344,7 +298,7 @@ export default function CostumesPage() {
               </Button>
               <Button
                 type="submit"
-                disabled={saving || !characterId || !sceneId || !name.trim()}
+                disabled={saving || !characterId || !name.trim()}
               >
                 {editingCostume ? "Save" : "Add costume"}
               </Button>

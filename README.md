@@ -120,7 +120,7 @@ The **Timeline** is a beat-by-beat walk through the show. Directors live here fo
 
 - Prop sheet  
 - Cue sheet  
-- Costumes by scene  
+- Costume changes (wear/clear)  
 - Entrances & exits  
 - Blocking sheet  
 

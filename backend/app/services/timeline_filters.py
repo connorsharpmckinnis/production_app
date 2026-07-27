@@ -5,7 +5,19 @@ import re
 from sqlalchemy.orm import Session, joinedload
 
 from app.auth.dependencies import user_has_role
-from app.models import Costume, Cue, Dialogue, LyricLine, Moment, MomentBlocking, MomentEntrance, MomentExit, MomentProp, MomentSetPiece, SongAttributionCharacter, User
+from app.models import (
+    Cue,
+    Dialogue,
+    LyricLine,
+    Moment,
+    MomentBlocking,
+    MomentEntrance,
+    MomentExit,
+    MomentPropEvent,
+    MomentSetPieceEvent,
+    SongAttributionCharacter,
+    User,
+)
 
 # Moment types shown in cue-only rehearsal mode (Phase 2).
 CUE_ONLY_TYPES = frozenset({"stage_direction", "song_header", "song_attribution"})
@@ -61,8 +73,9 @@ def load_scene_moments(db: Session, scene_id: int) -> list[Moment]:
                 SongAttributionCharacter.character,
             ),
             joinedload(Moment.stage_directions),
-            joinedload(Moment.moment_props),
-            joinedload(Moment.moment_set_pieces),
+            joinedload(Moment.moment_prop_events),
+            joinedload(Moment.moment_set_piece_events),
+            joinedload(Moment.moment_costume_events),
             joinedload(Moment.moment_entrances),
             joinedload(Moment.moment_exits),
             joinedload(Moment.moment_blocking),
@@ -110,11 +123,11 @@ def moment_ids_with_cues(db: Session, scene_id: int) -> set[int]:
 
 
 def moment_ids_with_prop(db: Session, scene_id: int, prop_id: int) -> set[int]:
-    """Return moment IDs in this scene that have the given prop attached."""
+    """Return moment IDs in this scene that have an on/off event for the given prop."""
     rows = (
-        db.query(MomentProp.moment_id)
-        .join(Moment, Moment.id == MomentProp.moment_id)
-        .filter(Moment.scene_id == scene_id, MomentProp.prop_id == prop_id)
+        db.query(MomentPropEvent.moment_id)
+        .join(Moment, Moment.id == MomentPropEvent.moment_id)
+        .filter(Moment.scene_id == scene_id, MomentPropEvent.prop_id == prop_id)
         .all()
     )
     return {row[0] for row in rows}
@@ -137,33 +150,19 @@ def moment_ids_with_cue_category(
 
 
 def moment_ids_with_set_piece(db: Session, scene_id: int, set_piece_id: int) -> set[int]:
-    """Return moment IDs in this scene that have the given set piece attached."""
+    """Return moment IDs in this scene that have an on/off event for the given set piece."""
     rows = (
-        db.query(MomentSetPiece.moment_id)
-        .join(Moment, Moment.id == MomentSetPiece.moment_id)
-        .filter(Moment.scene_id == scene_id, MomentSetPiece.set_piece_id == set_piece_id)
+        db.query(MomentSetPieceEvent.moment_id)
+        .join(Moment, Moment.id == MomentSetPieceEvent.moment_id)
+        .filter(Moment.scene_id == scene_id, MomentSetPieceEvent.set_piece_id == set_piece_id)
         .all()
     )
     return {row[0] for row in rows}
 
 
-def costume_character_ids_for_scene(db: Session, scene_id: int) -> set[int]:
-    """Return character IDs with a costume assigned to this scene."""
-    rows = (
-        db.query(Costume.character_id)
-        .filter(Costume.scene_id == scene_id)
-        .distinct()
-        .all()
-    )
-    return {row[0] for row in rows}
-
-
-def moment_has_costume(moment: Moment, costume_character_ids: set[int]) -> bool:
-    """True when a speaking character in this moment has a costume for the scene."""
-    if not costume_character_ids:
-        return False
-    speaking = moment_speaking_character_ids(moment)
-    return any(character_id in costume_character_ids for character_id in speaking)
+def moment_has_costume(moment: Moment) -> bool:
+    """True when this moment has at least one costume on/off event."""
+    return len(moment.moment_costume_events) > 0
 
 
 def moment_speaking_character_ids(moment: Moment) -> list[int]:
@@ -236,7 +235,6 @@ def apply_timeline_filters(
     moment_ids_with_prop: set[int] | None = None,
     moment_ids_with_cue_category: set[int] | None = None,
     moment_ids_with_set_piece: set[int] | None = None,
-    costume_character_ids: set[int] | None = None,
 ) -> list[Moment]:
     """Filter moments for timeline display while preserving sequence order."""
     filtered = moments
@@ -272,12 +270,7 @@ def apply_timeline_filters(
         filtered = [moment for moment in filtered if moment.id in piece_ids]
 
     if costume_only:
-        character_ids_with_costume = costume_character_ids or set()
-        filtered = [
-            moment
-            for moment in filtered
-            if moment_has_costume(moment, character_ids_with_costume)
-        ]
+        filtered = [moment for moment in filtered if moment_has_costume(moment)]
 
     if entrance_only:
         filtered = [moment for moment in filtered if len(moment.moment_entrances) > 0]

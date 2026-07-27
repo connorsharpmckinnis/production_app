@@ -156,7 +156,7 @@ Stage Write leans visual blocking + prompt book. STP’s recurring pain (and you
 Emmy’s Stage Write doubt was partly **multi-show investment**. Lean into remountability without building full inventory SaaS.
 
 - [ ] Treat **CSV catalog import** as the 'for-now' STP bridge: document a clear “STP keeps authoritative mic/set CSVs → directors import into a show” workflow ([CATALOG_CSV.md](CATALOG_CSV.md), scratch org-inventory note). Include mentions (or stub connections) to a more permanent 'live' connection/integration with their existing catalogs (props, costumes, etc) (probably just Excel spreadsheets on a cloud server)
-- [ ] Costume CSV ergonomics already partially fixed (`2:1` / act+scene columns) — note remaining gap (true unassigned “closet pull” import) for the meeting, don’t block on it.
+- [x] Costume CSV scene ergonomics moot — Phase 14 WP5 dropped `scene_id` from the costume catalog entirely (`name, character, description` only); timing now lives on the Timeline via `moment_costume_events`, not the CSV import.
 - [ ] Sketch (doc only is fine) the **future “shop from org catalog”** story so you can describe it in August without building the management UI yet.
 
 
@@ -204,7 +204,7 @@ Build only if P0–P1 are in good shape. Otherwise bring these as **slides / tal
 | Stage diagram click-to-block                         | No                                      | Acknowledge Stage Write strength; don’t fake it |
 | Crew roles (SM, lighting, sound)                     | Probably not                            | Note shared Director login as interim           |
 | Bookmarks dedicated view                             | No (undecided UX)                       | Skip unless trivial                             |
-| Event-driven costumes/props/mics                     | No                                      | Architecture story only                         |
+| Event-driven costumes/props/mics                     | **Superseded 2026-07-27** — see note below | Props/sets/costumes now shipped in Phase 14 (thin slice); mic pieces still architecture-only |
 
 
 
@@ -297,7 +297,7 @@ Do not spend August-prep cycles here unless STP asks in the room:
 
 - Visual stage diagram / ground-plan blocking (Stage Write’s moat)
 - Live show calling / board-op console
-- Full event-driven costume/prop/mic engine
+- Full event-driven costume/prop/mic engine — **note (2026-07-27):** [PHASE_14.md](PHASE_14.md) intentionally builds a scoped early slice of this (props, set piece, and thin costume on/off events) now, ahead of the August meeting; that decision supersedes the “park” call for props/sets/costumes specifically. Lav Timeline markers and costume pieces/outfits stay parked here as before.
 - In-app org inventory management UI (“shopping catalog”)
 - Scheduling, attendance, tasks (Planning Center adjacency)
 - Voice note capture from the house
