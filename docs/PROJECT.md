@@ -23,6 +23,7 @@ Companion documents:
 - [PHASE_11.md](PHASE_11.md) — Phase 11 execution plan (singer attribution, footnotes, import leftovers)
 - [PHASE_12.md](PHASE_12.md) — Phase 12 execution plan (lav chart: wires, packs, propose, print)
 - [PHASE_13.md](PHASE_13.md) — Phase 13 WP-slim: retire Timeline microphones; lav chart owns lavs; derivation follow-on
+- [PHASE_14.md](PHASE_14.md) — Phase 14 plan: event-driven asset state on the Timeline (props, sets, costumes, lav markers)
 - [ROLES.md](ROLES.md) — MVP role permissions
 - [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](../.agents/skills/DEVELOPMENT_GUIDE/SKILL.md) — coding standards for humans and AI
 
@@ -996,6 +997,24 @@ Summary:
 - **Follow-on (documented, not built):** derive Timeline Moments when wire/pack assignments change between scenes
 
 **Explicitly out of Phase 13 WP-slim:** Timeline derivation implementation, handheld mics, org inventory, wire/pack CSV.
+
+---
+
+
+
+## Phase 14 — Event-Driven Asset State on the Timeline (Planning)
+
+See [PHASE_14.md](PHASE_14.md) for the plan. **Decisions confirmed 2026-07-26; build not started until feature branch + authorization.**
+
+Summary (confirmed):
+
+- Props & set pieces: Timeline **on/off** events + optional person (character XOR user) + free-text notes; derive state across the show
+- Costumes: **thin** on/off replacing `scene_id` (whole sets only; pieces later)
+- Lav chart unchanged this phase (SoT stands; Timeline markers deferred)
+- No migration of old attachment rows — re-enter
+- Specialized event tables + shared derivation (not a polymorphic event store)
+
+**Explicitly out of Phase 14:** lav Timeline markers, costume pieces/outfits, stage diagram / zone enum, richer event kinds, character packets UI
 
 ---
 
