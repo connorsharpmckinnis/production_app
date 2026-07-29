@@ -367,6 +367,7 @@ WP0 authorize + branch
 | 2026-07-27 | **WP3 + WP4 frontend shipped.** Moment detail panel: dedicated Props / Set pieces event sections (on/off badge, character-or-user person, notes; inline PATCH edit; DELETE remove) replacing the old presence-only attach list; add-event form with On/Off + Person type (None/Character/User) + notes; compact "Currently in play" read-out from `props_in_play`/`set_pieces_in_play`. Person User picker loads `active-users` (all active org users) rather than Actor-only `castable-users`. Reports page prop sheet chronology shows the On/Off badge and character-or-user person. Costumes untouched (WP5, still not started). Owner walkthrough still pending. |
 | 2026-07-27 | **WP5 (costumes) shipped, backend and frontend.** Migration `019` adds `moment_costume_events` and drops `costumes.scene_id` (no data migration). Costume derivation, catalog/event APIs, timeline integration, readiness retarget, `costume-changes` report, and CSV import all updated per WP5 scope. Frontend Costumes catalog page, Moment detail costume event section, and Reports page updated to match. Owner walkthrough still pending for WP3–WP5 together. |
 | 2026-07-27 | **WP6 closeout.** Docs/scratch/UX backlog synced to shipped event model. #51/#70 left for owner on merge. |
+| 2026-07-28 | Pre-merge UX polish: icon attachment-type picker; On/Off (Wear/Clear) toggles; unified searchable character+user person combobox (#73); searchable catalog selects; Currently in play / wearing hide event notes (#75). |
 
 ---
 

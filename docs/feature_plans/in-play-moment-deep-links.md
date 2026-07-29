@@ -16,7 +16,7 @@ Primary motivating UX: while looking at a moment mid-show, see “Iceberg — Do
 
 ## Problem
 
-Phase 14 derives “currently in play” by walking ON/OFF events in show order. The Moment Detail UI shows that derived snapshot as a compact card (name, person, notes).
+Phase 14 derives “currently in play” by walking ON/OFF events in show order. The Moment Detail UI shows that derived snapshot as a compact card (name + person; notes intentionally omitted from the readout for now — see #75).
 
 That card is **display-only**. It does not expose which Moment produced the snapshot, so there is nothing to link.
 

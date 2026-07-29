@@ -1,6 +1,20 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bookmark, Pencil, Trash2 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  Bookmark,
+  Layers,
+  LogIn,
+  LogOut,
+  Move,
+  Package,
+  Pencil,
+  Shirt,
+  Trash2,
+  Zap,
+} from "lucide-react";
+import SearchableSelect from "@/components/SearchableSelect";
+import type { SearchableSelectOption } from "@/components/SearchableSelect";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -35,6 +49,115 @@ function personTypeOf(characterId: number | null, userId: number | null): Person
   if (userId !== null) return "user";
   return "none";
 }
+
+function encodePersonValue(
+  personType: PersonType,
+  characterId: string,
+  userId: string,
+): string {
+  if (personType === "character" && characterId) return `character:${characterId}`;
+  if (personType === "user" && userId) return `user:${userId}`;
+  return "";
+}
+
+function decodePersonValue(value: string): {
+  personType: PersonType;
+  characterId: string;
+  userId: string;
+} {
+  if (value.startsWith("character:")) {
+    return { personType: "character", characterId: value.slice("character:".length), userId: "" };
+  }
+  if (value.startsWith("user:")) {
+    return { personType: "user", characterId: "", userId: value.slice("user:".length) };
+  }
+  return { personType: "none", characterId: "", userId: "" };
+}
+
+function buildPersonOptions(
+  characters: CharacterDetailResponse[],
+  users: CastableUserResponse[],
+): SearchableSelectOption[] {
+  const characterOptions = characters.map((character) => ({
+    value: `character:${character.id}`,
+    label: character.name,
+    hint: "Character",
+    keywords: "character",
+  }));
+  const userOptions = users.map((user) => ({
+    value: `user:${user.id}`,
+    label: user.display_name,
+    hint: "User",
+    keywords: "user",
+  }));
+  return [...characterOptions, ...userOptions].sort((a, b) =>
+    a.label.localeCompare(b.label, undefined, { sensitivity: "base" }),
+  );
+}
+
+function KindToggle({
+  value,
+  onChange,
+  onLabel = "On",
+  offLabel = "Off",
+  disabled = false,
+}: {
+  value: AssetEventKind;
+  onChange: (kind: AssetEventKind) => void;
+  onLabel?: string;
+  offLabel?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-1 rounded-md border border-border p-0.5">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange("on")}
+        className={cn(
+          "rounded-sm px-3 py-1.5 text-sm transition-colors disabled:opacity-50",
+          value === "on" ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+        )}
+      >
+        {onLabel}
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange("off")}
+        className={cn(
+          "rounded-sm px-3 py-1.5 text-sm transition-colors disabled:opacity-50",
+          value === "off" ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+        )}
+      >
+        {offLabel}
+      </button>
+    </div>
+  );
+}
+
+type AttachmentType =
+  | "prop"
+  | "cue"
+  | "set_piece"
+  | "costume"
+  | "entrance"
+  | "exit"
+  | "blocking";
+
+const ATTACHMENT_TYPE_OPTIONS: {
+  value: AttachmentType;
+  label: string;
+  icon: LucideIcon;
+}[] = [
+  { value: "prop", label: "Prop", icon: Package },
+  { value: "set_piece", label: "Set", icon: Layers },
+  { value: "costume", label: "Costume", icon: Shirt },
+  { value: "cue", label: "Cue", icon: Zap },
+  { value: "entrance", label: "Entrance", icon: LogIn },
+  { value: "exit", label: "Exit", icon: LogOut },
+  { value: "blocking", label: "Blocking", icon: Move },
+];
 
 function costumesPagePath(productionId: number, detail: MomentDetailResponse): string {
   const params = new URLSearchParams();
@@ -98,6 +221,65 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     const sortedCastableUsers = [...castableUsers].sort((a, b) =>
       a.display_name.localeCompare(b.display_name, undefined, { sensitivity: "base" }),
     );
+    const personOptions = useMemo(
+      () => buildPersonOptions(sortByName(characters), [...castableUsers]),
+      [characters, castableUsers],
+    );
+    const characterOptions = useMemo(
+      () =>
+        sortByName(characters).map((character) => ({
+          value: String(character.id),
+          label: character.name,
+        })),
+      [characters],
+    );
+    const propOptions = useMemo(
+      () => propsCatalog.map((prop) => ({ value: String(prop.id), label: prop.name })),
+      [propsCatalog],
+    );
+    const setPieceOptions = useMemo(
+      () =>
+        setPiecesCatalog.map((piece) => ({ value: String(piece.id), label: piece.name })),
+      [setPiecesCatalog],
+    );
+    const cueCategoryOptions = useMemo(
+      () =>
+        cueCategories.map((category) => ({
+          value: String(category.id),
+          label: category.name,
+        })),
+      [cueCategories],
+    );
+    const costumeOptions = useMemo(
+      () =>
+        costumesCatalog.map((costume) => ({
+          value: String(costume.id),
+          label: costume.name,
+          hint: costume.character_name,
+          keywords: costume.character_name,
+        })),
+      [costumesCatalog],
+    );
+
+    const availableAttachmentTypes = useMemo(() => {
+      const available = new Set<AttachmentType>();
+      if (propsCatalog.length > 0) available.add("prop");
+      if (setPiecesCatalog.length > 0) available.add("set_piece");
+      if (costumesCatalog.length > 0 && characters.length > 0) available.add("costume");
+      if (cueCategories.length > 0) available.add("cue");
+      if (characters.length > 0) {
+        available.add("entrance");
+        available.add("exit");
+        available.add("blocking");
+      }
+      return ATTACHMENT_TYPE_OPTIONS.filter((option) => available.has(option.value));
+    }, [
+      propsCatalog.length,
+      setPiecesCatalog.length,
+      costumesCatalog.length,
+      cueCategories.length,
+      characters.length,
+    ]);
 
     const isSongRelated =
       detail.song_id != null ||
@@ -149,6 +331,45 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     const [newCueTitle, setNewCueTitle] = useState("");
     const [newCueNotes, setNewCueNotes] = useState("");
     const [addAttachmentType, setAddAttachmentType] = useState("");
+    const [addSectionExpanded, setAddSectionExpanded] = useState(true);
+
+    function resetAttachmentDraft() {
+      setAttachPropId("");
+      setAttachPropKind("on");
+      setAttachPropPersonType("none");
+      setAttachPropCharacterId("");
+      setAttachPropUserId("");
+      setAttachPropNotes("");
+      setAttachSetPieceId("");
+      setAttachSetPieceKind("on");
+      setAttachSetPiecePersonType("none");
+      setAttachSetPieceCharacterId("");
+      setAttachSetPieceUserId("");
+      setAttachSetPieceNotes("");
+      setAttachCostumeCharacterId("");
+      setAttachCostumeKind("on");
+      setAttachCostumeId("");
+      setAttachCostumeNotes("");
+      setAttachEntranceCharacterId("");
+      setAttachEntranceNotes("");
+      setAttachExitCharacterId("");
+      setAttachExitNotes("");
+      setAttachBlockingCharacterId("");
+      setAttachBlockingNotes("");
+      setNewCueCategoryId("");
+      setNewCueTitle("");
+      setNewCueNotes("");
+    }
+
+    function selectAttachmentType(next: AttachmentType) {
+      if (addAttachmentType === next) {
+        setAddAttachmentType("");
+        resetAttachmentDraft();
+        return;
+      }
+      setAddAttachmentType(next);
+      resetAttachmentDraft();
+    }
 
     const detailRef = useRef(detail);
     detailRef.current = detail;
@@ -927,145 +1148,115 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
         {canEdit && (
           <div className="rounded-md border border-border p-3">
-            <label className="block text-sm font-medium">
-              Add to moment
-              <select
-                value={addAttachmentType}
-                onChange={(e) => setAddAttachmentType(e.target.value)}
-                className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Choose attachment type…</option>
-                {propsCatalog.length > 0 && <option value="prop">Prop</option>}
-                {cueCategories.length > 0 && <option value="cue">Cue</option>}
-                {setPiecesCatalog.length > 0 && <option value="set_piece">Set piece</option>}
-                {costumesCatalog.length > 0 && characters.length > 0 && (
-                  <option value="costume">Costume</option>
-                )}
-                {characters.length > 0 && <option value="entrance">Entrance</option>}
-                {characters.length > 0 && <option value="exit">Exit</option>}
-                {characters.length > 0 && <option value="blocking">Blocking</option>}
-              </select>
-            </label>
+            <button
+              type="button"
+              onClick={() => setAddSectionExpanded((open) => !open)}
+              className="flex w-full items-center justify-between gap-2 text-left"
+              aria-expanded={addSectionExpanded}
+            >
+              <span className="text-sm font-medium">Add to moment</span>
+              <span className="text-xs text-muted-foreground">
+                {addSectionExpanded ? "▾" : "▸"}
+              </span>
+            </button>
 
-            {propsCatalog.length === 0 &&
-              cueCategories.length === 0 &&
-              setPiecesCatalog.length === 0 &&
-              costumesCatalog.length === 0 && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Need something to attach? Create items in{" "}
-                  <Link
-                    to={`/productions/${productionId}/props`}
-                    className="underline hover:text-foreground"
-                  >
-                    Props
-                  </Link>
-                  ,{" "}
-                  <Link
-                    to={`/productions/${productionId}/cue-categories`}
-                    className="underline hover:text-foreground"
-                  >
-                    Cue Categories
-                  </Link>
-                  ,{" "}
-                  <Link
-                    to={`/productions/${productionId}/set-pieces`}
-                    className="underline hover:text-foreground"
-                  >
-                    Set Pieces
-                  </Link>
-                  , or{" "}
-                  <Link
-                    to={costumesPagePath(productionId, detail)}
-                    className="underline hover:text-foreground"
-                  >
-                    Costumes
-                  </Link>{" "}
-                  first.
-                </p>
-              )}
+            {addSectionExpanded && (
+              <>
+            {availableAttachmentTypes.length > 0 ? (
+              <div
+                className="mt-2 grid grid-cols-4 gap-1.5 sm:grid-cols-7"
+                role="group"
+                aria-label="Attachment type"
+              >
+                {availableAttachmentTypes.map((option) => {
+                  const Icon = option.icon;
+                  const selected = addAttachmentType === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      title={option.label}
+                      aria-pressed={selected}
+                      onClick={() => selectAttachmentType(option.value)}
+                      className={cn(
+                        "flex flex-col items-center gap-1 rounded-md border px-1.5 py-2 text-[10px] font-medium transition-colors",
+                        selected
+                          ? "border-primary bg-primary/10 text-foreground"
+                          : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
+                      )}
+                    >
+                      <Icon className="size-4" />
+                      <span className="leading-tight">{option.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Need something to attach? Create items in{" "}
+                <Link
+                  to={`/productions/${productionId}/props`}
+                  className="underline hover:text-foreground"
+                >
+                  Props
+                </Link>
+                ,{" "}
+                <Link
+                  to={`/productions/${productionId}/cue-categories`}
+                  className="underline hover:text-foreground"
+                >
+                  Cue Categories
+                </Link>
+                ,{" "}
+                <Link
+                  to={`/productions/${productionId}/set-pieces`}
+                  className="underline hover:text-foreground"
+                >
+                  Set Pieces
+                </Link>
+                , or{" "}
+                <Link
+                  to={costumesPagePath(productionId, detail)}
+                  className="underline hover:text-foreground"
+                >
+                  Costumes
+                </Link>{" "}
+                first.
+              </p>
+            )}
 
             {addAttachmentType === "prop" && propsCatalog.length > 0 && (
               <form onSubmit={(e) => void handleAttachProp(e)} className="mt-3 space-y-2">
-                <select
+                <SearchableSelect
+                  options={propOptions}
                   value={attachPropId}
-                  onChange={(e) => {
-                    setAttachPropId(e.target.value);
-                    if (!e.target.value) {
-                      setAttachPropKind("on");
-                      setAttachPropPersonType("none");
-                      setAttachPropCharacterId("");
-                      setAttachPropUserId("");
-                      setAttachPropNotes("");
-                    }
+                  onChange={setAttachPropId}
+                  placeholder="Select prop…"
+                  clearLabel="Clear selection"
+                />
+                <KindToggle value={attachPropKind} onChange={setAttachPropKind} />
+                <SearchableSelect
+                  options={personOptions}
+                  value={encodePersonValue(
+                    attachPropPersonType,
+                    attachPropCharacterId,
+                    attachPropUserId,
+                  )}
+                  onChange={(next) => {
+                    const decoded = decodePersonValue(next);
+                    setAttachPropPersonType(decoded.personType);
+                    setAttachPropCharacterId(decoded.characterId);
+                    setAttachPropUserId(decoded.userId);
                   }}
+                  placeholder="Person (optional)"
+                  clearLabel="No person"
+                />
+                <input
+                  value={attachPropNotes}
+                  onChange={(e) => setAttachPropNotes(e.target.value)}
+                  placeholder="Notes (optional)"
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Select prop…</option>
-                  {propsCatalog.map((prop) => (
-                    <option key={prop.id} value={String(prop.id)}>
-                      {prop.name}
-                    </option>
-                  ))}
-                </select>
-                {attachPropId && (
-                  <>
-                    <select
-                      value={attachPropKind}
-                      onChange={(e) => setAttachPropKind(e.target.value as AssetEventKind)}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                      <option value="on">On</option>
-                      <option value="off">Off</option>
-                    </select>
-                    <select
-                      value={attachPropPersonType}
-                      onChange={(e) => {
-                        setAttachPropPersonType(e.target.value as PersonType);
-                        setAttachPropCharacterId("");
-                        setAttachPropUserId("");
-                      }}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                      <option value="none">No person</option>
-                      <option value="character">Character</option>
-                      <option value="user">User</option>
-                    </select>
-                    {attachPropPersonType === "character" && (
-                      <select
-                        value={attachPropCharacterId}
-                        onChange={(e) => setAttachPropCharacterId(e.target.value)}
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      >
-                        <option value="">Select character…</option>
-                        {sortedCharacters.map((character) => (
-                          <option key={character.id} value={String(character.id)}>
-                            {character.name}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    {attachPropPersonType === "user" && (
-                      <select
-                        value={attachPropUserId}
-                        onChange={(e) => setAttachPropUserId(e.target.value)}
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      >
-                        <option value="">Select user…</option>
-                        {sortedCastableUsers.map((castUser) => (
-                          <option key={castUser.id} value={String(castUser.id)}>
-                            {castUser.display_name}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    <input
-                      value={attachPropNotes}
-                      onChange={(e) => setAttachPropNotes(e.target.value)}
-                      placeholder="Notes (optional)"
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    />
-                  </>
-                )}
+                />
                 <button
                   type="submit"
                   disabled={
@@ -1083,40 +1274,25 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
             {addAttachmentType === "cue" && cueCategories.length > 0 && (
               <form onSubmit={(e) => void handleAddCue(e)} className="mt-3 space-y-2">
-                <select
+                <SearchableSelect
+                  options={cueCategoryOptions}
                   value={newCueCategoryId}
-                  onChange={(e) => {
-                    setNewCueCategoryId(e.target.value);
-                    if (!e.target.value) {
-                      setNewCueTitle("");
-                      setNewCueNotes("");
-                    }
-                  }}
+                  onChange={setNewCueCategoryId}
+                  placeholder="Select category…"
+                  clearLabel="Clear selection"
+                />
+                <input
+                  value={newCueTitle}
+                  onChange={(e) => setNewCueTitle(e.target.value)}
+                  placeholder="Cue title"
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Select category…</option>
-                  {cueCategories.map((category) => (
-                    <option key={category.id} value={String(category.id)}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-                {newCueCategoryId && (
-                  <>
-                    <input
-                      value={newCueTitle}
-                      onChange={(e) => setNewCueTitle(e.target.value)}
-                      placeholder="Cue title"
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    />
-                    <input
-                      value={newCueNotes}
-                      onChange={(e) => setNewCueNotes(e.target.value)}
-                      placeholder="Notes (optional)"
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    />
-                  </>
-                )}
+                />
+                <input
+                  value={newCueNotes}
+                  onChange={(e) => setNewCueNotes(e.target.value)}
+                  placeholder="Notes (optional)"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
                 <button
                   type="submit"
                   disabled={saving || !newCueCategoryId || !newCueTitle.trim()}
@@ -1129,86 +1305,36 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
             {addAttachmentType === "set_piece" && setPiecesCatalog.length > 0 && (
               <form onSubmit={(e) => void handleAttachSetPiece(e)} className="mt-3 space-y-2">
-                <select
+                <SearchableSelect
+                  options={setPieceOptions}
                   value={attachSetPieceId}
-                  onChange={(e) => {
-                    setAttachSetPieceId(e.target.value);
-                    if (!e.target.value) {
-                      setAttachSetPieceKind("on");
-                      setAttachSetPiecePersonType("none");
-                      setAttachSetPieceCharacterId("");
-                      setAttachSetPieceUserId("");
-                      setAttachSetPieceNotes("");
-                    }
+                  onChange={setAttachSetPieceId}
+                  placeholder="Select set piece…"
+                  clearLabel="Clear selection"
+                />
+                <KindToggle value={attachSetPieceKind} onChange={setAttachSetPieceKind} />
+                <SearchableSelect
+                  options={personOptions}
+                  value={encodePersonValue(
+                    attachSetPiecePersonType,
+                    attachSetPieceCharacterId,
+                    attachSetPieceUserId,
+                  )}
+                  onChange={(next) => {
+                    const decoded = decodePersonValue(next);
+                    setAttachSetPiecePersonType(decoded.personType);
+                    setAttachSetPieceCharacterId(decoded.characterId);
+                    setAttachSetPieceUserId(decoded.userId);
                   }}
+                  placeholder="Person (optional)"
+                  clearLabel="No person"
+                />
+                <input
+                  value={attachSetPieceNotes}
+                  onChange={(e) => setAttachSetPieceNotes(e.target.value)}
+                  placeholder="Notes (optional)"
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Select set piece…</option>
-                  {setPiecesCatalog.map((piece) => (
-                    <option key={piece.id} value={String(piece.id)}>
-                      {piece.name}
-                    </option>
-                  ))}
-                </select>
-                {attachSetPieceId && (
-                  <>
-                    <select
-                      value={attachSetPieceKind}
-                      onChange={(e) => setAttachSetPieceKind(e.target.value as AssetEventKind)}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                      <option value="on">On</option>
-                      <option value="off">Off</option>
-                    </select>
-                    <select
-                      value={attachSetPiecePersonType}
-                      onChange={(e) => {
-                        setAttachSetPiecePersonType(e.target.value as PersonType);
-                        setAttachSetPieceCharacterId("");
-                        setAttachSetPieceUserId("");
-                      }}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                      <option value="none">No person</option>
-                      <option value="character">Character</option>
-                      <option value="user">User</option>
-                    </select>
-                    {attachSetPiecePersonType === "character" && (
-                      <select
-                        value={attachSetPieceCharacterId}
-                        onChange={(e) => setAttachSetPieceCharacterId(e.target.value)}
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      >
-                        <option value="">Select character…</option>
-                        {sortedCharacters.map((character) => (
-                          <option key={character.id} value={String(character.id)}>
-                            {character.name}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    {attachSetPiecePersonType === "user" && (
-                      <select
-                        value={attachSetPieceUserId}
-                        onChange={(e) => setAttachSetPieceUserId(e.target.value)}
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      >
-                        <option value="">Select user…</option>
-                        {sortedCastableUsers.map((castUser) => (
-                          <option key={castUser.id} value={String(castUser.id)}>
-                            {castUser.display_name}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    <input
-                      value={attachSetPieceNotes}
-                      onChange={(e) => setAttachSetPieceNotes(e.target.value)}
-                      placeholder="Notes (optional)"
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    />
-                  </>
-                )}
+                />
                 <button
                   type="submit"
                   disabled={
@@ -1226,53 +1352,37 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
             {addAttachmentType === "costume" && costumesCatalog.length > 0 && (
               <form onSubmit={(e) => void handleAttachCostume(e)} className="mt-3 space-y-2">
-                <select
+                <SearchableSelect
+                  options={characterOptions}
                   value={attachCostumeCharacterId}
-                  onChange={(e) => setAttachCostumeCharacterId(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Select character…</option>
-                  {sortedCharacters.map((character) => (
-                    <option key={character.id} value={String(character.id)}>
-                      {character.name}
-                    </option>
-                  ))}
-                </select>
-                {attachCostumeCharacterId && (
-                  <>
-                    <select
-                      value={attachCostumeKind}
-                      onChange={(e) => {
-                        setAttachCostumeKind(e.target.value as AssetEventKind);
-                        if (e.target.value === "off") setAttachCostumeId("");
-                      }}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                      <option value="on">Wear</option>
-                      <option value="off">Clear</option>
-                    </select>
-                    {attachCostumeKind === "on" && (
-                      <select
-                        value={attachCostumeId}
-                        onChange={(e) => setAttachCostumeId(e.target.value)}
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                      >
-                        <option value="">Select costume…</option>
-                        {costumesCatalog.map((costume) => (
-                          <option key={costume.id} value={String(costume.id)}>
-                            {costume.name} ({costume.character_name})
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                    <input
-                      value={attachCostumeNotes}
-                      onChange={(e) => setAttachCostumeNotes(e.target.value)}
-                      placeholder="Notes (optional)"
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    />
-                  </>
+                  onChange={setAttachCostumeCharacterId}
+                  placeholder="Select character…"
+                  clearLabel="Clear selection"
+                />
+                <KindToggle
+                  value={attachCostumeKind}
+                  onChange={(kind) => {
+                    setAttachCostumeKind(kind);
+                    if (kind === "off") setAttachCostumeId("");
+                  }}
+                  onLabel="Wear"
+                  offLabel="Clear"
+                />
+                {attachCostumeKind === "on" && (
+                  <SearchableSelect
+                    options={costumeOptions}
+                    value={attachCostumeId}
+                    onChange={setAttachCostumeId}
+                    placeholder="Select costume…"
+                    clearLabel="Clear selection"
+                  />
                 )}
+                <input
+                  value={attachCostumeNotes}
+                  onChange={(e) => setAttachCostumeNotes(e.target.value)}
+                  placeholder="Notes (optional)"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
                 <button
                   type="submit"
                   disabled={
@@ -1289,29 +1399,19 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
             {addAttachmentType === "entrance" && characters.length > 0 && (
               <form onSubmit={(e) => void handleAttachEntrance(e)} className="mt-3 space-y-2">
-                <select
+                <SearchableSelect
+                  options={characterOptions}
                   value={attachEntranceCharacterId}
-                  onChange={(e) => {
-                    setAttachEntranceCharacterId(e.target.value);
-                    if (!e.target.value) setAttachEntranceNotes("");
-                  }}
+                  onChange={setAttachEntranceCharacterId}
+                  placeholder="Select character…"
+                  clearLabel="Clear selection"
+                />
+                <input
+                  value={attachEntranceNotes}
+                  onChange={(e) => setAttachEntranceNotes(e.target.value)}
+                  placeholder="Notes (optional)"
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Select character…</option>
-                  {sortedCharacters.map((character) => (
-                    <option key={character.id} value={String(character.id)}>
-                      {character.name}
-                    </option>
-                  ))}
-                </select>
-                {attachEntranceCharacterId && (
-                  <input
-                    value={attachEntranceNotes}
-                    onChange={(e) => setAttachEntranceNotes(e.target.value)}
-                    placeholder="Notes (optional)"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
-                )}
+                />
                 <button
                   type="submit"
                   disabled={saving || !attachEntranceCharacterId}
@@ -1324,29 +1424,19 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
             {addAttachmentType === "exit" && characters.length > 0 && (
               <form onSubmit={(e) => void handleAttachExit(e)} className="mt-3 space-y-2">
-                <select
+                <SearchableSelect
+                  options={characterOptions}
                   value={attachExitCharacterId}
-                  onChange={(e) => {
-                    setAttachExitCharacterId(e.target.value);
-                    if (!e.target.value) setAttachExitNotes("");
-                  }}
+                  onChange={setAttachExitCharacterId}
+                  placeholder="Select character…"
+                  clearLabel="Clear selection"
+                />
+                <input
+                  value={attachExitNotes}
+                  onChange={(e) => setAttachExitNotes(e.target.value)}
+                  placeholder="Notes (optional)"
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Select character…</option>
-                  {sortedCharacters.map((character) => (
-                    <option key={character.id} value={String(character.id)}>
-                      {character.name}
-                    </option>
-                  ))}
-                </select>
-                {attachExitCharacterId && (
-                  <input
-                    value={attachExitNotes}
-                    onChange={(e) => setAttachExitNotes(e.target.value)}
-                    placeholder="Notes (optional)"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
-                )}
+                />
                 <button
                   type="submit"
                   disabled={saving || !attachExitCharacterId}
@@ -1359,27 +1449,20 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
             {addAttachmentType === "blocking" && characters.length > 0 && (
               <form onSubmit={(e) => void handleAttachBlocking(e)} className="mt-3 space-y-2">
-                <select
+                <SearchableSelect
+                  options={characterOptions}
                   value={attachBlockingCharacterId}
-                  onChange={(e) => setAttachBlockingCharacterId(e.target.value)}
+                  onChange={setAttachBlockingCharacterId}
+                  placeholder="Select character…"
+                  clearLabel="Clear selection"
+                />
+                <textarea
+                  value={attachBlockingNotes}
+                  onChange={(e) => setAttachBlockingNotes(e.target.value)}
+                  placeholder="Blocking notes"
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Select character…</option>
-                  {sortedCharacters.map((character) => (
-                    <option key={character.id} value={String(character.id)}>
-                      {character.name}
-                    </option>
-                  ))}
-                </select>
-                {attachBlockingCharacterId && (
-                  <textarea
-                    value={attachBlockingNotes}
-                    onChange={(e) => setAttachBlockingNotes(e.target.value)}
-                    placeholder="Blocking notes"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    rows={2}
-                  />
-                )}
+                  rows={2}
+                />
                 <button
                   type="submit"
                   disabled={
@@ -1390,6 +1473,8 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   Add
                 </button>
               </form>
+            )}
+              </>
             )}
           </div>
         )}
@@ -1419,7 +1504,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             key: `prop-in-play-${item.prop_id}`,
             label: item.prop_name,
             personLabel: item.character_name ?? item.user_display_name,
-            notes: item.notes,
           }))}
         />
 
@@ -1448,7 +1532,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             key: `set-piece-in-play-${item.set_piece_id}`,
             label: item.set_piece_name,
             personLabel: item.character_name ?? item.user_display_name,
-            notes: item.notes,
           }))}
         />
 
@@ -1716,7 +1799,6 @@ interface AssetInPlayItem {
   key: string;
   label: string;
   personLabel: string | null;
-  notes: string | null;
 }
 
 function AssetEventSection({
@@ -1782,7 +1864,6 @@ function AssetEventSection({
               <li key={item.key}>
                 <span className="font-medium text-foreground">{item.label}</span>
                 {item.personLabel ? ` — ${item.personLabel}` : ""}
-                {item.notes ? ` — ${item.notes}` : ""}
               </li>
             ))}
           </ul>
@@ -1915,55 +1996,19 @@ function AssetEventRow({
 
           {editing && (
             <div className="mt-2 space-y-2">
-              <select
-                value={kind}
-                onChange={(e) => setKind(e.target.value as AssetEventKind)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="on">On</option>
-                <option value="off">Off</option>
-              </select>
-              <select
-                value={personType}
-                onChange={(e) => {
-                  setPersonType(e.target.value as PersonType);
-                  setCharacterId("");
-                  setUserId("");
+              <KindToggle value={kind} onChange={setKind} />
+              <SearchableSelect
+                options={buildPersonOptions(characters, castableUsers)}
+                value={encodePersonValue(personType, characterId, userId)}
+                onChange={(next) => {
+                  const decoded = decodePersonValue(next);
+                  setPersonType(decoded.personType);
+                  setCharacterId(decoded.characterId);
+                  setUserId(decoded.userId);
                 }}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="none">No person</option>
-                <option value="character">Character</option>
-                <option value="user">User</option>
-              </select>
-              {personType === "character" && (
-                <select
-                  value={characterId}
-                  onChange={(e) => setCharacterId(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Select character…</option>
-                  {characters.map((character) => (
-                    <option key={character.id} value={String(character.id)}>
-                      {character.name}
-                    </option>
-                  ))}
-                </select>
-              )}
-              {personType === "user" && (
-                <select
-                  value={userId}
-                  onChange={(e) => setUserId(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Select user…</option>
-                  {castableUsers.map((castUser) => (
-                    <option key={castUser.id} value={String(castUser.id)}>
-                      {castUser.display_name}
-                    </option>
-                  ))}
-                </select>
-              )}
+                placeholder="Person (optional)"
+                clearLabel="No person"
+              />
               <input
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
@@ -2074,7 +2119,6 @@ function CostumeEventSection({
               <li key={`wearing-${item.character_id}`}>
                 <span className="font-medium text-foreground">{item.character_name}</span>
                 {` — ${item.costume_name}`}
-                {item.notes ? ` — ${item.notes}` : ""}
               </li>
             ))}
           </ul>
@@ -2185,30 +2229,28 @@ function CostumeEventRow({
 
           {editing && (
             <div className="mt-2 space-y-2">
-              <select
+              <KindToggle
                 value={kind}
-                onChange={(e) => {
-                  setKind(e.target.value as AssetEventKind);
-                  if (e.target.value === "off") setCostumeId("");
+                onChange={(next) => {
+                  setKind(next);
+                  if (next === "off") setCostumeId("");
                 }}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="on">Wear</option>
-                <option value="off">Clear</option>
-              </select>
+                onLabel="Wear"
+                offLabel="Clear"
+              />
               {kind === "on" && (
-                <select
+                <SearchableSelect
+                  options={costumesCatalog.map((costume) => ({
+                    value: String(costume.id),
+                    label: costume.name,
+                    hint: costume.character_name,
+                    keywords: costume.character_name,
+                  }))}
                   value={costumeId}
-                  onChange={(e) => setCostumeId(e.target.value)}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Select costume…</option>
-                  {costumesCatalog.map((costume) => (
-                    <option key={costume.id} value={String(costume.id)}>
-                      {costume.name} ({costume.character_name})
-                    </option>
-                  ))}
-                </select>
+                  onChange={setCostumeId}
+                  placeholder="Select costume…"
+                  clearLabel="Clear selection"
+                />
               )}
               <input
                 value={notes}
