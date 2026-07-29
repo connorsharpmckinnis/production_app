@@ -6,14 +6,15 @@ from app.api.catalog_csv_routes import (
     catalog_template_response,
     read_catalog_upload,
 )
-from app.api.deps import get_accessible_production
+from app.api.deps import get_accessible_production, user_display_name, validate_optional_person
 from app.auth.dependencies import require_authenticated, require_director_or_admin
 from app.db.session import get_db
-from app.models import Act, Moment, MomentSetPiece, Scene, SetPiece, User
+from app.models import Act, Moment, MomentSetPieceEvent, Scene, SetPiece, User
 from app.schemas.catalog_csv import CatalogImportResult
 from app.schemas.set_pieces import (
-    MomentSetPieceCreate,
-    MomentSetPieceResponse,
+    MomentSetPieceEventCreate,
+    MomentSetPieceEventResponse,
+    MomentSetPieceEventUpdate,
     SetPieceCreate,
     SetPieceResponse,
     SetPieceUpdate,
@@ -51,12 +52,17 @@ def _get_moment_in_production_or_404(
     return moment
 
 
-def _moment_set_piece_response(moment_set_piece: MomentSetPiece) -> MomentSetPieceResponse:
-    return MomentSetPieceResponse(
-        id=moment_set_piece.id,
-        set_piece_id=moment_set_piece.set_piece_id,
-        set_piece_name=moment_set_piece.set_piece.name,
-        notes=moment_set_piece.notes,
+def _moment_set_piece_event_response(event: MomentSetPieceEvent) -> MomentSetPieceEventResponse:
+    return MomentSetPieceEventResponse(
+        id=event.id,
+        set_piece_id=event.set_piece_id,
+        set_piece_name=event.set_piece.name,
+        kind=event.kind,
+        character_id=event.character_id,
+        character_name=event.character.name if event.character else None,
+        user_id=event.user_id,
+        user_display_name=user_display_name(event.user) if event.user else None,
+        notes=event.notes,
     )
 
 
@@ -186,95 +192,154 @@ async def import_set_pieces(
 
 @router.get(
     "/{production_id}/moments/{moment_id}/set-pieces",
-    response_model=list[MomentSetPieceResponse],
+    response_model=list[MomentSetPieceEventResponse],
 )
-def list_moment_set_pieces(
+def list_moment_set_piece_events(
     production_id: int,
     moment_id: int,
     user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
-) -> list[MomentSetPieceResponse]:
+) -> list[MomentSetPieceEventResponse]:
     get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
-    moment_set_pieces = (
-        db.query(MomentSetPiece)
-        .options(joinedload(MomentSetPiece.set_piece))
-        .filter(MomentSetPiece.moment_id == moment_id)
-        .order_by(MomentSetPiece.id)
+    events = (
+        db.query(MomentSetPieceEvent)
+        .options(
+            joinedload(MomentSetPieceEvent.set_piece),
+            joinedload(MomentSetPieceEvent.character),
+            joinedload(MomentSetPieceEvent.user),
+        )
+        .filter(MomentSetPieceEvent.moment_id == moment_id)
+        .order_by(MomentSetPieceEvent.id)
         .all()
     )
-    return [_moment_set_piece_response(item) for item in moment_set_pieces]
+    return [_moment_set_piece_event_response(event) for event in events]
 
 
 @router.post(
     "/{production_id}/moments/{moment_id}/set-pieces",
-    response_model=MomentSetPieceResponse,
+    response_model=MomentSetPieceEventResponse,
     status_code=status.HTTP_201_CREATED,
 )
-def attach_moment_set_piece(
+def create_moment_set_piece_event(
     production_id: int,
     moment_id: int,
-    body: MomentSetPieceCreate,
+    body: MomentSetPieceEventCreate,
     _director: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
-) -> MomentSetPieceResponse:
+) -> MomentSetPieceEventResponse:
     _get_moment_in_production_or_404(db, production_id, moment_id)
     _get_set_piece_or_404(db, production_id, body.set_piece_id)
+    validate_optional_person(db, production_id, body.character_id, body.user_id)
 
     existing = (
-        db.query(MomentSetPiece)
+        db.query(MomentSetPieceEvent)
         .filter(
-            MomentSetPiece.moment_id == moment_id,
-            MomentSetPiece.set_piece_id == body.set_piece_id,
+            MomentSetPieceEvent.moment_id == moment_id,
+            MomentSetPieceEvent.set_piece_id == body.set_piece_id,
         )
         .first()
     )
     if existing is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="This set piece is already attached to the moment",
+            detail="This set piece already has an event on this moment",
         )
 
-    moment_set_piece = MomentSetPiece(
+    event = MomentSetPieceEvent(
         moment_id=moment_id,
         set_piece_id=body.set_piece_id,
+        kind=body.kind,
+        character_id=body.character_id,
+        user_id=body.user_id,
         notes=body.notes,
     )
-    db.add(moment_set_piece)
+    db.add(event)
     db.commit()
-    moment_set_piece = (
-        db.query(MomentSetPiece)
-        .options(joinedload(MomentSetPiece.set_piece))
-        .filter(MomentSetPiece.id == moment_set_piece.id)
+    event = (
+        db.query(MomentSetPieceEvent)
+        .options(
+            joinedload(MomentSetPieceEvent.set_piece),
+            joinedload(MomentSetPieceEvent.character),
+            joinedload(MomentSetPieceEvent.user),
+        )
+        .filter(MomentSetPieceEvent.id == event.id)
         .one()
     )
-    return _moment_set_piece_response(moment_set_piece)
+    return _moment_set_piece_event_response(event)
+
+
+@router.patch(
+    "/{production_id}/moments/{moment_id}/set-pieces/{moment_set_piece_event_id}",
+    response_model=MomentSetPieceEventResponse,
+)
+def update_moment_set_piece_event(
+    production_id: int,
+    moment_id: int,
+    moment_set_piece_event_id: int,
+    body: MomentSetPieceEventUpdate,
+    _director: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> MomentSetPieceEventResponse:
+    _get_moment_in_production_or_404(db, production_id, moment_id)
+    event = (
+        db.query(MomentSetPieceEvent)
+        .filter(
+            MomentSetPieceEvent.id == moment_set_piece_event_id,
+            MomentSetPieceEvent.moment_id == moment_id,
+        )
+        .first()
+    )
+    if event is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Set piece event not found",
+        )
+    validate_optional_person(db, production_id, body.character_id, body.user_id)
+
+    event.kind = body.kind
+    event.character_id = body.character_id
+    event.user_id = body.user_id
+    event.notes = body.notes
+
+    db.commit()
+    event = (
+        db.query(MomentSetPieceEvent)
+        .options(
+            joinedload(MomentSetPieceEvent.set_piece),
+            joinedload(MomentSetPieceEvent.character),
+            joinedload(MomentSetPieceEvent.user),
+        )
+        .filter(MomentSetPieceEvent.id == event.id)
+        .one()
+    )
+    return _moment_set_piece_event_response(event)
 
 
 @router.delete(
-    "/{production_id}/moments/{moment_id}/set-pieces/{moment_set_piece_id}",
+    "/{production_id}/moments/{moment_id}/set-pieces/{moment_set_piece_event_id}",
     status_code=status.HTTP_204_NO_CONTENT,
 )
-def detach_moment_set_piece(
+def delete_moment_set_piece_event(
     production_id: int,
     moment_id: int,
-    moment_set_piece_id: int,
+    moment_set_piece_event_id: int,
     _director: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
 ) -> None:
     _get_moment_in_production_or_404(db, production_id, moment_id)
-    moment_set_piece = (
-        db.query(MomentSetPiece)
+    event = (
+        db.query(MomentSetPieceEvent)
         .filter(
-            MomentSetPiece.id == moment_set_piece_id,
-            MomentSetPiece.moment_id == moment_id,
+            MomentSetPieceEvent.id == moment_set_piece_event_id,
+            MomentSetPieceEvent.moment_id == moment_id,
         )
         .first()
     )
-    if moment_set_piece is None:
+    if event is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
-            detail="Set piece attachment not found",
+            detail="Set piece event not found",
         )
-    db.delete(moment_set_piece)
+    db.delete(event)
     db.commit()

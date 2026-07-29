@@ -1,6 +1,20 @@
-import { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Bookmark, Pencil, Trash2 } from "lucide-react";
+import type { LucideIcon } from "lucide-react";
+import {
+  Bookmark,
+  Layers,
+  LogIn,
+  LogOut,
+  Move,
+  Package,
+  Pencil,
+  Shirt,
+  Trash2,
+  Zap,
+} from "lucide-react";
+import SearchableSelect from "@/components/SearchableSelect";
+import type { SearchableSelectOption } from "@/components/SearchableSelect";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -13,8 +27,13 @@ import { useToast } from "@/context/ToastContext";
 import { api, ApiError, formatApiError } from "@/lib/api";
 import type {
   AppSettingsResponse,
+  AssetEventKind,
+  CastableUserResponse,
   CharacterDetailResponse,
+  CostumeResponse,
+  CostumeWearingResponse,
   CueCategoryResponse,
+  MomentCostumeEventResponse,
   MomentDetailResponse,
   MomentTypeResponse,
   PropResponse,
@@ -23,15 +42,125 @@ import type {
 } from "@/lib/types";
 import { cn, momentTypeLabel, sortByName } from "@/lib/utils";
 
-function costumesPagePath(
-  productionId: number,
-  sceneId: number | null,
-  detail: MomentDetailResponse,
+type PersonType = "none" | "character" | "user";
+
+function personTypeOf(characterId: number | null, userId: number | null): PersonType {
+  if (characterId !== null) return "character";
+  if (userId !== null) return "user";
+  return "none";
+}
+
+function encodePersonValue(
+  personType: PersonType,
+  characterId: string,
+  userId: string,
 ): string {
-  const params = new URLSearchParams();
-  if (sceneId !== null) {
-    params.set("sceneId", String(sceneId));
+  if (personType === "character" && characterId) return `character:${characterId}`;
+  if (personType === "user" && userId) return `user:${userId}`;
+  return "";
+}
+
+function decodePersonValue(value: string): {
+  personType: PersonType;
+  characterId: string;
+  userId: string;
+} {
+  if (value.startsWith("character:")) {
+    return { personType: "character", characterId: value.slice("character:".length), userId: "" };
   }
+  if (value.startsWith("user:")) {
+    return { personType: "user", characterId: "", userId: value.slice("user:".length) };
+  }
+  return { personType: "none", characterId: "", userId: "" };
+}
+
+function buildPersonOptions(
+  characters: CharacterDetailResponse[],
+  users: CastableUserResponse[],
+): SearchableSelectOption[] {
+  const characterOptions = characters.map((character) => ({
+    value: `character:${character.id}`,
+    label: character.name,
+    hint: "Character",
+    keywords: "character",
+  }));
+  const userOptions = users.map((user) => ({
+    value: `user:${user.id}`,
+    label: user.display_name,
+    hint: "User",
+    keywords: "user",
+  }));
+  return [...characterOptions, ...userOptions].sort((a, b) =>
+    a.label.localeCompare(b.label, undefined, { sensitivity: "base" }),
+  );
+}
+
+function KindToggle({
+  value,
+  onChange,
+  onLabel = "On",
+  offLabel = "Off",
+  disabled = false,
+}: {
+  value: AssetEventKind;
+  onChange: (kind: AssetEventKind) => void;
+  onLabel?: string;
+  offLabel?: string;
+  disabled?: boolean;
+}) {
+  return (
+    <div className="grid grid-cols-2 gap-1 rounded-md border border-border p-0.5">
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange("on")}
+        className={cn(
+          "rounded-sm px-3 py-1.5 text-sm transition-colors disabled:opacity-50",
+          value === "on" ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+        )}
+      >
+        {onLabel}
+      </button>
+      <button
+        type="button"
+        disabled={disabled}
+        onClick={() => onChange("off")}
+        className={cn(
+          "rounded-sm px-3 py-1.5 text-sm transition-colors disabled:opacity-50",
+          value === "off" ? "bg-primary text-primary-foreground" : "hover:bg-muted",
+        )}
+      >
+        {offLabel}
+      </button>
+    </div>
+  );
+}
+
+type AttachmentType =
+  | "prop"
+  | "cue"
+  | "set_piece"
+  | "costume"
+  | "entrance"
+  | "exit"
+  | "blocking";
+
+const ATTACHMENT_TYPE_OPTIONS: {
+  value: AttachmentType;
+  label: string;
+  icon: LucideIcon;
+}[] = [
+  { value: "prop", label: "Prop", icon: Package },
+  { value: "set_piece", label: "Set", icon: Layers },
+  { value: "costume", label: "Costume", icon: Shirt },
+  { value: "cue", label: "Cue", icon: Zap },
+  { value: "entrance", label: "Entrance", icon: LogIn },
+  { value: "exit", label: "Exit", icon: LogOut },
+  { value: "blocking", label: "Blocking", icon: Move },
+];
+
+function costumesPagePath(productionId: number, detail: MomentDetailResponse): string {
+  const params = new URLSearchParams();
   if (detail.dialogue.length === 1) {
     params.set("characterId", String(detail.dialogue[0].character_id));
   }
@@ -50,9 +179,11 @@ interface MomentDetailPanelProps {
   canEdit: boolean;
   canChooseVisibility: boolean;
   characters: CharacterDetailResponse[];
+  castableUsers: CastableUserResponse[];
   songs: SongDetailResponse[];
   propsCatalog: PropResponse[];
   setPiecesCatalog: SetPieceResponse[];
+  costumesCatalog: CostumeResponse[];
   cueCategories: CueCategoryResponse[];
   momentTypes: MomentTypeResponse[];
   appSettings: AppSettingsResponse;
@@ -66,13 +197,14 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     {
       productionId,
       detail,
-      sceneId,
       canEdit,
       canChooseVisibility,
       characters,
+      castableUsers,
       songs,
       propsCatalog,
       setPiecesCatalog,
+      costumesCatalog,
       cueCategories,
       momentTypes,
       appSettings,
@@ -86,6 +218,68 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     const toast = useToast();
 
     const sortedCharacters = sortByName(characters);
+    const sortedCastableUsers = [...castableUsers].sort((a, b) =>
+      a.display_name.localeCompare(b.display_name, undefined, { sensitivity: "base" }),
+    );
+    const personOptions = useMemo(
+      () => buildPersonOptions(sortByName(characters), [...castableUsers]),
+      [characters, castableUsers],
+    );
+    const characterOptions = useMemo(
+      () =>
+        sortByName(characters).map((character) => ({
+          value: String(character.id),
+          label: character.name,
+        })),
+      [characters],
+    );
+    const propOptions = useMemo(
+      () => propsCatalog.map((prop) => ({ value: String(prop.id), label: prop.name })),
+      [propsCatalog],
+    );
+    const setPieceOptions = useMemo(
+      () =>
+        setPiecesCatalog.map((piece) => ({ value: String(piece.id), label: piece.name })),
+      [setPiecesCatalog],
+    );
+    const cueCategoryOptions = useMemo(
+      () =>
+        cueCategories.map((category) => ({
+          value: String(category.id),
+          label: category.name,
+        })),
+      [cueCategories],
+    );
+    const costumeOptions = useMemo(
+      () =>
+        costumesCatalog.map((costume) => ({
+          value: String(costume.id),
+          label: costume.name,
+          hint: costume.character_name,
+          keywords: costume.character_name,
+        })),
+      [costumesCatalog],
+    );
+
+    const availableAttachmentTypes = useMemo(() => {
+      const available = new Set<AttachmentType>();
+      if (propsCatalog.length > 0) available.add("prop");
+      if (setPiecesCatalog.length > 0) available.add("set_piece");
+      if (costumesCatalog.length > 0 && characters.length > 0) available.add("costume");
+      if (cueCategories.length > 0) available.add("cue");
+      if (characters.length > 0) {
+        available.add("entrance");
+        available.add("exit");
+        available.add("blocking");
+      }
+      return ATTACHMENT_TYPE_OPTIONS.filter((option) => available.has(option.value));
+    }, [
+      propsCatalog.length,
+      setPiecesCatalog.length,
+      costumesCatalog.length,
+      cueCategories.length,
+      characters.length,
+    ]);
 
     const isSongRelated =
       detail.song_id != null ||
@@ -108,11 +302,23 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     );
 
     const [attachPropId, setAttachPropId] = useState("");
+    const [attachPropKind, setAttachPropKind] = useState<AssetEventKind>("on");
+    const [attachPropPersonType, setAttachPropPersonType] = useState<PersonType>("none");
     const [attachPropCharacterId, setAttachPropCharacterId] = useState("");
+    const [attachPropUserId, setAttachPropUserId] = useState("");
     const [attachPropNotes, setAttachPropNotes] = useState("");
 
     const [attachSetPieceId, setAttachSetPieceId] = useState("");
+    const [attachSetPieceKind, setAttachSetPieceKind] = useState<AssetEventKind>("on");
+    const [attachSetPiecePersonType, setAttachSetPiecePersonType] = useState<PersonType>("none");
+    const [attachSetPieceCharacterId, setAttachSetPieceCharacterId] = useState("");
+    const [attachSetPieceUserId, setAttachSetPieceUserId] = useState("");
     const [attachSetPieceNotes, setAttachSetPieceNotes] = useState("");
+
+    const [attachCostumeCharacterId, setAttachCostumeCharacterId] = useState("");
+    const [attachCostumeKind, setAttachCostumeKind] = useState<AssetEventKind>("on");
+    const [attachCostumeId, setAttachCostumeId] = useState("");
+    const [attachCostumeNotes, setAttachCostumeNotes] = useState("");
 
     const [attachEntranceCharacterId, setAttachEntranceCharacterId] = useState("");
     const [attachEntranceNotes, setAttachEntranceNotes] = useState("");
@@ -125,6 +331,45 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     const [newCueTitle, setNewCueTitle] = useState("");
     const [newCueNotes, setNewCueNotes] = useState("");
     const [addAttachmentType, setAddAttachmentType] = useState("");
+    const [addSectionExpanded, setAddSectionExpanded] = useState(true);
+
+    function resetAttachmentDraft() {
+      setAttachPropId("");
+      setAttachPropKind("on");
+      setAttachPropPersonType("none");
+      setAttachPropCharacterId("");
+      setAttachPropUserId("");
+      setAttachPropNotes("");
+      setAttachSetPieceId("");
+      setAttachSetPieceKind("on");
+      setAttachSetPiecePersonType("none");
+      setAttachSetPieceCharacterId("");
+      setAttachSetPieceUserId("");
+      setAttachSetPieceNotes("");
+      setAttachCostumeCharacterId("");
+      setAttachCostumeKind("on");
+      setAttachCostumeId("");
+      setAttachCostumeNotes("");
+      setAttachEntranceCharacterId("");
+      setAttachEntranceNotes("");
+      setAttachExitCharacterId("");
+      setAttachExitNotes("");
+      setAttachBlockingCharacterId("");
+      setAttachBlockingNotes("");
+      setNewCueCategoryId("");
+      setNewCueTitle("");
+      setNewCueNotes("");
+    }
+
+    function selectAttachmentType(next: AttachmentType) {
+      if (addAttachmentType === next) {
+        setAddAttachmentType("");
+        resetAttachmentDraft();
+        return;
+      }
+      setAddAttachmentType(next);
+      resetAttachmentDraft();
+    }
 
     const detailRef = useRef(detail);
     detailRef.current = detail;
@@ -288,21 +533,56 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     async function handleAttachProp(event: React.FormEvent) {
       event.preventDefault();
       if (!attachPropId) return;
+      if (attachPropPersonType === "character" && !attachPropCharacterId) return;
+      if (attachPropPersonType === "user" && !attachPropUserId) return;
 
       setSaving(true);
       try {
         await api.attachMomentProp(productionId, detail.id, {
           prop_id: Number(attachPropId),
-          character_id: attachPropCharacterId ? Number(attachPropCharacterId) : null,
+          kind: attachPropKind,
+          character_id:
+            attachPropPersonType === "character" && attachPropCharacterId
+              ? Number(attachPropCharacterId)
+              : null,
+          user_id:
+            attachPropPersonType === "user" && attachPropUserId
+              ? Number(attachPropUserId)
+              : null,
           notes: attachPropNotes.trim() || null,
         });
         setAttachPropId("");
+        setAttachPropKind("on");
+        setAttachPropPersonType("none");
         setAttachPropCharacterId("");
+        setAttachPropUserId("");
         setAttachPropNotes("");
         onChanged();
-        toast.success("Prop added");
+        toast.success("Prop event added");
       } catch (err) {
-        toast.error(formatApiError(err, "Failed to attach prop"));
+        toast.error(formatApiError(err, "Failed to add prop event"));
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function handleUpdateMomentProp(
+      momentPropId: number,
+      body: {
+        kind: AssetEventKind;
+        character_id: number | null;
+        user_id: number | null;
+        notes: string | null;
+      },
+    ) {
+      setSaving(true);
+      try {
+        await api.updateMomentProp(productionId, detail.id, momentPropId, body);
+        onChanged();
+        toast.success("Prop event updated");
+      } catch (err) {
+        toast.error(formatApiError(err, "Failed to update prop event"));
+        throw err;
       } finally {
         setSaving(false);
       }
@@ -310,7 +590,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
     async function handleDetachProp(momentPropId: number) {
       const ok = await confirm({
-        title: "Remove this prop from the moment?",
+        title: "Remove this prop event from the moment?",
         confirmLabel: "Remove",
         destructive: true,
       });
@@ -320,9 +600,9 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       try {
         await api.detachMomentProp(productionId, detail.id, momentPropId);
         onChanged();
-        toast.success("Prop removed");
+        toast.success("Prop event removed");
       } catch (err) {
-        toast.error(formatApiError(err, "Failed to detach prop"));
+        toast.error(formatApiError(err, "Failed to detach prop event"));
       } finally {
         setSaving(false);
       }
@@ -331,19 +611,56 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     async function handleAttachSetPiece(event: React.FormEvent) {
       event.preventDefault();
       if (!attachSetPieceId) return;
+      if (attachSetPiecePersonType === "character" && !attachSetPieceCharacterId) return;
+      if (attachSetPiecePersonType === "user" && !attachSetPieceUserId) return;
 
       setSaving(true);
       try {
         await api.attachMomentSetPiece(productionId, detail.id, {
           set_piece_id: Number(attachSetPieceId),
+          kind: attachSetPieceKind,
+          character_id:
+            attachSetPiecePersonType === "character" && attachSetPieceCharacterId
+              ? Number(attachSetPieceCharacterId)
+              : null,
+          user_id:
+            attachSetPiecePersonType === "user" && attachSetPieceUserId
+              ? Number(attachSetPieceUserId)
+              : null,
           notes: attachSetPieceNotes.trim() || null,
         });
         setAttachSetPieceId("");
+        setAttachSetPieceKind("on");
+        setAttachSetPiecePersonType("none");
+        setAttachSetPieceCharacterId("");
+        setAttachSetPieceUserId("");
         setAttachSetPieceNotes("");
         onChanged();
-        toast.success("Set piece added");
+        toast.success("Set piece event added");
       } catch (err) {
-        toast.error(formatApiError(err, "Failed to attach set piece"));
+        toast.error(formatApiError(err, "Failed to add set piece event"));
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function handleUpdateMomentSetPiece(
+      momentSetPieceId: number,
+      body: {
+        kind: AssetEventKind;
+        character_id: number | null;
+        user_id: number | null;
+        notes: string | null;
+      },
+    ) {
+      setSaving(true);
+      try {
+        await api.updateMomentSetPiece(productionId, detail.id, momentSetPieceId, body);
+        onChanged();
+        toast.success("Set piece event updated");
+      } catch (err) {
+        toast.error(formatApiError(err, "Failed to update set piece event"));
+        throw err;
       } finally {
         setSaving(false);
       }
@@ -351,7 +668,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
     async function handleDetachSetPiece(momentSetPieceId: number) {
       const ok = await confirm({
-        title: "Remove this set piece from the moment?",
+        title: "Remove this set piece event from the moment?",
         confirmLabel: "Remove",
         destructive: true,
       });
@@ -361,9 +678,72 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       try {
         await api.detachMomentSetPiece(productionId, detail.id, momentSetPieceId);
         onChanged();
-        toast.success("Set piece removed");
+        toast.success("Set piece event removed");
       } catch (err) {
-        toast.error(formatApiError(err, "Failed to detach set piece"));
+        toast.error(formatApiError(err, "Failed to detach set piece event"));
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function handleAttachCostume(event: React.FormEvent) {
+      event.preventDefault();
+      if (!attachCostumeCharacterId) return;
+      if (attachCostumeKind === "on" && !attachCostumeId) return;
+
+      setSaving(true);
+      try {
+        await api.attachMomentCostume(productionId, detail.id, {
+          character_id: Number(attachCostumeCharacterId),
+          kind: attachCostumeKind,
+          costume_id: attachCostumeId ? Number(attachCostumeId) : null,
+          notes: attachCostumeNotes.trim() || null,
+        });
+        setAttachCostumeCharacterId("");
+        setAttachCostumeKind("on");
+        setAttachCostumeId("");
+        setAttachCostumeNotes("");
+        onChanged();
+        toast.success("Costume event added");
+      } catch (err) {
+        toast.error(formatApiError(err, "Failed to add costume event"));
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function handleUpdateMomentCostume(
+      momentCostumeId: number,
+      body: { kind: AssetEventKind; costume_id: number | null; notes: string | null },
+    ) {
+      setSaving(true);
+      try {
+        await api.updateMomentCostume(productionId, detail.id, momentCostumeId, body);
+        onChanged();
+        toast.success("Costume event updated");
+      } catch (err) {
+        toast.error(formatApiError(err, "Failed to update costume event"));
+        throw err;
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function handleDetachCostume(momentCostumeId: number) {
+      const ok = await confirm({
+        title: "Remove this costume event from the moment?",
+        confirmLabel: "Remove",
+        destructive: true,
+      });
+      if (!ok) return;
+
+      setSaving(true);
+      try {
+        await api.detachMomentCostume(productionId, detail.id, momentCostumeId);
+        onChanged();
+        toast.success("Costume event removed");
+      } catch (err) {
+        toast.error(formatApiError(err, "Failed to detach costume event"));
       } finally {
         setSaving(false);
       }
@@ -768,108 +1148,123 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
         {canEdit && (
           <div className="rounded-md border border-border p-3">
-            <label className="block text-sm font-medium">
-              Add to moment
-              <select
-                value={addAttachmentType}
-                onChange={(e) => setAddAttachmentType(e.target.value)}
-                className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Choose attachment type…</option>
-                {propsCatalog.length > 0 && <option value="prop">Prop</option>}
-                {cueCategories.length > 0 && <option value="cue">Cue</option>}
-                {setPiecesCatalog.length > 0 && <option value="set_piece">Set piece</option>}
-                {characters.length > 0 && <option value="entrance">Entrance</option>}
-                {characters.length > 0 && <option value="exit">Exit</option>}
-                {characters.length > 0 && <option value="blocking">Blocking</option>}
-              </select>
-            </label>
+            <button
+              type="button"
+              onClick={() => setAddSectionExpanded((open) => !open)}
+              className="flex w-full items-center justify-between gap-2 text-left"
+              aria-expanded={addSectionExpanded}
+            >
+              <span className="text-sm font-medium">Add to moment</span>
+              <span className="text-xs text-muted-foreground">
+                {addSectionExpanded ? "▾" : "▸"}
+              </span>
+            </button>
 
-            {propsCatalog.length === 0 &&
-              cueCategories.length === 0 &&
-              setPiecesCatalog.length === 0 && (
-                <p className="mt-2 text-xs text-muted-foreground">
-                  Need something to attach? Create items in{" "}
-                  <Link
-                    to={`/productions/${productionId}/props`}
-                    className="underline hover:text-foreground"
-                  >
-                    Props
-                  </Link>
-                  ,{" "}
-                  <Link
-                    to={`/productions/${productionId}/cue-categories`}
-                    className="underline hover:text-foreground"
-                  >
-                    Cue Categories
-                  </Link>
-                  , or{" "}
-                  <Link
-                    to={`/productions/${productionId}/set-pieces`}
-                    className="underline hover:text-foreground"
-                  >
-                    Set Pieces
-                  </Link>{" "}
-                  first.
-                </p>
-              )}
-
-            <p className="mt-2 text-xs text-muted-foreground">
-              Costumes are assigned by character and scene — manage them on the{" "}
-              <Link
-                to={costumesPagePath(productionId, sceneId, detail)}
-                className="underline hover:text-foreground"
+            {addSectionExpanded && (
+              <>
+            {availableAttachmentTypes.length > 0 ? (
+              <div
+                className="mt-2 grid grid-cols-4 gap-1.5 sm:grid-cols-7"
+                role="group"
+                aria-label="Attachment type"
               >
-                Costumes
-              </Link>{" "}
-              page.
-            </p>
+                {availableAttachmentTypes.map((option) => {
+                  const Icon = option.icon;
+                  const selected = addAttachmentType === option.value;
+                  return (
+                    <button
+                      key={option.value}
+                      type="button"
+                      title={option.label}
+                      aria-pressed={selected}
+                      onClick={() => selectAttachmentType(option.value)}
+                      className={cn(
+                        "flex flex-col items-center gap-1 rounded-md border px-1.5 py-2 text-[10px] font-medium transition-colors",
+                        selected
+                          ? "border-primary bg-primary/10 text-foreground"
+                          : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
+                      )}
+                    >
+                      <Icon className="size-4" />
+                      <span className="leading-tight">{option.label}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            ) : (
+              <p className="mt-2 text-xs text-muted-foreground">
+                Need something to attach? Create items in{" "}
+                <Link
+                  to={`/productions/${productionId}/props`}
+                  className="underline hover:text-foreground"
+                >
+                  Props
+                </Link>
+                ,{" "}
+                <Link
+                  to={`/productions/${productionId}/cue-categories`}
+                  className="underline hover:text-foreground"
+                >
+                  Cue Categories
+                </Link>
+                ,{" "}
+                <Link
+                  to={`/productions/${productionId}/set-pieces`}
+                  className="underline hover:text-foreground"
+                >
+                  Set Pieces
+                </Link>
+                , or{" "}
+                <Link
+                  to={costumesPagePath(productionId, detail)}
+                  className="underline hover:text-foreground"
+                >
+                  Costumes
+                </Link>{" "}
+                first.
+              </p>
+            )}
 
             {addAttachmentType === "prop" && propsCatalog.length > 0 && (
               <form onSubmit={(e) => void handleAttachProp(e)} className="mt-3 space-y-2">
-                <select
+                <SearchableSelect
+                  options={propOptions}
                   value={attachPropId}
-                  onChange={(e) => {
-                    setAttachPropId(e.target.value);
-                    if (!e.target.value) {
-                      setAttachPropCharacterId("");
-                      setAttachPropNotes("");
-                    }
+                  onChange={setAttachPropId}
+                  placeholder="Select prop…"
+                  clearLabel="Clear selection"
+                />
+                <KindToggle value={attachPropKind} onChange={setAttachPropKind} />
+                <SearchableSelect
+                  options={personOptions}
+                  value={encodePersonValue(
+                    attachPropPersonType,
+                    attachPropCharacterId,
+                    attachPropUserId,
+                  )}
+                  onChange={(next) => {
+                    const decoded = decodePersonValue(next);
+                    setAttachPropPersonType(decoded.personType);
+                    setAttachPropCharacterId(decoded.characterId);
+                    setAttachPropUserId(decoded.userId);
                   }}
+                  placeholder="Person (optional)"
+                  clearLabel="No person"
+                />
+                <input
+                  value={attachPropNotes}
+                  onChange={(e) => setAttachPropNotes(e.target.value)}
+                  placeholder="Notes (optional)"
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Select prop…</option>
-                  {propsCatalog.map((prop) => (
-                    <option key={prop.id} value={String(prop.id)}>
-                      {prop.name}
-                    </option>
-                  ))}
-                </select>
-                {attachPropId && (
-                  <>
-                    <select
-                      value={attachPropCharacterId}
-                      onChange={(e) => setAttachPropCharacterId(e.target.value)}
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                      <option value="">No carrier character</option>
-                      {sortedCharacters.map((character) => (
-                        <option key={character.id} value={String(character.id)}>
-                          {character.name}
-                        </option>
-                      ))}
-                    </select>
-                    <input
-                      value={attachPropNotes}
-                      onChange={(e) => setAttachPropNotes(e.target.value)}
-                      placeholder="Notes (optional)"
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    />
-                  </>
-                )}
+                />
                 <button
                   type="submit"
-                  disabled={saving || !attachPropId}
+                  disabled={
+                    saving ||
+                    !attachPropId ||
+                    (attachPropPersonType === "character" && !attachPropCharacterId) ||
+                    (attachPropPersonType === "user" && !attachPropUserId)
+                  }
                   className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
                 >
                   Add
@@ -879,40 +1274,25 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
             {addAttachmentType === "cue" && cueCategories.length > 0 && (
               <form onSubmit={(e) => void handleAddCue(e)} className="mt-3 space-y-2">
-                <select
+                <SearchableSelect
+                  options={cueCategoryOptions}
                   value={newCueCategoryId}
-                  onChange={(e) => {
-                    setNewCueCategoryId(e.target.value);
-                    if (!e.target.value) {
-                      setNewCueTitle("");
-                      setNewCueNotes("");
-                    }
-                  }}
+                  onChange={setNewCueCategoryId}
+                  placeholder="Select category…"
+                  clearLabel="Clear selection"
+                />
+                <input
+                  value={newCueTitle}
+                  onChange={(e) => setNewCueTitle(e.target.value)}
+                  placeholder="Cue title"
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Select category…</option>
-                  {cueCategories.map((category) => (
-                    <option key={category.id} value={String(category.id)}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-                {newCueCategoryId && (
-                  <>
-                    <input
-                      value={newCueTitle}
-                      onChange={(e) => setNewCueTitle(e.target.value)}
-                      placeholder="Cue title"
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    />
-                    <input
-                      value={newCueNotes}
-                      onChange={(e) => setNewCueNotes(e.target.value)}
-                      placeholder="Notes (optional)"
-                      className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    />
-                  </>
-                )}
+                />
+                <input
+                  value={newCueNotes}
+                  onChange={(e) => setNewCueNotes(e.target.value)}
+                  placeholder="Notes (optional)"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
                 <button
                   type="submit"
                   disabled={saving || !newCueCategoryId || !newCueTitle.trim()}
@@ -925,32 +1305,91 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
             {addAttachmentType === "set_piece" && setPiecesCatalog.length > 0 && (
               <form onSubmit={(e) => void handleAttachSetPiece(e)} className="mt-3 space-y-2">
-                <select
+                <SearchableSelect
+                  options={setPieceOptions}
                   value={attachSetPieceId}
-                  onChange={(e) => {
-                    setAttachSetPieceId(e.target.value);
-                    if (!e.target.value) setAttachSetPieceNotes("");
+                  onChange={setAttachSetPieceId}
+                  placeholder="Select set piece…"
+                  clearLabel="Clear selection"
+                />
+                <KindToggle value={attachSetPieceKind} onChange={setAttachSetPieceKind} />
+                <SearchableSelect
+                  options={personOptions}
+                  value={encodePersonValue(
+                    attachSetPiecePersonType,
+                    attachSetPieceCharacterId,
+                    attachSetPieceUserId,
+                  )}
+                  onChange={(next) => {
+                    const decoded = decodePersonValue(next);
+                    setAttachSetPiecePersonType(decoded.personType);
+                    setAttachSetPieceCharacterId(decoded.characterId);
+                    setAttachSetPieceUserId(decoded.userId);
                   }}
+                  placeholder="Person (optional)"
+                  clearLabel="No person"
+                />
+                <input
+                  value={attachSetPieceNotes}
+                  onChange={(e) => setAttachSetPieceNotes(e.target.value)}
+                  placeholder="Notes (optional)"
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Select set piece…</option>
-                  {setPiecesCatalog.map((piece) => (
-                    <option key={piece.id} value={String(piece.id)}>
-                      {piece.name}
-                    </option>
-                  ))}
-                </select>
-                {attachSetPieceId && (
-                  <input
-                    value={attachSetPieceNotes}
-                    onChange={(e) => setAttachSetPieceNotes(e.target.value)}
-                    placeholder="Notes (optional)"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
-                )}
+                />
                 <button
                   type="submit"
-                  disabled={saving || !attachSetPieceId}
+                  disabled={
+                    saving ||
+                    !attachSetPieceId ||
+                    (attachSetPiecePersonType === "character" && !attachSetPieceCharacterId) ||
+                    (attachSetPiecePersonType === "user" && !attachSetPieceUserId)
+                  }
+                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
+                >
+                  Add
+                </button>
+              </form>
+            )}
+
+            {addAttachmentType === "costume" && costumesCatalog.length > 0 && (
+              <form onSubmit={(e) => void handleAttachCostume(e)} className="mt-3 space-y-2">
+                <SearchableSelect
+                  options={characterOptions}
+                  value={attachCostumeCharacterId}
+                  onChange={setAttachCostumeCharacterId}
+                  placeholder="Select character…"
+                  clearLabel="Clear selection"
+                />
+                <KindToggle
+                  value={attachCostumeKind}
+                  onChange={(kind) => {
+                    setAttachCostumeKind(kind);
+                    if (kind === "off") setAttachCostumeId("");
+                  }}
+                  onLabel="Wear"
+                  offLabel="Clear"
+                />
+                {attachCostumeKind === "on" && (
+                  <SearchableSelect
+                    options={costumeOptions}
+                    value={attachCostumeId}
+                    onChange={setAttachCostumeId}
+                    placeholder="Select costume…"
+                    clearLabel="Clear selection"
+                  />
+                )}
+                <input
+                  value={attachCostumeNotes}
+                  onChange={(e) => setAttachCostumeNotes(e.target.value)}
+                  placeholder="Notes (optional)"
+                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                />
+                <button
+                  type="submit"
+                  disabled={
+                    saving ||
+                    !attachCostumeCharacterId ||
+                    (attachCostumeKind === "on" && !attachCostumeId)
+                  }
                   className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
                 >
                   Add
@@ -960,29 +1399,19 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
             {addAttachmentType === "entrance" && characters.length > 0 && (
               <form onSubmit={(e) => void handleAttachEntrance(e)} className="mt-3 space-y-2">
-                <select
+                <SearchableSelect
+                  options={characterOptions}
                   value={attachEntranceCharacterId}
-                  onChange={(e) => {
-                    setAttachEntranceCharacterId(e.target.value);
-                    if (!e.target.value) setAttachEntranceNotes("");
-                  }}
+                  onChange={setAttachEntranceCharacterId}
+                  placeholder="Select character…"
+                  clearLabel="Clear selection"
+                />
+                <input
+                  value={attachEntranceNotes}
+                  onChange={(e) => setAttachEntranceNotes(e.target.value)}
+                  placeholder="Notes (optional)"
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Select character…</option>
-                  {sortedCharacters.map((character) => (
-                    <option key={character.id} value={String(character.id)}>
-                      {character.name}
-                    </option>
-                  ))}
-                </select>
-                {attachEntranceCharacterId && (
-                  <input
-                    value={attachEntranceNotes}
-                    onChange={(e) => setAttachEntranceNotes(e.target.value)}
-                    placeholder="Notes (optional)"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
-                )}
+                />
                 <button
                   type="submit"
                   disabled={saving || !attachEntranceCharacterId}
@@ -995,29 +1424,19 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
             {addAttachmentType === "exit" && characters.length > 0 && (
               <form onSubmit={(e) => void handleAttachExit(e)} className="mt-3 space-y-2">
-                <select
+                <SearchableSelect
+                  options={characterOptions}
                   value={attachExitCharacterId}
-                  onChange={(e) => {
-                    setAttachExitCharacterId(e.target.value);
-                    if (!e.target.value) setAttachExitNotes("");
-                  }}
+                  onChange={setAttachExitCharacterId}
+                  placeholder="Select character…"
+                  clearLabel="Clear selection"
+                />
+                <input
+                  value={attachExitNotes}
+                  onChange={(e) => setAttachExitNotes(e.target.value)}
+                  placeholder="Notes (optional)"
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Select character…</option>
-                  {sortedCharacters.map((character) => (
-                    <option key={character.id} value={String(character.id)}>
-                      {character.name}
-                    </option>
-                  ))}
-                </select>
-                {attachExitCharacterId && (
-                  <input
-                    value={attachExitNotes}
-                    onChange={(e) => setAttachExitNotes(e.target.value)}
-                    placeholder="Notes (optional)"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                  />
-                )}
+                />
                 <button
                   type="submit"
                   disabled={saving || !attachExitCharacterId}
@@ -1030,27 +1449,20 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
             {addAttachmentType === "blocking" && characters.length > 0 && (
               <form onSubmit={(e) => void handleAttachBlocking(e)} className="mt-3 space-y-2">
-                <select
+                <SearchableSelect
+                  options={characterOptions}
                   value={attachBlockingCharacterId}
-                  onChange={(e) => setAttachBlockingCharacterId(e.target.value)}
+                  onChange={setAttachBlockingCharacterId}
+                  placeholder="Select character…"
+                  clearLabel="Clear selection"
+                />
+                <textarea
+                  value={attachBlockingNotes}
+                  onChange={(e) => setAttachBlockingNotes(e.target.value)}
+                  placeholder="Blocking notes"
                   className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                >
-                  <option value="">Select character…</option>
-                  {sortedCharacters.map((character) => (
-                    <option key={character.id} value={String(character.id)}>
-                      {character.name}
-                    </option>
-                  ))}
-                </select>
-                {attachBlockingCharacterId && (
-                  <textarea
-                    value={attachBlockingNotes}
-                    onChange={(e) => setAttachBlockingNotes(e.target.value)}
-                    placeholder="Blocking notes"
-                    className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    rows={2}
-                  />
-                )}
+                  rows={2}
+                />
                 <button
                   type="submit"
                   disabled={
@@ -1062,38 +1474,76 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                 </button>
               </form>
             )}
+              </>
+            )}
           </div>
         )}
 
-        <AttachmentSection
+        <AssetEventSection
           title="Props"
-          emptyMessage="No props attached."
+          emptyMessage="No prop events on this moment."
           canEdit={canEdit}
           saving={saving}
           defaultExpanded={detail.props.length > 0}
-          items={detail.props.map((prop) => ({
+          events={detail.props.map((prop) => ({
             id: prop.id,
-            label: prop.prop_name,
-            sublabel: prop.character_name ?? undefined,
-            notes: prop.notes ?? undefined,
+            assetName: prop.prop_name,
+            kind: prop.kind as AssetEventKind,
+            character_id: prop.character_id,
+            character_name: prop.character_name,
+            user_id: prop.user_id,
+            user_display_name: prop.user_display_name,
+            notes: prop.notes,
           }))}
+          characters={sortedCharacters}
+          castableUsers={sortedCastableUsers}
+          onUpdate={handleUpdateMomentProp}
           onDetach={handleDetachProp}
           catalogLength={propsCatalog.length}
+          inPlay={detail.props_in_play.map((item) => ({
+            key: `prop-in-play-${item.prop_id}`,
+            label: item.prop_name,
+            personLabel: item.character_name ?? item.user_display_name,
+          }))}
         />
 
-        <AttachmentSection
+        <AssetEventSection
           title="Set pieces"
-          emptyMessage="No set pieces attached."
+          emptyMessage="No set piece events on this moment."
           canEdit={canEdit}
           saving={saving}
           defaultExpanded={detail.set_pieces.length > 0}
-          items={detail.set_pieces.map((piece) => ({
+          events={detail.set_pieces.map((piece) => ({
             id: piece.id,
-            label: piece.set_piece_name,
-            notes: piece.notes ?? undefined,
+            assetName: piece.set_piece_name,
+            kind: piece.kind as AssetEventKind,
+            character_id: piece.character_id,
+            character_name: piece.character_name,
+            user_id: piece.user_id,
+            user_display_name: piece.user_display_name,
+            notes: piece.notes,
           }))}
+          characters={sortedCharacters}
+          castableUsers={sortedCastableUsers}
+          onUpdate={handleUpdateMomentSetPiece}
           onDetach={handleDetachSetPiece}
           catalogLength={setPiecesCatalog.length}
+          inPlay={detail.set_pieces_in_play.map((item) => ({
+            key: `set-piece-in-play-${item.set_piece_id}`,
+            label: item.set_piece_name,
+            personLabel: item.character_name ?? item.user_display_name,
+          }))}
+        />
+
+        <CostumeEventSection
+          canEdit={canEdit}
+          saving={saving}
+          defaultExpanded={detail.costume_events.length > 0}
+          events={detail.costume_events}
+          costumesCatalog={costumesCatalog}
+          onUpdate={handleUpdateMomentCostume}
+          onDetach={handleDetachCostume}
+          wearing={detail.costumes_wearing}
         />
 
         <AttachmentSection
@@ -1260,6 +1710,9 @@ function AttachmentSection({
   attachForm?: React.ReactNode;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  useEffect(() => {
+    setExpanded(defaultExpanded);
+  }, [defaultExpanded]);
   const hasContent = items.length > 0;
 
   return (
@@ -1328,6 +1781,534 @@ function AttachmentSection({
         </>
       )}
     </div>
+  );
+}
+
+interface AssetEventItem {
+  id: number;
+  assetName: string;
+  kind: AssetEventKind;
+  character_id: number | null;
+  character_name: string | null;
+  user_id: number | null;
+  user_display_name: string | null;
+  notes: string | null;
+}
+
+interface AssetInPlayItem {
+  key: string;
+  label: string;
+  personLabel: string | null;
+}
+
+function AssetEventSection({
+  title,
+  emptyMessage,
+  canEdit,
+  saving,
+  events,
+  characters,
+  castableUsers,
+  onUpdate,
+  onDetach,
+  catalogLength,
+  defaultExpanded = true,
+  inPlay,
+}: {
+  title: string;
+  emptyMessage: string;
+  canEdit: boolean;
+  saving: boolean;
+  events: AssetEventItem[];
+  characters: CharacterDetailResponse[];
+  castableUsers: CastableUserResponse[];
+  onUpdate: (
+    eventId: number,
+    body: {
+      kind: AssetEventKind;
+      character_id: number | null;
+      user_id: number | null;
+      notes: string | null;
+    },
+  ) => void | Promise<void>;
+  onDetach: (eventId: number) => void;
+  catalogLength: number;
+  defaultExpanded?: boolean;
+  inPlay: AssetInPlayItem[];
+}) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  useEffect(() => {
+    setExpanded(defaultExpanded);
+  }, [defaultExpanded]);
+
+  return (
+    <div className="border-t border-border pt-4">
+      <button
+        type="button"
+        onClick={() => setExpanded((open) => !open)}
+        className="flex w-full items-center justify-between gap-2 text-left"
+      >
+        <h3 className="text-sm font-medium">{title}</h3>
+        <span className="text-xs text-muted-foreground">
+          {events.length > 0 ? `${events.length}` : "—"} {expanded ? "▾" : "▸"}
+        </span>
+      </button>
+
+      {inPlay.length > 0 && (
+        <div className="mt-2 rounded-md bg-muted/40 px-3 py-2">
+          <h4 className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            Currently in play
+          </h4>
+          <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+            {inPlay.map((item) => (
+              <li key={item.key}>
+                <span className="font-medium text-foreground">{item.label}</span>
+                {item.personLabel ? ` — ${item.personLabel}` : ""}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {expanded && (
+        <>
+          {events.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">{emptyMessage}</p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {events.map((event) => (
+                <AssetEventRow
+                  key={event.id}
+                  event={event}
+                  canEdit={canEdit}
+                  saving={saving}
+                  characters={characters}
+                  castableUsers={castableUsers}
+                  onUpdate={onUpdate}
+                  onDetach={onDetach}
+                />
+              ))}
+            </ul>
+          )}
+
+          {canEdit && catalogLength === 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Add {title.toLowerCase()} to the catalog to attach them here.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function AssetEventRow({
+  event,
+  canEdit,
+  saving,
+  characters,
+  castableUsers,
+  onUpdate,
+  onDetach,
+}: {
+  event: AssetEventItem;
+  canEdit: boolean;
+  saving: boolean;
+  characters: CharacterDetailResponse[];
+  castableUsers: CastableUserResponse[];
+  onUpdate: (
+    eventId: number,
+    body: {
+      kind: AssetEventKind;
+      character_id: number | null;
+      user_id: number | null;
+      notes: string | null;
+    },
+  ) => void | Promise<void>;
+  onDetach: (eventId: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [kind, setKind] = useState<AssetEventKind>(event.kind);
+  const [personType, setPersonType] = useState<PersonType>(
+    personTypeOf(event.character_id, event.user_id),
+  );
+  const [characterId, setCharacterId] = useState(
+    event.character_id !== null ? String(event.character_id) : "",
+  );
+  const [userId, setUserId] = useState(event.user_id !== null ? String(event.user_id) : "");
+  const [notes, setNotes] = useState(event.notes ?? "");
+
+  useEffect(() => {
+    setKind(event.kind);
+    setPersonType(personTypeOf(event.character_id, event.user_id));
+    setCharacterId(event.character_id !== null ? String(event.character_id) : "");
+    setUserId(event.user_id !== null ? String(event.user_id) : "");
+    setNotes(event.notes ?? "");
+  }, [event.id, event.kind, event.character_id, event.user_id, event.notes]);
+
+  const personLabel = event.character_name ?? event.user_display_name;
+  const personReady =
+    personType === "none" ||
+    (personType === "character" && Boolean(characterId)) ||
+    (personType === "user" && Boolean(userId));
+
+  async function handleSave() {
+    if (!personReady) return;
+    try {
+      await onUpdate(event.id, {
+        kind,
+        character_id: personType === "character" && characterId ? Number(characterId) : null,
+        user_id: personType === "user" && userId ? Number(userId) : null,
+        notes: notes.trim() || null,
+      });
+      setEditing(false);
+    } catch {
+      // Parent already toasted; keep the edit form open with the user's draft.
+    }
+  }
+
+  function handleCancel() {
+    setKind(event.kind);
+    setPersonType(personTypeOf(event.character_id, event.user_id));
+    setCharacterId(event.character_id !== null ? String(event.character_id) : "");
+    setUserId(event.user_id !== null ? String(event.user_id) : "");
+    setNotes(event.notes ?? "");
+    setEditing(false);
+  }
+
+  return (
+    <li className="rounded-md border border-border p-2 text-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium">{event.assetName}</span>
+            <Badge
+              variant={event.kind === "on" ? "default" : "secondary"}
+              className="uppercase"
+            >
+              {event.kind === "on" ? "On" : "Off"}
+            </Badge>
+          </div>
+          {personLabel && <p className="text-muted-foreground">{personLabel}</p>}
+          {!editing && event.notes && (
+            <p className="mt-1 text-muted-foreground">{event.notes}</p>
+          )}
+
+          {editing && (
+            <div className="mt-2 space-y-2">
+              <KindToggle value={kind} onChange={setKind} />
+              <SearchableSelect
+                options={buildPersonOptions(characters, castableUsers)}
+                value={encodePersonValue(personType, characterId, userId)}
+                onChange={(next) => {
+                  const decoded = decodePersonValue(next);
+                  setPersonType(decoded.personType);
+                  setCharacterId(decoded.characterId);
+                  setUserId(decoded.userId);
+                }}
+                placeholder="Person (optional)"
+                clearLabel="No person"
+              />
+              <input
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Notes (optional)"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={saving || !personReady}
+                  onClick={() => void handleSave()}
+                >
+                  Save
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={saving}
+                  onClick={handleCancel}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+        {canEdit && !editing && (
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              disabled={saving}
+              onClick={() => setEditing(true)}
+              aria-label={`Edit ${event.assetName} event`}
+              title="Edit"
+            >
+              <Pencil />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              disabled={saving}
+              onClick={() => onDetach(event.id)}
+              aria-label={`Remove ${event.assetName} event`}
+              title="Remove"
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 />
+            </Button>
+          </div>
+        )}
+      </div>
+    </li>
+  );
+}
+
+function CostumeEventSection({
+  canEdit,
+  saving,
+  events,
+  costumesCatalog,
+  onUpdate,
+  onDetach,
+  defaultExpanded = true,
+  wearing,
+}: {
+  canEdit: boolean;
+  saving: boolean;
+  events: MomentCostumeEventResponse[];
+  costumesCatalog: CostumeResponse[];
+  onUpdate: (
+    eventId: number,
+    body: { kind: AssetEventKind; costume_id: number | null; notes: string | null },
+  ) => void | Promise<void>;
+  onDetach: (eventId: number) => void;
+  defaultExpanded?: boolean;
+  wearing: CostumeWearingResponse[];
+}) {
+  const [expanded, setExpanded] = useState(defaultExpanded);
+  useEffect(() => {
+    setExpanded(defaultExpanded);
+  }, [defaultExpanded]);
+
+  return (
+    <div className="border-t border-border pt-4">
+      <button
+        type="button"
+        onClick={() => setExpanded((open) => !open)}
+        className="flex w-full items-center justify-between gap-2 text-left"
+      >
+        <h3 className="text-sm font-medium">Costumes</h3>
+        <span className="text-xs text-muted-foreground">
+          {events.length > 0 ? `${events.length}` : "—"} {expanded ? "▾" : "▸"}
+        </span>
+      </button>
+
+      {wearing.length > 0 && (
+        <div className="mt-2 rounded-md bg-muted/40 px-3 py-2">
+          <h4 className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+            Currently wearing
+          </h4>
+          <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
+            {wearing.map((item) => (
+              <li key={`wearing-${item.character_id}`}>
+                <span className="font-medium text-foreground">{item.character_name}</span>
+                {` — ${item.costume_name}`}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {expanded && (
+        <>
+          {events.length === 0 ? (
+            <p className="mt-2 text-sm text-muted-foreground">
+              No costume events on this moment.
+            </p>
+          ) : (
+            <ul className="mt-2 space-y-2">
+              {events.map((event) => (
+                <CostumeEventRow
+                  key={event.id}
+                  event={event}
+                  canEdit={canEdit}
+                  saving={saving}
+                  costumesCatalog={costumesCatalog}
+                  onUpdate={onUpdate}
+                  onDetach={onDetach}
+                />
+              ))}
+            </ul>
+          )}
+
+          {canEdit && costumesCatalog.length === 0 && (
+            <p className="mt-2 text-xs text-muted-foreground">
+              Add costumes to the catalog to record wear/clear events here.
+            </p>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
+function CostumeEventRow({
+  event,
+  canEdit,
+  saving,
+  costumesCatalog,
+  onUpdate,
+  onDetach,
+}: {
+  event: MomentCostumeEventResponse;
+  canEdit: boolean;
+  saving: boolean;
+  costumesCatalog: CostumeResponse[];
+  onUpdate: (
+    eventId: number,
+    body: { kind: AssetEventKind; costume_id: number | null; notes: string | null },
+  ) => void | Promise<void>;
+  onDetach: (eventId: number) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [kind, setKind] = useState<AssetEventKind>(event.kind);
+  const [costumeId, setCostumeId] = useState(
+    event.costume_id !== null ? String(event.costume_id) : "",
+  );
+  const [notes, setNotes] = useState(event.notes ?? "");
+
+  useEffect(() => {
+    setKind(event.kind);
+    setCostumeId(event.costume_id !== null ? String(event.costume_id) : "");
+    setNotes(event.notes ?? "");
+  }, [event.id, event.kind, event.costume_id, event.notes]);
+
+  const ready = kind === "off" || Boolean(costumeId);
+
+  async function handleSave() {
+    if (!ready) return;
+    try {
+      await onUpdate(event.id, {
+        kind,
+        costume_id: kind === "on" && costumeId ? Number(costumeId) : null,
+        notes: notes.trim() || null,
+      });
+      setEditing(false);
+    } catch {
+      // Parent already toasted; keep the edit form open with the user's draft.
+    }
+  }
+
+  function handleCancel() {
+    setKind(event.kind);
+    setCostumeId(event.costume_id !== null ? String(event.costume_id) : "");
+    setNotes(event.notes ?? "");
+    setEditing(false);
+  }
+
+  return (
+    <li className="rounded-md border border-border p-2 text-sm">
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="font-medium">{event.character_name}</span>
+            <Badge variant={event.kind === "on" ? "default" : "secondary"}>
+              {event.kind === "on" ? "Wear" : "Clear"}
+            </Badge>
+          </div>
+          {event.costume_name && <p className="text-muted-foreground">{event.costume_name}</p>}
+          {!editing && event.notes && (
+            <p className="mt-1 text-muted-foreground">{event.notes}</p>
+          )}
+
+          {editing && (
+            <div className="mt-2 space-y-2">
+              <KindToggle
+                value={kind}
+                onChange={(next) => {
+                  setKind(next);
+                  if (next === "off") setCostumeId("");
+                }}
+                onLabel="Wear"
+                offLabel="Clear"
+              />
+              {kind === "on" && (
+                <SearchableSelect
+                  options={costumesCatalog.map((costume) => ({
+                    value: String(costume.id),
+                    label: costume.name,
+                    hint: costume.character_name,
+                    keywords: costume.character_name,
+                  }))}
+                  value={costumeId}
+                  onChange={setCostumeId}
+                  placeholder="Select costume…"
+                  clearLabel="Clear selection"
+                />
+              )}
+              <input
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Notes (optional)"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+              <div className="flex gap-2">
+                <Button
+                  type="button"
+                  size="sm"
+                  disabled={saving || !ready}
+                  onClick={() => void handleSave()}
+                >
+                  Save
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={saving}
+                  onClick={handleCancel}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </div>
+        {canEdit && !editing && (
+          <div className="flex shrink-0 items-center gap-1">
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              disabled={saving}
+              onClick={() => setEditing(true)}
+              aria-label={`Edit ${event.character_name} costume event`}
+              title="Edit"
+            >
+              <Pencil />
+            </Button>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              disabled={saving}
+              onClick={() => onDetach(event.id)}
+              aria-label={`Remove ${event.character_name} costume event`}
+              title="Remove"
+              className="text-destructive hover:text-destructive"
+            >
+              <Trash2 />
+            </Button>
+          </div>
+        )}
+      </div>
+    </li>
   );
 }
 

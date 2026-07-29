@@ -6,12 +6,13 @@ import {
 import type {
   ActSummary,
   AppSettingsResponse,
+  AssetEventKind,
   BookmarkResponse,
   CastableUserResponse,
   CatalogImportResult,
   CharacterDetailResponse,
+  CostumeChangeEntry,
   CostumeResponse,
-  CostumesBySceneGroup,
   CreateUserRequest,
   CueCategoryResponse,
   CueResponse,
@@ -25,12 +26,13 @@ import type {
   ImportSuccessResponse,
   LoginRequest,
   MomentBlockingResponse,
+  MomentCostumeEventResponse,
   MomentEntranceResponse,
   MomentExitResponse,
   MomentDetailResponse,
   MomentListFilters,
-  MomentPropResponse,
-  MomentSetPieceResponse,
+  MomentPropEventResponse,
+  MomentSetPieceEventResponse,
   MomentSummary,
   MomentTypeResponse,
   NoteResponse,
@@ -345,6 +347,11 @@ export const api = {
       `/productions/${productionId}/castable-users`,
     );
   },
+  listActiveUsers(productionId: number) {
+    return request<CastableUserResponse[]>(
+      `/productions/${productionId}/active-users`,
+    );
+  },
 
   createNote(
     productionId: number,
@@ -562,11 +569,34 @@ export const api = {
   attachMomentProp(
     productionId: number,
     momentId: number,
-    body: { prop_id: number; character_id?: number | null; notes?: string | null },
+    body: {
+      prop_id: number;
+      kind: AssetEventKind;
+      character_id?: number | null;
+      user_id?: number | null;
+      notes?: string | null;
+    },
   ) {
-    return request<MomentPropResponse>(
+    return request<MomentPropEventResponse>(
       `/productions/${productionId}/moments/${momentId}/props`,
       { method: "POST", body: JSON.stringify(body) },
+    );
+  },
+
+  updateMomentProp(
+    productionId: number,
+    momentId: number,
+    momentPropId: number,
+    body: {
+      kind: AssetEventKind;
+      character_id?: number | null;
+      user_id?: number | null;
+      notes?: string | null;
+    },
+  ) {
+    return request<MomentPropEventResponse>(
+      `/productions/${productionId}/moments/${momentId}/props/${momentPropId}`,
+      { method: "PATCH", body: JSON.stringify(body) },
     );
   },
 
@@ -741,7 +771,7 @@ export const api = {
 
   createCostume(
     productionId: number,
-    body: { character_id: number; scene_id: number; name: string; description?: string | null },
+    body: { character_id: number; name: string; description?: string | null },
   ) {
     return request<CostumeResponse>(`/productions/${productionId}/costumes`, {
       method: "POST",
@@ -754,7 +784,6 @@ export const api = {
     costumeId: number,
     body: {
       character_id?: number;
-      scene_id?: number;
       name?: string;
       description?: string | null;
     },
@@ -777,6 +806,45 @@ export const api = {
 
   downloadCostumesCsvTemplate(productionId: number) {
     return this.downloadCatalogCsvTemplate(productionId, "costumes");
+  },
+
+  attachMomentCostume(
+    productionId: number,
+    momentId: number,
+    body: {
+      character_id: number;
+      kind: AssetEventKind;
+      costume_id?: number | null;
+      notes?: string | null;
+    },
+  ) {
+    return request<MomentCostumeEventResponse>(
+      `/productions/${productionId}/moments/${momentId}/costumes`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
+  },
+
+  updateMomentCostume(
+    productionId: number,
+    momentId: number,
+    momentCostumeId: number,
+    body: {
+      kind: AssetEventKind;
+      costume_id?: number | null;
+      notes?: string | null;
+    },
+  ) {
+    return request<MomentCostumeEventResponse>(
+      `/productions/${productionId}/moments/${momentId}/costumes/${momentCostumeId}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    );
+  },
+
+  detachMomentCostume(productionId: number, momentId: number, momentCostumeId: number) {
+    return request<void>(
+      `/productions/${productionId}/moments/${momentId}/costumes/${momentCostumeId}`,
+      { method: "DELETE" },
+    );
   },
 
   listWires(productionId: number) {
@@ -916,11 +984,34 @@ export const api = {
   attachMomentSetPiece(
     productionId: number,
     momentId: number,
-    body: { set_piece_id: number; notes?: string | null },
+    body: {
+      set_piece_id: number;
+      kind: AssetEventKind;
+      character_id?: number | null;
+      user_id?: number | null;
+      notes?: string | null;
+    },
   ) {
-    return request<MomentSetPieceResponse>(
+    return request<MomentSetPieceEventResponse>(
       `/productions/${productionId}/moments/${momentId}/set-pieces`,
       { method: "POST", body: JSON.stringify(body) },
+    );
+  },
+
+  updateMomentSetPiece(
+    productionId: number,
+    momentId: number,
+    momentSetPieceId: number,
+    body: {
+      kind: AssetEventKind;
+      character_id?: number | null;
+      user_id?: number | null;
+      notes?: string | null;
+    },
+  ) {
+    return request<MomentSetPieceEventResponse>(
+      `/productions/${productionId}/moments/${momentId}/set-pieces/${momentSetPieceId}`,
+      { method: "PATCH", body: JSON.stringify(body) },
     );
   },
 
@@ -1009,9 +1100,9 @@ export const api = {
     return request<CueSheetCategory[]>(`/productions/${productionId}/reports/cue-sheet`);
   },
 
-  getCostumesBySceneReport(productionId: number) {
-    return request<CostumesBySceneGroup[]>(
-      `/productions/${productionId}/reports/costumes-by-scene`,
+  getCostumeChangesReport(productionId: number) {
+    return request<CostumeChangeEntry[]>(
+      `/productions/${productionId}/reports/costume-changes`,
     );
   },
 

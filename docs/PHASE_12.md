@@ -269,6 +269,7 @@ Document in [DATABASE.md](DATABASE.md). Migration number: next after Phase 11.
 - Issue banner + cell highlights.  
 - Print button + print CSS.  
 - Reports page: link/TOC entry to Lav chart (do not dump full editor into Reports unless it stays thin).  
+- **Follow-up 2026-07-27:** collapsible **Manage wires & packs** list with edit (identifier + notes) and delete-with-confirm (clears chart cells).  
 
 **Done when:** Director can create inventory, propose, edit, see flags, print. ✅
 

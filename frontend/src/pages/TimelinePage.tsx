@@ -807,9 +807,11 @@ export default function TimelinePage() {
         }
         canEdit={canManagePreparation}
         characters={scene.characters}
+        castableUsers={scene.castableUsers}
         songs={scene.songs}
         propsCatalog={scene.propsCatalog}
         setPiecesCatalog={scene.setPiecesCatalog}
+        costumesCatalog={scene.costumesCatalog}
         cueCategories={scene.cueCategories}
         momentTypes={scene.momentTypes}
         appSettings={scene.appSettings}

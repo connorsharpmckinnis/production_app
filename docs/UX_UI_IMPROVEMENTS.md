@@ -173,7 +173,7 @@ These are already captured in [PROJECT.md](PROJECT.md) and [SCRATCH_NOTES.md](SC
 
 ### Scene summary drill-down
 - Scene summary chips are read-only today.
-- Make chips clickable → modal with per-character detail: entrance, exit, costume, props, set pieces, blocking (derived from timeline).
+- Make chips clickable → modal with per-character detail: entrance, exit, costume, props, set pieces, blocking (derived from timeline; costume/props/set pieces now readable from Phase 14 event-derived state — `asset_state.py`).
 - Named **prop chips** on the strip (not only “Props used (N moments)”).
 
 ### Moment detail evolution
@@ -191,7 +191,7 @@ These are already captured in [PROJECT.md](PROJECT.md) and [SCRATCH_NOTES.md](SC
 - Richer production home / readiness dashboard.
 - Production-level settings (vs global App Settings).
 - PDF export, print layouts, cross-production analytics, preparation progress dashboard.
-- Costume **event-driven** model on the timeline (add/remove pieces over time).
+- Costume **pieces / outfits** over time (Phase 14 WP5 shipped thin whole-costume Wear/Clear on the Timeline; piece-level tracking still later).
 
 ### Mobile director note capture (ambitious)
 - Sit in the house, advance moments passively, dictate a short note onto the current moment without leaving the action.

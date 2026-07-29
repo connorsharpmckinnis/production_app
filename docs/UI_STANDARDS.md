@@ -250,4 +250,4 @@ Use shadcn/ui throughout ([DEVELOPMENT_GUIDE](../.agents/skills/DEVELOPMENT_GUID
 * Saved filter views / rehearsal modes
 * Preparation progress dashboard
 * Split/merge moments
-* Costume event-driven model (moment-attached costume events)
+* Costume **pieces / outfits** (whole-costume Wear/Clear events already shipped in Phase 14)

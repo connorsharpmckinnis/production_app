@@ -161,12 +161,27 @@ export interface PropResponse {
   notes: string | null;
 }
 
-export interface MomentPropResponse {
+export type AssetEventKind = "on" | "off";
+
+export interface MomentPropEventResponse {
   id: number;
+  prop_id: number;
+  prop_name: string;
+  kind: AssetEventKind;
+  character_id: number | null;
+  character_name: string | null;
+  user_id: number | null;
+  user_display_name: string | null;
+  notes: string | null;
+}
+
+export interface PropInPlayResponse {
   prop_id: number;
   prop_name: string;
   character_id: number | null;
   character_name: string | null;
+  user_id: number | null;
+  user_display_name: string | null;
   notes: string | null;
 }
 
@@ -197,10 +212,25 @@ export interface NoteResponse {
   is_mine: boolean;
 }
 
-export interface MomentSetPieceResponse {
+export interface MomentSetPieceEventResponse {
   id: number;
   set_piece_id: number;
   set_piece_name: string;
+  kind: AssetEventKind;
+  character_id: number | null;
+  character_name: string | null;
+  user_id: number | null;
+  user_display_name: string | null;
+  notes: string | null;
+}
+
+export interface SetPieceInPlayResponse {
+  set_piece_id: number;
+  set_piece_name: string;
+  character_id: number | null;
+  character_name: string | null;
+  user_id: number | null;
+  user_display_name: string | null;
   notes: string | null;
 }
 
@@ -241,8 +271,12 @@ export interface MomentDetailResponse {
   dialogue: DialogueLineResponse[];
   lyrics: LyricLineResponse[];
   stage_direction: string | null;
-  props: MomentPropResponse[];
-  set_pieces: MomentSetPieceResponse[];
+  props: MomentPropEventResponse[];
+  props_in_play: PropInPlayResponse[];
+  set_pieces: MomentSetPieceEventResponse[];
+  set_pieces_in_play: SetPieceInPlayResponse[];
+  costume_events: MomentCostumeEventResponse[];
+  costumes_wearing: CostumeWearingResponse[];
   entrances: MomentEntranceResponse[];
   exits: MomentExitResponse[];
   blocking: MomentBlockingResponse[];
@@ -403,11 +437,26 @@ export interface CostumeResponse {
   id: number;
   character_id: number;
   character_name: string;
-  scene_id: number;
-  scene_number: number;
-  scene_title: string | null;
   name: string;
   description: string | null;
+}
+
+export interface MomentCostumeEventResponse {
+  id: number;
+  character_id: number;
+  character_name: string;
+  kind: AssetEventKind;
+  costume_id: number | null;
+  costume_name: string | null;
+  notes: string | null;
+}
+
+export interface CostumeWearingResponse {
+  character_id: number;
+  character_name: string;
+  costume_id: number;
+  costume_name: string;
+  notes: string | null;
 }
 
 export interface PropSheetMomentReference {
@@ -416,7 +465,9 @@ export interface PropSheetMomentReference {
   act_number: number;
   scene_number: number;
   scene_title: string | null;
+  kind: AssetEventKind;
   character_name: string | null;
+  user_display_name: string | null;
   notes: string | null;
 }
 
@@ -445,20 +496,18 @@ export interface CueSheetCategory {
   cues: CueSheetMomentReference[];
 }
 
-export interface CostumeBySceneEntry {
-  costume_id: number;
-  character_id: number;
-  character_name: string;
-  name: string;
-  description: string | null;
-}
-
-export interface CostumesBySceneGroup {
-  scene_id: number;
+export interface CostumeChangeEntry {
+  moment_id: number;
+  sequence_number: number;
   act_number: number;
   scene_number: number;
   scene_title: string | null;
-  costumes: CostumeBySceneEntry[];
+  character_id: number;
+  character_name: string;
+  kind: AssetEventKind;
+  costume_id: number | null;
+  costume_name: string | null;
+  notes: string | null;
 }
 
 export interface EntranceExitSheetRow {

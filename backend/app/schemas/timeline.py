@@ -1,9 +1,10 @@
 from pydantic import BaseModel
 
+from app.schemas.costumes import CostumeWearingResponse, MomentCostumeEventResponse
 from app.schemas.cues import CueResponse
 from app.schemas.notes import NoteResponse
-from app.schemas.props import MomentPropResponse
-from app.schemas.set_pieces import MomentSetPieceResponse
+from app.schemas.props import MomentPropEventResponse, PropInPlayResponse
+from app.schemas.set_pieces import MomentSetPieceEventResponse, SetPieceInPlayResponse
 from app.schemas.stage_movements import (
     MomentBlockingResponse,
     MomentEntranceResponse,
@@ -76,8 +77,12 @@ class MomentDetailResponse(BaseModel):
     dialogue: list[DialogueLineResponse]
     lyrics: list[LyricLineResponse] = []
     stage_direction: str | None
-    props: list[MomentPropResponse]
-    set_pieces: list[MomentSetPieceResponse]
+    props: list[MomentPropEventResponse]
+    props_in_play: list[PropInPlayResponse]
+    set_pieces: list[MomentSetPieceEventResponse]
+    set_pieces_in_play: list[SetPieceInPlayResponse]
+    costume_events: list[MomentCostumeEventResponse]
+    costumes_wearing: list[CostumeWearingResponse]
     entrances: list[MomentEntranceResponse]
     exits: list[MomentExitResponse]
     blocking: list[MomentBlockingResponse]

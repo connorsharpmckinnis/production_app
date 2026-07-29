@@ -42,7 +42,15 @@ class Character(Base):
         secondary="character_groups",
         back_populates="characters",
     )
-    moment_props: Mapped[list["MomentProp"]] = relationship(back_populates="character")
+    moment_prop_events: Mapped[list["MomentPropEvent"]] = relationship(
+        back_populates="character",
+    )
+    moment_set_piece_events: Mapped[list["MomentSetPieceEvent"]] = relationship(
+        back_populates="character",
+    )
+    moment_costume_events: Mapped[list["MomentCostumeEvent"]] = relationship(
+        back_populates="character",
+    )
     costumes: Mapped[list["Costume"]] = relationship(back_populates="character")
     moment_entrances: Mapped[list["MomentEntrance"]] = relationship(
         back_populates="character",

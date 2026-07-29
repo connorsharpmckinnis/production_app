@@ -18,7 +18,7 @@ class Prop(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     production: Mapped["Production"] = relationship(back_populates="props")
-    moment_attachments: Mapped[list["MomentProp"]] = relationship(
+    moment_events: Mapped[list["MomentPropEvent"]] = relationship(
         back_populates="prop",
         cascade="all, delete-orphan",
     )

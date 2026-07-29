@@ -413,3 +413,26 @@ def list_castable_users(
         for user in users
         if user_has_role(user, "Actor")
     ]
+
+
+@router.get("/{production_id}/active-users", response_model=list[CastableUserResponse])
+def list_active_users(
+    production_id: int,
+    director: User = Depends(require_director),
+    db: Session = Depends(get_db),
+) -> list[CastableUserResponse]:
+    """Active org users for optional person affiliation (props/sets), any role."""
+    production = get_accessible_production(db, director, production_id)
+    users = (
+        db.query(User)
+        .filter(
+            User.organization_id == production.organization_id,
+            User.is_active.is_(True),
+        )
+        .order_by(User.last_name, User.first_name)
+        .all()
+    )
+    return [
+        CastableUserResponse(id=user.id, display_name=_user_display_name(user))
+        for user in users
+    ]

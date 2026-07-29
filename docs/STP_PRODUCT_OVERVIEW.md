@@ -81,9 +81,9 @@ Directors work primarily in the **Timeline**:
 ### Pull sheets without rebuilding them by hand
 **Reports** currently include basic printable views for:
 
-- Prop sheet  
+- Prop sheet (on/off chronology)  
 - Cue sheet  
-- Costumes by scene  
+- Costume changes (wear/clear)  
 - Entrances & exits  
 - Blocking sheet  
 
@@ -183,7 +183,7 @@ A practice space that knows your character, highlights your lines, and supports 
 
 These aren't promises for day one of a pilot. They're conversation starters — things that feel especially STP-shaped if the core tool sticks:
 
-1. **Per-character "what do I need tonight?" packs** — lines + props + costume notes + entrances for one actor, printable before rehearsal.  
+1. **Per-character "what do I need tonight?" packs** — lines + props + costume notes + entrances for one actor, printable before rehearsal. (Props/sets/costumes now have Timeline on/off events and derived state from Phase 14 — packets can read those APIs.)  
 2. **Lav / mic change charts** — who wears which mic when, and when they need to swap (a classic community-theater headache).  
 3. **Readiness checklist for a production** — casting done? props tagged? blocking in for Act I? — so leadership can see prep status at a glance.  
 4. **Director notes from the house** — phone in the audience, dictate a short note onto the current moment without diving into a laptop.  

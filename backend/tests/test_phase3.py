@@ -204,7 +204,12 @@ def test_props_attach_and_detach(seeded_client: TestClient, db_session: Session)
 
     attached = seeded_client.post(
         f"/api/productions/{production_id}/moments/{moment['id']}/props",
-        json={"prop_id": prop_id, "character_id": crean_id, "notes": "enters with sextant"},
+        json={
+            "prop_id": prop_id,
+            "kind": "on",
+            "character_id": crean_id,
+            "notes": "enters with sextant",
+        },
         headers=director_headers,
     )
     assert attached.status_code == 201

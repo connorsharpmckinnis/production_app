@@ -10,7 +10,7 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.db.seed import seed_database
-from app.models import Act, Costume, Production, Scene
+from app.models import Production
 from app.services.catalog_csv import MAX_CSV_BYTES
 from app.services.importer import import_script
 
@@ -499,9 +499,9 @@ def test_costume_import_same_file_duplicate(
     production_id = _imported_production(seeded_client, db_session)
     headers = _login(seeded_client, "director", "director")
     csv_body = (
-        "name,character,scene,description\n"
-        "Coat,SHACKLETON,Welcome to the Age of Adventure,\n"
-        "coat,shackleton,welcome to the age of adventure,\n"
+        "name,character,description\n"
+        "Coat,SHACKLETON,\n"
+        "coat,shackleton,\n"
     )
     response = _upload(
         seeded_client,
@@ -520,10 +520,7 @@ def test_costume_unknown_character(
 ) -> None:
     production_id = _imported_production(seeded_client, db_session)
     headers = _login(seeded_client, "director", "director")
-    csv_body = (
-        "name,character,scene,description\n"
-        "Coat,NOT A CHARACTER,Welcome to the Age of Adventure,\n"
-    )
+    csv_body = "name,character,description\nCoat,NOT A CHARACTER,\n"
     response = _upload(
         seeded_client,
         f"/api/productions/{production_id}/costumes/import",
@@ -537,85 +534,17 @@ def test_costume_unknown_character(
     assert "Unknown character" in body["errors"][0]["message"]
 
 
-def test_costume_unknown_scene(
+def test_costume_same_name_different_character_both_created(
     seeded_client: TestClient,
     db_session: Session,
 ) -> None:
+    """Dedupe key is (name, character_id), so the same look name can exist per-character."""
     production_id = _imported_production(seeded_client, db_session)
     headers = _login(seeded_client, "director", "director")
     csv_body = (
-        "name,character,scene,description\n"
-        "Coat,SHACKLETON,Totally Missing Scene,\n"
-    )
-    response = _upload(
-        seeded_client,
-        f"/api/productions/{production_id}/costumes/import",
-        csv_body,
-        headers,
-    )
-    assert response.status_code == 200
-    body = response.json()
-    assert body["created"] == 0
-    assert "Unknown scene" in body["errors"][0]["message"]
-
-
-def test_costume_ambiguous_scene_title(
-    seeded_client: TestClient,
-    db_session: Session,
-) -> None:
-    production_id = _imported_production(seeded_client, db_session)
-    production = db_session.get(Production, production_id)
-    assert production is not None
-    act1 = db_session.query(Act).filter(Act.production_id == production_id).one()
-    act2 = Act(production_id=production_id, number=2, title="Act 2", sort_order=2)
-    db_session.add(act2)
-    db_session.flush()
-    shared_title = "Welcome to the Age of Adventure"
-    # Ensure act1 scene keeps the shared title; add colliding title on act 2.
-    scene1 = db_session.query(Scene).filter(Scene.act_id == act1.id).one()
-    scene1.title = shared_title
-    db_session.add(
-        Scene(act_id=act2.id, number=1, title=shared_title, sort_order=1)
-    )
-    db_session.commit()
-
-    headers = _login(seeded_client, "director", "director")
-    csv_body = (
-        "name,character,scene,description\n"
-        f"Coat,SHACKLETON,{shared_title},\n"
-    )
-    response = _upload(
-        seeded_client,
-        f"/api/productions/{production_id}/costumes/import",
-        csv_body,
-        headers,
-    )
-    assert response.status_code == 200
-    body = response.json()
-    assert body["created"] == 0
-    assert "Ambiguous scene title" in body["errors"][0]["message"]
-
-
-def test_costume_qualified_scene_disambiguates(
-    seeded_client: TestClient,
-    db_session: Session,
-) -> None:
-    production_id = _imported_production(seeded_client, db_session)
-    act1 = db_session.query(Act).filter(Act.production_id == production_id).one()
-    act2 = Act(production_id=production_id, number=2, title="Act 2", sort_order=2)
-    db_session.add(act2)
-    db_session.flush()
-    shared_title = "Welcome to the Age of Adventure"
-    scene1 = db_session.query(Scene).filter(Scene.act_id == act1.id).one()
-    scene1.title = shared_title
-    scene2 = Scene(act_id=act2.id, number=1, title=shared_title, sort_order=1)
-    db_session.add(scene2)
-    db_session.commit()
-
-    headers = _login(seeded_client, "director", "director")
-    csv_body = (
-        "name,character,scene,description\n"
-        f"Coat,SHACKLETON,Act 2 / {shared_title},\n"
+        "name,character,description\n"
+        "Coat,SHACKLETON,\n"
+        "Coat,CREAN,\n"
     )
     response = _upload(
         seeded_client,
@@ -625,77 +554,8 @@ def test_costume_qualified_scene_disambiguates(
     )
     assert response.status_code == 200, response.text
     body = response.json()
-    assert body["created"] == 1
-    costume = (
-        db_session.query(Costume)
-        .filter(Costume.production_id == production_id, Costume.name == "Coat")
-        .one()
-    )
-    assert costume.scene_id == scene2.id
-
-
-def test_costume_qualified_unknown_scene(
-    seeded_client: TestClient,
-    db_session: Session,
-) -> None:
-    production_id = _imported_production(seeded_client, db_session)
-    headers = _login(seeded_client, "director", "director")
-    csv_body = (
-        "name,character,scene,description\n"
-        "Coat,SHACKLETON,Act 9 / Nowhere,\n"
-    )
-    response = _upload(
-        seeded_client,
-        f"/api/productions/{production_id}/costumes/import",
-        csv_body,
-        headers,
-    )
-    assert response.status_code == 200
-    assert "Unknown scene" in response.json()["errors"][0]["message"]
-
-
-def test_costume_scene_shorthand(
-    seeded_client: TestClient,
-    db_session: Session,
-) -> None:
-    production_id = _imported_production(seeded_client, db_session)
-    headers = _login(seeded_client, "director", "director")
-    csv_body = (
-        "name,character,scene,description\n"
-        "Parka,SHACKLETON,1:1,Opening look\n"
-    )
-    response = _upload(
-        seeded_client,
-        f"/api/productions/{production_id}/costumes/import",
-        csv_body,
-        headers,
-    )
-    assert response.status_code == 200, response.text
-    body = response.json()
-    assert body["created"] == 1
-    assert body["errors"] == []
-
-
-def test_costume_act_scene_columns(
-    seeded_client: TestClient,
-    db_session: Session,
-) -> None:
-    production_id = _imported_production(seeded_client, db_session)
-    headers = _login(seeded_client, "director", "director")
-    csv_body = (
-        "name,character,act,scene,description\n"
-        "Parka,SHACKLETON,1,1,Opening look\n"
-    )
-    response = _upload(
-        seeded_client,
-        f"/api/productions/{production_id}/costumes/import",
-        csv_body,
-        headers,
-    )
-    assert response.status_code == 200, response.text
-    body = response.json()
-    assert body["created"] == 1
-    assert body["errors"] == []
+    assert body["created"] == 2
+    assert body["skipped"] == 0
 
 
 def test_costume_template_and_actor_forbidden(
@@ -711,7 +571,7 @@ def test_costume_template_and_actor_forbidden(
         headers=director,
     )
     assert template.status_code == 200
-    assert template.text.strip() == "name,character,scene,act,description"
+    assert template.text.strip() == "name,character,description"
 
     forbidden = _upload(
         seeded_client,
@@ -735,8 +595,8 @@ def test_costume_unknown_column_warning(
     production_id = _imported_production(seeded_client, db_session)
     headers = _login(seeded_client, "director", "director")
     csv_body = (
-        "name,character,scene,description,moment_id\n"
-        "Coat,SHACKLETON,Welcome to the Age of Adventure,,99\n"
+        "name,character,description,moment_id\n"
+        "Coat,SHACKLETON,,99\n"
     )
     response = _upload(
         seeded_client,

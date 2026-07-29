@@ -10,8 +10,9 @@ Hard dimensions use simple coverage fractions:
   casting, costumes, entrances/exits, blocking.
 
 Builtin characters (ALL, ENSEMBLE) are excluded from casting and costume
-denominators. Costume coverage is distinct non-builtin speaking (Dialogue)
-character × scene pairs with at least one costume for that exact scene.
+denominators. Costume coverage (Phase 14 WP5, event-based) is speaking
+non-builtin characters who have at least one "on" costume event anywhere in
+the production, out of all speaking non-builtin characters.
 
 When act_count == 0, overall readiness is 0 (no fake progress before import).
 """
@@ -27,7 +28,6 @@ from sqlalchemy.orm import Session, joinedload
 from app.models import (
     Act,
     Character,
-    Costume,
     Cue,
     CueCategory,
     Dialogue,
@@ -35,10 +35,11 @@ from app.models import (
     LavWireAssignment,
     Moment,
     MomentBlocking,
+    MomentCostumeEvent,
     MomentEntrance,
     MomentExit,
-    MomentProp,
-    MomentSetPiece,
+    MomentPropEvent,
+    MomentSetPieceEvent,
     Pack,
     Prop,
     Scene,
@@ -83,9 +84,9 @@ def compute_readiness(db: Session, production_id: int) -> ReadinessResult:
     scene_ids = [scene.id for scene, _act in scenes]
 
     cue_scenes = _scenes_with_cues(db, production_id)
-    prop_scenes = _scenes_with_attachment(db, production_id, MomentProp)
+    prop_scenes = _scenes_with_attachment(db, production_id, MomentPropEvent)
     lav_scenes = _scenes_with_lav_assignments(db, production_id)
-    set_piece_scenes = _scenes_with_attachment(db, production_id, MomentSetPiece)
+    set_piece_scenes = _scenes_with_attachment(db, production_id, MomentSetPieceEvent)
     lav_catalog_count = (
         _count_for_production(db, Wire, production_id)
         + _count_for_production(db, Pack, production_id)
@@ -93,7 +94,7 @@ def compute_readiness(db: Session, production_id: int) -> ReadinessResult:
 
     dimensions = [
         _casting_dimension(db, production_id),
-        _costume_dimension(db, production_id, scenes),
+        _costume_dimension(db, production_id),
         _soft_catalog_dimension(
             key="cues",
             label="Cues",
@@ -267,71 +268,57 @@ def _casting_dimension(db: Session, production_id: int) -> ReadinessDimensionRes
     )
 
 
-def _costume_dimension(
-    db: Session,
-    production_id: int,
-    scenes: list[tuple[Scene, Act]],
-) -> ReadinessDimensionResult:
+def _costume_dimension(db: Session, production_id: int) -> ReadinessDimensionResult:
     speaking_rows = (
-        db.query(
-            Dialogue.character_id,
-            Scene.id,
-            Character.name,
-        )
+        db.query(Character.id, Character.name)
+        .join(Dialogue, Dialogue.character_id == Character.id)
         .join(Moment, Dialogue.moment_id == Moment.id)
         .join(Scene, Moment.scene_id == Scene.id)
         .join(Act, Scene.act_id == Act.id)
-        .join(Character, Character.id == Dialogue.character_id)
         .filter(Act.production_id == production_id)
         .filter(Character.name.notin_(_BUILTIN_NAMES))
         .distinct()
         .all()
     )
+    speaking_characters = {character_id: name for character_id, name in speaking_rows}
 
-    scene_by_id = {scene.id: (scene, act) for scene, act in scenes}
-    pairs: dict[tuple[int, int], tuple[str, Act, Scene]] = {}
-    for character_id, scene_id, character_name in speaking_rows:
-        scene_act = scene_by_id.get(scene_id)
-        if scene_act is None:
-            continue
-        scene, act = scene_act
-        pairs[(character_id, scene_id)] = (character_name, act, scene)
-
-    denominator = len(pairs)
+    denominator = len(speaking_characters)
     if denominator == 0:
         return ReadinessDimensionResult(
             key="costumes",
             label="Costumes",
             score=None,
-            summary="No speaking character × scene pairs",
+            summary="No speaking characters",
             href_hint="costumes",
             gaps=[],
         )
 
-    costume_pairs = {
-        (costume.character_id, costume.scene_id)
-        for costume in db.query(Costume).filter(Costume.production_id == production_id).all()
-    }
-    missing = [
-        (character_name, act, scene)
-        for (character_id, scene_id), (character_name, act, scene) in sorted(
-            pairs.items(),
-            key=lambda item: (item[1][1].number, item[1][2].number, item[1][0]),
+    worn_character_ids = {
+        row[0]
+        for row in (
+            db.query(distinct(MomentCostumeEvent.character_id))
+            .join(Moment, MomentCostumeEvent.moment_id == Moment.id)
+            .join(Scene, Moment.scene_id == Scene.id)
+            .join(Act, Scene.act_id == Act.id)
+            .filter(Act.production_id == production_id)
+            .filter(MomentCostumeEvent.kind == "on")
+            .all()
         )
-        if (character_id, scene_id) not in costume_pairs
-    ]
+    }
+    missing = sorted(
+        name
+        for character_id, name in speaking_characters.items()
+        if character_id not in worn_character_ids
+    )
     numerator = denominator - len(missing)
     score = round(100 * numerator / denominator)
 
     if missing:
-        summary = f"{len(missing)} of {denominator} speaking roles missing a scene costume"
+        summary = f"{len(missing)} of {denominator} speaking characters have no costume change"
     else:
-        summary = f"All {denominator} speaking character × scene pairs have costumes"
+        summary = f"All {denominator} speaking characters have a costume change"
 
-    gaps = [
-        f"{character_name} in {_scene_label(act, scene)} — no costume"
-        for character_name, act, scene in missing
-    ]
+    gaps = [f"{name} — no costume change on the Timeline" for name in missing]
     return ReadinessDimensionResult(
         key="costumes",
         label="Costumes",

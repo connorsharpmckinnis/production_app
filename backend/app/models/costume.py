@@ -18,14 +18,12 @@ class Costume(Base):
         nullable=False,
         index=True,
     )
-    scene_id: Mapped[int] = mapped_column(
-        ForeignKey("scenes.id"),
-        nullable=False,
-        index=True,
-    )
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     production: Mapped["Production"] = relationship(back_populates="costumes")
     character: Mapped["Character"] = relationship(back_populates="costumes")
-    scene: Mapped["Scene"] = relationship(back_populates="costumes")
+    moment_events: Mapped[list["MomentCostumeEvent"]] = relationship(
+        back_populates="costume",
+        cascade="all, delete-orphan",
+    )

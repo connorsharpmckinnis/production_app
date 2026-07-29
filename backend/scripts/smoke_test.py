@@ -570,7 +570,7 @@ def run_smoke_test(base_url: str = BASE_URL) -> SmokeTestReport:
                             attach = client.post(
                                 f"{API_PREFIX}/productions/{production_id}/moments/{moment_id}/props",
                                 headers=_auth_headers(director_token),
-                                json={"prop_id": prop.json()["id"]},
+                                json={"prop_id": prop.json()["id"], "kind": "on"},
                             )
                             prop_ok = attach.status_code == 201
                         report.record(

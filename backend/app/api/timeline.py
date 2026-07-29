@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
 
-from app.api.deps import get_accessible_production
+from app.api.deps import get_accessible_production, user_display_name
 from app.api.notes import notes_visible_to_user
 from app.auth.dependencies import require_authenticated, require_director_or_admin, user_has_role
 from app.db.session import get_db
@@ -9,18 +9,21 @@ from app.models import (
     Act,
     Bookmark,
     Character,
+    Costume,
     Cue,
     Dialogue,
     Group,
     LyricLine,
     Moment,
     MomentBlocking,
+    MomentCostumeEvent,
     MomentEntrance,
     MomentExit,
-    MomentProp,
-    MomentSetPiece,
+    MomentPropEvent,
+    MomentSetPieceEvent,
     MomentType,
     Note,
+    Prop,
     Scene,
     SetPiece,
     Song,
@@ -28,10 +31,11 @@ from app.models import (
     StageDirection,
     User,
 )
+from app.schemas.costumes import CostumeWearingResponse, MomentCostumeEventResponse
 from app.schemas.cues import CueResponse
 from app.schemas.notes import NoteResponse
-from app.schemas.props import MomentPropResponse
-from app.schemas.set_pieces import MomentSetPieceResponse
+from app.schemas.props import MomentPropEventResponse, PropInPlayResponse
+from app.schemas.set_pieces import MomentSetPieceEventResponse, SetPieceInPlayResponse
 from app.schemas.stage_movements import (
     MomentBlockingResponse,
     MomentEntranceResponse,
@@ -53,6 +57,12 @@ from app.schemas.timeline_editing import (
     MomentUpdate,
     StageDirectionUpdate,
 )
+from app.services.asset_state import (
+    AssetStateSnapshot,
+    costume_states_at_moment,
+    prop_states_at_moment,
+    set_piece_states_at_moment,
+)
 from app.services.on_stage import compute_on_stage_ids_by_moment, on_stage_characters_for_moment
 from app.services.moment_sequence import (
     move_moment_sequence,
@@ -60,9 +70,7 @@ from app.services.moment_sequence import (
     shift_moments_from,
 )
 from app.services.timeline_filters import (
-    costume_character_ids_for_scene,
     moment_display_text,
-    moment_has_costume,
     apply_timeline_filters,
     load_scene_moments,
     moment_ids_with_cue_category,
@@ -94,15 +102,11 @@ def _get_moment_in_production_or_404(
     return moment
 
 
-def _user_display_name(user: User) -> str:
-    return f"{user.first_name} {user.last_name}".strip()
-
-
 def _note_response(note: Note, current_user_id: int) -> NoteResponse:
     return NoteResponse(
         id=note.id,
         user_id=note.user_id,
-        author_display_name=_user_display_name(note.user),
+        author_display_name=user_display_name(note.user),
         visibility=note.visibility,
         moment_id=note.moment_id,
         character_id=note.character_id,
@@ -112,27 +116,165 @@ def _note_response(note: Note, current_user_id: int) -> NoteResponse:
     )
 
 
-def _moment_prop_response(moment_prop: MomentProp) -> MomentPropResponse:
-    character_name = None
-    if moment_prop.character is not None:
-        character_name = moment_prop.character.name
-    return MomentPropResponse(
-        id=moment_prop.id,
-        prop_id=moment_prop.prop_id,
-        prop_name=moment_prop.prop.name,
-        character_id=moment_prop.character_id,
-        character_name=character_name,
-        notes=moment_prop.notes,
+def _moment_prop_event_response(event: MomentPropEvent) -> MomentPropEventResponse:
+    return MomentPropEventResponse(
+        id=event.id,
+        prop_id=event.prop_id,
+        prop_name=event.prop.name,
+        kind=event.kind,
+        character_id=event.character_id,
+        character_name=event.character.name if event.character else None,
+        user_id=event.user_id,
+        user_display_name=user_display_name(event.user) if event.user else None,
+        notes=event.notes,
     )
 
 
-def _moment_set_piece_response(moment_set_piece: MomentSetPiece) -> MomentSetPieceResponse:
-    return MomentSetPieceResponse(
-        id=moment_set_piece.id,
-        set_piece_id=moment_set_piece.set_piece_id,
-        set_piece_name=moment_set_piece.set_piece.name,
-        notes=moment_set_piece.notes,
+def _moment_set_piece_event_response(
+    event: MomentSetPieceEvent,
+) -> MomentSetPieceEventResponse:
+    return MomentSetPieceEventResponse(
+        id=event.id,
+        set_piece_id=event.set_piece_id,
+        set_piece_name=event.set_piece.name,
+        kind=event.kind,
+        character_id=event.character_id,
+        character_name=event.character.name if event.character else None,
+        user_id=event.user_id,
+        user_display_name=user_display_name(event.user) if event.user else None,
+        notes=event.notes,
     )
+
+
+def _moment_costume_event_response(event: MomentCostumeEvent) -> MomentCostumeEventResponse:
+    return MomentCostumeEventResponse(
+        id=event.id,
+        character_id=event.character_id,
+        character_name=event.character.name,
+        kind=event.kind,
+        costume_id=event.costume_id,
+        costume_name=event.costume.name if event.costume else None,
+        notes=event.notes,
+    )
+
+
+def _resolve_names(
+    db: Session,
+    states: dict[int, AssetStateSnapshot],
+) -> tuple[dict[int, str], dict[int, str]]:
+    """Look up character/user display names referenced by a set of snapshots."""
+    character_ids = {state.character_id for state in states.values() if state.character_id}
+    user_ids = {state.user_id for state in states.values() if state.user_id}
+    character_names = {
+        character.id: character.name
+        for character in (
+            db.query(Character).filter(Character.id.in_(character_ids)).all()
+            if character_ids
+            else []
+        )
+    }
+    user_names = {
+        user.id: user_display_name(user)
+        for user in (
+            db.query(User).filter(User.id.in_(user_ids)).all() if user_ids else []
+        )
+    }
+    return character_names, user_names
+
+
+def _props_in_play_response(
+    db: Session, production_id: int, moment_id: int
+) -> list[PropInPlayResponse]:
+    states = prop_states_at_moment(db, production_id, moment_id)
+    in_play = {prop_id: state for prop_id, state in states.items() if state.in_play}
+    if not in_play:
+        return []
+
+    props_by_id = {
+        prop.id: prop
+        for prop in db.query(Prop).filter(Prop.id.in_(in_play.keys())).all()
+    }
+    character_names, user_names = _resolve_names(db, in_play)
+
+    return [
+        PropInPlayResponse(
+            prop_id=prop_id,
+            prop_name=props_by_id[prop_id].name,
+            character_id=state.character_id,
+            character_name=character_names.get(state.character_id) if state.character_id else None,
+            user_id=state.user_id,
+            user_display_name=user_names.get(state.user_id) if state.user_id else None,
+            notes=state.notes,
+        )
+        for prop_id, state in sorted(in_play.items(), key=lambda item: props_by_id[item[0]].name)
+    ]
+
+
+def _set_pieces_in_play_response(
+    db: Session, production_id: int, moment_id: int
+) -> list[SetPieceInPlayResponse]:
+    states = set_piece_states_at_moment(db, production_id, moment_id)
+    in_play = {set_piece_id: state for set_piece_id, state in states.items() if state.in_play}
+    if not in_play:
+        return []
+
+    set_pieces_by_id = {
+        set_piece.id: set_piece
+        for set_piece in db.query(SetPiece).filter(SetPiece.id.in_(in_play.keys())).all()
+    }
+    character_names, user_names = _resolve_names(db, in_play)
+
+    return [
+        SetPieceInPlayResponse(
+            set_piece_id=set_piece_id,
+            set_piece_name=set_pieces_by_id[set_piece_id].name,
+            character_id=state.character_id,
+            character_name=character_names.get(state.character_id) if state.character_id else None,
+            user_id=state.user_id,
+            user_display_name=user_names.get(state.user_id) if state.user_id else None,
+            notes=state.notes,
+        )
+        for set_piece_id, state in sorted(
+            in_play.items(), key=lambda item: set_pieces_by_id[item[0]].name
+        )
+    ]
+
+
+def _costumes_wearing_response(
+    db: Session, production_id: int, moment_id: int
+) -> list[CostumeWearingResponse]:
+    """Characters currently wearing a costume as of this Moment (event-derived)."""
+    states = costume_states_at_moment(db, production_id, moment_id)
+    wearing = {
+        character_id: state for character_id, state in states.items() if state.costume_id
+    }
+    if not wearing:
+        return []
+
+    character_names = {
+        character.id: character.name
+        for character in (
+            db.query(Character).filter(Character.id.in_(wearing.keys())).all()
+        )
+    }
+    costume_ids = {state.costume_id for state in wearing.values()}
+    costume_names = {
+        costume.id: costume.name
+        for costume in db.query(Costume).filter(Costume.id.in_(costume_ids)).all()
+    }
+
+    return [
+        CostumeWearingResponse(
+            character_id=character_id,
+            character_name=character_names.get(character_id, ""),
+            costume_id=state.costume_id,
+            costume_name=costume_names.get(state.costume_id, ""),
+            notes=state.notes,
+        )
+        for character_id, state in sorted(
+            wearing.items(), key=lambda item: character_names.get(item[0], "")
+        )
+    ]
 
 
 def _moment_entrance_response(entrance: MomentEntrance) -> MomentEntranceResponse:
@@ -321,7 +463,6 @@ def list_scene_moments(
         if set_piece_id is not None
         else None
     )
-    costume_char_ids = costume_character_ids_for_scene(db, scene_id)
     blocking_char_ids = None
     if blocking_only:
         if blocking_character_id is not None:
@@ -351,7 +492,6 @@ def list_scene_moments(
         moment_ids_with_prop=prop_moment_ids,
         moment_ids_with_cue_category=category_moment_ids,
         moment_ids_with_set_piece=set_piece_moment_ids,
-        costume_character_ids=costume_char_ids,
     )
 
     return [
@@ -363,10 +503,10 @@ def list_scene_moments(
             display_text=moment_display_text(moment),
             song_id=moment.song_id,
             speaking_character_ids=moment_speaking_character_ids(moment),
-            has_props=len(moment.moment_props) > 0,
+            has_props=len(moment.moment_prop_events) > 0,
             has_cues=len(moment.cues) > 0,
-            has_set_piece=len(moment.moment_set_pieces) > 0,
-            has_costume=moment_has_costume(moment, costume_char_ids),
+            has_set_piece=len(moment.moment_set_piece_events) > 0,
+            has_costume=len(moment.moment_costume_events) > 0,
             has_entrance=len(moment.moment_entrances) > 0,
             has_exit=len(moment.moment_exits) > 0,
             has_blocking=len(moment.moment_blocking) > 0,
@@ -396,9 +536,14 @@ def get_moment_detail(
             joinedload(Moment.stage_directions),
             joinedload(Moment.song),
             joinedload(Moment.notes).joinedload(Note.user),
-            joinedload(Moment.moment_props).joinedload(MomentProp.prop),
-            joinedload(Moment.moment_props).joinedload(MomentProp.character),
-            joinedload(Moment.moment_set_pieces).joinedload(MomentSetPiece.set_piece),
+            joinedload(Moment.moment_prop_events).joinedload(MomentPropEvent.prop),
+            joinedload(Moment.moment_prop_events).joinedload(MomentPropEvent.character),
+            joinedload(Moment.moment_prop_events).joinedload(MomentPropEvent.user),
+            joinedload(Moment.moment_set_piece_events).joinedload(MomentSetPieceEvent.set_piece),
+            joinedload(Moment.moment_set_piece_events).joinedload(MomentSetPieceEvent.character),
+            joinedload(Moment.moment_set_piece_events).joinedload(MomentSetPieceEvent.user),
+            joinedload(Moment.moment_costume_events).joinedload(MomentCostumeEvent.character),
+            joinedload(Moment.moment_costume_events).joinedload(MomentCostumeEvent.costume),
             joinedload(Moment.moment_entrances).joinedload(MomentEntrance.character),
             joinedload(Moment.moment_exits).joinedload(MomentExit.character),
             joinedload(Moment.moment_blocking).joinedload(MomentBlocking.character),
@@ -455,10 +600,16 @@ def get_moment_detail(
             for line in moment.lyric_lines
         ],
         stage_direction=stage_direction,
-        props=[_moment_prop_response(moment_prop) for moment_prop in moment.moment_props],
+        props=[_moment_prop_event_response(event) for event in moment.moment_prop_events],
+        props_in_play=_props_in_play_response(db, production_id, moment.id),
         set_pieces=[
-            _moment_set_piece_response(item) for item in moment.moment_set_pieces
+            _moment_set_piece_event_response(event) for event in moment.moment_set_piece_events
         ],
+        set_pieces_in_play=_set_pieces_in_play_response(db, production_id, moment.id),
+        costume_events=[
+            _moment_costume_event_response(event) for event in moment.moment_costume_events
+        ],
+        costumes_wearing=_costumes_wearing_response(db, production_id, moment.id),
         entrances=[_moment_entrance_response(item) for item in moment.moment_entrances],
         exits=[_moment_exit_response(item) for item in moment.moment_exits],
         blocking=[_moment_blocking_response(item) for item in moment.moment_blocking],

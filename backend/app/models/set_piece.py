@@ -18,7 +18,7 @@ class SetPiece(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     production: Mapped["Production"] = relationship(back_populates="set_pieces")
-    moment_attachments: Mapped[list["MomentSetPiece"]] = relationship(
+    moment_events: Mapped[list["MomentSetPieceEvent"]] = relationship(
         back_populates="set_piece",
         cascade="all, delete-orphan",
     )

@@ -458,13 +458,11 @@ Relationships derived from Timeline events.
 Belongs to:
 
 - Production
-- Character
+- Character (catalog default owner)
 
-Assigned to:
+Worn via Timeline **on/off** events (`moment_costume_events`, Phase 14 WP5), not a scene assignment — `costumes.scene_id` was dropped. Current wearer/look is **derived** by walking Moments in show order (like props/set pieces), persisting across scenes/acts until the next event for that character. See [PHASE_14.md](PHASE_14.md).
 
-- Scene (Phase 4 MVP: one scene per costume via `scene_id`; see [PHASE_4.md](PHASE_4.md))
-
-Future: event-driven add/remove of costume pieces on the timeline, with derived current state (like props). Deferred to post-MVP wish list.
+Future: event-driven add/remove of individual costume **pieces** and outfit combinations. Deferred to post-MVP wish list.
 
 ---
 
@@ -578,15 +576,15 @@ Planned for post-MVP.
 
 
 
-# Event Philosophy (Future — Phase 3+)
+# Event Philosophy
 
-Today (MVP), production data is stored directly on Moments and related tables — a cue is a row on `cues`, dialogue is a row on `dialogue`, and so on.
+Most production data is stored directly on Moments and related tables — a cue is a row on `cues`, dialogue is a row on `dialogue`, entrances/exits/blocking are moment-attached rows, and so on.
 
-In a future event-driven model, many of these would become **events** on the Timeline (entrance, exit, prop transfer, costume change, cue execution). The app would **derive** current state from the event history rather than storing "current state" as the primary record.
+**Phase 14 ships an event-driven model for props, set pieces, and costumes:** Timeline **on/off** events (`moment_prop_events`, `moment_set_piece_events`) with optional person (character or user) and free-text notes, replacing the presence-only `moment_props` / `moment_set_pieces` junctions. Current state — still in play? current person? current notes? — is **derived** by walking Moments in show order rather than stored as the primary record. Costumes get a matching **thin** on/off slice (`moment_costume_events`, character-only wearer, WP5), replacing `costumes.scene_id`.
 
-Example: instead of recording "Character X is on stage at Scene 3," the system stores `Entrance(X)` and `Exit(X)` events and computes who is on stage at any Moment.
+Example: instead of a single "Iceberg attached to this Moment" row, the system stores `Iceberg ON (Connor, "Downstage Left")` and, later, `Iceberg OFF (Shackleton, "Tuck under the ship")` events, then derives what's true at any Moment in between until the next event.
 
-This migration is planned for Phase 3+ and is not required for MVP. The current schema is designed to remain compatible when events are introduced.
+**Not (yet) event-driven:** entrances/exits/blocking/cues stay as direct moment-attached rows — that pattern works fine as-is. Lav wire/pack assignments stay chart-based; Timeline-derived lav markers remain deferred (see [PHASE_13.md](PHASE_13.md)). See [PHASE_14.md](PHASE_14.md) and [DATABASE.md](DATABASE.md) for the full event model and derivation rules.
 
 ---
 
@@ -873,7 +871,7 @@ Summary:
 - Phase 5 P2 carryover: on-stage row badges, blocking-by-character filter
 - P2: blur own lines until click/hover reveal
 
-**Explicitly out of Phase 6:** demo walkthrough, importer changes, deployment hardening, bookmarks redesign, event engine, new Rehearse backend APIs.
+**Explicitly out of Phase 6:** demo walkthrough, importer changes, deployment hardening, bookmarks redesign, event engine (props/sets/costumes later shipped in Phase 14), new Rehearse backend APIs.
 
 ---
 
@@ -905,14 +903,14 @@ Summary:
 
 - Implemented 2026-07-16; full-show / multi-scene manual validation remains pending until the owner fixture is available
 - Richer production Overview: heuristic prep readiness %, dimension breakdown, gap CTAs
-- Costume readiness = speaking characters in a scene who have a costume for that scene
+- Costume readiness = speaking characters in a scene who have a costume for that scene (retargeted in Phase 14 WP5 to speaking characters with ≥1 wear event anywhere in the production — see [PHASE_14.md](PHASE_14.md))
 - Editable Overview messages (encouragement/quotes, scripture, announcements) with configurable rotation — production-level primary, global defaults secondary. Simplified 2026-07-17: encouragement rotates as a flat list (readiness bands no longer filter the spotlight)
 - Lightweight Actor Overview (messages, roles, Rehearse, placeholders)
 - CSV import for props, microphones, set pieces, costumes, songs, and cue categories (skip duplicates; v1 bridge to STP digital catalogs)
 - Microphone catalog gains optional `notes`
 - Implementation references: [PREP_READINESS.md](PREP_READINESS.md) and [CATALOG_CSV.md](CATALOG_CSV.md)
 
-**Explicitly out of Phase 8:** event engine, org-wide inventory, CSV upsert modes, explicit “reviewed / intentionally blank” progress table, deployment hardening.
+**Explicitly out of Phase 8:** event engine (props/sets/costumes later shipped in Phase 14), org-wide inventory, CSV upsert modes, explicit “reviewed / intentionally blank” progress table, deployment hardening.
 
 ---
 
@@ -1002,14 +1000,14 @@ Summary:
 
 
 
-## Phase 14 — Event-Driven Asset State on the Timeline (Planning)
+## Phase 14 — Event-Driven Asset State on the Timeline (Complete, pending owner walkthrough)
 
-See [PHASE_14.md](PHASE_14.md) for the plan. **Decisions confirmed 2026-07-26; build not started until feature branch + authorization.**
+See [PHASE_14.md](PHASE_14.md). **WP1–WP6 shipped 2026-07-27 on `event-architecture-1`.**
 
-Summary (confirmed):
+Summary:
 
 - Props & set pieces: Timeline **on/off** events + optional person (character XOR user) + free-text notes; derive state across the show
-- Costumes: **thin** on/off replacing `scene_id` (whole sets only; pieces later)
+- Costumes: **thin** on/off replacing `scene_id` (whole sets only; pieces later) — character-only wearer, `moment_costume_events`
 - Lav chart unchanged this phase (SoT stands; Timeline markers deferred)
 - No migration of old attachment rows — re-enter
 - Specialized event tables + shared derivation (not a polymorphic event store)
@@ -1104,7 +1102,7 @@ See [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](../.agents/skills/DEVELOPMENT_GU
 These are not committed scope — captured here so good ideas are not lost:
 
 - **Saved views** — save a timeline filter/search combination (character selection, search terms, Rehearse preset) as a named view for quick recall. May evolve into role-specific modes (rehearsal mode, tech night mode).
-- **Scene summary drill-down** — clickable chips on the scene summary strip open a modal with per-character detail: entrance moment, exit moment, costume, props carried, set pieces, blocking notes. Derived from timeline data (see [SCRATCH_NOTES.md](SCRATCH_NOTES.md)). Phase 6 ships read-only chips only.
+- **Scene summary drill-down** — clickable chips on the scene summary strip open a modal with per-character detail: entrance moment, exit moment, costume, props carried, set pieces, blocking notes. Costume/props/set pieces would read from the Phase 14 event-derived state (`asset_state.py`); rest derived from timeline data (see [SCRATCH_NOTES.md](SCRATCH_NOTES.md)). Phase 6 ships read-only chips only.
 - **Rehearse line blur** — in Rehearse mode, actor's own lines stay in the list but text is blurred until click or hover reveal, so they can practice against visible context lines without seeing their line prematurely. Phase 6 P2; presets alone are sufficient for P0.
 - **Production home page** — a dedicated landing page per production instead of opening straight into the timeline hub.
 - **Bookmarks timeline view** — a dedicated timeline-like view for bookmarks with gaps (`…`) between non-adjacent moments; click through to the main timeline. Owner undecided on interaction design — leave as-is until settled.
@@ -1112,7 +1110,7 @@ These are not committed scope — captured here so good ideas are not lost:
 - **Multi-select character filter** — show moments for any of several selected characters at once.
 - **Character colors** — assign colors to characters for auto-highlighting (Actors and other roles).
 - **Split / merge moments** — divide one moment into two or combine adjacent moments during structural editing.
-- **Costume event-driven model** — track costume piece add/remove events on the timeline and derive current costume state (replacing scene-level assignment over time).
+- **Costume pieces / outfits** — Phase 14 WP5 shipped a thin on/off slice for whole costumes (`moment_costume_events`), replacing scene-level assignment. Tracking individual costume **pieces** and outfit combinations stays a later wish-list item.
 - **Rich reports** — PDF export, print layouts, cross-production analytics, preparation progress dashboards.
 - **Production-level settings** — per-production overrides for display and workflow flags (if global App Settings prove insufficient).
 - **Real-time note-flagging** -- A tool/ability for directors (or other roles too) to quickly flag or add a note to a moment without fulling disengaging from watching the scene play out. Possibly voice-transcribed, so the person could mumble into their phone while watching the rest of the scene. 

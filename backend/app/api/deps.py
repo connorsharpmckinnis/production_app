@@ -7,6 +7,52 @@ from app.auth.dependencies import user_has_role
 from app.models import Character, Production, User, UserCharacterAssignment
 
 
+def user_display_name(user: User) -> str:
+    return f"{user.first_name} {user.last_name}".strip()
+
+
+def validate_optional_person(
+    db: Session,
+    production_id: int,
+    character_id: int | None,
+    user_id: int | None,
+) -> None:
+    """Confirm an optional character/user "who did this" reference is usable.
+
+    character_id must belong to this production; user_id must be an active
+    user in the same organization as this production. Used anywhere a
+    Moment attachment records a character-or-user person (Phase 14 prop and
+    set piece events today; the lav chart has its own equivalent checks).
+    """
+    if character_id is not None:
+        character = (
+            db.query(Character)
+            .filter(Character.id == character_id, Character.production_id == production_id)
+            .first()
+        )
+        if character is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Character is not in this production",
+            )
+    if user_id is not None:
+        user = (
+            db.query(User)
+            .join(Production, Production.organization_id == User.organization_id)
+            .filter(
+                User.id == user_id,
+                User.is_active.is_(True),
+                Production.id == production_id,
+            )
+            .first()
+        )
+        if user is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="User is not available in this organization",
+            )
+
+
 def get_production_or_404(db: Session, production_id: int) -> Production:
     production = db.query(Production).filter(Production.id == production_id).first()
     if production is None:

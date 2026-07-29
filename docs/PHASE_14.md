@@ -1,6 +1,6 @@
 # Phase 14 — Event-Driven Asset State on the Timeline
 
-**Status:** Decisions confirmed (2026-07-26) — awaiting feature branch + explicit build authorization
+**Status:** WP1–WP6 complete (2026-07-27) — event-driven props/sets/costumes shipped on `event-architecture-1`. Owner walkthrough still the live validation gate before merge.
 
 **Goal:** Make Timeline Moments the place where props and set pieces turn **ON** / **OFF**, then **derive** current state forward (across scenes and acts) until the next change. Optional free-text notes carry location / exit detail; optional person affiliation (character or user). Light costume **on/off** replaces `costumes.scene_id` without a deep costume redesign. Lav chart stays as-is (SoT confirmed; Timeline markers deferred until the event engine feels solid).
 
@@ -165,7 +165,7 @@ Display examples:
 | `notes` | Optional free text |
 
 - Drop `costumes.scene_id`.  
-- `costumes` remain a production catalog of whole looks (keep `character_id` on catalog row if useful as “default owner,” or leave as today minus scene — finalize in WP1; prefer smallest change).  
+- **Finalized 2026-07-27:** `costumes` remain a production catalog of whole looks and **keep** `character_id` on the catalog row (as default owner); only `scene_id` drops.  
 - Derivation: per character, current costume = last unmatched `on` (or none after `off`).  
 - Costumes page + report: retarget enough to work; no outfit/piece work.
 
@@ -260,44 +260,44 @@ Unchanged. PHASE_13 follow-on text remains the plan for **later**. Confirm again
 
 **Done when:** Docs match confirmed decisions.
 
-### WP2 — Schema + derivation (props & set pieces)
+### WP2 — Schema + derivation (props & set pieces) — **Done (2026-07-27)**
 
 - Alembic: create event tables; drop `moment_props` / `moment_set_pieces`.  
 - `asset_state` derivation + unit tests (cross-scene persistence; re-ON updates notes; off clears in-play).  
 - Timeline API flags / summaries for prop & set events + derived in-play where needed.
 
-**Done when:** Tests prove Iceberg ON @ M1 with notes → still in play with same notes in a later act until OFF or re-ON.
+**Done when:** Tests prove Iceberg ON @ M1 with notes → still in play with same notes in a later act until OFF or re-ON. ✅ `backend/app/services/asset_state.py` + `backend/tests/test_asset_state.py`; `moment_prop_events` / `moment_set_piece_events` tables (migration `018`); `MomentDetailResponse.props_in_play` / `set_pieces_in_play` derived from the walk. `props`/`set-pieces` moment endpoints now create/update/delete on/off events (kind, character XOR user, notes) instead of presence rows.
 
-### WP3 — Timeline UI (props & set pieces)
+### WP3 — Timeline UI (props & set pieces) — **Implemented (2026-07-27), pending owner walkthrough**
 
 - Moment detail: On/Off + notes + optional character/user picker.  
 - Badges/filters updated.  
 - Light “currently in play” read-out from derivation.
 
-**Done when:** Owner walkthrough below works in the UI.
+**Done when:** Owner walkthrough below works in the UI. ✅ Moment detail panel now has separate prop / set-piece event sections (list existing on/off events with kind badge, person, notes; inline edit via PATCH; remove via DELETE) plus an add form (asset select, On/Off, Person type None/Character/User, notes). A compact "Currently in play" read-out renders `props_in_play` / `set_pieces_in_play` under each section. Person picker (`user` option) uses `GET /productions/{id}/active-users` (all active org users, any role) via `useTimelineScene` for Director/Admin — not Actor-only `castable-users`. Timeline badges/filters unchanged (still driven by `has_props` / `has_set_piece` etc. from the backend). Owner has not yet walked through the live UI.
 
-### WP4 — Reports + readiness (props & sets)
+### WP4 — Reports + readiness (props & sets) — **Done (2026-07-27)**
 
-- Prop sheet (and set sheet if present) use on/off chronology.  
+- Prop sheet uses on/off chronology. **No set sheet report** (confirmed 2026-07-27 — set pieces get events/derivation/UI but not a dedicated report this phase).  
 - Readiness soft dims retargeted.
 
-**Done when:** Sheets match event model; no references to old junction APIs.
+**Done when:** Prop sheet matches event model; no references to old junction APIs. ✅ `prop-sheet` report now reads `moment_prop_events` and includes `kind` + character/user person per row, still in show order (= chronology). Readiness `props` / `set_pieces` soft dimensions now count scenes with at least one event. ✅ Frontend: Reports page prop sheet chronology now shows an On/Off badge and character-or-user person alongside notes.
 
-### WP5 — Costumes thin slice
+### WP5 — Costumes thin slice — **Done (2026-07-27)**
 
 - `moment_costume_events`; drop `costumes.scene_id`.  
 - Minimal Moment detail + Costumes page + filter + costume report so the app does not break.  
 - No pieces, no outfit model, no heavy UX polish.
 
-**Done when:** Can ON a costume for a character mid-show and OFF later; scene matrix gone.
+**Done when:** Can ON a costume for a character mid-show and OFF later; scene matrix gone. ✅ Migration `019` creates `moment_costume_events` (`character_id` required, `kind` on/off, `costume_id` required on `on` via CHECK, unique `(moment_id, character_id)`) and drops `costumes.scene_id` (no data migration). `compute_costume_state_by_moment` / `costume_states_at_moment` in `asset_state.py` derive current wearing per character, persisting across scenes/acts. Costume catalog API/schema drop `scene_id`; new moment costume event endpoints (`GET/POST/PATCH/DELETE .../moments/{id}/costumes`) validate character + costume in production and 409 on duplicate `(moment_id, character_id)`. `MomentDetailResponse` exposes `costume_events` + `costumes_wearing`; `costume_only` Timeline filter and `has_costume` now mean "has a costume event on this moment" (event-based, not scene-matrix). Readiness costume dimension retargeted: speaking non-builtin characters with ≥1 `on` costume event anywhere in the production / total speaking characters. `costumes-by-scene` report replaced by `GET .../reports/costume-changes` (flat chronology: character, kind, costume, notes, act/scene/seq). CSV import drops scene/act columns (`name, character, description`), dedupes on `(name, character_id)`. Frontend: `CostumesPage` is catalog-only (character + name + description); `MomentDetailPanel` has a dedicated Costumes event section (Wear/Clear, costume required for Wear, "Currently wearing" read-out) plus a link to the Costumes catalog page; Reports page shows "Costume changes" chronology.
 
-### WP6 — Closeout
+### WP6 — Closeout — **Done (2026-07-27)**
 
-- Feature closeout skill: phase status, scratch, PRE_AUGUST, about if needed.  
-- Update #51/#70 (props/sets done; costume pieces / lav markers still open as appropriate).  
-- Regression: importer, lav chart, entrances/exits.
+- Feature closeout skill: phase status, scratch, PRE_AUGUST, UX backlog synced.  
+- GitHub #51/#70 left for owner to update on merge (props/sets + thin costumes done; costume pieces / lav markers still open).  
+- Regression: full backend suite green (220 passed, 1 skipped); frontend build + vitest green.
 
-**Done when:** Docs match shipped behavior.
+**Done when:** Docs match shipped behavior. ✅
 
 ---
 
@@ -362,6 +362,12 @@ WP0 authorize + branch
 | ---- | -------- |
 | 2026-07-26 | Planning draft written |
 | 2026-07-26 | **Confirmed:** build now; props/sets focus; free-text notes; persist across show; on/off only; optional character XOR user; no data migrate; lav markers deferred; thin costume on/off replacing `scene_id` |
+| 2026-07-27 | **Build authorized:** WP1–WP4 (props/sets) now; WP5 (costumes) paused until props/sets walkthrough. Costume catalog keeps `character_id`, drops `scene_id` (WP5). WP4 ships prop sheet chronology only — no set sheet report. No data migration confirmed; old junctions may be dropped. WP1 docs lock-in complete. |
+| 2026-07-27 | **WP2 + WP4 backend shipped.** `moment_prop_events` / `moment_set_piece_events` tables (migration `018`, `moment_props`/`moment_set_pieces` dropped, no data migrated); `app/services/asset_state.py` derivation (walks Act→Scene→sequence order, persists across scenes/acts, re-`on` updates person/notes, `off` clears in-play); `props`/`set-pieces` moment endpoints now create/PATCH/delete on/off events; `MomentDetailResponse` exposes `props_in_play`/`set_pieces_in_play`; prop sheet report and readiness soft dimensions retargeted to the new tables. WP3 (Timeline UI) and WP5 (costumes) are still not started — this is backend-only. |
+| 2026-07-27 | **WP3 + WP4 frontend shipped.** Moment detail panel: dedicated Props / Set pieces event sections (on/off badge, character-or-user person, notes; inline PATCH edit; DELETE remove) replacing the old presence-only attach list; add-event form with On/Off + Person type (None/Character/User) + notes; compact "Currently in play" read-out from `props_in_play`/`set_pieces_in_play`. Person User picker loads `active-users` (all active org users) rather than Actor-only `castable-users`. Reports page prop sheet chronology shows the On/Off badge and character-or-user person. Costumes untouched (WP5, still not started). Owner walkthrough still pending. |
+| 2026-07-27 | **WP5 (costumes) shipped, backend and frontend.** Migration `019` adds `moment_costume_events` and drops `costumes.scene_id` (no data migration). Costume derivation, catalog/event APIs, timeline integration, readiness retarget, `costume-changes` report, and CSV import all updated per WP5 scope. Frontend Costumes catalog page, Moment detail costume event section, and Reports page updated to match. Owner walkthrough still pending for WP3–WP5 together. |
+| 2026-07-27 | **WP6 closeout.** Docs/scratch/UX backlog synced to shipped event model. #51/#70 left for owner on merge. |
+| 2026-07-28 | Pre-merge UX polish: icon attachment-type picker; On/Off (Wear/Clear) toggles; unified searchable character+user person combobox (#73); searchable catalog selects; Currently in play / wearing hide event notes (#75). |
 
 ---
 
