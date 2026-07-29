@@ -1,7 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Printer } from "lucide-react";
+import { Pencil, Printer, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
@@ -11,9 +19,12 @@ import type {
   LavChartResponse,
   LavPackCell,
   LavWireCell,
+  PackResponse,
+  WireResponse,
 } from "@/lib/types";
 
 type SheetKind = "wires" | "packs";
+type InventoryKind = "wire" | "pack";
 
 function cellKey(rowKey: string, sceneId: number) {
   return `${rowKey}::${sceneId}`;
@@ -65,8 +76,17 @@ export default function LavChartPage() {
   const [proposing, setProposing] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [wireIdentifier, setWireIdentifier] = useState("");
+  const [wireNotes, setWireNotes] = useState("");
   const [packIdentifier, setPackIdentifier] = useState("");
+  const [packNotes, setPackNotes] = useState("");
   const [rulesOpen, setRulesOpen] = useState(false);
+  const [inventoryOpen, setInventoryOpen] = useState(true);
+  const [inventoryBusy, setInventoryBusy] = useState(false);
+
+  const [editKind, setEditKind] = useState<InventoryKind | null>(null);
+  const [editingItem, setEditingItem] = useState<WireResponse | PackResponse | null>(null);
+  const [editIdentifier, setEditIdentifier] = useState("");
+  const [editNotes, setEditNotes] = useState("");
 
   async function loadChart() {
     setError(null);
@@ -177,8 +197,12 @@ export default function LavChartPage() {
     event.preventDefault();
     if (!wireIdentifier.trim()) return;
     try {
-      await api.createWire(productionId, { identifier: wireIdentifier.trim() });
+      await api.createWire(productionId, {
+        identifier: wireIdentifier.trim(),
+        notes: wireNotes.trim() || null,
+      });
       setWireIdentifier("");
+      setWireNotes("");
       toast.success("Wire added");
       await loadChart();
     } catch (err) {
@@ -190,12 +214,87 @@ export default function LavChartPage() {
     event.preventDefault();
     if (!packIdentifier.trim()) return;
     try {
-      await api.createPack(productionId, { identifier: packIdentifier.trim() });
+      await api.createPack(productionId, {
+        identifier: packIdentifier.trim(),
+        notes: packNotes.trim() || null,
+      });
       setPackIdentifier("");
+      setPackNotes("");
       toast.success("Pack added");
       await loadChart();
     } catch (err) {
       toast.error(formatApiError(err, "Failed to add pack"));
+    }
+  }
+
+  function openEditDialog(kind: InventoryKind, item: WireResponse | PackResponse) {
+    setEditKind(kind);
+    setEditingItem(item);
+    setEditIdentifier(item.identifier);
+    setEditNotes(item.notes ?? "");
+  }
+
+  function closeEditDialog() {
+    setEditKind(null);
+    setEditingItem(null);
+    setEditIdentifier("");
+    setEditNotes("");
+  }
+
+  async function handleEditSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!editingItem || !editKind || !editIdentifier.trim()) return;
+
+    setInventoryBusy(true);
+    try {
+      const body = {
+        identifier: editIdentifier.trim(),
+        notes: editNotes.trim() || null,
+      };
+      if (editKind === "wire") {
+        await api.updateWire(productionId, editingItem.id, body);
+        toast.success("Wire updated");
+      } else {
+        await api.updatePack(productionId, editingItem.id, body);
+        toast.success("Pack updated");
+      }
+      closeEditDialog();
+      await loadChart();
+    } catch (err) {
+      toast.error(
+        formatApiError(err, editKind === "wire" ? "Failed to update wire" : "Failed to update pack"),
+      );
+    } finally {
+      setInventoryBusy(false);
+    }
+  }
+
+  async function handleDelete(kind: InventoryKind, item: WireResponse | PackResponse) {
+    const label = kind === "wire" ? "wire" : "pack";
+    const ok = await confirm({
+      title: `Delete this ${label}?`,
+      description: `Clears this ${label} from any chart cells that use it.`,
+      confirmLabel: "Delete",
+      destructive: true,
+    });
+    if (!ok) return;
+
+    setInventoryBusy(true);
+    try {
+      if (kind === "wire") {
+        await api.deleteWire(productionId, item.id);
+        toast.success("Wire deleted");
+      } else {
+        await api.deletePack(productionId, item.id);
+        toast.success("Pack deleted");
+      }
+      await loadChart();
+    } catch (err) {
+      toast.error(
+        formatApiError(err, kind === "wire" ? "Failed to delete wire" : "Failed to delete pack"),
+      );
+    } finally {
+      setInventoryBusy(false);
     }
   }
 
@@ -318,36 +417,47 @@ export default function LavChartPage() {
           </ul>
         </details>
 
-        <div className="grid gap-3 md:grid-cols-2">
-          <form onSubmit={handleAddWire} className="flex flex-wrap items-end gap-2">
-            <label className="flex min-w-[12rem] flex-1 flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">Add wire</span>
-              <input
-                className="rounded-md border border-input bg-background px-3 py-2"
-                value={wireIdentifier}
-                onChange={(e) => setWireIdentifier(e.target.value)}
-                placeholder="Wire 1"
-              />
-            </label>
-            <Button type="submit" variant="outline" size="sm">
-              Add
-            </Button>
-          </form>
-          <form onSubmit={handleAddPack} className="flex flex-wrap items-end gap-2">
-            <label className="flex min-w-[12rem] flex-1 flex-col gap-1 text-sm">
-              <span className="text-muted-foreground">Add pack</span>
-              <input
-                className="rounded-md border border-input bg-background px-3 py-2"
-                value={packIdentifier}
-                onChange={(e) => setPackIdentifier(e.target.value)}
-                placeholder="Pack 1"
-              />
-            </label>
-            <Button type="submit" variant="outline" size="sm">
-              Add
-            </Button>
-          </form>
-        </div>
+        <details
+          className="rounded-md border border-border bg-muted/30 px-3 py-2"
+          open={inventoryOpen}
+          onToggle={(e) => setInventoryOpen((e.target as HTMLDetailsElement).open)}
+        >
+          <summary className="cursor-pointer text-sm font-medium">
+            Manage wires &amp; packs ({chart.wires.length} wires, {chart.packs.length} packs)
+          </summary>
+          <div className="mt-3 grid gap-4 md:grid-cols-2">
+            <InventoryColumn
+              title="Wires"
+              emptyLabel="No wires yet."
+              items={chart.wires}
+              identifier={wireIdentifier}
+              notes={wireNotes}
+              identifierPlaceholder="Wire 1"
+              addLabel="Add wire"
+              busy={inventoryBusy}
+              onIdentifierChange={setWireIdentifier}
+              onNotesChange={setWireNotes}
+              onAdd={handleAddWire}
+              onEdit={(item) => openEditDialog("wire", item)}
+              onDelete={(item) => void handleDelete("wire", item)}
+            />
+            <InventoryColumn
+              title="Packs"
+              emptyLabel="No packs yet."
+              items={chart.packs}
+              identifier={packIdentifier}
+              notes={packNotes}
+              identifierPlaceholder="Pack 1"
+              addLabel="Add pack"
+              busy={inventoryBusy}
+              onIdentifierChange={setPackIdentifier}
+              onNotesChange={setPackNotes}
+              onAdd={handleAddPack}
+              onEdit={(item) => openEditDialog("pack", item)}
+              onDelete={(item) => void handleDelete("pack", item)}
+            />
+          </div>
+        </details>
       </div>
 
       <div>
@@ -455,10 +565,157 @@ export default function LavChartPage() {
 
         {catalog.length === 0 && (
           <p className="mt-3 text-sm text-muted-foreground">
-            Add {sheet === "wires" ? "wires" : "packs"} above, then run Propose chart.
+            Add {sheet === "wires" ? "wires" : "packs"} in Manage wires &amp; packs, then run Propose
+            chart.
           </p>
         )}
       </div>
+
+      <Dialog
+        open={editKind != null && editingItem != null}
+        onOpenChange={(open) => {
+          if (!open) closeEditDialog();
+        }}
+      >
+        <DialogContent>
+          <form onSubmit={(e) => void handleEditSubmit(e)}>
+            <DialogHeader>
+              <DialogTitle>{editKind === "wire" ? "Edit wire" : "Edit pack"}</DialogTitle>
+              <DialogDescription>
+                Update the identifier and optional notes for this inventory item.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-3 py-4">
+              <input
+                value={editIdentifier}
+                onChange={(e) => setEditIdentifier(e.target.value)}
+                placeholder="Identifier"
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                autoFocus
+              />
+              <textarea
+                value={editNotes}
+                onChange={(e) => setEditNotes(e.target.value)}
+                placeholder="Notes (optional)"
+                rows={2}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              />
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeEditDialog}>
+                Cancel
+              </Button>
+              <Button type="submit" disabled={inventoryBusy || !editIdentifier.trim()}>
+                Save
+              </Button>
+            </DialogFooter>
+          </form>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function InventoryColumn({
+  title,
+  emptyLabel,
+  items,
+  identifier,
+  notes,
+  identifierPlaceholder,
+  addLabel,
+  busy,
+  onIdentifierChange,
+  onNotesChange,
+  onAdd,
+  onEdit,
+  onDelete,
+}: {
+  title: string;
+  emptyLabel: string;
+  items: Array<WireResponse | PackResponse>;
+  identifier: string;
+  notes: string;
+  identifierPlaceholder: string;
+  addLabel: string;
+  busy: boolean;
+  onIdentifierChange: (value: string) => void;
+  onNotesChange: (value: string) => void;
+  onAdd: (event: React.FormEvent) => void;
+  onEdit: (item: WireResponse | PackResponse) => void;
+  onDelete: (item: WireResponse | PackResponse) => void;
+}) {
+  return (
+    <div className="space-y-3">
+      <h3 className="text-sm font-medium">{title}</h3>
+      {items.length === 0 ? (
+        <p className="text-sm text-muted-foreground">{emptyLabel}</p>
+      ) : (
+        <div className="overflow-x-auto rounded-md border border-border bg-background">
+          <table className="w-full text-sm">
+            <thead className="border-b border-border bg-muted/40">
+              <tr>
+                <th className="px-3 py-2 text-left font-medium">Identifier</th>
+                <th className="px-3 py-2 text-left font-medium">Notes</th>
+                <th className="px-3 py-2 text-left font-medium">Actions</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {items.map((item) => (
+                <tr key={item.id}>
+                  <td className="px-3 py-2 font-medium">{item.identifier}</td>
+                  <td className="px-3 py-2 text-muted-foreground">{item.notes ?? "—"}</td>
+                  <td className="px-3 py-2">
+                    <div className="flex gap-1">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => onEdit(item)}
+                        aria-label={`Edit ${item.identifier}`}
+                        title="Edit"
+                      >
+                        <Pencil />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={busy}
+                        onClick={() => onDelete(item)}
+                        aria-label={`Delete ${item.identifier}`}
+                        title="Delete"
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 />
+                      </Button>
+                    </div>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <form onSubmit={onAdd} className="space-y-2">
+        <input
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          value={identifier}
+          onChange={(e) => onIdentifierChange(e.target.value)}
+          placeholder={identifierPlaceholder}
+          aria-label={`${title} identifier`}
+        />
+        <input
+          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+          value={notes}
+          onChange={(e) => onNotesChange(e.target.value)}
+          placeholder="Notes (optional)"
+          aria-label={`${title} notes`}
+        />
+        <Button type="submit" variant="outline" size="sm" disabled={!identifier.trim()}>
+          {addLabel}
+        </Button>
+      </form>
     </div>
   );
 }
