@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, Text, func
+from sqlalchemy import DateTime, ForeignKey, Integer, Text, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -8,6 +8,13 @@ from app.db.base import Base
 
 class Moment(Base):
     __tablename__ = "moments"
+    __table_args__ = (
+        UniqueConstraint(
+            "scene_id",
+            "sequence_number",
+            name="uq_moments_scene_id_sequence_number",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     scene_id: Mapped[int] = mapped_column(

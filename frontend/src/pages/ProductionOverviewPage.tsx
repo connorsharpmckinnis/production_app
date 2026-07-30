@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import AnnouncementManager from "@/components/AnnouncementManager";
 import EmptyState from "@/components/EmptyState";
 import OverviewMessageEditor from "@/components/OverviewMessageEditor";
 import OverviewSpotlight from "@/components/OverviewSpotlight";
@@ -220,6 +221,8 @@ function StaffOverview({
       {canManagePreparation && (
         <OverviewMessageEditor productionId={productionId} onSaved={onMessagesSaved} />
       )}
+
+      {canManagePreparation && <AnnouncementManager productionId={productionId} />}
 
       <section>
         <h2 className="mb-3 text-sm font-medium">Quick links</h2>

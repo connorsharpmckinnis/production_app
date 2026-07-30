@@ -5,16 +5,32 @@ from sqlalchemy.orm import Session
 from app.models import Moment
 
 
+def _apply_sequence_updates(
+    db: Session,
+    planned: list[tuple[Moment, int]],
+) -> None:
+    """Assign new sequence numbers without mid-update unique collisions.
+
+    Parks rows at temporary negative values (``-id``) first, then applies finals.
+    """
+    if not planned:
+        return
+    for moment, _ in planned:
+        moment.sequence_number = -moment.id
+    db.flush()
+    for moment, new_sequence in planned:
+        moment.sequence_number = new_sequence
+
+
 def shift_moments_from(db: Session, scene_id: int, from_sequence: int, delta: int) -> None:
     """Shift sequence numbers at or after from_sequence by delta within a scene."""
     moments = (
         db.query(Moment)
         .filter(Moment.scene_id == scene_id, Moment.sequence_number >= from_sequence)
-        .order_by(Moment.sequence_number.desc() if delta > 0 else Moment.sequence_number)
         .all()
     )
-    for moment in moments:
-        moment.sequence_number += delta
+    planned = [(moment, moment.sequence_number + delta) for moment in moments]
+    _apply_sequence_updates(db, planned)
 
 
 def renumber_moments_after_delete(db: Session, scene_id: int, deleted_sequence: int) -> None:
@@ -42,11 +58,12 @@ def move_moment_sequence(
                 Moment.sequence_number < old_sequence,
                 Moment.id != moment.id,
             )
-            .order_by(Moment.sequence_number.desc())
             .all()
         )
-        for sibling in siblings:
-            sibling.sequence_number += 1
+        planned: list[tuple[Moment, int]] = [
+            (sibling, sibling.sequence_number + 1) for sibling in siblings
+        ]
+        planned.append((moment, new_sequence))
     else:
         siblings = (
             db.query(Moment)
@@ -56,10 +73,9 @@ def move_moment_sequence(
                 Moment.sequence_number <= new_sequence,
                 Moment.id != moment.id,
             )
-            .order_by(Moment.sequence_number)
             .all()
         )
-        for sibling in siblings:
-            sibling.sequence_number -= 1
+        planned = [(sibling, sibling.sequence_number - 1) for sibling in siblings]
+        planned.append((moment, new_sequence))
 
-    moment.sequence_number = new_sequence
+    _apply_sequence_updates(db, planned)

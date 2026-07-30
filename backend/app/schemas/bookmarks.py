@@ -16,5 +16,7 @@ class BookmarkResponse(BaseModel):
     production_id: int
     production_title: str
     scene_id: int
+    act_number: int
+    scene_number: int
     sequence_number: int
     moment_preview: str

@@ -35,6 +35,17 @@ class AssetStateSnapshot:
     notes: str | None = None
     # Kind of the event that produced this snapshot, mostly useful for display.
     last_kind: str | None = None
+    # Moment that last set this snapshot (last non-OFF for in-play items).
+    source_moment_id: int | None = None
+    source_scene_id: int | None = None
+
+
+@dataclass(frozen=True)
+class AssetMomentRef:
+    """Pointer to a Moment that touched an asset (for deep links)."""
+
+    moment_id: int
+    scene_id: int
 
 
 def load_production_moments_in_show_order(db: Session, production_id: int) -> list[Moment]:
@@ -60,17 +71,23 @@ def _apply_event(
     character_id: int | None,
     user_id: int | None,
     notes: str | None,
+    *,
+    moment_id: int,
+    scene_id: int,
 ) -> None:
     if kind == "on":
         # A repeat "on" while already on is allowed and simply overwrites the
         # person/notes — this is how a handoff or a move is recorded without
-        # needing a richer event vocabulary.
+        # needing a richer event vocabulary. Future MOVE (etc.) should also
+        # update source_* the same way; only OFF clears in_play.
         state_by_asset_id[asset_id] = AssetStateSnapshot(
             in_play=True,
             character_id=character_id,
             user_id=user_id,
             notes=notes,
             last_kind="on",
+            source_moment_id=moment_id,
+            source_scene_id=scene_id,
         )
     else:
         # "off" clears who was holding it, but keeps the off note (e.g. "tuck
@@ -81,6 +98,8 @@ def _apply_event(
             user_id=None,
             notes=notes,
             last_kind="off",
+            source_moment_id=moment_id,
+            source_scene_id=scene_id,
         )
 
 
@@ -107,6 +126,8 @@ def compute_prop_state_by_moment(
                 event.character_id,
                 event.user_id,
                 event.notes,
+                moment_id=moment.id,
+                scene_id=moment.scene_id,
             )
         # Copy so later mutation of state_by_prop_id doesn't rewrite history.
         result[moment.id] = dict(state_by_prop_id)
@@ -131,13 +152,56 @@ def compute_set_piece_state_by_moment(
                 event.character_id,
                 event.user_id,
                 event.notes,
+                moment_id=moment.id,
+                scene_id=moment.scene_id,
             )
         result[moment.id] = dict(state_by_set_piece_id)
 
     return result
 
 
-def _group_prop_events_by_moment_id(
+def find_next_asset_event_refs(
+    moments: list[Moment],
+    events_by_moment_id: dict[int, list],
+    *,
+    current_moment_id: int,
+    asset_ids: set[int],
+    asset_id_attr: str,
+) -> dict[int, AssetMomentRef]:
+    """For each asset, find the first Moment after current that has any event for it.
+
+    Used for in-play "next change" deep links (next ON, OFF, or future MOVE).
+    Assets with no later event are omitted.
+    """
+    if not asset_ids:
+        return {}
+
+    start_index: int | None = None
+    for index, moment in enumerate(moments):
+        if moment.id == current_moment_id:
+            start_index = index
+            break
+    if start_index is None:
+        return {}
+
+    remaining = set(asset_ids)
+    result: dict[int, AssetMomentRef] = {}
+    for moment in moments[start_index + 1 :]:
+        if not remaining:
+            break
+        for event in events_by_moment_id.get(moment.id, []):
+            asset_id = getattr(event, asset_id_attr)
+            if asset_id not in remaining:
+                continue
+            result[asset_id] = AssetMomentRef(
+                moment_id=moment.id,
+                scene_id=moment.scene_id,
+            )
+            remaining.discard(asset_id)
+    return result
+
+
+def group_prop_events_by_moment_id(
     db: Session, production_id: int
 ) -> dict[int, list[MomentPropEvent]]:
     events = (
@@ -155,7 +219,7 @@ def _group_prop_events_by_moment_id(
     return by_moment_id
 
 
-def _group_set_piece_events_by_moment_id(
+def group_set_piece_events_by_moment_id(
     db: Session, production_id: int
 ) -> dict[int, list[MomentSetPieceEvent]]:
     events = (
@@ -178,7 +242,7 @@ def prop_states_at_moment(
 ) -> dict[int, AssetStateSnapshot]:
     """Return current prop states (prop_id -> snapshot) as of the given Moment."""
     moments = load_production_moments_in_show_order(db, production_id)
-    events_by_moment_id = _group_prop_events_by_moment_id(db, production_id)
+    events_by_moment_id = group_prop_events_by_moment_id(db, production_id)
     states_by_moment_id = compute_prop_state_by_moment(moments, events_by_moment_id)
     return states_by_moment_id.get(moment_id, {})
 
@@ -188,7 +252,7 @@ def set_piece_states_at_moment(
 ) -> dict[int, AssetStateSnapshot]:
     """Return current set piece states (set_piece_id -> snapshot) as of the given Moment."""
     moments = load_production_moments_in_show_order(db, production_id)
-    events_by_moment_id = _group_set_piece_events_by_moment_id(db, production_id)
+    events_by_moment_id = group_set_piece_events_by_moment_id(db, production_id)
     states_by_moment_id = compute_set_piece_state_by_moment(moments, events_by_moment_id)
     return states_by_moment_id.get(moment_id, {})
 

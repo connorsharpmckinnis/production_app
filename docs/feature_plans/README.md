@@ -1,12 +1,12 @@
 # Feature plans
 
-Proposals and decision docs for features that are **not yet** committed as a `PHASE_*.md` execution plan.
+Proposals and **approved roadmap** decision docs for features that are **not yet** committed as a `PHASE_*.md` execution plan.
 
 Use this folder when:
 
 - An idea needs shaping (options, open questions, scope) before build authorization
 - Work is adjacent to a shipped phase but not large enough (or decided enough) for a full phase doc yet
-- You want a durable place for “we could do X” without mixing it into scratch notes
+- You want a durable place for “we will build this eventually” that is stronger than a GitHub Enhancement issue or a scratch one-liner
 
 **Lifecycle**
 
@@ -15,13 +15,57 @@ Use this folder when:
 3. Either promote to a `docs/PHASE_*.md` work package list, fold into an existing phase, or park / decline
 4. Update status in the plan header when outcome is known
 
-These are **not** authoritative product vision. Prefer [PROJECT.md](../PROJECT.md), [DATABASE.md](../DATABASE.md), and active phase docs when they conflict.
+**Status vocabulary**
 
-## Current proposals
+| Status | Meaning |
+| ------ | ------- |
+| **Proposal** | Shaped idea; not yet treated as committed roadmap |
+| **Roadmap (approved intent)** | Owner intends to build eventually; not scheduled/phased yet |
+| **Roadmap (curiosity / far-field)** | Captured for thoughtful prioritization; shape may change; still stronger than a random Enhancement |
+| **Parked / declined** | Explicitly not pursuing (say why) |
+| **Promoted** | Superseded by a `PHASE_*.md` (link it) |
+
+These are **not** more authoritative than [PROJECT.md](../PROJECT.md), [DATABASE.md](../DATABASE.md), or active phase docs when they conflict — but they **are** the preferred place for upcoming feature intent beyond scratch notes.
+
+When implementing, agents should read the matching plan here for goals, non-goals, and open questions before coding.
+
+---
+
+## Approved roadmap (near / mid)
 
 | Plan | Status | One-liner |
 | ---- | ------ | --------- |
-| [app-announcements.md](app-announcements.md) | Proposal | In-app announcements, banners/modals, bell inbox |
+| [character-nightly-packs.md](character-nightly-packs.md) | Roadmap | Actor prep pack: character + scene(s) → lines, E/E, costumes/props/sets |
+| [print-and-call-sheets.md](print-and-call-sheets.md) | Roadmap | Rehearsal call sheet: selected scenes → cast + assets needed |
+| [org-catalog-and-shop.md](org-catalog-and-shop.md) | Roadmap | Theater-wide catalog + CSV; check out / copy assets into a show |
+| [tech-week-chart-suite.md](tech-week-chart-suite.md) | Roadmap | Visual burn-down, break-time, set-change (+ lav change-list later) |
+| [soft-pilot-ops.md](soft-pilot-ops.md) | Roadmap | Pilot runbook, What’s new, support loop for one-show soft pilots |
+| [director-house-notes.md](director-house-notes.md) | Roadmap | Mobile house mode, dictation, optional follow-along assist |
+| [show-archives.md](show-archives.md) | Roadmap | Archive past shows as institutional memory |
+| [crew-roles.md](crew-roles.md) | Roadmap | Stage Manager / crew-shaped access beyond Admin·Director·Actor |
+
+## Earlier proposals (comms / deep links)
+
+| Plan | Status | One-liner |
+| ---- | ------ | --------- |
+| [app-announcements.md](app-announcements.md) | Prototype shipped | In-app announcements, banners/modals, bell inbox |
 | [tasks-and-mentions.md](tasks-and-mentions.md) | Proposal | Basic production Tasks + @-mentions → notifications |
 | [email-notifications.md](email-notifications.md) | Proposal | Templated outbound email (blasts, later mentions/digest) |
-| [in-play-moment-deep-links.md](in-play-moment-deep-links.md) | Proposal | Jump from in-play assets to source Timeline Moments |
+| [in-play-moment-deep-links.md](in-play-moment-deep-links.md) | Shipped | In-play source + next-change deep links (props/set pieces); costumes/sticky URL deferred |
+
+## Curiosity / far-field
+
+| Plan | Status | One-liner |
+| ---- | ------ | --------- |
+| [script-revision-reimport.md](script-revision-reimport.md) | Curiosity | Writer revision merge / re-import without wiping prep |
+| [scene-summary-drill-down.md](scene-summary-drill-down.md) | Curiosity | Scene chips → per-character/asset modal detail |
+| [lav-follow-ons.md](lav-follow-ons.md) | Curiosity | Lav Timeline events, change-list, handhelds, CSV |
+| [understudies-and-cast-overrides.md](understudies-and-cast-overrides.md) | Curiosity | Understudies + effective cast for packs/Rehearse |
+| [costume-pieces-and-outfits.md](costume-pieces-and-outfits.md) | Curiosity | Piece-level wardrobe beyond whole-costume on/off |
+| [rehearse-depth.md](rehearse-depth.md) | Curiosity | Deeper actor practice modes / mobile Rehearse |
+| [prep-progress-intentionally-blank.md](prep-progress-intentionally-blank.md) | Curiosity | Reviewed / intentionally blank prep marks |
+| [production-home-and-modes.md](production-home-and-modes.md) | Curiosity | Production landing + saved views / modes |
+| [bookmarks-redesign.md](bookmarks-redesign.md) | Curiosity | Dedicated bookmarks timeline-like UX |
+| [stage-diagram-blocking.md](stage-diagram-blocking.md) | Curiosity | Lightweight zone tap-to-block (not Stage Write) |
+| [scheduling-and-attendance.md](scheduling-and-attendance.md) | Curiosity | Lane decision vs Planning Center; thin complement only |
+| [ai-assisted-querying.md](ai-assisted-querying.md) | Curiosity | NL query over Timeline data; very low priority |

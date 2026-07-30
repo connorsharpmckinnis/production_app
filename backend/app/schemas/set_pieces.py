@@ -76,3 +76,15 @@ class SetPieceInPlayResponse(BaseModel):
     user_id: int | None
     user_display_name: str | None
     notes: str | None
+    # Moment that last set this in-play state (last ON / future MOVE).
+    source_moment_id: int
+    source_scene_id: int
+    source_act_number: int
+    source_scene_number: int
+    source_sequence_number: int
+    # Next ON/OFF/MOVE after the viewed Moment, if any.
+    next_change_moment_id: int | None = None
+    next_change_scene_id: int | None = None
+    next_change_act_number: int | None = None
+    next_change_scene_number: int | None = None
+    next_change_sequence_number: int | None = None

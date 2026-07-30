@@ -36,6 +36,10 @@ import type {
   MomentSummary,
   MomentTypeResponse,
   NoteResponse,
+  AnnouncementCreate,
+  AnnouncementResponse,
+  AnnouncementUpdate,
+  NotificationInboxResponse,
   OverviewMessageDefaultItem,
   OverviewMessageDefaultResponse,
   PackResponse,
@@ -674,6 +678,67 @@ export const api = {
       `/productions/${productionId}/moments/${momentId}/cues/${cueId}`,
       { method: "DELETE" },
     );
+  },
+
+  getNotificationInbox(params?: { productionId?: number; routeKey?: string }) {
+    const search = new URLSearchParams();
+    if (params?.productionId != null) {
+      search.set("production_id", String(params.productionId));
+    }
+    if (params?.routeKey) {
+      search.set("route_key", params.routeKey);
+    }
+    const query = search.toString();
+    return request<NotificationInboxResponse>(
+      `/notifications/inbox${query ? `?${query}` : ""}`,
+    );
+  },
+
+  markNotificationRead(notificationId: number) {
+    return request<void>(`/notifications/${notificationId}/read`, { method: "POST" });
+  },
+
+  markAllNotificationsRead() {
+    return request<{ updated: number }>("/notifications/read-all", { method: "POST" });
+  },
+
+  listOrgAnnouncements(includeInactive = true) {
+    return request<AnnouncementResponse[]>(
+      `/announcements?include_inactive=${includeInactive ? "true" : "false"}`,
+    );
+  },
+
+  createOrgAnnouncement(body: AnnouncementCreate) {
+    return request<AnnouncementResponse>("/announcements", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  listProductionAnnouncements(productionId: number, includeInactive = true) {
+    return request<AnnouncementResponse[]>(
+      `/productions/${productionId}/announcements?include_inactive=${includeInactive ? "true" : "false"}`,
+    );
+  },
+
+  createProductionAnnouncement(productionId: number, body: AnnouncementCreate) {
+    return request<AnnouncementResponse>(`/productions/${productionId}/announcements`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  updateAnnouncement(announcementId: number, body: AnnouncementUpdate) {
+    return request<AnnouncementResponse>(`/announcements/${announcementId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    });
+  },
+
+  deactivateAnnouncement(announcementId: number) {
+    return request<AnnouncementResponse>(`/announcements/${announcementId}`, {
+      method: "DELETE",
+    });
   },
 
   getAppSettings() {

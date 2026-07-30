@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import AnnouncementManager from "@/components/AnnouncementManager";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
@@ -136,7 +137,7 @@ export default function SettingsPage() {
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">App Settings</h1>
         <p className="text-sm text-muted-foreground">
-          Global display options and Overview rotating messages for all productions.
+          Global display options, Overview rotating messages, and org-wide announcements.
         </p>
       </div>
 
@@ -231,6 +232,8 @@ export default function SettingsPage() {
           </Button>
         </section>
       )}
+
+      <AnnouncementManager productionId={null} />
 
       <div className="rounded-lg border border-border p-4">
         <ThemeToggle />

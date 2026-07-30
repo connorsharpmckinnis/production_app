@@ -1,11 +1,18 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link, NavLink, Outlet, useLocation, useParams } from "react-router-dom";
 import FeedbackDialog from "@/components/FeedbackDialog";
+import {
+  NotificationBanner,
+  NotificationBell,
+  NotificationModal,
+  NotificationProvider,
+} from "@/components/NotificationHost";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
 import { api } from "@/lib/api";
 import { getLastProduction, rememberLastProduction } from "@/lib/lastProduction";
+import { humanTimelinePath } from "@/lib/timelineDeepLinks";
 import { cn } from "@/lib/utils";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
@@ -17,6 +24,14 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   );
 
 export default function AppShell() {
+  return (
+    <NotificationProvider>
+      <AppShellInner />
+    </NotificationProvider>
+  );
+}
+
+function AppShellInner() {
   const { user, logout, isAdmin, canManagePreparation, isActorOnly } = useAuth();
   const { id: productionId } = useParams();
   const location = useLocation();
@@ -169,80 +184,85 @@ export default function AppShell() {
           )}
         </div>
 
-        <div className="relative">
-          <button
-            type="button"
-            className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm hover:bg-muted"
-            onClick={() => setMenuOpen((open) => !open)}
-          >
-            <span>
-              {user?.first_name} {user?.last_name}
-            </span>
-            <span className="hidden items-center gap-1 sm:flex">
-              {user?.roles.map((role) => (
-                <Badge key={role} variant="secondary" className="text-[10px] font-normal">
-                  {role}
-                </Badge>
-              ))}
-            </span>
-          </button>
-          {menuOpen && (
-            <>
-              <button
-                type="button"
-                className="fixed inset-0 z-10"
-                aria-label="Close menu"
-                onClick={() => setMenuOpen(false)}
-              />
-              <div className="absolute right-0 z-20 mt-1 w-56 rounded-md border border-border bg-card py-1 shadow-md">
-                <div className="border-b border-border px-3 py-2 text-xs text-muted-foreground">
-                  @{user?.username}
-                </div>
+        <div className="flex items-center gap-1">
+          <NotificationBell />
+          <div className="relative">
+            <button
+              type="button"
+              className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm hover:bg-muted"
+              onClick={() => setMenuOpen((open) => !open)}
+            >
+              <span>
+                {user?.first_name} {user?.last_name}
+              </span>
+              <span className="hidden items-center gap-1 sm:flex">
+                {user?.roles.map((role) => (
+                  <Badge key={role} variant="secondary" className="text-[10px] font-normal">
+                    {role}
+                  </Badge>
+                ))}
+              </span>
+            </button>
+            {menuOpen && (
+              <>
                 <button
                   type="button"
-                  className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setBookmarksOpen((open) => !open);
-                  }}
-                >
-                  My bookmarks
-                </button>
-                <Link
-                  to="/about"
-                  className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                  className="fixed inset-0 z-10"
+                  aria-label="Close menu"
                   onClick={() => setMenuOpen(false)}
-                >
-                  About the App
-                </Link>
-                <button
-                  type="button"
-                  className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    setFeedbackOpen(true);
-                  }}
-                >
-                  Send feedback
-                </button>
-                <div className="border-t border-border px-3 py-2">
-                  <ThemeToggle compact />
+                />
+                <div className="absolute right-0 z-20 mt-1 w-56 rounded-md border border-border bg-card py-1 shadow-md">
+                  <div className="border-b border-border px-3 py-2 text-xs text-muted-foreground">
+                    @{user?.username}
+                  </div>
+                  <button
+                    type="button"
+                    className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setBookmarksOpen((open) => !open);
+                    }}
+                  >
+                    My bookmarks
+                  </button>
+                  <Link
+                    to="/about"
+                    className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    About the App
+                  </Link>
+                  <button
+                    type="button"
+                    className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      setFeedbackOpen(true);
+                    }}
+                  >
+                    Send feedback
+                  </button>
+                  <div className="border-t border-border px-3 py-2">
+                    <ThemeToggle compact />
+                  </div>
+                  <button
+                    type="button"
+                    className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                    onClick={() => {
+                      setMenuOpen(false);
+                      logout();
+                    }}
+                  >
+                    Log out
+                  </button>
                 </div>
-                <button
-                  type="button"
-                  className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
-                  onClick={() => {
-                    setMenuOpen(false);
-                    logout();
-                  }}
-                >
-                  Log out
-                </button>
-              </div>
-            </>
-          )}
+              </>
+            )}
+          </div>
         </div>
       </header>
+
+      <NotificationBanner />
 
       {bookmarksOpen && (
         <div className="border-b border-border bg-muted/30 px-4 py-3">
@@ -263,7 +283,12 @@ export default function AppShell() {
               {bookmarks.map((bookmark) => (
                 <li key={bookmark.id} className="text-sm">
                   <Link
-                    to={`/productions/${bookmark.production_id}/timeline?scene=${bookmark.scene_id}&moment=${bookmark.moment_id}`}
+                    to={humanTimelinePath(
+                      bookmark.production_id,
+                      bookmark.act_number,
+                      bookmark.scene_number,
+                      bookmark.sequence_number,
+                    )}
                     className="font-medium hover:underline"
                     onClick={() => setBookmarksOpen(false)}
                   >
@@ -271,7 +296,8 @@ export default function AppShell() {
                   </Link>
                   <span className="text-muted-foreground">
                     {" "}
-                    — Moment {bookmark.sequence_number}
+                    —{" "}
+                    {`${bookmark.act_number}.${bookmark.scene_number}.${bookmark.sequence_number}`}
                     {bookmark.label ? ` (${bookmark.label})` : ""}
                   </span>
                   <p className="truncate text-xs text-muted-foreground">
@@ -420,6 +446,7 @@ export default function AppShell() {
       </div>
 
       <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
+      <NotificationModal />
     </div>
   );
 }

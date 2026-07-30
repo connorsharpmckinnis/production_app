@@ -26,6 +26,7 @@ from app.schemas.production import (
     ReadinessDimension,
 )
 from app.services.importer import ImportLineError, import_script
+from app.services.notifications import notify_admins_production_created
 from app.services.overview_messages import (
     build_spotlight_queue,
     effective_rotation_seconds,
@@ -72,6 +73,8 @@ def create_production(
         season=body.season,
     )
     db.add(production)
+    db.flush()
+    notify_admins_production_created(db, production=production, actor=admin)
     db.commit()
     db.refresh(production)
     return production

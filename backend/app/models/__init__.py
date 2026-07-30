@@ -1,4 +1,9 @@
 from app.models.act import Act
+from app.models.announcement import (
+    Announcement,
+    AnnouncementAudienceRole,
+    AnnouncementCta,
+)
 from app.models.app_overview_message_default import AppOverviewMessageDefault
 from app.models.app_role import AppRole, UserAppRole
 from app.models.app_setting import AppSetting
@@ -21,6 +26,7 @@ from app.models.moment_prop_event import MomentPropEvent
 from app.models.moment_set_piece_event import MomentSetPieceEvent
 from app.models.moment_type import MomentType
 from app.models.note import Note
+from app.models.notification import Notification
 from app.models.organization import Organization
 from app.models.pack import Pack
 from app.models.production import Production
@@ -37,6 +43,9 @@ from app.models.wire import Wire
 
 __all__ = [
     "Act",
+    "Announcement",
+    "AnnouncementAudienceRole",
+    "AnnouncementCta",
     "AppOverviewMessageDefault",
     "AppRole",
     "AppSetting",
@@ -60,6 +69,7 @@ __all__ = [
     "MomentSetPieceEvent",
     "MomentType",
     "Note",
+    "Notification",
     "Organization",
     "Pack",
     "Production",

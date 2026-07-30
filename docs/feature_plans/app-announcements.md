@@ -1,7 +1,8 @@
 # Feature plan — App announcements & notification inbox
 
-**Status:** Proposal (not scheduled)  
+**Status:** Prototype shipped (Slices A–C) — 2026-07-29  
 **Created:** 2026-07-28  
+**Updated:** 2026-07-29  
 **Related:** Overview spotlight messages ([PHASE_8.md](../PHASE_8.md), [PREP_READINESS.md](../PREP_READINESS.md)), [ROLES.md](../ROLES.md), [SCRATCH_NOTES.md](../SCRATCH_NOTES.md) (spotlight vs future notifications), [UX_UI_IMPROVEMENTS.md](../UX_UI_IMPROVEMENTS.md) (bookmarks panel as header-panel precedent), [tasks-and-mentions.md](tasks-and-mentions.md), [email-notifications.md](email-notifications.md)
 
 ---
@@ -35,25 +36,26 @@ Public two-way communication (@-mentions, tasks, DMs) is a separate future featu
 
 ---
 
-## Current behavior (baseline)
+## Current behavior (post-ship baseline)
 
 | Area | Today |
 | ---- | ----- |
-| Overview spotlight | Production-scoped messages: `encouragement` / `scripture` / `announcement`; rotates on Overview; no CTAs, no inbox, no unread |
-| Global message defaults | Encouragement/quotes only (Settings); no global “announcement blast” |
+| Overview spotlight | Production-scoped messages: `encouragement` / `scripture` / soft `announcement`; rotates on Overview; no CTAs, no inbox |
+| Announcements | Org-wide (Admin Settings) + production-scoped (Overview section); banners, Admin-only blocking modals, role targeting, CTAs |
+| Notifications inbox | Header bell + unread badge; multi-kind feed (`announcement` now; mentions/tasks later) |
 | Toasts | Ephemeral success/error (`ToastContext`) |
 | Confirm / dialogs | User-initiated CRUD and destructive confirms |
-| Header chrome | Brand + production title · user menu (bookmarks, about, feedback, theme, logout) — **no bell** |
-| Deep links | Timeline `?scene=&moment=`; costumes `?characterId=`; Rehearse is path-only (`/productions/:id/rehearse`) |
+| Deep links | Timeline human `?act=&scene=&moment=` (+ legacy PK); costumes `?characterId=`; Rehearse is path-only |
 | Roles | `Admin`, `Director`, `Actor` (no Staff role yet; “staff” ≈ Admin/Director) |
 | Production visibility | Admin/Director: all org productions; Actor: cast productions only |
-| Notification tables | **None** — no inbox, read receipts, or push |
+| Notification tables | `announcements`, `announcement_audiences`, `announcement_ctas`, `notifications` |
 
 Relevant code (approximate):
 
-- Shell / header: `frontend/src/components/AppShell.tsx`
+- Shell / header / bell: `frontend/src/components/AppShell.tsx`, `NotificationHost.tsx`
+- Announcement composers: `AnnouncementManager.tsx` (Settings + Overview)
 - Spotlight: `frontend/src/components/OverviewSpotlight.tsx`, Overview message editor
-- Model: `backend/app/models/production_overview_message.py`
+- API / models: `backend/app/api/notifications.py`, `models/announcement.py`, `models/notification.py`
 - Auth / access: `backend/app/auth/dependencies.py`, `backend/app/api/deps.py`
 - Routes: `frontend/src/App.tsx`
 
@@ -113,7 +115,7 @@ Each announcement can attach **0–N CTAs**:
 
 | CTA kind | Behavior | Example |
 | -------- | -------- | ------- |
-| **Internal** | Same-tab navigate to an in-app path (and optional query) | `/productions/12/rehearse`, `/productions/12/timeline?scene=…&moment=…`, `/about` |
+| **Internal** | Same-tab navigate to an in-app path (and optional query) | `/productions/12/rehearse`, `/productions/12/timeline?act=1&scene=2&moment=115`, `/about` |
 | **External** | `target=_blank` + `rel="noopener noreferrer"` | Google Form, Drive folder, website |
 
 Authoring UX should make the distinction obvious (path picker / known routes vs raw URL). Validate internal paths against a small allowlist of app route patterns so we don’t deep-link into broken or privileged admin URLs for actors.
@@ -387,13 +389,18 @@ Optional “welcome” modal for brand-new users (product tour) can be a normal 
 | ---- | ----- | -------- |
 | 2026-07-28 | Bell / feed shape | **One multi-kind notifications feed** (one bell). Announcements are a `kind`; future mentions / task assignments plug into the same inbox — do not ship an announcements-only table that forces a second inbox later. See [tasks-and-mentions.md](tasks-and-mentions.md). |
 | 2026-07-28 | Sequencing with related plans | In-app announcements/inbox → optional email blast ([email-notifications.md](email-notifications.md)) → Tasks CRUD → comments/@-mentions → mention email → digest. |
-| *(pending)* | Q1 spotlight vs this system | |
-| *(pending)* | Q2 all items in inbox? | |
-| *(pending)* | Q3 org-wide author = Admin only? | |
-| *(pending)* | Q4 dismiss = read? | |
-| *(pending)* | Q5 max one banner? | |
-| *(pending)* | Q6 modal until ack? | |
-| *(pending)* | Q12 Slice A first? | |
+| 2026-07-29 | Q1 spotlight vs this system | **Keep separate.** Spotlight stays ambient (scripture / encouragement); Announcements are productive broadcasts. |
+| 2026-07-29 | Q2 all items in inbox? | **Yes.** Every announcement enters the bell. DB retains all rows for posterity; UI shows unread + last ~100. |
+| 2026-07-29 | Q3 org-wide author = Admin only? | **Yes.** Directors author production-scoped only. |
+| 2026-07-29 | Modal authorship | **Admin only** for blocking modals (release notes / app-related). Directors may use inbox + banner for production announcements. |
+| 2026-07-29 | Q4 dismiss = read? | **Yes** for v1. |
+| 2026-07-29 | Q5 max one banner? | **Max one** visible; overflow stays in the bell. |
+| 2026-07-29 | Q6 modal until ack? | **Until user closes / Got it**, across sessions. |
+| 2026-07-29 | Q12 Slice A first? | **No — ship A+B+C together** as a simple prototype. Email / Tasks / @-mentions remain out of scope. |
+| 2026-07-29 | Auto notifications | **New production created** → notify all Admins. Expand later as needed. |
+| 2026-07-29 | UI vocabulary | Bell = **Notifications**; composer = **Announcements**. |
+| 2026-07-29 | Composer locations | Org-wide section on Admin Settings; production **Announcements** section (separate from Overview spotlight editor). |
+| 2026-07-29 | Timeline CTAs | Prefer human `?act=&scene=&moment=` for announcement deep links; legacy PK still consumed. |
 
 ---
 

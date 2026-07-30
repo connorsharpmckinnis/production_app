@@ -22,6 +22,7 @@ from app.services.asset_state import (
     compute_costume_state_by_moment,
     compute_prop_state_by_moment,
     compute_set_piece_state_by_moment,
+    find_next_asset_event_refs,
 )
 from app.services.importer import import_script
 
@@ -30,8 +31,8 @@ FIXTURE_PATH = (
 )
 
 
-def _moment(moment_id: int) -> SimpleNamespace:
-    return SimpleNamespace(id=moment_id)
+def _moment(moment_id: int, scene_id: int = 1) -> SimpleNamespace:
+    return SimpleNamespace(id=moment_id, scene_id=scene_id)
 
 
 def _event(
@@ -95,6 +96,8 @@ def test_prop_on_persists_across_moments_until_next_event() -> None:
         assert state.character_id == 7
         assert state.user_id is None
         assert state.notes == "Downstage Left"
+        assert state.source_moment_id == 1
+        assert state.source_scene_id == 1
 
 
 def test_start_state_is_off_with_no_events() -> None:
@@ -125,6 +128,56 @@ def test_re_on_while_already_on_updates_person_and_notes() -> None:
     assert after_move.character_id == 9
     assert after_move.user_id is None
     assert after_move.notes == "Upstage Right"
+    assert after_move.source_moment_id == 3
+    assert after_move.source_scene_id == 1
+
+
+def test_next_asset_event_ref_finds_later_on_or_off() -> None:
+    """Forward scan returns the first later event for each asset (ON or OFF)."""
+    moments = [
+        _moment(1, scene_id=10),
+        _moment(2, scene_id=10),
+        _moment(3, scene_id=20),
+        _moment(4, scene_id=20),
+    ]
+    events_by_moment_id = {
+        1: [_prop_event(100, "on", notes="DSL")],
+        3: [_prop_event(100, "on", notes="USR")],  # move
+        4: [_prop_event(100, "off")],
+    }
+
+    # From moment 1: next change is the re-ON at moment 3.
+    next_from_1 = find_next_asset_event_refs(
+        moments,
+        events_by_moment_id,
+        current_moment_id=1,
+        asset_ids={100},
+        asset_id_attr="prop_id",
+    )
+    assert next_from_1[100].moment_id == 3
+    assert next_from_1[100].scene_id == 20
+
+    # From moment 3: next change is OFF at moment 4.
+    next_from_3 = find_next_asset_event_refs(
+        moments,
+        events_by_moment_id,
+        current_moment_id=3,
+        asset_ids={100},
+        asset_id_attr="prop_id",
+    )
+    assert next_from_3[100].moment_id == 4
+
+    # From moment 4: nothing later.
+    assert (
+        find_next_asset_event_refs(
+            moments,
+            events_by_moment_id,
+            current_moment_id=4,
+            asset_ids={100},
+            asset_id_attr="prop_id",
+        )
+        == {}
+    )
 
 
 def test_off_clears_in_play_and_person() -> None:
@@ -356,6 +409,11 @@ def test_prop_event_persists_across_scenes_and_acts_via_api(
         )
         assert in_play["character_name"] == "CREAN"
         assert in_play["notes"] == "Downstage Left"
+        assert in_play["source_moment_id"] == turn_on_moment_id
+        assert in_play["source_act_number"] == 1
+        assert in_play["source_scene_number"] == 1
+        assert in_play["source_sequence_number"] is not None
+        assert in_play["next_change_moment_id"] is None
 
     # Re-ON in Act Two moves it to a new person and new notes.
     moved = seeded_client.post(
@@ -379,6 +437,22 @@ def test_prop_event_persists_across_scenes_and_acts_via_api(
     )
     assert moved_state["character_name"] == "WORSLEY"
     assert moved_state["notes"] == "Upstage Right"
+    assert moved_state["source_moment_id"] == next_act_moment_id
+    assert moved_state["source_act_number"] == 2
+
+    # Earlier moment still shows original source, with next change = the move.
+    earlier_after_move = seeded_client.get(
+        f"/api/productions/{production_id}/moments/{later_same_act_moment_id}",
+        headers=headers,
+    ).json()
+    earlier_in_play = next(
+        item
+        for item in earlier_after_move["props_in_play"]
+        if item["prop_id"] == prop["id"]
+    )
+    assert earlier_in_play["source_moment_id"] == turn_on_moment_id
+    assert earlier_in_play["next_change_moment_id"] == next_act_moment_id
+    assert earlier_in_play["next_change_act_number"] == 2
 
     # A later moment in Act Two, past the move, still shows the moved state.
     act2_scenes = acts[1]["scenes"]

@@ -183,6 +183,16 @@ export interface PropInPlayResponse {
   user_id: number | null;
   user_display_name: string | null;
   notes: string | null;
+  source_moment_id: number;
+  source_scene_id: number;
+  source_act_number: number;
+  source_scene_number: number;
+  source_sequence_number: number;
+  next_change_moment_id: number | null;
+  next_change_scene_id: number | null;
+  next_change_act_number: number | null;
+  next_change_scene_number: number | null;
+  next_change_sequence_number: number | null;
 }
 
 export interface CueCategoryResponse {
@@ -232,6 +242,16 @@ export interface SetPieceInPlayResponse {
   user_id: number | null;
   user_display_name: string | null;
   notes: string | null;
+  source_moment_id: number;
+  source_scene_id: number;
+  source_act_number: number;
+  source_scene_number: number;
+  source_sequence_number: number;
+  next_change_moment_id: number | null;
+  next_change_scene_id: number | null;
+  next_change_act_number: number | null;
+  next_change_scene_number: number | null;
+  next_change_sequence_number: number | null;
 }
 
 export interface OnStageCharacterResponse {
@@ -578,6 +598,8 @@ export interface BookmarkResponse {
   production_id: number;
   production_title: string;
   scene_id: number;
+  act_number: number;
+  scene_number: number;
   sequence_number: number;
   moment_preview: string;
 }
@@ -617,4 +639,107 @@ export interface CreateUserRequest {
 
 export interface ResetPasswordRequest {
   password: string;
+}
+
+export type NotificationKind = "announcement" | "system" | "mention" | "task_assigned";
+export type NotificationSeverity = "info" | "success" | "warning" | "urgent";
+export type AnnouncementCtaKind = "internal" | "external";
+export type AnnouncementCtaStyle = "primary" | "secondary" | "link";
+
+export interface AnnouncementCtaCreate {
+  label: string;
+  kind: AnnouncementCtaKind;
+  target: string;
+  style?: AnnouncementCtaStyle;
+  sort_order?: number;
+}
+
+export interface AnnouncementCtaResponse {
+  id: number;
+  label: string;
+  kind: AnnouncementCtaKind;
+  target: string;
+  style: AnnouncementCtaStyle;
+  sort_order: number;
+}
+
+export interface AnnouncementCreate {
+  title: string;
+  body: string;
+  severity?: NotificationSeverity;
+  show_as_banner?: boolean;
+  show_as_modal?: boolean;
+  audience_roles: AppRole[];
+  route_filter?: string | null;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  active?: boolean;
+  priority?: number;
+  ctas?: AnnouncementCtaCreate[];
+}
+
+export interface AnnouncementUpdate {
+  title?: string;
+  body?: string;
+  severity?: NotificationSeverity;
+  show_as_banner?: boolean;
+  show_as_modal?: boolean;
+  audience_roles?: AppRole[];
+  route_filter?: string | null;
+  starts_at?: string | null;
+  ends_at?: string | null;
+  active?: boolean;
+  priority?: number;
+  ctas?: AnnouncementCtaCreate[];
+}
+
+export interface AnnouncementResponse {
+  id: number;
+  title: string;
+  body: string;
+  severity: NotificationSeverity;
+  show_as_banner: boolean;
+  show_as_modal: boolean;
+  production_id: number | null;
+  route_filter: string | null;
+  starts_at: string | null;
+  ends_at: string | null;
+  active: boolean;
+  priority: number;
+  created_by_user_id: number;
+  created_at: string;
+  updated_at: string;
+  audience_roles: AppRole[];
+  ctas: AnnouncementCtaResponse[];
+}
+
+export interface NotificationInboxItem {
+  id: number;
+  kind: NotificationKind;
+  title: string;
+  body: string | null;
+  production_id: number | null;
+  production_title: string | null;
+  announcement_id: number | null;
+  actor_user_id: number | null;
+  actor_display_name: string | null;
+  resource_type: string | null;
+  resource_id: number | null;
+  deep_link: string | null;
+  severity: NotificationSeverity | null;
+  read_at: string | null;
+  dismissed_at: string | null;
+  created_at: string;
+  show_as_banner: boolean;
+  show_as_modal: boolean;
+  route_filter: string | null;
+  priority: number;
+  ctas: AnnouncementCtaResponse[];
+}
+
+export interface NotificationInboxResponse {
+  unread_count: number;
+  items: NotificationInboxItem[];
+  active_banner: NotificationInboxItem | null;
+  pending_modal: NotificationInboxItem | null;
 }

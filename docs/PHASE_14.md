@@ -368,6 +368,7 @@ WP0 authorize + branch
 | 2026-07-27 | **WP5 (costumes) shipped, backend and frontend.** Migration `019` adds `moment_costume_events` and drops `costumes.scene_id` (no data migration). Costume derivation, catalog/event APIs, timeline integration, readiness retarget, `costume-changes` report, and CSV import all updated per WP5 scope. Frontend Costumes catalog page, Moment detail costume event section, and Reports page updated to match. Owner walkthrough still pending for WP3–WP5 together. |
 | 2026-07-27 | **WP6 closeout.** Docs/scratch/UX backlog synced to shipped event model. #51/#70 left for owner on merge. |
 | 2026-07-28 | Pre-merge UX polish: icon attachment-type picker; On/Off (Wear/Clear) toggles; unified searchable character+user person combobox (#73); searchable catalog selects; Currently in play / wearing hide event notes (#75). |
+| 2026-07-30 | **In-play → Moment deep links (Slice A+B).** `AssetStateSnapshot` tracks `source_moment_id`/`source_scene_id`; in-play API rows expose human triples for source + optional next-change; Moment Detail “Currently in play” shows dotted `1.3.10` links via `humanTimelinePath`. Costumes / sticky URL deferred — see [in-play-moment-deep-links.md](feature_plans/in-play-moment-deep-links.md). |
 
 ---
 

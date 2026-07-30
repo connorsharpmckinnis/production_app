@@ -262,11 +262,11 @@ See [docs/IMPORT_SPEC.md](docs/IMPORT_SPEC.md) and [docs/SCRIPT_FORMAT.md](docs/
 |----------|--------------------------------------------------|------|
 | `db`     | PostgreSQL 16                                    | 5432 |
 | `backend`| FastAPI API — migrations and seed run on startup | 8000 |
-| `frontend` | Vite dev server (hot reload)                   | 5173 |
+| `frontend` | Vite **dev** server (code baked into the image; rebuild frontend after host edits) | 5173 |
 
 ### Phone access (Tailscale)
 
-Day-to-day stack is the Vite **dev** frontend above. To open the same app on your phone over a private Tailscale URL (`tailscale serve --bg 5173`), see **[docs/DEPLOY.md](docs/DEPLOY.md)**.
+Day-to-day stack is the Vite **dev** frontend above. Source is copied into the image at build time (no bind mounts), so after editing frontend or backend code run `docker compose up -d --build` for the service you changed. To open the same app on your phone over a private Tailscale URL (`tailscale serve --bg 5173`), see **[docs/DEPLOY.md](docs/DEPLOY.md)**.
 
 An optional nginx “preview” Compose overlay exists only for future VPS smoke-tests; it is not required for laptop + phone.
 

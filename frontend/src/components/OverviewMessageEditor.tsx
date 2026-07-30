@@ -184,10 +184,12 @@ export default function OverviewMessageEditor({
     <section className="space-y-3 rounded-lg border border-border p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-medium">Overview messages</h2>
+          <h2 className="text-sm font-medium">Overview messages (spotlight)</h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            Plain-text announcements, scripture, and quotes for this show. These rotate with
-            the global Overview messages on the production Overview page.
+            Soft rotating scripture, quotes, and greetings for this show&apos;s Overview page.
+            For durable reminders with a bell inbox, banners, or CTAs, use{" "}
+            <span className="font-medium text-foreground">Announcements</span> below — not this
+            spotlight editor.
           </p>
         </div>
         <Button type="button" variant="outline" onClick={() => setOpen((value) => !value)}>
@@ -343,7 +345,7 @@ export default function OverviewMessageEditor({
                   variant="outline"
                   onClick={() => setDrafts((current) => [...current, emptyDraft("announcement")])}
                 >
-                  Add announcement
+                  Add spotlight message
                 </Button>
                 <Button
                   type="button"

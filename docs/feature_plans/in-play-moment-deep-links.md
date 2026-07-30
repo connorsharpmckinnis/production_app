@@ -1,14 +1,15 @@
 # Feature plan — In-play → Moment deep links
 
-**Status:** Proposal (not scheduled)  
+**Status:** Shipped (Slice A + B — props/set pieces)  
 **Created:** 2026-07-27  
+**Shipped:** 2026-07-30  
 **Related:** [PHASE_14.md](../PHASE_14.md) (event-driven asset state), bookmarks/reports Timeline deep-links (already shipped), [UX_UI_IMPROVEMENTS.md](../UX_UI_IMPROVEMENTS.md) scene-summary drill-down wish, [SCRATCH_NOTES.md](../SCRATCH_NOTES.md) scene-level entrance/exit drill-down
 
 ---
 
 ## Goal
 
-From a Moment’s **Currently in play** readout (props / set pieces), let the user jump to the Timeline Moment(s) that established — and optionally later clear — that asset’s current state.
+From a Moment’s **Currently in play** readout (props / set pieces), let the user jump to the Timeline Moment that last set that asset’s current state, and (when one exists) the next Moment where that asset changes again.
 
 Primary motivating UX: while looking at a moment mid-show, see “Iceberg — Downstage Left” and open the Moment where that location was set, without hunting the Timeline by hand.
 
@@ -20,15 +21,16 @@ Phase 14 derives “currently in play” by walking ON/OFF events in show order.
 
 That card is **display-only**. It does not expose which Moment produced the snapshot, so there is nothing to link.
 
-Separately, **Timeline already supports** one-shot deep-links:
+Separately, **Timeline supports** one-shot deep-links (soft, by show position):
 
 ```text
-/productions/:id/timeline?scene=<sceneId>&moment=<momentId>
+/productions/:id/timeline?act=<actNumber>&scene=<sceneNumber>
+/productions/:id/timeline?act=<actNumber>&scene=<sceneNumber>&moment=<sequenceNumber>
 ```
 
-Bookmarks and Reports already use this. Timeline consumes the params, selects the scene, opens Moment Detail, then **clears the query string** (not sticky while the panel stays open).
+`act` / `scene` are Act/Scene **numbers** (not PKs). `moment` is the per-scene `sequence_number`. Omitting `moment` opens the first moment of that scene. Legacy PK links `?scene=<sceneId>&moment=<momentId>` still work. Bookmarks and reports emit **human** URLs. Timeline consumes the params, selects the scene, opens Moment Detail, then **clears the query string after a successful (or failed-but-ready) resolve** — params are kept until then so a catalog re-fetch cannot strand the link.
 
-So the missing piece is **data + UI on the in-play card**, not a new navigation primitive — with a few product decisions about what “start” / “stop” mean and how far to go.
+So the missing piece for in-play drill-down is **data + UI on the in-play card**, not a new navigation primitive — with a few product decisions about what “start” / “stop” mean and how far to go.
 
 ---
 
@@ -36,7 +38,7 @@ So the missing piece is **data + UI on the in-play card**, not a new navigation 
 
 | Area | Today |
 | ---- | ----- |
-| Timeline deep-link | `?scene=` + `?moment=` works; params cleared after consume |
+| Timeline deep-link | Human `?act=&scene=&moment=` (soft) + legacy PK; params cleared after resolve; bookmarks/reports emit human URLs |
 | Selection model | `selectedMomentId` in React state (`useTimelineScene`); sheet open when non-null |
 | Rehearse deep-link | **None** (path param only) |
 | Sticky URL while panel open | **No** — manual selection does not write `?moment=` back |
@@ -74,7 +76,9 @@ Relevant code (approximate):
 
 - On each Currently in play row, add a control (text button / icon) such as **“Set at …”** or a deep-link affordance that navigates to:
 
-  `/productions/:id/timeline?scene=<source_scene_id>&moment=<source_moment_id>`
+  `/productions/:id/timeline?act=<actNumber>&scene=<sceneNumber>&moment=<sequenceNumber>`
+
+  (Prefer human show-position links. Legacy PK form still works if only ids are handy.)
 
 - Same-page: if already on Timeline, either reuse that URL (triggers existing effect) **or** call `selectSceneById` + `setSelectedMomentId` directly. Prefer one pattern and stick to it (see open questions).
 
@@ -118,7 +122,7 @@ Parked here so Phase 14 follow-ons stay aligned with [PROJECT.md](../PROJECT.md)
 | - | -------- | -------------- | ------------ |
 | **Q1** | For in-play items, what is **“start”**? | **Last ON** that produced the current snapshot (includes re-ON move/handoff). Matches “current location/state.” | First ON in the unbroken in-play run (ignores later moves) — useful for “when did it enter?” but wrong for “why is it DSL now?” |
 | **Q2** | Do we need **“stop”** in v1? | **No** — ship Slice A only. Next OFF is a cheap follow-on once source tracking exists. | Ship A+B together if rehearsal cues often need “when does this leave?” |
-| **Q3** | Navigation style from Moment Detail? | **Reuse existing** `?scene=&moment=` deep-link (same as bookmarks/reports). Works across scenes; one code path. | In-process `setSelectedMomentId` only when same scene; URL when crossing scenes — more branches for little gain. |
+| **Q3** | Navigation style from Moment Detail? | **Reuse existing human** `?act=&scene=&moment=` deep-link (same as bookmarks/reports). Works across scenes; one code path. Legacy PK still OK if only ids are available. | In-process `setSelectedMomentId` only when same scene; URL when crossing scenes — more branches for little gain. |
 | **Q4** | Cross-scene jumps while a sheet is open — expected UX? | Switching scene + opening the source moment **replaces** the current detail (same as picking another moment). Optional toast: “Opened Act 1 Scene 2 · Moment N”. | Open source in a second panel / modal — overbuilt for MVP. |
 | **Q5** | What if filters hide the target moment? | Deep-link selects scene then waits for moment list; if still missing after load, show a short error toast and leave selection unchanged. Do **not** auto-clear all filters unless owner wants that. | Clear filters automatically so the jump always succeeds. |
 | **Q6** | Include **costumes** in v1? | **Defer** (Slice C). Props/sets are the motivating case. | Include if costume walkthroughs are equally important before next rehearsal. |
@@ -193,11 +197,11 @@ None of these block writing the plan; **Q1–Q3 and Q6** should be locked before
 | Scope creep into sticky URLs + costumes + scene chips | Ship Slice A alone; park B–E |
 | Forward OFF scan cost | Show-order walk already happens; tracking next OFF is cheap if done carefully in the same pass family |
 
-**Recommendation:** Ship **Slice A only** (source/last-ON deep-link on props & set pieces). Defer stop links, costumes, and sticky URLs until someone hits the gap in rehearsal.
+**Recommendation (updated 2026-07-30):** Ship **Slice A + B** together (source + next-change deep links on props & set pieces). Defer costumes and sticky URLs.
 
-**Why this fits now:** Phase 14 just shipped derived in-play; the UX hole is obvious; deep-link plumbing already exists; change stays small (derivation fields + card affordance).
+**Why this fits now:** Phase 14 derived in-play already walks the show; tracking source + forward-scanning next event is cheap; deep-link plumbing already exists.
 
-**Deferring:** Slice B–E; Rehearse parity; scene-summary drill-down.
+**Deferring:** Slice C–E; Rehearse parity; scene-summary drill-down.
 
 ---
 
@@ -214,19 +218,22 @@ None of these block writing the plan; **Q1–Q3 and Q6** should be locked before
 
 | Date | Topic | Decision |
 | ---- | ----- | -------- |
-| *(pending)* | Q1 start = last ON vs first ON | |
-| *(pending)* | Q2 include next OFF in v1? | |
-| *(pending)* | Q3 URL deep-link vs in-process select | |
-| *(pending)* | Q6 costumes in v1? | |
+| 2026-07-30 | Q1 start | Last event that set current state (today: last ON; future MOVE etc. also update source; OFF clears in-play) |
+| 2026-07-30 | Q2 next change in v1? | **Yes** — next event for that asset after the viewed Moment (ON or OFF, not OFF-only). Hide link when null. |
+| 2026-07-30 | Q3 navigation | Human `?act=&scene=&moment=` via `humanTimelinePath` |
+| 2026-07-30 | Q6 costumes in v1? | **Defer** (Slice C) |
+| 2026-07-30 | Q7 sticky URL? | **Defer** (Slice D) |
+| 2026-07-30 | Q8 affordance | Dotted moment codes (`1.3.10`) as underlined links; source always; next when present (`source → next`) |
+| 2026-07-30 | Ship scope | Slice A + B (props/set pieces) |
 
 ---
 
-## Acceptance sketches (draft — refine after Q1)
+## Acceptance sketches
 
-1. **Basic:** Prop ON at Moment 10 (Scene 1) with notes “DSL”. At Moment 40 (Scene 3), in-play shows the prop with those notes. Link opens Moment 10 Detail (Scene 1 selected).
-2. **Re-ON / move:** Same prop re-ON at Moment 25 with notes “USR”. At Moment 40, link opens Moment **25**, not 10.
-3. **Off then on again:** OFF at 30, ON at 35. At Moment 40, link opens 35.
-4. **No false stop (if B deferred):** In-play card has only the source link; no disabled “clears at” chrome.
+1. **Basic:** Prop ON at Moment 10 (Scene 1) with notes “DSL”. At Moment 40 (Scene 3), in-play shows the prop with those notes. Source link `1.1.10` opens Moment 10 Detail.
+2. **Re-ON / move:** Same prop re-ON at Moment 25 with notes “USR”. At Moment 40, source link opens Moment **25**, not 10.
+3. **Off then on again:** OFF at 30, ON at 35. At Moment 40, source link opens 35.
+4. **Next change:** At a moment between ON and a later re-ON/OFF, second link opens that later Moment. When no later event exists, only the source link shows.
 
 ---
 

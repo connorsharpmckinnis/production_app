@@ -1,4 +1,4 @@
-from sqlalchemy import ForeignKey, Integer, String
+from sqlalchemy import ForeignKey, Integer, String, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -6,6 +6,13 @@ from app.db.base import Base
 
 class Act(Base):
     __tablename__ = "acts"
+    __table_args__ = (
+        UniqueConstraint(
+            "production_id",
+            "number",
+            name="uq_acts_production_id_number",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     production_id: Mapped[int] = mapped_column(

@@ -355,6 +355,8 @@ Fields
 * title
 * sort_order
 
+**Decision:** Unique `(production_id, number)` — one Act N per production (supports human Timeline links `?act=&scene=`).
+
 Relationships
 
 One → Many Scenes
@@ -374,6 +376,8 @@ Fields
 * number
 * title
 * sort_order
+
+**Decision:** Unique `(act_id, number)` — one Scene N per Act.
 
 Relationships
 
@@ -458,9 +462,9 @@ Future
 
 One → Many Events
 
-**Decision:** `sequence_number` restarts within each Scene (not globally across the Production).
+**Decision:** `sequence_number` restarts within each Scene (not globally across the Production). Unique `(scene_id, sequence_number)`.
 
-**Future:** Derive a display-only production sequence (e.g., `1.4.115` = Act 1, Scene 4, Moment 115) from act number, scene number, and `sequence_number`. Do not store this as a primary ordering key in MVP.
+**Human Timeline deep links (soft):** resolve by show position — `/productions/:id/timeline?act=1&scene=2&moment=115` uses Act/Scene `number` and per-scene `sequence_number`. Omitting `moment` opens the first moment of that scene. These links can drift after insert/delete/reorder. Legacy PK links `?scene=<sceneId>&moment=<momentId>` remain supported for older shares. Prefer human URLs for new CTAs (announcements, bookmarks, reports). Timeline clears the query string only after the target moment is resolved (or after a failed resolve once the scene is ready). Display form `1.4.115` is derived the same way; do not store it as a primary ordering key.
 
 ---
 
@@ -698,7 +702,7 @@ Fields
 
 **Decision (Phase 14):** Exactly one of `character_id` / `user_id` may be set — `CHECK (character_id IS NULL OR user_id IS NULL)` — or neither. Unique `(moment_id, prop_id)`: at most one event per prop per Moment (a Moment can still change many different props).
 
-**Derivation (not stored):** Walk Moments in Act → Scene → `sequence_number` order, whole production. Each asset starts **off**. An `on` event puts it in play and sets current person/notes from that event; state (in-play, person, notes) **persists across scenes and acts** until the next event for that asset — no scene/act reset. A repeat `on` while already on **updates** person/notes in place (covers move/handoff without a new event kind). An `off` event takes it out of play and clears current person. See [PHASE_14.md](PHASE_14.md) for the full derivation write-up and worked examples.
+**Derivation (not stored):** Walk Moments in Act → Scene → `sequence_number` order, whole production. Each asset starts **off**. An `on` event puts it in play and sets current person/notes from that event; state (in-play, person, notes) **persists across scenes and acts** until the next event for that asset — no scene/act reset. A repeat `on` while already on **updates** person/notes in place (covers move/handoff without a new event kind). An `off` event takes it out of play and clears current person. Derived in-play API rows also expose the **source** Moment (last event that set current state) and optional **next-change** Moment (first later event for that asset) as human `act.scene.sequence` triples for Timeline deep links — still derived, not stored. See [PHASE_14.md](PHASE_14.md) and [in-play-moment-deep-links.md](feature_plans/in-play-moment-deep-links.md).
 
 **Deprecated:** `moment_props` (Phase 3 presence junction) — dropped; no data migration, owner re-enters.
 
@@ -1007,6 +1011,58 @@ Fields
 * label
 
 Private to each user.
+
+---
+
+# ANNOUNCEMENTS
+
+Authored one-way broadcasts (org-wide or production-scoped). Separate from Overview spotlight messages. See [feature_plans/app-announcements.md](feature_plans/app-announcements.md).
+
+Fields
+
+* id
+* title
+* body
+* severity (`info` | `success` | `warning` | `urgent`)
+* show_as_banner
+* show_as_modal (Admin-authored only in product rules)
+* production_id (nullable — null = org-wide)
+* route_filter (optional path key for banner placement, e.g. `rehearse`)
+* starts_at / ends_at (optional visibility window)
+* active
+* priority
+* created_by_user_id
+* created_at
+* updated_at
+
+Related
+
+* `announcement_ctas` — label, kind (`internal` | `external`), target, style, sort_order
+* `announcement_audience_roles` — role_name (`Admin` | `Director` | `Actor`)
+
+---
+
+# NOTIFICATIONS
+
+Per-user multi-kind inbox rows (bell). Announcements fan out into this table; system events (e.g. new production) write directly. Future `mention` / `task_assigned` kinds reuse the same feed.
+
+Fields
+
+* id
+* user_id
+* kind (`announcement` | `system` | `mention` | `task_assigned`)
+* title
+* body
+* production_id (nullable)
+* announcement_id (nullable)
+* actor_user_id (nullable — who caused the event)
+* resource_type / resource_id (optional deep-link targets)
+* deep_link
+* severity
+* read_at / dismissed_at
+* created_at
+
+UI shows unread + recent (~100); rows are retained indefinitely.
 
 ---
 

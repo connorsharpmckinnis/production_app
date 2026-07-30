@@ -379,7 +379,7 @@ Examples:
 
 Everything in the production ultimately connects back to Moments.
 
-Moments are ordered by `sequence_number` within each Scene. A display-only production sequence (e.g., `1.4.115`) may be derived later from act, scene, and moment numbers.
+Moments are ordered by `sequence_number` within each Scene. Human Timeline deep links use Act/Scene `number` + per-scene `sequence_number` (`?act=&scene=&moment=`). Display form `1.4.115` is the same triple.
 
 ---
 
@@ -1099,7 +1099,11 @@ See [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](../.agents/skills/DEVELOPMENT_GU
 
 ## Wish List (post-MVP ideas)
 
-These are not committed scope — captured here so good ideas are not lost:
+**Approved roadmap feature plans** (stronger than a wish-list bullet — intended to build eventually, not yet phased) live in [feature_plans/](feature_plans/README.md). Prefer those docs when shaping or implementing upcoming work.
+
+**Shipped prototype (2026-07-29):** In-app **Notifications** (header bell) + **Announcements** composers (org-wide in App Settings; production-scoped on Overview). Supports banners, Admin-only blocking modals, role targeting, CTAs, and a multi-kind feed ready for future @-mentions. Timeline CTAs use human deep links `?act=&scene=&moment=`. See [feature_plans/app-announcements.md](feature_plans/app-announcements.md). Email / Tasks / mentions UI still deferred.
+
+These bullets remain for lighter capture so good ideas are not lost:
 
 - **Saved views** — save a timeline filter/search combination (character selection, search terms, Rehearse preset) as a named view for quick recall. May evolve into role-specific modes (rehearsal mode, tech night mode).
 - **Scene summary drill-down** — clickable chips on the scene summary strip open a modal with per-character detail: entrance moment, exit moment, costume, props carried, set pieces, blocking notes. Costume/props/set pieces would read from the Phase 14 event-derived state (`asset_state.py`); rest derived from timeline data (see [SCRATCH_NOTES.md](SCRATCH_NOTES.md)). Phase 6 ships read-only chips only.

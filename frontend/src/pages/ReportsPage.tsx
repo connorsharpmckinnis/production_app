@@ -1,10 +1,10 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, formatApiError } from "@/lib/api";
+import { humanTimelinePath } from "@/lib/timelineDeepLinks";
 import type {
-  ActSummary,
   BlockingSheetEntry,
   CostumeChangeEntry,
   CueSheetCategory,
@@ -20,20 +20,6 @@ const REPORT_SECTIONS = [
   { id: "report-blocking", label: "Blocking sheet" },
 ] as const;
 
-function sceneMapKey(actNumber: number, sceneNumber: number) {
-  return `${actNumber}-${sceneNumber}`;
-}
-
-function buildSceneIdMap(acts: ActSummary[]) {
-  const map = new Map<string, number>();
-  for (const act of acts) {
-    for (const scene of act.scenes) {
-      map.set(sceneMapKey(act.number, scene.number), scene.id);
-    }
-  }
-  return map;
-}
-
 export default function ReportsPage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
@@ -43,7 +29,6 @@ export default function ReportsPage() {
   const [costumeChanges, setCostumeChanges] = useState<CostumeChangeEntry[]>([]);
   const [entranceExitReport, setEntranceExitReport] = useState<EntranceExitSheetGroup[]>([]);
   const [blockingReport, setBlockingReport] = useState<BlockingSheetEntry[]>([]);
-  const [sceneIdMap, setSceneIdMap] = useState<Map<string, number>>(new Map());
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -54,15 +39,13 @@ export default function ReportsPage() {
       api.getCostumeChangesReport(productionId),
       api.getEntranceExitSheetReport(productionId),
       api.getBlockingSheetReport(productionId),
-      api.listActs(productionId),
     ])
-      .then(([props, cues, costumeChangeRows, entranceExit, blocking, acts]) => {
+      .then(([props, cues, costumeChangeRows, entranceExit, blocking]) => {
         setPropSheet(props);
         setCueSheet(cues);
         setCostumeChanges(costumeChangeRows);
         setEntranceExitReport(entranceExit);
         setBlockingReport(blocking);
-        setSceneIdMap(buildSceneIdMap(acts));
       })
       .catch((err: unknown) => {
         setError(formatApiError(err, "Failed to load reports"));
@@ -70,27 +53,20 @@ export default function ReportsPage() {
       .finally(() => setLoading(false));
   }, [productionId]);
 
-  const resolveSceneId = useMemo(
-    () => (actNumber: number, sceneNumber: number) =>
-      sceneIdMap.get(sceneMapKey(actNumber, sceneNumber)) ?? null,
-    [sceneIdMap],
-  );
-
   function MomentLink({
-    sceneId,
-    momentId,
+    actNumber,
+    sceneNumber,
+    momentSequence,
     children,
   }: {
-    sceneId: number | null;
-    momentId: number;
+    actNumber: number;
+    sceneNumber: number;
+    momentSequence: number;
     children: React.ReactNode;
   }) {
-    if (sceneId === null) {
-      return <span>{children}</span>;
-    }
     return (
       <Link
-        to={`/productions/${productionId}/timeline?scene=${sceneId}&moment=${momentId}`}
+        to={humanTimelinePath(productionId, actNumber, sceneNumber, momentSequence)}
         className="text-primary hover:underline"
       >
         {children}
@@ -183,7 +159,6 @@ export default function ReportsPage() {
                 )}
                 <ul className="mt-2 space-y-1 text-sm">
                   {entry.moments.map((ref) => {
-                    const sceneId = resolveSceneId(ref.act_number, ref.scene_number);
                     const personLabel = ref.character_name ?? ref.user_display_name;
                     return (
                       <li
@@ -199,7 +174,11 @@ export default function ReportsPage() {
                         <span>
                           Act {ref.act_number}, Scene {ref.scene_number}
                           {ref.scene_title ? ` (${ref.scene_title})` : ""} —{" "}
-                          <MomentLink sceneId={sceneId} momentId={ref.moment_id}>
+                          <MomentLink
+                            actNumber={ref.act_number}
+                            sceneNumber={ref.scene_number}
+                            momentSequence={ref.sequence_number}
+                          >
                             Moment {ref.sequence_number}
                           </MomentLink>
                           {personLabel ? ` — ${personLabel}` : ""}
@@ -226,14 +205,17 @@ export default function ReportsPage() {
                 <h3 className="font-medium">{category.cue_category_name}</h3>
                 <ul className="mt-2 space-y-1 text-sm">
                   {category.cues.map((cue) => {
-                    const sceneId = resolveSceneId(cue.act_number, cue.scene_number);
                     return (
                       <li key={cue.cue_id}>
                         <span className="font-medium">{cue.title}</span>
                         {" — "}
                         Act {cue.act_number}, Scene {cue.scene_number}
                         {cue.scene_title ? ` (${cue.scene_title})` : ""} —{" "}
-                        <MomentLink sceneId={sceneId} momentId={cue.moment_id}>
+                        <MomentLink
+                          actNumber={cue.act_number}
+                          sceneNumber={cue.scene_number}
+                          momentSequence={cue.sequence_number}
+                        >
                           Moment {cue.sequence_number}
                         </MomentLink>
                         {cue.notes ? ` — ${cue.notes}` : ""}
@@ -254,7 +236,6 @@ export default function ReportsPage() {
         ) : (
           <ul className="space-y-1 text-sm">
             {costumeChanges.map((entry) => {
-              const sceneId = resolveSceneId(entry.act_number, entry.scene_number);
               return (
                 <li
                   key={`${entry.moment_id}-${entry.character_id}`}
@@ -268,7 +249,11 @@ export default function ReportsPage() {
                     {entry.costume_name ? ` — ${entry.costume_name}` : ""} — Act{" "}
                     {entry.act_number}, Scene {entry.scene_number}
                     {entry.scene_title ? ` (${entry.scene_title})` : ""} —{" "}
-                    <MomentLink sceneId={sceneId} momentId={entry.moment_id}>
+                    <MomentLink
+                      actNumber={entry.act_number}
+                      sceneNumber={entry.scene_number}
+                      momentSequence={entry.sequence_number}
+                    >
                       Moment {entry.sequence_number}
                     </MomentLink>
                     {entry.notes ? ` — ${entry.notes}` : ""}
@@ -295,7 +280,11 @@ export default function ReportsPage() {
                 <ul className="mt-2 space-y-1 text-sm">
                   {group.rows.map((row) => (
                     <li key={`${row.moment_id}-${row.movement_type}-${row.character_id}`}>
-                      <MomentLink sceneId={group.scene_id} momentId={row.moment_id}>
+                      <MomentLink
+                        actNumber={group.act_number}
+                        sceneNumber={group.scene_number}
+                        momentSequence={row.sequence_number}
+                      >
                         Moment {row.sequence_number}
                       </MomentLink>{" "}
                       — {row.movement_type}: {row.character_name}
@@ -316,7 +305,6 @@ export default function ReportsPage() {
         ) : (
           <ul className="space-y-2 text-sm">
             {blockingReport.map((entry) => {
-              const sceneId = resolveSceneId(entry.act_number, entry.scene_number);
               return (
                 <li
                   key={entry.moment_id + "-" + entry.character_id}
@@ -324,7 +312,11 @@ export default function ReportsPage() {
                 >
                   Act {entry.act_number}, Scene {entry.scene_number}
                   {entry.scene_title ? ` (${entry.scene_title})` : ""} —{" "}
-                  <MomentLink sceneId={sceneId} momentId={entry.moment_id}>
+                  <MomentLink
+                    actNumber={entry.act_number}
+                    sceneNumber={entry.scene_number}
+                    momentSequence={entry.sequence_number}
+                  >
                     Moment {entry.sequence_number}
                   </MomentLink>{" "}
                   — {entry.character_name}: {entry.notes}

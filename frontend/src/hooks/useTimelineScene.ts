@@ -122,6 +122,7 @@ export function useTimelineScene({
   const [error, setError] = useState<string | null>(null);
   const [momentsRefreshKey, setMomentsRefreshKey] = useState(0);
   const silentRefreshRef = useRef(false);
+  const catalogLoadIdRef = useRef(0);
 
   const myCharacterIds = useMemo(() => {
     if (!user) return [];
@@ -174,6 +175,14 @@ export function useTimelineScene({
   }, [acts, selectedSceneIds, selectedScene, selectedAct]);
 
   useEffect(() => {
+    setSelectedSceneIds([]);
+    setSelectedMomentId(null);
+    setMomentDetail(null);
+    setLoading(true);
+  }, [productionId]);
+
+  useEffect(() => {
+    const loadId = ++catalogLoadIdRef.current;
     const requests: [
       ReturnType<typeof api.getProduction>,
       ReturnType<typeof api.listActs>,
@@ -206,6 +215,8 @@ export function useTimelineScene({
 
     void Promise.all(requests)
       .then((results) => {
+        if (loadId !== catalogLoadIdRef.current) return;
+
         const [
           production,
           actData,
@@ -232,12 +243,21 @@ export function useTimelineScene({
         setAppSettings(settingsData);
         setGroups(groupData ?? []);
         setCastableUsers(castableUserData ?? []);
-        setSelectedSceneIds(allSceneIdsFromActs(actData));
+        // Only seed the default multi-scene selection when nothing is selected yet.
+        // Deep links (and the user) may already have narrowed to one scene; a later
+        // catalog reload must not wipe that (Strict Mode / canManagePreparation).
+        setSelectedSceneIds((prev) =>
+          prev.length > 0 ? prev : allSceneIdsFromActs(actData),
+        );
       })
       .catch((err: unknown) => {
+        if (loadId !== catalogLoadIdRef.current) return;
         setError(formatApiError(err, "Failed to load timeline"));
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (loadId !== catalogLoadIdRef.current) return;
+        setLoading(false);
+      });
   }, [productionId, canManagePreparation]);
 
   useEffect(() => {
@@ -332,7 +352,9 @@ export function useTimelineScene({
   const selectSceneById = useCallback(
     (sceneId: number): boolean => {
       if (!sceneLookup.has(sceneId)) return false;
-      setSelectedSceneIds([sceneId]);
+      setSelectedSceneIds((prev) =>
+        prev.length === 1 && prev[0] === sceneId ? prev : [sceneId],
+      );
       return true;
     },
     [sceneLookup],

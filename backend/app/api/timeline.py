@@ -58,10 +58,15 @@ from app.schemas.timeline_editing import (
     StageDirectionUpdate,
 )
 from app.services.asset_state import (
+    AssetMomentRef,
     AssetStateSnapshot,
+    compute_prop_state_by_moment,
+    compute_set_piece_state_by_moment,
     costume_states_at_moment,
-    prop_states_at_moment,
-    set_piece_states_at_moment,
+    find_next_asset_event_refs,
+    group_prop_events_by_moment_id,
+    group_set_piece_events_by_moment_id,
+    load_production_moments_in_show_order,
 )
 from app.services.on_stage import compute_on_stage_ids_by_moment, on_stage_characters_for_moment
 from app.services.moment_sequence import (
@@ -182,13 +187,75 @@ def _resolve_names(
     return character_names, user_names
 
 
+def _moment_show_positions(
+    db: Session, moment_ids: set[int]
+) -> dict[int, tuple[int, int, int]]:
+    """moment_id -> (act_number, scene_number, sequence_number)."""
+    if not moment_ids:
+        return {}
+    rows = (
+        db.query(Moment.id, Act.number, Scene.number, Moment.sequence_number)
+        .join(Scene, Moment.scene_id == Scene.id)
+        .join(Act, Scene.act_id == Act.id)
+        .filter(Moment.id.in_(moment_ids))
+        .all()
+    )
+    return {
+        moment_id: (act_number, scene_number, sequence_number)
+        for moment_id, act_number, scene_number, sequence_number in rows
+    }
+
+
+def _deep_link_fields(
+    moment_id: int | None,
+    positions: dict[int, tuple[int, int, int]],
+    scene_id: int | None,
+    *,
+    prefix: str,
+) -> dict[str, int | None]:
+    """Build source_* or next_change_* fields for an in-play response row."""
+    if moment_id is None:
+        return {
+            f"{prefix}_moment_id": None,
+            f"{prefix}_scene_id": None,
+            f"{prefix}_act_number": None,
+            f"{prefix}_scene_number": None,
+            f"{prefix}_sequence_number": None,
+        }
+    act_number, scene_number, sequence_number = positions[moment_id]
+    return {
+        f"{prefix}_moment_id": moment_id,
+        f"{prefix}_scene_id": scene_id,
+        f"{prefix}_act_number": act_number,
+        f"{prefix}_scene_number": scene_number,
+        f"{prefix}_sequence_number": sequence_number,
+    }
+
+
 def _props_in_play_response(
     db: Session, production_id: int, moment_id: int
 ) -> list[PropInPlayResponse]:
-    states = prop_states_at_moment(db, production_id, moment_id)
+    moments = load_production_moments_in_show_order(db, production_id)
+    events_by_moment_id = group_prop_events_by_moment_id(db, production_id)
+    states = compute_prop_state_by_moment(moments, events_by_moment_id).get(moment_id, {})
     in_play = {prop_id: state for prop_id, state in states.items() if state.in_play}
     if not in_play:
         return []
+
+    next_refs = find_next_asset_event_refs(
+        moments,
+        events_by_moment_id,
+        current_moment_id=moment_id,
+        asset_ids=set(in_play.keys()),
+        asset_id_attr="prop_id",
+    )
+    position_ids = {
+        state.source_moment_id
+        for state in in_play.values()
+        if state.source_moment_id is not None
+    }
+    position_ids.update(ref.moment_id for ref in next_refs.values())
+    positions = _moment_show_positions(db, position_ids)
 
     props_by_id = {
         prop.id: prop
@@ -196,27 +263,69 @@ def _props_in_play_response(
     }
     character_names, user_names = _resolve_names(db, in_play)
 
-    return [
-        PropInPlayResponse(
-            prop_id=prop_id,
-            prop_name=props_by_id[prop_id].name,
-            character_id=state.character_id,
-            character_name=character_names.get(state.character_id) if state.character_id else None,
-            user_id=state.user_id,
-            user_display_name=user_names.get(state.user_id) if state.user_id else None,
-            notes=state.notes,
+    rows: list[PropInPlayResponse] = []
+    for prop_id, state in sorted(in_play.items(), key=lambda item: props_by_id[item[0]].name):
+        if state.source_moment_id is None or state.source_scene_id is None:
+            continue
+        next_ref: AssetMomentRef | None = next_refs.get(prop_id)
+        rows.append(
+            PropInPlayResponse(
+                prop_id=prop_id,
+                prop_name=props_by_id[prop_id].name,
+                character_id=state.character_id,
+                character_name=(
+                    character_names.get(state.character_id) if state.character_id else None
+                ),
+                user_id=state.user_id,
+                user_display_name=(
+                    user_names.get(state.user_id) if state.user_id else None
+                ),
+                notes=state.notes,
+                **_deep_link_fields(
+                    state.source_moment_id,
+                    positions,
+                    state.source_scene_id,
+                    prefix="source",
+                ),
+                **_deep_link_fields(
+                    next_ref.moment_id if next_ref else None,
+                    positions,
+                    next_ref.scene_id if next_ref else None,
+                    prefix="next_change",
+                ),
+            )
         )
-        for prop_id, state in sorted(in_play.items(), key=lambda item: props_by_id[item[0]].name)
-    ]
+    return rows
 
 
 def _set_pieces_in_play_response(
     db: Session, production_id: int, moment_id: int
 ) -> list[SetPieceInPlayResponse]:
-    states = set_piece_states_at_moment(db, production_id, moment_id)
-    in_play = {set_piece_id: state for set_piece_id, state in states.items() if state.in_play}
+    moments = load_production_moments_in_show_order(db, production_id)
+    events_by_moment_id = group_set_piece_events_by_moment_id(db, production_id)
+    states = compute_set_piece_state_by_moment(moments, events_by_moment_id).get(
+        moment_id, {}
+    )
+    in_play = {
+        set_piece_id: state for set_piece_id, state in states.items() if state.in_play
+    }
     if not in_play:
         return []
+
+    next_refs = find_next_asset_event_refs(
+        moments,
+        events_by_moment_id,
+        current_moment_id=moment_id,
+        asset_ids=set(in_play.keys()),
+        asset_id_attr="set_piece_id",
+    )
+    position_ids = {
+        state.source_moment_id
+        for state in in_play.values()
+        if state.source_moment_id is not None
+    }
+    position_ids.update(ref.moment_id for ref in next_refs.values())
+    positions = _moment_show_positions(db, position_ids)
 
     set_pieces_by_id = {
         set_piece.id: set_piece
@@ -224,20 +333,41 @@ def _set_pieces_in_play_response(
     }
     character_names, user_names = _resolve_names(db, in_play)
 
-    return [
-        SetPieceInPlayResponse(
-            set_piece_id=set_piece_id,
-            set_piece_name=set_pieces_by_id[set_piece_id].name,
-            character_id=state.character_id,
-            character_name=character_names.get(state.character_id) if state.character_id else None,
-            user_id=state.user_id,
-            user_display_name=user_names.get(state.user_id) if state.user_id else None,
-            notes=state.notes,
+    rows: list[SetPieceInPlayResponse] = []
+    for set_piece_id, state in sorted(
+        in_play.items(), key=lambda item: set_pieces_by_id[item[0]].name
+    ):
+        if state.source_moment_id is None or state.source_scene_id is None:
+            continue
+        next_ref: AssetMomentRef | None = next_refs.get(set_piece_id)
+        rows.append(
+            SetPieceInPlayResponse(
+                set_piece_id=set_piece_id,
+                set_piece_name=set_pieces_by_id[set_piece_id].name,
+                character_id=state.character_id,
+                character_name=(
+                    character_names.get(state.character_id) if state.character_id else None
+                ),
+                user_id=state.user_id,
+                user_display_name=(
+                    user_names.get(state.user_id) if state.user_id else None
+                ),
+                notes=state.notes,
+                **_deep_link_fields(
+                    state.source_moment_id,
+                    positions,
+                    state.source_scene_id,
+                    prefix="source",
+                ),
+                **_deep_link_fields(
+                    next_ref.moment_id if next_ref else None,
+                    positions,
+                    next_ref.scene_id if next_ref else None,
+                    prefix="next_change",
+                ),
+            )
         )
-        for set_piece_id, state in sorted(
-            in_play.items(), key=lambda item: set_pieces_by_id[item[0]].name
-        )
-    ]
+    return rows
 
 
 def _costumes_wearing_response(

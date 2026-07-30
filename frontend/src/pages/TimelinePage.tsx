@@ -21,6 +21,14 @@ import { useIsMediumScreen } from "@/hooks/useIsMediumScreen";
 import { useTimelineScene } from "@/hooks/useTimelineScene";
 import { api, formatApiError } from "@/lib/api";
 import { isHighlightedMoment } from "@/lib/momentHighlight";
+import {
+  isPendingSceneReady,
+  parseTimelineDeepLink,
+  pendingFromDeepLink,
+  resolvePendingMomentId,
+  resolveSceneIdByNumbers,
+  type PendingDeepLink,
+} from "@/lib/timelineDeepLinks";
 import type {
   CharacterDetailResponse,
   MomentDetailResponse,
@@ -41,7 +49,7 @@ export default function TimelinePage() {
   const toast = useToast();
   const { isAdmin } = useAuth();
   const isMediumScreen = useIsMediumScreen();
-  const pendingMomentIdRef = useRef<number | null>(null);
+  const pendingDeepLinkRef = useRef<PendingDeepLink | null>(null);
 
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
@@ -127,34 +135,60 @@ export default function TimelinePage() {
 
   useEffect(() => {
     if (scene.loading || scene.acts.length === 0) return;
-    const momentParam = searchParams.get("moment");
-    const sceneParam = searchParams.get("scene");
-    if (!momentParam) return;
+    const link = parseTimelineDeepLink(searchParams);
+    if (!link) return;
 
-    const momentId = Number(momentParam);
-    if (!Number.isFinite(momentId)) return;
-
-    if (sceneParam) {
-      const sceneId = Number(sceneParam);
-      if (Number.isFinite(sceneId)) {
-        scene.selectSceneById(sceneId);
+    let targetSceneId: number | null = null;
+    if (link.mode === "human") {
+      targetSceneId = resolveSceneIdByNumbers(
+        scene.acts,
+        link.actNumber,
+        link.sceneNumber,
+      );
+      if (targetSceneId == null) {
+        setSearchParams({}, { replace: true });
+        return;
+      }
+      if (!scene.selectSceneById(targetSceneId)) {
+        setSearchParams({}, { replace: true });
+        return;
+      }
+    } else if (link.sceneId != null) {
+      targetSceneId = link.sceneId;
+      if (!scene.selectSceneById(link.sceneId)) {
+        setSearchParams({}, { replace: true });
+        return;
       }
     }
-    pendingMomentIdRef.current = momentId;
-    setSearchParams({}, { replace: true });
-    // Intentionally depends on acts/loading and URL params only.
+
+    pendingDeepLinkRef.current = {
+      sceneId: targetSceneId,
+      moment: pendingFromDeepLink(link),
+    };
+    // Keep query params until the moment is resolved so a catalog re-fetch
+    // (Strict Mode / auth) can re-apply the link if selection was reset.
+    // Intentionally omits selectSceneById identity; acts + loading gate freshness.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scene.loading, scene.acts.length, searchParams, setSearchParams]);
+  }, [scene.loading, scene.acts, searchParams, setSearchParams]);
 
   useEffect(() => {
-    const pending = pendingMomentIdRef.current;
+    const pending = pendingDeepLinkRef.current;
     if (pending === null || scene.momentsLoading) return;
-    if (scene.moments.some((moment) => moment.id === pending)) {
-      scene.setSelectedMomentId(pending);
-      pendingMomentIdRef.current = null;
+    if (!isPendingSceneReady(pending.sceneId, scene.selectedSceneIds)) return;
+
+    const momentId = resolvePendingMomentId(scene.moments, pending.moment);
+    if (momentId != null) {
+      scene.setSelectedMomentId(momentId);
+      pendingDeepLinkRef.current = null;
+      setSearchParams({}, { replace: true });
+      return;
     }
+
+    // Scene is ready but the target moment is missing — drop the pending link.
+    pendingDeepLinkRef.current = null;
+    setSearchParams({}, { replace: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scene.moments, scene.momentsLoading]);
+  }, [scene.moments, scene.momentsLoading, scene.selectedSceneIds, setSearchParams]);
 
   const highlightCharacterIds = useMemo(() => {
     if (groupFilter !== "all") {

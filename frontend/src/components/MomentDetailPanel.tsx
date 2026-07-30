@@ -25,6 +25,7 @@ import {
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { api, ApiError, formatApiError } from "@/lib/api";
+import { formatMomentCode, humanTimelinePath } from "@/lib/timelineDeepLinks";
 import type {
   AppSettingsResponse,
   AssetEventKind,
@@ -1484,6 +1485,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           emptyMessage="No prop events on this moment."
           canEdit={canEdit}
           saving={saving}
+          productionId={productionId}
           defaultExpanded={detail.props.length > 0}
           events={detail.props.map((prop) => ({
             id: prop.id,
@@ -1504,6 +1506,12 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             key: `prop-in-play-${item.prop_id}`,
             label: item.prop_name,
             personLabel: item.character_name ?? item.user_display_name,
+            sourceActNumber: item.source_act_number,
+            sourceSceneNumber: item.source_scene_number,
+            sourceSequenceNumber: item.source_sequence_number,
+            nextChangeActNumber: item.next_change_act_number,
+            nextChangeSceneNumber: item.next_change_scene_number,
+            nextChangeSequenceNumber: item.next_change_sequence_number,
           }))}
         />
 
@@ -1512,6 +1520,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           emptyMessage="No set piece events on this moment."
           canEdit={canEdit}
           saving={saving}
+          productionId={productionId}
           defaultExpanded={detail.set_pieces.length > 0}
           events={detail.set_pieces.map((piece) => ({
             id: piece.id,
@@ -1532,6 +1541,12 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             key: `set-piece-in-play-${item.set_piece_id}`,
             label: item.set_piece_name,
             personLabel: item.character_name ?? item.user_display_name,
+            sourceActNumber: item.source_act_number,
+            sourceSceneNumber: item.source_scene_number,
+            sourceSequenceNumber: item.source_sequence_number,
+            nextChangeActNumber: item.next_change_act_number,
+            nextChangeSceneNumber: item.next_change_scene_number,
+            nextChangeSequenceNumber: item.next_change_sequence_number,
           }))}
         />
 
@@ -1799,6 +1814,12 @@ interface AssetInPlayItem {
   key: string;
   label: string;
   personLabel: string | null;
+  sourceActNumber: number;
+  sourceSceneNumber: number;
+  sourceSequenceNumber: number;
+  nextChangeActNumber: number | null;
+  nextChangeSceneNumber: number | null;
+  nextChangeSequenceNumber: number | null;
 }
 
 function AssetEventSection({
@@ -1806,6 +1827,7 @@ function AssetEventSection({
   emptyMessage,
   canEdit,
   saving,
+  productionId,
   events,
   characters,
   castableUsers,
@@ -1819,6 +1841,7 @@ function AssetEventSection({
   emptyMessage: string;
   canEdit: boolean;
   saving: boolean;
+  productionId: number;
   events: AssetEventItem[];
   characters: CharacterDetailResponse[];
   castableUsers: CastableUserResponse[];
@@ -1859,13 +1882,65 @@ function AssetEventSection({
           <h4 className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
             Currently in play
           </h4>
-          <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-            {inPlay.map((item) => (
-              <li key={item.key}>
-                <span className="font-medium text-foreground">{item.label}</span>
-                {item.personLabel ? ` — ${item.personLabel}` : ""}
-              </li>
-            ))}
+          <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
+            {inPlay.map((item) => {
+              const sourceCode = formatMomentCode(
+                item.sourceActNumber,
+                item.sourceSceneNumber,
+                item.sourceSequenceNumber,
+              );
+              const hasNextChange =
+                item.nextChangeActNumber != null &&
+                item.nextChangeSceneNumber != null &&
+                item.nextChangeSequenceNumber != null;
+              const nextCode = hasNextChange
+                ? formatMomentCode(
+                    item.nextChangeActNumber!,
+                    item.nextChangeSceneNumber!,
+                    item.nextChangeSequenceNumber!,
+                  )
+                : null;
+
+              return (
+                <li key={item.key} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                  <span>
+                    <span className="font-medium text-foreground">{item.label}</span>
+                    {item.personLabel ? ` — ${item.personLabel}` : ""}
+                  </span>
+                  <span className="inline-flex flex-wrap items-center gap-x-1.5">
+                    <Link
+                      to={humanTimelinePath(
+                        productionId,
+                        item.sourceActNumber,
+                        item.sourceSceneNumber,
+                        item.sourceSequenceNumber,
+                      )}
+                      className="underline underline-offset-2 hover:text-foreground"
+                      aria-label={`Open moment ${sourceCode} that set this state`}
+                    >
+                      {sourceCode}
+                    </Link>
+                    {nextCode != null && (
+                      <>
+                        <span aria-hidden="true">→</span>
+                        <Link
+                          to={humanTimelinePath(
+                            productionId,
+                            item.nextChangeActNumber!,
+                            item.nextChangeSceneNumber!,
+                            item.nextChangeSequenceNumber!,
+                          )}
+                          className="underline underline-offset-2 hover:text-foreground"
+                          aria-label={`Open moment ${nextCode} where this changes next`}
+                        >
+                          {nextCode}
+                        </Link>
+                      </>
+                    )}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

@@ -261,6 +261,9 @@ def test_bookmark_lifecycle(seeded_client: TestClient, db_session: Session) -> N
     ).json()
     assert len(bookmarks) == 1
     assert bookmarks[0]["label"] == "Act 1 top"
+    assert bookmarks[0]["act_number"] == 1
+    assert bookmarks[0]["scene_number"] >= 1
+    assert bookmarks[0]["sequence_number"] >= 1
 
     detail = seeded_client.get(
         f"/api/productions/{production_id}/moments/{moment_id}",

@@ -13,6 +13,8 @@ cp .env.example .env   # optional
 docker compose up -d --build
 ```
 
+Code is baked into the images (no source bind mounts). Rebuild the service you edited after host changes (`docker compose up -d --build frontend` or `backend`). A browser hard refresh only helps with cached assets after a rebuild — it does not pick up new source by itself.
+
 | What | URL |
 | ---- | --- |
 | App | http://localhost:5173 |

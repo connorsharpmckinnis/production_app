@@ -239,6 +239,8 @@ def create_bookmark(
         production_id=production.id,
         production_title=production.title,
         scene_id=moment.scene_id,
+        act_number=moment.scene.act.number,
+        scene_number=moment.scene.number,
         sequence_number=moment.sequence_number,
         moment_preview=moment.original_text[:120],
     )
@@ -293,6 +295,8 @@ def list_my_bookmarks(
                 production_id=production.id,
                 production_title=production.title,
                 scene_id=moment.scene_id,
+                act_number=moment.scene.act.number,
+                scene_number=moment.scene.number,
                 sequence_number=moment.sequence_number,
                 moment_preview=moment.original_text[:120],
             )
