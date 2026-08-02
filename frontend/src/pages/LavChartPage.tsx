@@ -60,6 +60,58 @@ function issueMatches(
   );
 }
 
+/** Live wire/pack double-assign detection from the editable grid. */
+function detectAssignmentConflicts(
+  chart: LavChartResponse,
+  wireMap: Map<string, number | null>,
+  packMap: Map<string, number | null>,
+): LavChartIssue[] {
+  const issues: LavChartIssue[] = [];
+  for (const scene of chart.scenes) {
+    const wireOwners = new Map<number, string[]>();
+    const packOwners = new Map<number, string[]>();
+    for (const row of chart.rows) {
+      const wireId = wireMap.get(cellKey(row.row_key, scene.id));
+      if (wireId != null) {
+        const keys = wireOwners.get(wireId) ?? [];
+        keys.push(row.row_key);
+        wireOwners.set(wireId, keys);
+      }
+      const packId = packMap.get(cellKey(row.row_key, scene.id));
+      if (packId != null) {
+        const keys = packOwners.get(packId) ?? [];
+        keys.push(row.row_key);
+        packOwners.set(packId, keys);
+      }
+    }
+    for (const [assetId, keys] of wireOwners) {
+      if (keys.length > 1) {
+        issues.push({
+          code: "wire_conflict",
+          severity: "error",
+          message: "Wire assigned to multiple wearers in the same scene.",
+          scene_id: scene.id,
+          asset_id: assetId,
+          row_key: keys[0],
+        });
+      }
+    }
+    for (const [assetId, keys] of packOwners) {
+      if (keys.length > 1) {
+        issues.push({
+          code: "pack_conflict",
+          severity: "error",
+          message: "Pack assigned to multiple wearers in the same scene.",
+          scene_id: scene.id,
+          asset_id: assetId,
+          row_key: keys[0],
+        });
+      }
+    }
+  }
+  return issues;
+}
+
 export default function LavChartPage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
@@ -318,9 +370,10 @@ export default function LavChartPage() {
     );
   }
 
-  const issues = chart.issues;
-  const errorIssues = issues.filter((i) => i.severity === "error");
-  const warningIssues = issues.filter((i) => i.severity === "warning");
+  const errorIssues = detectAssignmentConflicts(chart, wireMap, packMap);
+  const warningIssues = chart.issues.filter((i) => i.severity === "warning");
+  // Cell highlights: live conflicts + server warnings (coverage / mid-act).
+  const issues = [...errorIssues, ...warningIssues];
   const catalog = sheet === "wires" ? chart.wires : chart.packs;
 
   return (
@@ -342,7 +395,15 @@ export default function LavChartPage() {
             <Button variant="outline" onClick={() => void handlePropose()} disabled={proposing}>
               {proposing ? "Proposing…" : "Propose chart"}
             </Button>
-            <Button onClick={() => void handleSave()} disabled={saving || !dirty}>
+            <Button
+              onClick={() => void handleSave()}
+              disabled={saving || !dirty || errorIssues.length > 0}
+              title={
+                errorIssues.length > 0
+                  ? "Resolve wire/pack conflicts before saving"
+                  : undefined
+              }
+            >
               {saving ? "Saving…" : dirty ? "Save" : "Saved"}
             </Button>
           </div>

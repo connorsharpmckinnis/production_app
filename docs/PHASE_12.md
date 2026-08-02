@@ -208,7 +208,7 @@ Constraints:
 
 - Unique wearer identity per row semantics (check: one of `user_id` / `character_id`)  
 - Unique `(production_id, scene_id, user_id)` / `(production_id, scene_id, character_id)` as appropriate  
-- Optional unique `(production_id, scene_id, wire_id)` where `wire_id` not null — **or** enforce only in validation API so TD can temporarily save conflicts while fixing (recommend: **validate on propose + soft-warn on save**, hard-block optional later)
+- Optional unique `(production_id, scene_id, wire_id)` where `wire_id` not null — **or** enforce only in validation API so TD can temporarily save conflicts while fixing (recommend: **validate on propose + soft-warn on save**, hard-block optional later) → **Hard-block on save shipped 2026-08-01** (`wire_conflict` / `pack_conflict` → HTTP 400; UI still highlights cells)
 
 Keep `microphones` / `moment_microphones` unchanged.
 

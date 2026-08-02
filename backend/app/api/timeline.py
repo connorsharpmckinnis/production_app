@@ -64,6 +64,7 @@ from app.services.asset_state import (
     compute_set_piece_state_by_moment,
     costume_states_at_moment,
     find_next_asset_event_refs,
+    find_prior_on_refs,
     group_prop_events_by_moment_id,
     group_set_piece_events_by_moment_id,
     load_production_moments_in_show_order,
@@ -121,7 +122,11 @@ def _note_response(note: Note, current_user_id: int) -> NoteResponse:
     )
 
 
-def _moment_prop_event_response(event: MomentPropEvent) -> MomentPropEventResponse:
+def _moment_prop_event_response(
+    event: MomentPropEvent,
+    *,
+    prior_on: dict[str, int | None] | None = None,
+) -> MomentPropEventResponse:
     return MomentPropEventResponse(
         id=event.id,
         prop_id=event.prop_id,
@@ -132,11 +137,14 @@ def _moment_prop_event_response(event: MomentPropEvent) -> MomentPropEventRespon
         user_id=event.user_id,
         user_display_name=user_display_name(event.user) if event.user else None,
         notes=event.notes,
+        **(prior_on or {}),
     )
 
 
 def _moment_set_piece_event_response(
     event: MomentSetPieceEvent,
+    *,
+    prior_on: dict[str, int | None] | None = None,
 ) -> MomentSetPieceEventResponse:
     return MomentSetPieceEventResponse(
         id=event.id,
@@ -148,6 +156,19 @@ def _moment_set_piece_event_response(
         user_id=event.user_id,
         user_display_name=user_display_name(event.user) if event.user else None,
         notes=event.notes,
+        **(prior_on or {}),
+    )
+
+
+def _prior_on_deep_link_fields(
+    prior_ref: AssetMomentRef | None,
+    positions: dict[int, tuple[int, int, int]],
+) -> dict[str, int | None]:
+    return _deep_link_fields(
+        prior_ref.moment_id if prior_ref else None,
+        positions,
+        prior_ref.scene_id if prior_ref else None,
+        prefix="prior_on",
     )
 
 
@@ -703,6 +724,38 @@ def get_moment_detail(
 
     on_stage = on_stage_characters_for_moment(db, moment)
 
+    show_moments = load_production_moments_in_show_order(db, production_id)
+    prop_events_by_moment = group_prop_events_by_moment_id(db, production_id)
+    set_piece_events_by_moment = group_set_piece_events_by_moment_id(db, production_id)
+    prop_states_by_moment = compute_prop_state_by_moment(show_moments, prop_events_by_moment)
+    set_piece_states_by_moment = compute_set_piece_state_by_moment(
+        show_moments, set_piece_events_by_moment
+    )
+    off_prop_ids = {
+        event.prop_id for event in moment.moment_prop_events if event.kind == "off"
+    }
+    off_set_piece_ids = {
+        event.set_piece_id
+        for event in moment.moment_set_piece_events
+        if event.kind == "off"
+    }
+    prior_prop_refs = find_prior_on_refs(
+        show_moments,
+        prop_states_by_moment,
+        current_moment_id=moment.id,
+        asset_ids=off_prop_ids,
+    )
+    prior_set_piece_refs = find_prior_on_refs(
+        show_moments,
+        set_piece_states_by_moment,
+        current_moment_id=moment.id,
+        asset_ids=off_set_piece_ids,
+    )
+    prior_position_ids = {
+        ref.moment_id for ref in prior_prop_refs.values()
+    } | {ref.moment_id for ref in prior_set_piece_refs.values()}
+    prior_positions = _moment_show_positions(db, prior_position_ids)
+
     return MomentDetailResponse(
         id=moment.id,
         sequence_number=moment.sequence_number,
@@ -730,10 +783,28 @@ def get_moment_detail(
             for line in moment.lyric_lines
         ],
         stage_direction=stage_direction,
-        props=[_moment_prop_event_response(event) for event in moment.moment_prop_events],
+        props=[
+            _moment_prop_event_response(
+                event,
+                prior_on=_prior_on_deep_link_fields(
+                    prior_prop_refs.get(event.prop_id) if event.kind == "off" else None,
+                    prior_positions,
+                ),
+            )
+            for event in moment.moment_prop_events
+        ],
         props_in_play=_props_in_play_response(db, production_id, moment.id),
         set_pieces=[
-            _moment_set_piece_event_response(event) for event in moment.moment_set_piece_events
+            _moment_set_piece_event_response(
+                event,
+                prior_on=_prior_on_deep_link_fields(
+                    prior_set_piece_refs.get(event.set_piece_id)
+                    if event.kind == "off"
+                    else None,
+                    prior_positions,
+                ),
+            )
+            for event in moment.moment_set_piece_events
         ],
         set_pieces_in_play=_set_pieces_in_play_response(db, production_id, moment.id),
         costume_events=[

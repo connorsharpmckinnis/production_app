@@ -201,6 +201,47 @@ def find_next_asset_event_refs(
     return result
 
 
+def find_prior_on_refs(
+    moments: list[Moment],
+    states_by_moment: dict[int, dict[int, AssetStateSnapshot]],
+    *,
+    current_moment_id: int,
+    asset_ids: set[int],
+) -> dict[int, AssetMomentRef]:
+    """For assets at current_moment, return the prior in-play source (last ON) if any.
+
+    Used on OFF event rows so the END moment can deep-link back to START. Looks at
+    the previous Moment's derived state (before this Moment's events applied).
+    """
+    if not asset_ids:
+        return {}
+
+    current_index: int | None = None
+    for index, moment in enumerate(moments):
+        if moment.id == current_moment_id:
+            current_index = index
+            break
+    if current_index is None or current_index == 0:
+        return {}
+
+    prev_states = states_by_moment.get(moments[current_index - 1].id, {})
+    result: dict[int, AssetMomentRef] = {}
+    for asset_id in asset_ids:
+        state = prev_states.get(asset_id)
+        if (
+            state is None
+            or not state.in_play
+            or state.source_moment_id is None
+            or state.source_scene_id is None
+        ):
+            continue
+        result[asset_id] = AssetMomentRef(
+            moment_id=state.source_moment_id,
+            scene_id=state.source_scene_id,
+        )
+    return result
+
+
 def group_prop_events_by_moment_id(
     db: Session, production_id: int
 ) -> dict[int, list[MomentPropEvent]]:

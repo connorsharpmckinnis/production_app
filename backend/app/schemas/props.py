@@ -68,6 +68,12 @@ class MomentPropEventResponse(BaseModel):
     user_id: int | None
     user_display_name: str | None
     notes: str | None
+    # When kind is "off": last ON (or re-ON) that put this asset in play, for deep links.
+    prior_on_moment_id: int | None = None
+    prior_on_scene_id: int | None = None
+    prior_on_act_number: int | None = None
+    prior_on_scene_number: int | None = None
+    prior_on_sequence_number: int | None = None
 
 
 class PropInPlayResponse(BaseModel):

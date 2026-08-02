@@ -249,6 +249,48 @@ def test_banner_surface_and_dismiss(seeded_client: TestClient, db_session: Sessi
     assert after["active_banner"] is None
 
 
+def test_announcement_deactivate_then_hard_delete(seeded_client: TestClient) -> None:
+    admin_headers = _login(seeded_client, "admin", "admin")
+    production_id = _create_production(seeded_client, admin_headers)
+
+    create = seeded_client.post(
+        f"/api/productions/{production_id}/announcements",
+        headers=admin_headers,
+        json={
+            "title": "Temp notice",
+            "body": "Will be removed.",
+            "audience_roles": ["Actor", "Director", "Admin"],
+        },
+    )
+    assert create.status_code == 201, create.text
+    announcement_id = create.json()["id"]
+
+    deactivate = seeded_client.delete(
+        f"/api/announcements/{announcement_id}",
+        headers=admin_headers,
+    )
+    assert deactivate.status_code == 200
+    assert deactivate.json()["active"] is False
+
+    listed = seeded_client.get(
+        f"/api/productions/{production_id}/announcements",
+        headers=admin_headers,
+    ).json()
+    assert any(item["id"] == announcement_id for item in listed)
+
+    hard_delete = seeded_client.delete(
+        f"/api/announcements/{announcement_id}",
+        headers=admin_headers,
+    )
+    assert hard_delete.status_code == 204
+
+    listed_after = seeded_client.get(
+        f"/api/productions/{production_id}/announcements",
+        headers=admin_headers,
+    ).json()
+    assert all(item["id"] != announcement_id for item in listed_after)
+
+
 def test_timeline_human_deep_link_cta_allowed(seeded_client: TestClient) -> None:
     admin_headers = _login(seeded_client, "admin", "admin")
     production_id = _create_production(seeded_client, admin_headers)

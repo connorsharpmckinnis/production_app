@@ -2,7 +2,7 @@
 
 **Status:** Prototype shipped (Slices A–C) — 2026-07-29  
 **Created:** 2026-07-28  
-**Updated:** 2026-07-29  
+**Updated:** 2026-08-01 — hard-delete inactive announcements (#84)  
 **Related:** Overview spotlight messages ([PHASE_8.md](../PHASE_8.md), [PREP_READINESS.md](../PREP_READINESS.md)), [ROLES.md](../ROLES.md), [SCRATCH_NOTES.md](../SCRATCH_NOTES.md) (spotlight vs future notifications), [UX_UI_IMPROVEMENTS.md](../UX_UI_IMPROVEMENTS.md) (bookmarks panel as header-panel precedent), [tasks-and-mentions.md](tasks-and-mentions.md), [email-notifications.md](email-notifications.md)
 
 ---
@@ -212,7 +212,7 @@ Composer UI: Admin area for org-wide; production-level composer near Overview me
 
 - Route picker for internal CTAs (common destinations: Overview, Rehearse, Timeline, catalogs, About, Users/Settings for admins)
 - Preview (“as Actor on Production X”)
-- Duplicate / deactivate / schedule UI
+- Duplicate / schedule UI (deactivate + hard-delete inactive shipped 2026-08-01)
 - Optional: pin / priority controls
 
 ### Slice E — Optional extensions (park)

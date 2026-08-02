@@ -1000,9 +1000,9 @@ Summary:
 
 
 
-## Phase 14 — Event-Driven Asset State on the Timeline (Complete, pending owner walkthrough)
+## Phase 14 — Event-Driven Asset State on the Timeline (Complete)
 
-See [PHASE_14.md](PHASE_14.md). **WP1–WP6 shipped 2026-07-27 on `event-architecture-1`.**
+See [PHASE_14.md](PHASE_14.md). **WP1–WP6 shipped 2026-07-27; owner walkthrough passed 2026-08-01.**
 
 Summary:
 

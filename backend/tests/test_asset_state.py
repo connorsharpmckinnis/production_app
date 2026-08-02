@@ -486,6 +486,13 @@ def test_prop_event_persists_across_scenes_and_acts_via_api(
         assert all(
             item["prop_id"] != prop["id"] for item in off_detail["props_in_play"]
         )
+        off_event = next(
+            item for item in off_detail["props"] if item["prop_id"] == prop["id"]
+        )
+        assert off_event["kind"] == "off"
+        # Prior ON after the Act Two re-ON/move is next_act_moment_id.
+        assert off_event["prior_on_moment_id"] == next_act_moment_id
+        assert off_event["prior_on_act_number"] == 2
 
 
 def test_moment_prop_event_duplicate_rejected_and_patch_replaces_state(

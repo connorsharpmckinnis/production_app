@@ -308,6 +308,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     const [attachPropCharacterId, setAttachPropCharacterId] = useState("");
     const [attachPropUserId, setAttachPropUserId] = useState("");
     const [attachPropNotes, setAttachPropNotes] = useState("");
+    const [propsExpandSignal, setPropsExpandSignal] = useState(0);
 
     const [attachSetPieceId, setAttachSetPieceId] = useState("");
     const [attachSetPieceKind, setAttachSetPieceKind] = useState<AssetEventKind>("on");
@@ -315,6 +316,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     const [attachSetPieceCharacterId, setAttachSetPieceCharacterId] = useState("");
     const [attachSetPieceUserId, setAttachSetPieceUserId] = useState("");
     const [attachSetPieceNotes, setAttachSetPieceNotes] = useState("");
+    const [setPiecesExpandSignal, setSetPiecesExpandSignal] = useState(0);
 
     const [attachCostumeCharacterId, setAttachCostumeCharacterId] = useState("");
     const [attachCostumeKind, setAttachCostumeKind] = useState<AssetEventKind>("on");
@@ -558,7 +560,8 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         setAttachPropCharacterId("");
         setAttachPropUserId("");
         setAttachPropNotes("");
-        onChanged();
+        await onChanged();
+        setPropsExpandSignal((n) => n + 1);
         toast.success("Prop event added");
       } catch (err) {
         toast.error(formatApiError(err, "Failed to add prop event"));
@@ -579,7 +582,8 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       setSaving(true);
       try {
         await api.updateMomentProp(productionId, detail.id, momentPropId, body);
-        onChanged();
+        await onChanged();
+        setPropsExpandSignal((n) => n + 1);
         toast.success("Prop event updated");
       } catch (err) {
         toast.error(formatApiError(err, "Failed to update prop event"));
@@ -600,7 +604,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       setSaving(true);
       try {
         await api.detachMomentProp(productionId, detail.id, momentPropId);
-        onChanged();
+        await onChanged();
         toast.success("Prop event removed");
       } catch (err) {
         toast.error(formatApiError(err, "Failed to detach prop event"));
@@ -636,7 +640,8 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         setAttachSetPieceCharacterId("");
         setAttachSetPieceUserId("");
         setAttachSetPieceNotes("");
-        onChanged();
+        await onChanged();
+        setSetPiecesExpandSignal((n) => n + 1);
         toast.success("Set piece event added");
       } catch (err) {
         toast.error(formatApiError(err, "Failed to add set piece event"));
@@ -657,7 +662,8 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       setSaving(true);
       try {
         await api.updateMomentSetPiece(productionId, detail.id, momentSetPieceId, body);
-        onChanged();
+        await onChanged();
+        setSetPiecesExpandSignal((n) => n + 1);
         toast.success("Set piece event updated");
       } catch (err) {
         toast.error(formatApiError(err, "Failed to update set piece event"));
@@ -678,7 +684,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       setSaving(true);
       try {
         await api.detachMomentSetPiece(productionId, detail.id, momentSetPieceId);
-        onChanged();
+        await onChanged();
         toast.success("Set piece event removed");
       } catch (err) {
         toast.error(formatApiError(err, "Failed to detach set piece event"));
@@ -704,7 +710,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         setAttachCostumeKind("on");
         setAttachCostumeId("");
         setAttachCostumeNotes("");
-        onChanged();
+        await onChanged();
         toast.success("Costume event added");
       } catch (err) {
         toast.error(formatApiError(err, "Failed to add costume event"));
@@ -720,7 +726,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       setSaving(true);
       try {
         await api.updateMomentCostume(productionId, detail.id, momentCostumeId, body);
-        onChanged();
+        await onChanged();
         toast.success("Costume event updated");
       } catch (err) {
         toast.error(formatApiError(err, "Failed to update costume event"));
@@ -741,7 +747,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       setSaving(true);
       try {
         await api.detachMomentCostume(productionId, detail.id, momentCostumeId);
-        onChanged();
+        await onChanged();
         toast.success("Costume event removed");
       } catch (err) {
         toast.error(formatApiError(err, "Failed to detach costume event"));
@@ -1487,6 +1493,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           saving={saving}
           productionId={productionId}
           defaultExpanded={detail.props.length > 0}
+          expandSignal={propsExpandSignal}
           events={detail.props.map((prop) => ({
             id: prop.id,
             assetName: prop.prop_name,
@@ -1496,23 +1503,28 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             user_id: prop.user_id,
             user_display_name: prop.user_display_name,
             notes: prop.notes,
+            priorOnActNumber: prop.prior_on_act_number ?? null,
+            priorOnSceneNumber: prop.prior_on_scene_number ?? null,
+            priorOnSequenceNumber: prop.prior_on_sequence_number ?? null,
           }))}
           characters={sortedCharacters}
           castableUsers={sortedCastableUsers}
           onUpdate={handleUpdateMomentProp}
           onDetach={handleDetachProp}
           catalogLength={propsCatalog.length}
-          inPlay={detail.props_in_play.map((item) => ({
-            key: `prop-in-play-${item.prop_id}`,
-            label: item.prop_name,
-            personLabel: item.character_name ?? item.user_display_name,
-            sourceActNumber: item.source_act_number,
-            sourceSceneNumber: item.source_scene_number,
-            sourceSequenceNumber: item.source_sequence_number,
-            nextChangeActNumber: item.next_change_act_number,
-            nextChangeSceneNumber: item.next_change_scene_number,
-            nextChangeSequenceNumber: item.next_change_sequence_number,
-          }))}
+          inPlay={detail.props_in_play
+            .filter((item) => item.source_moment_id !== detail.id)
+            .map((item) => ({
+              key: `prop-in-play-${item.prop_id}`,
+              label: item.prop_name,
+              personLabel: item.character_name ?? item.user_display_name,
+              sourceActNumber: item.source_act_number,
+              sourceSceneNumber: item.source_scene_number,
+              sourceSequenceNumber: item.source_sequence_number,
+              nextChangeActNumber: item.next_change_act_number,
+              nextChangeSceneNumber: item.next_change_scene_number,
+              nextChangeSequenceNumber: item.next_change_sequence_number,
+            }))}
         />
 
         <AssetEventSection
@@ -1522,6 +1534,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           saving={saving}
           productionId={productionId}
           defaultExpanded={detail.set_pieces.length > 0}
+          expandSignal={setPiecesExpandSignal}
           events={detail.set_pieces.map((piece) => ({
             id: piece.id,
             assetName: piece.set_piece_name,
@@ -1531,23 +1544,28 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             user_id: piece.user_id,
             user_display_name: piece.user_display_name,
             notes: piece.notes,
+            priorOnActNumber: piece.prior_on_act_number ?? null,
+            priorOnSceneNumber: piece.prior_on_scene_number ?? null,
+            priorOnSequenceNumber: piece.prior_on_sequence_number ?? null,
           }))}
           characters={sortedCharacters}
           castableUsers={sortedCastableUsers}
           onUpdate={handleUpdateMomentSetPiece}
           onDetach={handleDetachSetPiece}
           catalogLength={setPiecesCatalog.length}
-          inPlay={detail.set_pieces_in_play.map((item) => ({
-            key: `set-piece-in-play-${item.set_piece_id}`,
-            label: item.set_piece_name,
-            personLabel: item.character_name ?? item.user_display_name,
-            sourceActNumber: item.source_act_number,
-            sourceSceneNumber: item.source_scene_number,
-            sourceSequenceNumber: item.source_sequence_number,
-            nextChangeActNumber: item.next_change_act_number,
-            nextChangeSceneNumber: item.next_change_scene_number,
-            nextChangeSequenceNumber: item.next_change_sequence_number,
-          }))}
+          inPlay={detail.set_pieces_in_play
+            .filter((item) => item.source_moment_id !== detail.id)
+            .map((item) => ({
+              key: `set-piece-in-play-${item.set_piece_id}`,
+              label: item.set_piece_name,
+              personLabel: item.character_name ?? item.user_display_name,
+              sourceActNumber: item.source_act_number,
+              sourceSceneNumber: item.source_scene_number,
+              sourceSequenceNumber: item.source_sequence_number,
+              nextChangeActNumber: item.next_change_act_number,
+              nextChangeSceneNumber: item.next_change_scene_number,
+              nextChangeSequenceNumber: item.next_change_sequence_number,
+            }))}
         />
 
         <CostumeEventSection
@@ -1808,6 +1826,9 @@ interface AssetEventItem {
   user_id: number | null;
   user_display_name: string | null;
   notes: string | null;
+  priorOnActNumber: number | null;
+  priorOnSceneNumber: number | null;
+  priorOnSequenceNumber: number | null;
 }
 
 interface AssetInPlayItem {
@@ -1835,6 +1856,7 @@ function AssetEventSection({
   onDetach,
   catalogLength,
   defaultExpanded = true,
+  expandSignal = 0,
   inPlay,
 }: {
   title: string;
@@ -1857,12 +1879,16 @@ function AssetEventSection({
   onDetach: (eventId: number) => void;
   catalogLength: number;
   defaultExpanded?: boolean;
+  expandSignal?: number;
   inPlay: AssetInPlayItem[];
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
   useEffect(() => {
     setExpanded(defaultExpanded);
   }, [defaultExpanded]);
+  useEffect(() => {
+    if (expandSignal > 0) setExpanded(true);
+  }, [expandSignal]);
 
   return (
     <div className="border-t border-border pt-4">
@@ -1957,6 +1983,7 @@ function AssetEventSection({
                   event={event}
                   canEdit={canEdit}
                   saving={saving}
+                  productionId={productionId}
                   characters={characters}
                   castableUsers={castableUsers}
                   onUpdate={onUpdate}
@@ -1981,6 +2008,7 @@ function AssetEventRow({
   event,
   canEdit,
   saving,
+  productionId,
   characters,
   castableUsers,
   onUpdate,
@@ -1989,6 +2017,7 @@ function AssetEventRow({
   event: AssetEventItem;
   canEdit: boolean;
   saving: boolean;
+  productionId: number;
   characters: CharacterDetailResponse[];
   castableUsers: CastableUserResponse[];
   onUpdate: (
@@ -2026,6 +2055,17 @@ function AssetEventRow({
     personType === "none" ||
     (personType === "character" && Boolean(characterId)) ||
     (personType === "user" && Boolean(userId));
+  const priorOnCode =
+    event.kind === "off" &&
+    event.priorOnActNumber != null &&
+    event.priorOnSceneNumber != null &&
+    event.priorOnSequenceNumber != null
+      ? formatMomentCode(
+          event.priorOnActNumber,
+          event.priorOnSceneNumber,
+          event.priorOnSequenceNumber,
+        )
+      : null;
 
   async function handleSave() {
     if (!personReady) return;
@@ -2067,6 +2107,23 @@ function AssetEventRow({
           {personLabel && <p className="text-muted-foreground">{personLabel}</p>}
           {!editing && event.notes && (
             <p className="mt-1 text-muted-foreground">{event.notes}</p>
+          )}
+          {!editing && priorOnCode != null && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Started{" "}
+              <Link
+                to={humanTimelinePath(
+                  productionId,
+                  event.priorOnActNumber!,
+                  event.priorOnSceneNumber!,
+                  event.priorOnSequenceNumber!,
+                )}
+                className="underline underline-offset-2 hover:text-foreground"
+                aria-label={`Open start moment ${priorOnCode}`}
+              >
+                {priorOnCode}
+              </Link>
+            </p>
           )}
 
           {editing && (

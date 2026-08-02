@@ -1,6 +1,6 @@
 # Feature plan — In-play → Moment deep links
 
-**Status:** Shipped (Slice A + B — props/set pieces)  
+**Status:** Shipped (Slice A + B — props/set pieces; OFF prior-on back-link 2026-08-01)  
 **Created:** 2026-07-27  
 **Shipped:** 2026-07-30  
 **Related:** [PHASE_14.md](../PHASE_14.md) (event-driven asset state), bookmarks/reports Timeline deep-links (already shipped), [UX_UI_IMPROVEMENTS.md](../UX_UI_IMPROVEMENTS.md) scene-summary drill-down wish, [SCRATCH_NOTES.md](../SCRATCH_NOTES.md) scene-level entrance/exit drill-down

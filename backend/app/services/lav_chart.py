@@ -542,6 +542,23 @@ def _load_pack_cells(db: Session, production_id: int) -> list[LavPackCell]:
     return cells
 
 
+def reject_wire_pack_conflicts(
+    db: Session,
+    production_id: int,
+    wire_cells: list[LavWireCell],
+    pack_cells: list[LavPackCell],
+) -> str | None:
+    """Return an error message if the same wire/pack is on two wearers in one scene."""
+    scenes = _ordered_scenes(db, production_id)
+    wearers = _build_wearers(db, production_id)
+    issues = _validate_chart(wearers, scenes, wire_cells, pack_cells)
+    conflicts = [issue for issue in issues if issue.code in ("wire_conflict", "pack_conflict")]
+    if not conflicts:
+        return None
+    # Prefer a concrete message; callers surface this as HTTP 400 detail.
+    return conflicts[0].message
+
+
 def replace_wire_assignments(
     db: Session,
     production_id: int,

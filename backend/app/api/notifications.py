@@ -1,6 +1,6 @@
 """Notification inbox and announcement authorship APIs."""
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
@@ -177,23 +177,31 @@ def patch_announcement(
     return notif_service.serialize_announcement(updated)
 
 
-@router.delete("/announcements/{announcement_id}", response_model=AnnouncementResponse)
-def deactivate_announcement(
+@router.delete(
+    "/announcements/{announcement_id}",
+    response_model=AnnouncementResponse | None,
+    responses={204: {"description": "Announcement permanently deleted"}},
+)
+def delete_announcement(
     announcement_id: int,
     user: User = Depends(require_director_or_admin),
     db: Session = Depends(get_db),
-) -> AnnouncementResponse:
+) -> AnnouncementResponse | Response:
+    """Deactivate an active announcement; permanently delete an inactive one."""
     announcement = notif_service.get_announcement_or_404(db, announcement_id)
     if announcement.production_id is None:
         if not user_has_role(user, "Admin"):
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only Admins can deactivate org-wide announcements",
+                detail="Only Admins can delete org-wide announcements",
             )
     else:
         get_accessible_production(db, user, announcement.production_id)
 
-    deactivated = notif_service.deactivate_announcement(db, announcement)
-    # Reload with relationships for serialization
-    deactivated = notif_service.get_announcement_or_404(db, deactivated.id)
-    return notif_service.serialize_announcement(deactivated)
+    if announcement.active:
+        deactivated = notif_service.deactivate_announcement(db, announcement)
+        deactivated = notif_service.get_announcement_or_404(db, deactivated.id)
+        return notif_service.serialize_announcement(deactivated)
+
+    notif_service.hard_delete_announcement(db, announcement)
+    return Response(status_code=status.HTTP_204_NO_CONTENT)

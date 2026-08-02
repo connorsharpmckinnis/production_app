@@ -164,6 +164,42 @@ def test_lav_chart_propose_and_save(seeded_client: TestClient, db_session: Sessi
     assert admin_chart.status_code == 200
 
 
+def test_lav_chart_save_rejects_wire_conflict(
+    seeded_client: TestClient, db_session: Session
+) -> None:
+    production_id = _imported_production(seeded_client, db_session, title="Lav Conflict")
+    director = _login(seeded_client, "director", "director")
+
+    created_wire = seeded_client.post(
+        f"/api/productions/{production_id}/wires",
+        json={"identifier": "W-conflict"},
+        headers=director,
+    )
+    assert created_wire.status_code == 201, created_wire.text
+    wire_id = created_wire.json()["id"]
+
+    chart = seeded_client.get(f"/api/productions/{production_id}/lav-chart", headers=director)
+    body = chart.json()
+    assert len(body["rows"]) >= 2
+    row_a = body["rows"][0]["row_key"]
+    row_b = body["rows"][1]["row_key"]
+    scene_id = body["scenes"][0]["id"]
+
+    conflicted = seeded_client.put(
+        f"/api/productions/{production_id}/lav-chart",
+        json={
+            "wire_cells": [
+                {"row_key": row_a, "scene_id": scene_id, "wire_id": wire_id},
+                {"row_key": row_b, "scene_id": scene_id, "wire_id": wire_id},
+            ],
+            "pack_cells": [],
+        },
+        headers=director,
+    )
+    assert conflicted.status_code == 400
+    assert "Wire assigned to multiple wearers" in conflicted.json()["detail"]
+
+
 def test_lav_chart_propose_covers_when_inventory_enough(
     seeded_client: TestClient, db_session: Session
 ) -> None:

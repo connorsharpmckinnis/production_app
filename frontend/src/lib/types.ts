@@ -173,6 +173,11 @@ export interface MomentPropEventResponse {
   user_id: number | null;
   user_display_name: string | null;
   notes: string | null;
+  prior_on_moment_id?: number | null;
+  prior_on_scene_id?: number | null;
+  prior_on_act_number?: number | null;
+  prior_on_scene_number?: number | null;
+  prior_on_sequence_number?: number | null;
 }
 
 export interface PropInPlayResponse {
@@ -232,6 +237,11 @@ export interface MomentSetPieceEventResponse {
   user_id: number | null;
   user_display_name: string | null;
   notes: string | null;
+  prior_on_moment_id?: number | null;
+  prior_on_scene_id?: number | null;
+  prior_on_act_number?: number | null;
+  prior_on_scene_number?: number | null;
+  prior_on_sequence_number?: number | null;
 }
 
 export interface SetPieceInPlayResponse {

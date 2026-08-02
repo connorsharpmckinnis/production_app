@@ -735,10 +735,16 @@ export const api = {
     });
   },
 
-  deactivateAnnouncement(announcementId: number) {
-    return request<AnnouncementResponse>(`/announcements/${announcementId}`, {
+  /** Active → deactivate (returns announcement). Inactive → hard delete (204). */
+  deleteAnnouncement(announcementId: number) {
+    return request<AnnouncementResponse | undefined>(`/announcements/${announcementId}`, {
       method: "DELETE",
     });
+  },
+
+  /** @deprecated Prefer deleteAnnouncement */
+  deactivateAnnouncement(announcementId: number) {
+    return this.deleteAnnouncement(announcementId);
   },
 
   getAppSettings() {

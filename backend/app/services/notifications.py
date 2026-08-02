@@ -461,6 +461,16 @@ def deactivate_announcement(db: Session, announcement: Announcement) -> Announce
     return announcement
 
 
+def hard_delete_announcement(db: Session, announcement: Announcement) -> None:
+    """Permanently remove an announcement.
+
+    Inbox notification rows keep their denormalized title/body; announcement_id
+    is SET NULL by FK. CTAs and audience roles cascade-delete with the row.
+    """
+    db.delete(announcement)
+    db.commit()
+
+
 def list_announcements(
     db: Session,
     *,

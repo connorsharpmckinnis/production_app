@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_accessible_production
@@ -13,6 +13,7 @@ from app.schemas.lav_chart import (
 from app.services.lav_chart import (
     apply_propose,
     build_lav_chart_response,
+    reject_wire_pack_conflicts,
     replace_pack_assignments,
     replace_wire_assignments,
 )
@@ -38,6 +39,9 @@ def save_lav_chart(
     db: Session = Depends(get_db),
 ) -> LavChartResponse:
     get_accessible_production(db, user, production_id)
+    conflict = reject_wire_pack_conflicts(db, production_id, body.wire_cells, body.pack_cells)
+    if conflict is not None:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=conflict)
     replace_wire_assignments(db, production_id, body.wire_cells)
     replace_pack_assignments(db, production_id, body.pack_cells)
     db.commit()

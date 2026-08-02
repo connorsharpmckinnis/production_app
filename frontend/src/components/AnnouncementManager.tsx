@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
 import { ROUTE_FILTER_OPTIONS } from "@/lib/notifications";
@@ -33,6 +34,7 @@ const emptyForm = (): AnnouncementCreate => ({
 
 export default function AnnouncementManager({ productionId }: Props) {
   const { isAdmin } = useAuth();
+  const confirm = useConfirm();
   const toast = useToast();
   const allowModal = isAdmin;
 
@@ -132,11 +134,29 @@ export default function AnnouncementManager({ productionId }: Props) {
 
   async function handleDeactivate(id: number) {
     try {
-      await api.deactivateAnnouncement(id);
+      await api.deleteAnnouncement(id);
       toast.success("Announcement deactivated");
       await load();
     } catch (err) {
       toast.error(formatApiError(err, "Failed to deactivate"));
+    }
+  }
+
+  async function handleHardDelete(id: number) {
+    const ok = await confirm({
+      title: "Delete this announcement permanently?",
+      description:
+        "It will be removed from Settings. Inbox copies keep their text but lose the live link.",
+      confirmLabel: "Delete permanently",
+      destructive: true,
+    });
+    if (!ok) return;
+    try {
+      await api.deleteAnnouncement(id);
+      toast.success("Announcement deleted");
+      await load();
+    } catch (err) {
+      toast.error(formatApiError(err, "Failed to delete announcement"));
     }
   }
 
@@ -348,7 +368,7 @@ export default function AnnouncementManager({ productionId }: Props) {
                   {item.audience_roles.join(", ")}
                 </p>
               </div>
-              {item.active && (
+              {item.active ? (
                 <Button
                   type="button"
                   size="sm"
@@ -356,6 +376,15 @@ export default function AnnouncementManager({ productionId }: Props) {
                   onClick={() => void handleDeactivate(item.id)}
                 >
                   Deactivate
+                </Button>
+              ) : (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() => void handleHardDelete(item.id)}
+                >
+                  Delete
                 </Button>
               )}
             </li>

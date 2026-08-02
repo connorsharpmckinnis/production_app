@@ -1,6 +1,6 @@
 # Phase 14 — Event-Driven Asset State on the Timeline
 
-**Status:** WP1–WP6 complete (2026-07-27) — event-driven props/sets/costumes shipped on `event-architecture-1`. Owner walkthrough still the live validation gate before merge.
+**Status:** Complete (2026-08-01) — WP1–WP6 shipped; owner walkthrough passed.
 
 **Goal:** Make Timeline Moments the place where props and set pieces turn **ON** / **OFF**, then **derive** current state forward (across scenes and acts) until the next change. Optional free-text notes carry location / exit detail; optional person affiliation (character or user). Light costume **on/off** replaces `costumes.scene_id` without a deep costume redesign. Lav chart stays as-is (SoT confirmed; Timeline markers deferred until the event engine feels solid).
 
@@ -268,7 +268,7 @@ Unchanged. PHASE_13 follow-on text remains the plan for **later**. Confirm again
 
 **Done when:** Tests prove Iceberg ON @ M1 with notes → still in play with same notes in a later act until OFF or re-ON. ✅ `backend/app/services/asset_state.py` + `backend/tests/test_asset_state.py`; `moment_prop_events` / `moment_set_piece_events` tables (migration `018`); `MomentDetailResponse.props_in_play` / `set_pieces_in_play` derived from the walk. `props`/`set-pieces` moment endpoints now create/update/delete on/off events (kind, character XOR user, notes) instead of presence rows.
 
-### WP3 — Timeline UI (props & set pieces) — **Implemented (2026-07-27), pending owner walkthrough**
+### WP3 — Timeline UI (props & set pieces) — **Implemented (2026-07-27); walkthrough passed 2026-08-01**
 
 - Moment detail: On/Off + notes + optional character/user picker.  
 - Badges/filters updated.  
@@ -369,6 +369,7 @@ WP0 authorize + branch
 | 2026-07-27 | **WP6 closeout.** Docs/scratch/UX backlog synced to shipped event model. #51/#70 left for owner on merge. |
 | 2026-07-28 | Pre-merge UX polish: icon attachment-type picker; On/Off (Wear/Clear) toggles; unified searchable character+user person combobox (#73); searchable catalog selects; Currently in play / wearing hide event notes (#75). |
 | 2026-07-30 | **In-play → Moment deep links (Slice A+B).** `AssetStateSnapshot` tracks `source_moment_id`/`source_scene_id`; in-play API rows expose human triples for source + optional next-change; Moment Detail “Currently in play” shows dotted `1.3.10` links via `humanTimelinePath`. Costumes / sticky URL deferred — see [in-play-moment-deep-links.md](feature_plans/in-play-moment-deep-links.md). |
+| 2026-08-01 | **Owner walkthrough passed — phase complete.** Follow-on polish: OFF-moment prior-ON deep links (#83), ON-moment in-play dedupe (#76), Moment Detail refresh/expand after attach (#74). |
 
 ---
 
