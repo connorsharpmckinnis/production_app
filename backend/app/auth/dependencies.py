@@ -2,34 +2,38 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session, joinedload
 
-from app.auth.jwt import decode_access_token
+from app.auth.jwt import AccessTokenClaims, decode_access_token
 from app.db.session import get_db
-from app.models import AppRole, User, UserAppRole
+from app.models import User
 
 security = HTTPBearer(auto_error=False)
 
 
-def get_current_user(
+def get_token_claims(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
-    db: Session = Depends(get_db),
-) -> User:
+) -> AccessTokenClaims:
     if credentials is None or credentials.scheme.lower() != "bearer":
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Not authenticated",
         )
     try:
-        user_id = decode_access_token(credentials.credentials)
+        return decode_access_token(credentials.credentials)
     except Exception as exc:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
         ) from exc
 
+
+def get_current_user(
+    claims: AccessTokenClaims = Depends(get_token_claims),
+    db: Session = Depends(get_db),
+) -> User:
     user = (
         db.query(User)
         .options(joinedload(User.app_roles))
-        .filter(User.id == user_id, User.is_active.is_(True))
+        .filter(User.id == claims.user_id, User.is_active.is_(True))
         .first()
     )
     if user is None:

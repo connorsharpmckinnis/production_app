@@ -1,5 +1,7 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useParams } from "react-router-dom";
+import { ChevronRight } from "lucide-react";
+import ActAsDialog from "@/components/ActAsDialog";
 import FeedbackDialog from "@/components/FeedbackDialog";
 import {
   NotificationBanner,
@@ -10,8 +12,10 @@ import {
 import ThemeToggle from "@/components/ThemeToggle";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/context/AuthContext";
-import { api } from "@/lib/api";
+import { useToast } from "@/context/ToastContext";
+import { api, formatApiError } from "@/lib/api";
 import { getLastProduction, rememberLastProduction } from "@/lib/lastProduction";
+import { readSessionNavOpen, writeSessionNavOpen } from "@/lib/sessionNavOpen";
 import { humanTimelinePath } from "@/lib/timelineDeepLinks";
 import { cn } from "@/lib/utils";
 
@@ -23,6 +27,9 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
       : "text-muted-foreground hover:bg-muted hover:text-foreground",
   );
 
+const sectionSummaryClass =
+  "flex cursor-pointer list-none items-center gap-1 pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground marker:content-none [&::-webkit-details-marker]:hidden";
+
 export default function AppShell() {
   return (
     <NotificationProvider>
@@ -31,8 +38,53 @@ export default function AppShell() {
   );
 }
 
+function CollapsibleNavSection({
+  storageKey,
+  defaultOpen,
+  title,
+  children,
+}: {
+  storageKey: string;
+  defaultOpen: boolean;
+  title: string;
+  children: ReactNode;
+}) {
+  const [open, setOpen] = useState(() => readSessionNavOpen(storageKey, defaultOpen));
+
+  return (
+    <details
+      className="group"
+      open={open}
+      onToggle={(event) => {
+        const next = event.currentTarget.open;
+        setOpen(next);
+        writeSessionNavOpen(storageKey, next);
+      }}
+    >
+      <summary className={sectionSummaryClass}>
+        <ChevronRight
+          className="size-3.5 shrink-0 transition-transform group-open:rotate-90"
+          aria-hidden
+        />
+        {title}
+      </summary>
+      <div className="space-y-1">{children}</div>
+    </details>
+  );
+}
+
 function AppShellInner() {
-  const { user, logout, isAdmin, canManagePreparation, isActorOnly } = useAuth();
+  const {
+    user,
+    logout,
+    isAdmin,
+    canManagePreparation,
+    isActorOnly,
+    isImpersonating,
+    impersonation,
+    stopActAs,
+  } = useAuth();
+  const toast = useToast();
   const { id: productionId } = useParams();
   const location = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -41,6 +93,8 @@ function AppShellInner() {
   const [productionHasScript, setProductionHasScript] = useState(true);
   const [bookmarksOpen, setBookmarksOpen] = useState(false);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [actAsOpen, setActAsOpen] = useState(false);
+  const [returning, setReturning] = useState(false);
   const [bookmarks, setBookmarks] = useState<
     Awaited<ReturnType<typeof api.listBookmarks>>
   >([]);
@@ -77,6 +131,18 @@ function AppShellInner() {
     if (!bookmarksOpen) return;
     void api.listBookmarks().then(setBookmarks).catch(() => setBookmarks([]));
   }, [bookmarksOpen]);
+
+  async function handleStopActAs() {
+    setReturning(true);
+    try {
+      await stopActAs();
+      toast.success("Returned to your admin account.");
+    } catch (err) {
+      toast.error(formatApiError(err, "Could not return to admin."));
+    } finally {
+      setReturning(false);
+    }
+  }
 
   const preparationLinks = productionId ? (
     <>
@@ -225,6 +291,18 @@ function AppShellInner() {
                   >
                     My bookmarks
                   </button>
+                  {isAdmin && !isImpersonating && (
+                    <button
+                      type="button"
+                      className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                      onClick={() => {
+                        setMenuOpen(false);
+                        setActAsOpen(true);
+                      }}
+                    >
+                      Act as user…
+                    </button>
+                  )}
                   <Link
                     to="/about"
                     className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
@@ -261,6 +339,40 @@ function AppShellInner() {
           </div>
         </div>
       </header>
+
+      {isImpersonating && impersonation && (
+        <div
+          className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-600/40 bg-amber-500/15 px-4 py-2 text-sm"
+          role="status"
+        >
+          <p>
+            Acting as{" "}
+            <span className="font-medium">
+              {user?.first_name} {user?.last_name}
+            </span>{" "}
+            <span className="text-muted-foreground">(@{user?.username})</span>
+            {user?.roles?.length ? (
+              <span className="text-muted-foreground">
+                {" "}
+                — {user.roles.join(", ")}
+              </span>
+            ) : null}
+            <span className="text-muted-foreground">
+              {" "}
+              · return to {impersonation.original_first_name}{" "}
+              {impersonation.original_last_name}
+            </span>
+          </p>
+          <button
+            type="button"
+            className="rounded-md border border-amber-700/40 bg-background px-3 py-1 text-sm font-medium hover:bg-muted"
+            disabled={returning}
+            onClick={() => void handleStopActAs()}
+          >
+            {returning ? "Returning…" : "Return to admin"}
+          </button>
+        </div>
+      )}
 
       <NotificationBanner />
 
@@ -373,27 +485,20 @@ function AppShellInner() {
                   </NavLink>
                 )}
 
-                {isActorOnly ? (
-                  <details className="group">
-                    <summary className="cursor-pointer pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground marker:content-none [&::-webkit-details-marker]:hidden">
-                      Preparation
-                    </summary>
-                    <div className="space-y-1">{preparationLinks}</div>
-                  </details>
-                ) : (
-                  <>
-                    <div className="pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Preparation
-                    </div>
-                    {preparationLinks}
-                  </>
-                )}
+                <CollapsibleNavSection
+                  storageKey="nav.preparation.open"
+                  defaultOpen={!isActorOnly}
+                  title="Preparation"
+                >
+                  {preparationLinks}
+                </CollapsibleNavSection>
 
                 {canManagePreparation && (
-                  <>
-                    <div className="pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                      Reports
-                    </div>
+                  <CollapsibleNavSection
+                    storageKey="nav.reports.open"
+                    defaultOpen
+                    title="Reports"
+                  >
                     <NavLink
                       to={`/productions/${productionId}/reports`}
                       className={navLinkClass}
@@ -401,7 +506,7 @@ function AppShellInner() {
                     >
                       Reports
                     </NavLink>
-                  </>
+                  </CollapsibleNavSection>
                 )}
               </>
             )}
@@ -446,6 +551,7 @@ function AppShellInner() {
       </div>
 
       <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
+      <ActAsDialog open={actAsOpen} onOpenChange={setActAsOpen} />
       <NotificationModal />
     </div>
   );

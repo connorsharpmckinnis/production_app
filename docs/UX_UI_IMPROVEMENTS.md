@@ -104,6 +104,7 @@ Timeline already uses Lucide icon buttons for structural actions, bookmark, deta
 - [x] Unify breadcrumbs / back links (“← Overview” / “← Productions” consistently).
 - [x] Consider showing production title more prominently in the header (branding beyond generic “Theater App”).
 - [x] Sidebar length: for actors, collapse or nest Preparation items so Rehearse + Timeline stay primary.
+- [x] Preparation + Reports collapsible for all roles; open/closed persisted in `sessionStorage` for the tab session.
 
 ### Reports
 - [x] Tabs or sticky TOC instead of five long sections on one page.
@@ -203,7 +204,7 @@ These are already captured in [PROJECT.md](PROJECT.md) and [SCRATCH_NOTES.md](SC
 
 | Area | Highest-signal ideas |
 | ---- | -------------------- |
-| **App shell** | Actor-simplified prep nav; Import when empty; bookmarks deep-link; breadcrumb consistency; role badge vs long “(roles)” text |
+| **App shell** | Actor-simplified prep nav; Import when empty; bookmarks deep-link; breadcrumb consistency; role badge vs long “(roles)” text; collapsible Preparation/Reports (session persist); Admin Act-as banner |
 | **Productions list** | Status chip; icon Delete; row Open; AlertDialog; table overflow |
 | **Overview** | Rehearse + Import + next-step CTAs; cast progress |
 | **Timeline** | Clear filters; live search; multi-select; defaults on insert; skeletons; mobile filter sheet; tooltips |

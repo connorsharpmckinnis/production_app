@@ -26,6 +26,7 @@ MVP roles: **Admin**, **Director**, **Actor**.
 | Create / edit / deactivate users   | Yes   | No       | No                   |
 | Reset user passwords               | Yes   | No       | No                   |
 | Assign roles to users              | Yes   | No       | No                   |
+| Act as another user (session)      | Yes   | No       | No                   |
 | Actor-filtered timeline view       | Yes   | Yes      | Yes (own characters) |
 | Cue-only rehearsal mode            | Yes   | Yes      | Yes                  |
 
@@ -39,6 +40,7 @@ MVP roles: **Admin**, **Director**, **Actor**.
 - **Import is Admin-only.** Directors prepare productions but cannot upload or re-import scripts.
 - **Actors are view-only on the Timeline** except for Notes and Bookmarks.
 - **User management is Admin-only.** Includes account creation, password resets, role assignment, and deactivation.
+- **Act as user is Admin-only.** An Admin may switch their session to another active org user to verify that account’s view. The JWT carries an impersonator claim; nested act-as is blocked; a banner + **Return to admin** restores the original Admin session. Not a separate SuperAdmin role.
 - **Directors** can edit timeline and perform preparation work on existing productions. They cannot create, delete, or import productions, and cannot manage users.
 
 ---

@@ -263,6 +263,19 @@ export const api = {
     return request<UserResponse>("/auth/me");
   },
 
+  actAs(body: { user_id: number }) {
+    return request<TokenResponse>("/auth/act-as", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  stopActAs() {
+    return request<TokenResponse>("/auth/stop-act-as", {
+      method: "POST",
+    });
+  },
+
   listProductions() {
     return request<ProductionResponse[]>("/productions");
   },

@@ -18,6 +18,13 @@ export interface TokenResponse {
   token_type: string;
 }
 
+export interface ImpersonationInfo {
+  original_user_id: number;
+  original_username: string;
+  original_first_name: string;
+  original_last_name: string;
+}
+
 export interface UserResponse {
   id: number;
   username: string;
@@ -26,6 +33,11 @@ export interface UserResponse {
   email: string | null;
   is_active: boolean;
   roles: AppRole[];
+  impersonation?: ImpersonationInfo | null;
+}
+
+export interface ActAsRequest {
+  user_id: number;
 }
 
 export type FeedbackKind = "bug" | "idea";

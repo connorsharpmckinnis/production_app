@@ -88,3 +88,83 @@ def test_non_admin_cannot_create_production(seeded_client: TestClient) -> None:
         json={"title": "Blocked"},
     )
     assert response.status_code == 403
+
+
+def _login(client: TestClient, username: str, password: str) -> str:
+    response = client.post(
+        "/api/auth/login",
+        json={"username": username, "password": password},
+    )
+    assert response.status_code == 200
+    return response.json()["access_token"]
+
+
+def test_act_as_requires_admin(seeded_client: TestClient, db_session) -> None:
+    from app.models import User
+
+    actor = db_session.query(User).filter(User.username == "actor").one()
+    token = _login(seeded_client, "director", "director")
+    response = seeded_client.post(
+        "/api/auth/act-as",
+        headers={"Authorization": f"Bearer {token}"},
+        json={"user_id": actor.id},
+    )
+    assert response.status_code == 403
+
+
+def test_act_as_and_stop_act_as(seeded_client: TestClient, db_session) -> None:
+    from app.models import User
+
+    actor = db_session.query(User).filter(User.username == "actor").one()
+    admin_token = _login(seeded_client, "admin", "admin")
+
+    act = seeded_client.post(
+        "/api/auth/act-as",
+        headers={"Authorization": f"Bearer {admin_token}"},
+        json={"user_id": actor.id},
+    )
+    assert act.status_code == 200
+    act_token = act.json()["access_token"]
+
+    me = seeded_client.get(
+        "/api/auth/me",
+        headers={"Authorization": f"Bearer {act_token}"},
+    )
+    assert me.status_code == 200
+    body = me.json()
+    assert body["username"] == "actor"
+    assert "Actor" in body["roles"]
+    assert body["impersonation"]["original_username"] == "admin"
+
+    # Nested act-as must be blocked while impersonating.
+    nested = seeded_client.post(
+        "/api/auth/act-as",
+        headers={"Authorization": f"Bearer {act_token}"},
+        json={"user_id": actor.id},
+    )
+    assert nested.status_code == 403
+
+    stop = seeded_client.post(
+        "/api/auth/stop-act-as",
+        headers={"Authorization": f"Bearer {act_token}"},
+    )
+    assert stop.status_code == 200
+    restored = stop.json()["access_token"]
+
+    me_again = seeded_client.get(
+        "/api/auth/me",
+        headers={"Authorization": f"Bearer {restored}"},
+    )
+    assert me_again.status_code == 200
+    restored_body = me_again.json()
+    assert restored_body["username"] == "admin"
+    assert restored_body["impersonation"] is None
+
+
+def test_stop_act_as_without_impersonation(seeded_client: TestClient) -> None:
+    token = _login(seeded_client, "admin", "admin")
+    response = seeded_client.post(
+        "/api/auth/stop-act-as",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 400

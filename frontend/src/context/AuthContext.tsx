@@ -8,18 +8,22 @@ import {
   type ReactNode,
 } from "react";
 import { api, clearToken, getToken, setToken } from "@/lib/api";
-import type { AppRole, UserResponse } from "@/lib/types";
+import type { AppRole, ImpersonationInfo, UserResponse } from "@/lib/types";
 
 interface AuthContextValue {
   user: UserResponse | null;
   loading: boolean;
   login: (username: string, password: string) => Promise<void>;
   logout: () => void;
+  actAs: (userId: number) => Promise<void>;
+  stopActAs: () => Promise<void>;
   hasRole: (role: AppRole) => boolean;
   isAdmin: boolean;
   isDirector: boolean;
   isActorOnly: boolean;
   canManagePreparation: boolean;
+  isImpersonating: boolean;
+  impersonation: ImpersonationInfo | null;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -63,10 +67,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
   }, []);
 
+  const actAs = useCallback(async (userId: number) => {
+    const tokenResponse = await api.actAs({ user_id: userId });
+    setToken(tokenResponse.access_token);
+    const me = await api.me();
+    setUser(me);
+  }, []);
+
+  const stopActAs = useCallback(async () => {
+    const tokenResponse = await api.stopActAs();
+    setToken(tokenResponse.access_token);
+    const me = await api.me();
+    setUser(me);
+  }, []);
+
   const hasRole = useCallback(
     (role: AppRole) => user?.roles.includes(role) ?? false,
     [user],
   );
+
+  const impersonation = user?.impersonation ?? null;
+  const isImpersonating = impersonation != null;
 
   const value = useMemo(
     () => ({
@@ -74,14 +95,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       loading,
       login,
       logout,
+      actAs,
+      stopActAs,
       hasRole,
       isAdmin: hasRole("Admin"),
       isDirector: hasRole("Director"),
       isActorOnly:
         hasRole("Actor") && !hasRole("Admin") && !hasRole("Director"),
       canManagePreparation: hasRole("Admin") || hasRole("Director"),
+      isImpersonating,
+      impersonation,
     }),
-    [user, loading, login, logout, hasRole],
+    [
+      user,
+      loading,
+      login,
+      logout,
+      actAs,
+      stopActAs,
+      hasRole,
+      isImpersonating,
+      impersonation,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
