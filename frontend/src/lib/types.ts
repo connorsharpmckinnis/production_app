@@ -452,6 +452,7 @@ export interface LavChartResponse {
   packs: LavChartCatalogItem[];
   wire_cells: LavWireCell[];
   pack_cells: LavPackCell[];
+  locked_row_keys: string[];
   issues: LavChartIssue[];
   rules: string[];
 }

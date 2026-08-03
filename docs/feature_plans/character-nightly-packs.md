@@ -1,8 +1,13 @@
 # Feature plan — Actor prep packs (scene-scoped)
 
-**Status:** Roadmap (approved intent — build eventually; not yet phased)  
+**Status:** Far-future (v2+ / post first full show·season) — **do not phase or build now**  
 **Created:** 2026-07-29  
-**Related:** [PRE_AUGUST_STP_PREP.md](../PRE_AUGUST_STP_PREP.md) P1, [STP_PRODUCT_OVERVIEW.md](../STP_PRODUCT_OVERVIEW.md) idea #1, [PHASE_14.md](../PHASE_14.md) (derived asset state), [print-and-call-sheets.md](print-and-call-sheets.md), [in-play-moment-deep-links.md](in-play-moment-deep-links.md)
+**Parked:** 2026-08-02 — owner decision: wait until the system has been used for at least one whole show/season before reconsidering  
+**Related:** [STP_PRODUCT_OVERVIEW.md](../STP_PRODUCT_OVERVIEW.md) idea #1, [PHASE_14.md](../PHASE_14.md) (derived asset state), [print-and-call-sheets.md](print-and-call-sheets.md), [in-play-moment-deep-links.md](in-play-moment-deep-links.md)
+
+---
+
+> **Parking note:** This remains a valid long-term product idea (actor × selected scenes → printable prep handout). It is **not** near-term roadmap. Prefer call sheets / print polish / lav UX / pilot learning first. Revisit only after real-show validation, or if STP explicitly asks for actor packs over other sheets.
 
 ---
 

@@ -2,13 +2,15 @@
 
 **Status:** Roadmap (curiosity / far-field; approved as eventual candidate)  
 **Created:** 2026-07-29  
-**Related:** [PHASE_12.md](../PHASE_12.md), [PHASE_13.md](../PHASE_13.md), [tech-week-chart-suite.md](tech-week-chart-suite.md), [org-catalog-and-shop.md](org-catalog-and-shop.md)
+**Related:** [PHASE_12.md](../PHASE_12.md), [PHASE_13.md](../PHASE_13.md), [lav-assignment-ux.md](lav-assignment-ux.md) (near-term matrix UX — separate track), [tech-week-chart-suite.md](tech-week-chart-suite.md), [org-catalog-and-shop.md](org-catalog-and-shop.md)
 
 ---
 
 ## Goal
 
 Finish the lav story beyond the Phase 12 assignment matrix: **Timeline-aware lav events**, a **change-list / swap sheet**, optional handhelds, and CSV for wires/packs — without bringing lav editing back into Moment Detail clutter.
+
+**Note:** Day-to-day matrix friction (fill-row, taken filtering, locks, toolbar chrome) lives in [lav-assignment-ux.md](lav-assignment-ux.md), not here.
 
 ---
 

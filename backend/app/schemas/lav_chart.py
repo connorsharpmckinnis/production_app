@@ -54,6 +54,7 @@ class LavChartResponse(BaseModel):
     packs: list[LavChartCatalogItem]
     wire_cells: list[LavWireCell]
     pack_cells: list[LavPackCell]
+    locked_row_keys: list[str] = Field(default_factory=list)
     issues: list[LavChartIssue]
     rules: list[str]
 
@@ -61,7 +62,10 @@ class LavChartResponse(BaseModel):
 class LavChartSaveRequest(BaseModel):
     wire_cells: list[LavWireCell] = Field(default_factory=list)
     pack_cells: list[LavPackCell] = Field(default_factory=list)
+    locked_row_keys: list[str] | None = None
 
 
 class LavChartProposeRequest(BaseModel):
     sheets: list[str] = Field(default_factory=lambda: ["wires", "packs"])
+    # False (default): full replace for requested sheets. True: keep locked rows + nonempty cells.
+    preserve_filled_and_locked: bool = False

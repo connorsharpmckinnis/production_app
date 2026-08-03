@@ -11,6 +11,7 @@ from app.models import (
     Character,
     Dialogue,
     LavPackAssignment,
+    LavRowLock,
     LavWireAssignment,
     LyricLine,
     Moment,
@@ -37,7 +38,8 @@ LAV_CHART_RULES: list[str] = [
     "Propose never inserts mid-act wearer swaps between people.",
     "Wires are typically worn from the top of the show; packs are assigned when speaking/singing requires them.",
     "If inventory cannot cover need scenes without mid-act changes, the chart is flagged for manual mid-act work.",
-    "Tech director edits always win over the proposed chart.",
+    "Propose replaces the whole sheet (wires or packs) with a fresh rule-based chart; tweak manually afterward.",
+    "Tech director edits always win after Propose — re-running Propose will overwrite them.",
 ]
 
 
@@ -84,6 +86,69 @@ def parse_row_key(row_key: str) -> tuple[int | None, int | None]:
     if row_key.startswith("character:"):
         return None, int(row_key.split(":", 1)[1])
     raise ValueError(f"Invalid lav chart row_key: {row_key}")
+
+
+def validate_row_keys(row_keys: list[str]) -> None:
+    for row_key in row_keys:
+        parse_row_key(row_key)
+
+
+def _merge_wire_cells(
+    proposed: list[LavWireCell],
+    existing: list[LavWireCell],
+    locked_row_keys: set[str],
+    preserve_filled_and_locked: bool,
+) -> list[LavWireCell]:
+    existing_by_key = {(c.row_key, c.scene_id): c for c in existing}
+    proposed_by_key = {(c.row_key, c.scene_id): c for c in proposed}
+    merged: list[LavWireCell] = []
+    for coord in set(existing_by_key) | set(proposed_by_key):
+        row_key, scene_id = coord
+        existing_cell = existing_by_key.get(coord)
+        proposed_cell = proposed_by_key.get(coord)
+        if row_key in locked_row_keys:
+            if existing_cell is not None and existing_cell.wire_id is not None:
+                merged.append(existing_cell)
+            continue
+        if (
+            preserve_filled_and_locked
+            and existing_cell is not None
+            and existing_cell.wire_id is not None
+        ):
+            merged.append(existing_cell)
+            continue
+        if proposed_cell is not None and proposed_cell.wire_id is not None:
+            merged.append(proposed_cell)
+    return merged
+
+
+def _merge_pack_cells(
+    proposed: list[LavPackCell],
+    existing: list[LavPackCell],
+    locked_row_keys: set[str],
+    preserve_filled_and_locked: bool,
+) -> list[LavPackCell]:
+    existing_by_key = {(c.row_key, c.scene_id): c for c in existing}
+    proposed_by_key = {(c.row_key, c.scene_id): c for c in proposed}
+    merged: list[LavPackCell] = []
+    for coord in set(existing_by_key) | set(proposed_by_key):
+        row_key, scene_id = coord
+        existing_cell = existing_by_key.get(coord)
+        proposed_cell = proposed_by_key.get(coord)
+        if row_key in locked_row_keys:
+            if existing_cell is not None and existing_cell.pack_id is not None:
+                merged.append(existing_cell)
+            continue
+        if (
+            preserve_filled_and_locked
+            and existing_cell is not None
+            and existing_cell.pack_id is not None
+        ):
+            merged.append(existing_cell)
+            continue
+        if proposed_cell is not None and proposed_cell.pack_id is not None:
+            merged.append(proposed_cell)
+    return merged
 
 
 def _ordered_scenes(db: Session, production_id: int) -> list[_SceneCol]:
@@ -476,11 +541,16 @@ def propose_lav_chart(
     sheets: list[str],
     existing_wire_cells: list[LavWireCell] | None = None,
     existing_pack_cells: list[LavPackCell] | None = None,
+    locked_row_keys: set[str] | None = None,
+    preserve_filled_and_locked: bool = False,
 ) -> _ProposeResult:
     result = _ProposeResult()
     wire_ids = [w.id for w in sorted(wires, key=lambda w: w.identifier)]
     pack_ids = [p.id for p in sorted(packs, key=lambda p: p.identifier)]
     sheet_set = {s.lower() for s in sheets}
+    locked = locked_row_keys or set()
+    existing_wires = list(existing_wire_cells or [])
+    existing_packs = list(existing_pack_cells or [])
 
     if "wires" in sheet_set:
         grid, wire_issues = _propose_stable_assets(
@@ -490,10 +560,19 @@ def propose_lav_chart(
             cover_all_scenes_when_enough=True,
             hold_silent_in_act=True,
         )
-        result.wire_cells = _cells_from_grid(grid, kind="wire")  # type: ignore[assignment]
+        proposed_wires = _cells_from_grid(grid, kind="wire")  # type: ignore[assignment]
+        if preserve_filled_and_locked:
+            result.wire_cells = _merge_wire_cells(
+                proposed_wires,
+                existing_wires,
+                locked,
+                preserve_filled_and_locked,
+            )
+        else:
+            result.wire_cells = proposed_wires
         result.issues.extend(wire_issues)
     else:
-        result.wire_cells = list(existing_wire_cells or [])
+        result.wire_cells = existing_wires
 
     if "packs" in sheet_set:
         grid, pack_issues = _propose_stable_assets(
@@ -503,15 +582,41 @@ def propose_lav_chart(
             cover_all_scenes_when_enough=False,
             hold_silent_in_act=True,
         )
-        result.pack_cells = _cells_from_grid(grid, kind="pack")  # type: ignore[assignment]
+        proposed_packs = _cells_from_grid(grid, kind="pack")  # type: ignore[assignment]
+        if preserve_filled_and_locked:
+            result.pack_cells = _merge_pack_cells(
+                proposed_packs,
+                existing_packs,
+                locked,
+                preserve_filled_and_locked,
+            )
+        else:
+            result.pack_cells = proposed_packs
         result.issues.extend(pack_issues)
     else:
-        result.pack_cells = list(existing_pack_cells or [])
+        result.pack_cells = existing_packs
 
     result.issues.extend(
         _validate_chart(wearers, scenes, result.wire_cells, result.pack_cells)
     )
     return result
+
+
+def _load_locked_row_keys(db: Session, production_id: int) -> list[str]:
+    rows = (
+        db.query(LavRowLock)
+        .filter(LavRowLock.production_id == production_id)
+        .order_by(LavRowLock.row_key)
+        .all()
+    )
+    return [row.row_key for row in rows]
+
+
+def replace_row_locks(db: Session, production_id: int, row_keys: list[str]) -> None:
+    validate_row_keys(row_keys)
+    db.query(LavRowLock).filter(LavRowLock.production_id == production_id).delete()
+    for row_key in row_keys:
+        db.add(LavRowLock(production_id=production_id, row_key=row_key))
 
 
 def _load_wire_cells(db: Session, production_id: int) -> list[LavWireCell]:
@@ -618,6 +723,7 @@ def build_lav_chart_response(db: Session, production_id: int) -> LavChartRespons
     )
     wire_cells = _load_wire_cells(db, production_id)
     pack_cells = _load_pack_cells(db, production_id)
+    locked_row_keys = _load_locked_row_keys(db, production_id)
     issues = _validate_chart(wearers, scenes, wire_cells, pack_cells)
 
     return LavChartResponse(
@@ -648,6 +754,7 @@ def build_lav_chart_response(db: Session, production_id: int) -> LavChartRespons
         packs=[LavChartCatalogItem(id=p.id, identifier=p.identifier, notes=p.notes) for p in packs],
         wire_cells=wire_cells,
         pack_cells=pack_cells,
+        locked_row_keys=locked_row_keys,
         issues=issues,
         rules=list(LAV_CHART_RULES),
     )
@@ -657,6 +764,8 @@ def apply_propose(
     db: Session,
     production_id: int,
     sheets: list[str],
+    *,
+    preserve_filled_and_locked: bool = False,
 ) -> LavChartResponse:
     scenes = _ordered_scenes(db, production_id)
     wearers = _build_wearers(db, production_id)
@@ -674,6 +783,7 @@ def apply_propose(
     )
     existing_wires = _load_wire_cells(db, production_id)
     existing_packs = _load_pack_cells(db, production_id)
+    locked_row_keys = set(_load_locked_row_keys(db, production_id))
     proposed = propose_lav_chart(
         wearers,
         scenes,
@@ -682,6 +792,8 @@ def apply_propose(
         sheets=sheets,
         existing_wire_cells=existing_wires,
         existing_pack_cells=existing_packs,
+        locked_row_keys=locked_row_keys,
+        preserve_filled_and_locked=preserve_filled_and_locked,
     )
     sheet_set = {s.lower() for s in sheets}
     if "wires" in sheet_set:

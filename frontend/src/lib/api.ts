@@ -980,7 +980,11 @@ export const api = {
 
   saveLavChart(
     productionId: number,
-    body: { wire_cells: LavWireCell[]; pack_cells: LavPackCell[] },
+    body: {
+      wire_cells: LavWireCell[];
+      pack_cells: LavPackCell[];
+      locked_row_keys?: string[];
+    },
   ) {
     return request<LavChartResponse>(`/productions/${productionId}/lav-chart`, {
       method: "PUT",
@@ -988,10 +992,18 @@ export const api = {
     });
   },
 
-  proposeLavChart(productionId: number, sheets: string[] = ["wires", "packs"]) {
+  proposeLavChart(
+    productionId: number,
+    sheets: string[] = ["wires", "packs"],
+    options: { preserve_filled_and_locked?: boolean } = {},
+  ) {
     return request<LavChartResponse>(`/productions/${productionId}/lav-chart/propose`, {
       method: "POST",
-      body: JSON.stringify({ sheets }),
+      body: JSON.stringify({
+        sheets,
+        // Default: full overwrite of the requested sheet(s).
+        preserve_filled_and_locked: options.preserve_filled_and_locked ?? false,
+      }),
     });
   },
 

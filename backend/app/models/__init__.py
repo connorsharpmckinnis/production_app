@@ -15,6 +15,7 @@ from app.models.cue_category import CueCategory
 from app.models.dialogue import Dialogue
 from app.models.group import CharacterGroup, Group, UserGroup
 from app.models.lav_pack_assignment import LavPackAssignment
+from app.models.lav_row_lock import LavRowLock
 from app.models.lav_wire_assignment import LavWireAssignment
 from app.models.lyric_line import LyricLine
 from app.models.moment import Moment
@@ -58,6 +59,7 @@ __all__ = [
     "Dialogue",
     "Group",
     "LavPackAssignment",
+    "LavRowLock",
     "LavWireAssignment",
     "LyricLine",
     "Moment",

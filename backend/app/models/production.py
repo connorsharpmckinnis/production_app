@@ -77,6 +77,10 @@ class Production(Base):
         back_populates="production",
         cascade="all, delete-orphan",
     )
+    lav_row_locks: Mapped[list["LavRowLock"]] = relationship(
+        back_populates="production",
+        cascade="all, delete-orphan",
+    )
     set_pieces: Mapped[list["SetPiece"]] = relationship(
         back_populates="production",
         cascade="all, delete-orphan",

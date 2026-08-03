@@ -22,6 +22,7 @@ Use this folder when:
 | **Proposal** | Shaped idea; not yet treated as committed roadmap |
 | **Roadmap (approved intent)** | Owner intends to build eventually; not scheduled/phased yet |
 | **Roadmap (curiosity / far-field)** | Captured for thoughtful prioritization; shape may change; still stronger than a random Enhancement |
+| **Far-future (v2+)** | Valid idea; explicitly deferred past first real show/season (or equivalent). Do not phase or prioritize against near work |
 | **Parked / declined** | Explicitly not pursuing (say why) |
 | **Promoted** | Superseded by a `PHASE_*.md` (link it) |
 
@@ -35,7 +36,7 @@ When implementing, agents should read the matching plan here for goals, non-goal
 
 | Plan | Status | One-liner |
 | ---- | ------ | --------- |
-| [character-nightly-packs.md](character-nightly-packs.md) | Roadmap | Actor prep pack: character + scene(s) → lines, E/E, costumes/props/sets |
+| [lav-assignment-ux.md](lav-assignment-ux.md) | Shipped | Excel-competitive lav matrix: chrome, fill-row, taken filtering, locks |
 | [print-and-call-sheets.md](print-and-call-sheets.md) | Roadmap | Rehearsal call sheet: selected scenes → cast + assets needed |
 | [org-catalog-and-shop.md](org-catalog-and-shop.md) | Roadmap | Theater-wide catalog + CSV; check out / copy assets into a show |
 | [tech-week-chart-suite.md](tech-week-chart-suite.md) | Roadmap | Visual burn-down, break-time, set-change (+ lav change-list later) |
@@ -52,6 +53,12 @@ When implementing, agents should read the matching plan here for goals, non-goal
 | [tasks-and-mentions.md](tasks-and-mentions.md) | Proposal | Basic production Tasks + @-mentions → notifications |
 | [email-notifications.md](email-notifications.md) | Proposal | Templated outbound email (blasts, later mentions/digest) |
 | [in-play-moment-deep-links.md](in-play-moment-deep-links.md) | Shipped | In-play source + next-change deep links (props/set pieces); costumes/sticky URL deferred |
+
+## Far-future (v2+ / post first season)
+
+| Plan | Status | One-liner |
+| ---- | ------ | --------- |
+| [character-nightly-packs.md](character-nightly-packs.md) | Far-future | Actor prep pack: character + scene(s) → lines, E/E, costumes/props/sets — revisit after real-show use |
 
 ## Curiosity / far-field
 

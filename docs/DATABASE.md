@@ -890,6 +890,22 @@ Fields
 
 ---
 
+# LAV_ROW_LOCKS
+
+Purpose
+
+Per-row locks on the lav chart so directors can freeze a wearer row against accidental cell edits (actor or uncast character rows). Propose still fully overwrites the active sheet, including locked rows.
+
+Fields
+
+* id
+* production_id (CASCADE delete with production)
+* row_key (e.g. `user:1`, `character:5`)
+
+**Decision:** Unique per `(production_id, row_key)`. Replaced wholesale on chart save when `locked_row_keys` is sent; omitted on save leaves locks unchanged.
+
+---
+
 # SET_PIECES
 
 Fields
