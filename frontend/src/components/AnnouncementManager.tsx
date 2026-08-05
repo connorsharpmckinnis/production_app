@@ -1,5 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
@@ -15,6 +26,7 @@ import type {
 
 const ALL_ROLES: AppRole[] = ["Admin", "Director", "Actor"];
 const SEVERITIES: NotificationSeverity[] = ["info", "success", "warning", "urgent"];
+const ALL_PAGES_VALUE = "__all_pages__";
 
 type Props = {
   /** Null = org-wide (Admin Settings). */
@@ -176,88 +188,92 @@ export default function AnnouncementManager({ productionId }: Props) {
 
       {showForm && (
         <div className="space-y-3 rounded-md border border-border bg-muted/20 p-3">
-          <label className="block text-sm">
+          <Label className="block text-sm">
             <span className="mb-1 block text-muted-foreground">Title</span>
-            <input
+            <Input
               value={form.title}
               onChange={(e) => setForm((prev) => ({ ...prev, title: e.target.value }))}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               maxLength={255}
             />
-          </label>
-          <label className="block text-sm">
+          </Label>
+          <Label className="block text-sm">
             <span className="mb-1 block text-muted-foreground">Body</span>
-            <textarea
+            <Textarea
               value={form.body}
               onChange={(e) => setForm((prev) => ({ ...prev, body: e.target.value }))}
               rows={4}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             />
-          </label>
+          </Label>
 
           <div className="flex flex-wrap gap-4">
-            <label className="block text-sm">
-              <span className="mb-1 block text-muted-foreground">Severity</span>
-              <select
+            <div className="space-y-1 text-sm">
+              <Label className="text-muted-foreground">Severity</Label>
+              <Select
                 value={form.severity}
-                onChange={(e) =>
+                onValueChange={(value) =>
                   setForm((prev) => ({
                     ...prev,
-                    severity: e.target.value as NotificationSeverity,
+                    severity: value as NotificationSeverity,
                   }))
                 }
-                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
               >
-                {SEVERITIES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="block text-sm">
-              <span className="mb-1 block text-muted-foreground">Banner pages</span>
-              <select
-                value={form.route_filter ?? ""}
-                onChange={(e) =>
+                <SelectTrigger className="w-auto">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {SEVERITIES.map((s) => (
+                    <SelectItem key={s} value={s}>
+                      {s}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-1 text-sm">
+              <Label className="text-muted-foreground">Banner pages</Label>
+              <Select
+                value={form.route_filter || ALL_PAGES_VALUE}
+                onValueChange={(value) =>
                   setForm((prev) => ({
                     ...prev,
-                    route_filter: e.target.value || null,
+                    route_filter: value === ALL_PAGES_VALUE ? null : value,
                   }))
                 }
-                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
               >
-                {ROUTE_FILTER_OPTIONS.map((opt) => (
-                  <option key={opt.value || "all"} value={opt.value}>
-                    {opt.label}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <SelectTrigger className="w-auto">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROUTE_FILTER_OPTIONS.map((opt) => (
+                    <SelectItem key={opt.value || "all"} value={opt.value || ALL_PAGES_VALUE}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="flex flex-wrap gap-4 text-sm">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
+            <Label className="font-normal">
+              <Checkbox
                 checked={Boolean(form.show_as_banner)}
-                onChange={(e) =>
-                  setForm((prev) => ({ ...prev, show_as_banner: e.target.checked }))
+                onCheckedChange={(checked) =>
+                  setForm((prev) => ({ ...prev, show_as_banner: checked === true }))
                 }
               />
               Show as banner
-            </label>
+            </Label>
             {allowModal && (
-              <label className="flex items-center gap-2">
-                <input
-                  type="checkbox"
+              <Label className="font-normal">
+                <Checkbox
                   checked={Boolean(form.show_as_modal)}
-                  onChange={(e) =>
-                    setForm((prev) => ({ ...prev, show_as_modal: e.target.checked }))
+                  onCheckedChange={(checked) =>
+                    setForm((prev) => ({ ...prev, show_as_modal: checked === true }))
                   }
                 />
                 Blocking modal
-              </label>
+              </Label>
             )}
           </div>
 
@@ -265,14 +281,13 @@ export default function AnnouncementManager({ productionId }: Props) {
             <legend className="mb-1 text-sm text-muted-foreground">Audience roles</legend>
             <div className="flex flex-wrap gap-3">
               {ALL_ROLES.map((role) => (
-                <label key={role} className="flex items-center gap-2 text-sm">
-                  <input
-                    type="checkbox"
+                <Label key={role} className="font-normal">
+                  <Checkbox
                     checked={form.audience_roles.includes(role)}
-                    onChange={() => toggleRole(role)}
+                    onCheckedChange={() => toggleRole(role)}
                   />
                   {role}
-                </label>
+                </Label>
               ))}
             </div>
           </fieldset>
@@ -280,21 +295,25 @@ export default function AnnouncementManager({ productionId }: Props) {
           <div className="space-y-2 rounded-md border border-dashed border-border p-3">
             <p className="text-sm font-medium">Call-to-action (optional)</p>
             <div className="flex flex-wrap gap-2">
-              <select
+              <Select
                 value={ctaKind}
-                onChange={(e) => setCtaKind(e.target.value as "internal" | "external")}
-                className="rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                onValueChange={(value) => setCtaKind(value as "internal" | "external")}
               >
-                <option value="internal">Internal path</option>
-                <option value="external">External URL</option>
-              </select>
-              <input
+                <SelectTrigger className="w-auto">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="internal">Internal path</SelectItem>
+                  <SelectItem value="external">External URL</SelectItem>
+                </SelectContent>
+              </Select>
+              <Input
                 value={ctaLabel}
                 onChange={(e) => setCtaLabel(e.target.value)}
                 placeholder="Button label"
-                className="min-w-[8rem] flex-1 rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                className="min-w-[8rem] flex-1"
               />
-              <input
+              <Input
                 value={ctaTarget}
                 onChange={(e) => setCtaTarget(e.target.value)}
                 placeholder={
@@ -302,7 +321,7 @@ export default function AnnouncementManager({ productionId }: Props) {
                     ? "https://…"
                     : "/productions/1/timeline?act=1&scene=2&moment=10"
                 }
-                className="min-w-[12rem] flex-[2] rounded-md border border-input bg-background px-2 py-1.5 text-sm"
+                className="min-w-[12rem] flex-[2]"
               />
               <Button type="button" size="sm" variant="outline" onClick={addCta}>
                 Add CTA

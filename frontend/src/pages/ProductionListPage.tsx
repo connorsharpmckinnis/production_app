@@ -5,6 +5,14 @@ import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
@@ -102,32 +110,29 @@ export default function ProductionListPage() {
           actionTo={isAdmin ? "/productions/new" : undefined}
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium">Title</th>
-                <th className="px-4 py-3 text-left font-medium">Season</th>
-                <th className="px-4 py-3 text-left font-medium">Status</th>
-                <th className="px-4 py-3 text-left font-medium">Created</th>
-                <th className="px-4 py-3 text-right font-medium">
+        <div className="rounded-lg border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Title</TableHead>
+                <TableHead>Season</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead>Created</TableHead>
+                <TableHead className="text-right">
                   <span className="sr-only">Actions</span>
-                </th>
-              </tr>
-            </thead>
-            <tbody>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {productions.map((production) => {
                 const ready = Boolean(production.author);
                 const href = productionHref(production);
                 const clickable = Boolean(href);
 
                 return (
-                  <tr
+                  <TableRow
                     key={production.id}
-                    className={cn(
-                      "border-b border-border last:border-0",
-                      clickable && "cursor-pointer hover:bg-muted/50",
-                    )}
+                    className={cn(clickable && "cursor-pointer")}
                     onClick={() => {
                       if (href) navigate(href);
                     }}
@@ -148,21 +153,21 @@ export default function ProductionListPage() {
                         : undefined
                     }
                   >
-                    <td className="px-4 py-3 font-medium">{production.title}</td>
-                    <td className="px-4 py-3 text-muted-foreground">
+                    <TableCell className="font-medium">{production.title}</TableCell>
+                    <TableCell className="text-muted-foreground">
                       {production.season ?? "—"}
-                    </td>
-                    <td className="px-4 py-3">
+                    </TableCell>
+                    <TableCell>
                       {ready ? (
                         <Badge variant="secondary">Ready</Badge>
                       ) : (
                         <Badge variant="outline">Needs import</Badge>
                       )}
-                    </td>
-                    <td className="px-4 py-3 text-muted-foreground">
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
                       {formatDate(production.created_at)}
-                    </td>
-                    <td className="px-4 py-3 text-right">
+                    </TableCell>
+                    <TableCell className="text-right">
                       <div
                         className="flex items-center justify-end gap-1"
                         onClick={(event) => event.stopPropagation()}
@@ -194,12 +199,12 @@ export default function ProductionListPage() {
                           />
                         )}
                       </div>
-                    </td>
-                  </tr>
+                    </TableCell>
+                  </TableRow>
                 );
               })}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>

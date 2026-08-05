@@ -6,7 +6,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { XIcon } from "lucide-react";
+import { CheckCircle2Icon, CircleAlertIcon, InfoIcon, XIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 type ToastVariant = "default" | "success" | "error";
@@ -27,6 +28,27 @@ interface ToastApi {
 const ToastContext = createContext<ToastApi | null>(null);
 
 let toastId = 0;
+
+const VARIANT_STYLES: Record<
+  ToastVariant,
+  { icon: typeof InfoIcon; className: string; iconClassName: string }
+> = {
+  default: {
+    icon: InfoIcon,
+    className: "border-border",
+    iconClassName: "text-muted-foreground",
+  },
+  success: {
+    icon: CheckCircle2Icon,
+    className: "border-emerald-500/35 bg-emerald-500/5",
+    iconClassName: "text-emerald-600 dark:text-emerald-400",
+  },
+  error: {
+    icon: CircleAlertIcon,
+    className: "border-destructive/40 bg-destructive/5",
+    iconClassName: "text-destructive",
+  },
+};
 
 export function ToastProvider({ children }: { children: ReactNode }) {
   const [toasts, setToasts] = useState<ToastItem[]>([]);
@@ -60,31 +82,37 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         className="pointer-events-none fixed right-4 bottom-4 z-[100] flex w-full max-w-sm flex-col gap-2"
         aria-live="polite"
       >
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className={cn(
-              "pointer-events-auto flex items-start gap-3 rounded-lg border bg-card px-4 py-3 shadow-lg",
-              toast.variant === "success" && "border-emerald-500/40",
-              toast.variant === "error" && "border-destructive/40",
-            )}
-          >
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium">{toast.title}</p>
-              {toast.description ? (
-                <p className="mt-0.5 text-xs text-muted-foreground">{toast.description}</p>
-              ) : null}
-            </div>
-            <button
-              type="button"
-              className="rounded-md p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
-              onClick={() => dismiss(toast.id)}
-              aria-label="Dismiss"
+        {toasts.map((toast) => {
+          const variant = VARIANT_STYLES[toast.variant];
+          const Icon = variant.icon;
+          return (
+            <div
+              key={toast.id}
+              className={cn(
+                "pointer-events-auto flex items-start gap-3 rounded-lg border bg-card px-4 py-3 shadow-lg animate-in fade-in-0 slide-in-from-bottom-2",
+                variant.className,
+              )}
             >
-              <XIcon className="size-4" />
-            </button>
-          </div>
-        ))}
+              <Icon className={cn("mt-0.5 size-4 shrink-0", variant.iconClassName)} />
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-medium leading-none">{toast.title}</p>
+                {toast.description ? (
+                  <p className="mt-1.5 text-xs text-muted-foreground">{toast.description}</p>
+                ) : null}
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-xs"
+                className="shrink-0 text-muted-foreground"
+                onClick={() => dismiss(toast.id)}
+                aria-label="Dismiss"
+              >
+                <XIcon />
+              </Button>
+            </div>
+          );
+        })}
       </div>
     </ToastContext.Provider>
   );

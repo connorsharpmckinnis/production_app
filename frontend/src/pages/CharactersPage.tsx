@@ -3,11 +3,29 @@ import { Link, useParams } from "react-router-dom";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
 import type { CastableUserResponse, CharacterDetailResponse } from "@/lib/types";
 import { sortByName } from "@/lib/utils";
+
+const UNASSIGNED = "__unassigned__";
 
 export default function CharactersPage() {
   const { id } = useParams<{ id: string }>();
@@ -50,7 +68,7 @@ export default function CharactersPage() {
   async function handleCastChange(characterId: number, userId: string) {
     setSavingId(characterId);
     try {
-      const parsedUserId = userId === "" ? null : Number(userId);
+      const parsedUserId = userId === UNASSIGNED ? null : Number(userId);
       await api.castCharacter(productionId, characterId, parsedUserId);
       toast.success(parsedUserId == null ? "Actor unassigned" : "Actor assigned");
       await loadData();
@@ -110,31 +128,23 @@ export default function CharactersPage() {
         <div>
           {showAddForm ? (
             <form onSubmit={(e) => void handleAddCharacter(e)} className="flex flex-wrap gap-2">
-              <input
+              <Input
                 value={newName}
                 onChange={(e) => setNewName(e.target.value)}
                 placeholder="Character name"
-                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="w-64"
               />
               <Button type="submit" disabled={savingId === -1}>
                 Add character
               </Button>
-              <button
-                type="button"
-                onClick={() => setShowAddForm(false)}
-                className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
-              >
+              <Button type="button" variant="outline" onClick={() => setShowAddForm(false)}>
                 Cancel
-              </button>
+              </Button>
             </form>
           ) : (
-            <button
-              type="button"
-              onClick={() => setShowAddForm(true)}
-              className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
-            >
+            <Button type="button" variant="outline" onClick={() => setShowAddForm(true)}>
               Add character manually
-            </button>
+            </Button>
           )}
         </div>
       )}
@@ -147,49 +157,53 @@ export default function CharactersPage() {
           onAction={canManagePreparation ? () => setShowAddForm(true) : undefined}
         />
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium">Name</th>
-                <th className="px-4 py-3 text-left font-medium">Scenes</th>
+        <div className="rounded-lg border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Scenes</TableHead>
                 {canManagePreparation ? (
-                  <th className="px-4 py-3 text-left font-medium">Assigned actor</th>
+                  <TableHead>Assigned actor</TableHead>
                 ) : (
-                  <th className="px-4 py-3 text-left font-medium">Actor</th>
+                  <TableHead>Actor</TableHead>
                 )}
-              </tr>
-            </thead>
-            <tbody>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {characters.map((character) => (
-                <tr key={character.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3 font-medium">{character.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{character.scene_count}</td>
+                <TableRow key={character.id}>
+                  <TableCell className="font-medium">{character.name}</TableCell>
+                  <TableCell className="text-muted-foreground">{character.scene_count}</TableCell>
                   {canManagePreparation ? (
-                    <td className="px-4 py-3">
-                      <select
-                        value={character.assigned_actor?.user_id ?? ""}
+                    <TableCell>
+                      <Select
+                        value={String(character.assigned_actor?.user_id ?? UNASSIGNED)}
                         disabled={savingId === character.id}
-                        onChange={(e) => void handleCastChange(character.id, e.target.value)}
-                        className="w-full max-w-xs rounded-md border border-input bg-background px-3 py-2 text-sm"
+                        onValueChange={(value) => void handleCastChange(character.id, value)}
                       >
-                        <option value="">Unassigned</option>
-                        {castableUsers.map((user) => (
-                          <option key={user.id} value={user.id}>
-                            {user.display_name}
-                          </option>
-                        ))}
-                      </select>
-                    </td>
+                        <SelectTrigger className="w-full max-w-xs">
+                          <SelectValue placeholder="Unassigned" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+                          {castableUsers.map((user) => (
+                            <SelectItem key={user.id} value={String(user.id)}>
+                              {user.display_name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
                   ) : (
-                    <td className="px-4 py-3 text-muted-foreground">
+                    <TableCell className="text-muted-foreground">
                       {character.assigned_actor?.display_name ?? "—"}
-                    </td>
+                    </TableCell>
                   )}
-                </tr>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>

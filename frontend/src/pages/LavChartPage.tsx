@@ -11,7 +11,25 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
@@ -25,6 +43,8 @@ import type {
   PackResponse,
   WireResponse,
 } from "@/lib/types";
+
+const NO_ASSET_VALUE = "__none__";
 
 type SheetKind = "wires" | "packs";
 type InventoryKind = "wire" | "pack";
@@ -256,13 +276,14 @@ export default function LavChartPage() {
 
   useEffect(() => {
     if (openRowMenu == null) return;
+    const activeRow = openRowMenu;
     function onPointerDown(event: MouseEvent) {
       const target = event.target as HTMLElement | null;
       if (target?.closest("[data-lav-row-menu]")) return;
       setOpenRowMenu(null);
     }
     function onReposition() {
-      updateRowMenuPosition(openRowMenu);
+      updateRowMenuPosition(activeRow);
     }
     document.addEventListener("mousedown", onPointerDown);
     window.addEventListener("resize", onReposition);
@@ -802,46 +823,46 @@ export default function LavChartPage() {
             No scenes in this production yet.
           </p>
         ) : (
-          <div className="lav-chart-scroll overflow-x-auto rounded-b-md border border-border">
-            <table className="lav-chart-table min-w-full border-collapse text-sm">
-              <thead>
+          <div className="lav-chart-scroll rounded-b-md border border-border">
+            <Table className="lav-chart-table min-w-full border-collapse">
+              <TableHeader>
                 {actGroups.length > 1 && (
-                  <tr className="bg-muted/40">
-                    <th className="lav-chart-sticky sticky left-0 z-10 border-b border-r border-border bg-muted/40 px-3 py-1" />
+                  <TableRow className="bg-muted/40 hover:bg-muted/40">
+                    <TableHead className="lav-chart-sticky sticky left-0 z-10 border-r border-border bg-muted/40 px-3 py-1" />
                     {actGroups.map((group) => (
-                      <th
+                      <TableHead
                         key={group.actNumber}
                         colSpan={group.scenes.length}
-                        className="border-b border-border px-2 py-1 text-center text-xs font-medium text-muted-foreground"
+                        className="text-center text-xs font-medium text-muted-foreground"
                       >
                         Act {group.actNumber}
                         {group.actTitle ? ` · ${group.actTitle}` : ""}
-                      </th>
+                      </TableHead>
                     ))}
-                  </tr>
+                  </TableRow>
                 )}
-                <tr className="bg-muted/50">
-                  <th className="lav-chart-sticky sticky left-0 z-10 border-b border-r border-border bg-muted/50 px-3 py-2 text-left font-medium">
+                <TableRow className="bg-muted/50 hover:bg-muted/50">
+                  <TableHead className="lav-chart-sticky sticky left-0 z-10 border-r border-border bg-muted/50 px-3 py-2 text-left">
                     Actor / characters
-                  </th>
+                  </TableHead>
                   {chart.scenes.map((scene) => (
-                    <th
+                    <TableHead
                       key={scene.id}
-                      className="border-b border-border px-2 py-2 text-center font-medium whitespace-nowrap"
+                      className="text-center whitespace-nowrap"
                       title={scene.scene_title ?? undefined}
                     >
                       {scene.act_number}.{scene.scene_number}
-                    </th>
+                    </TableHead>
                   ))}
-                </tr>
-              </thead>
-              <tbody>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {chart.rows.map((row) => {
                   const needs = needSetByRow.get(row.row_key) ?? new Set();
                   const locked = lockedRows.has(row.row_key);
                   return (
-                    <tr key={row.row_key} className="align-middle">
-                      <th className="lav-chart-sticky sticky left-0 z-10 border-b border-r border-border bg-background px-2 py-2 text-left font-normal">
+                    <TableRow key={row.row_key} className="align-middle">
+                      <TableHead className="lav-chart-sticky sticky left-0 z-10 border-r border-border bg-background px-2 py-2 text-left font-normal">
                         <div className="flex min-w-[10rem] items-start gap-1">
                           <button
                             type="button"
@@ -884,7 +905,7 @@ export default function LavChartPage() {
                             </Button>
                           </div>
                         </div>
-                      </th>
+                      </TableHead>
                       {chart.scenes.map((scene) => {
                         const key = cellKey(row.row_key, scene.id);
                         const isNeed = needs.has(scene.id);
@@ -904,10 +925,10 @@ export default function LavChartPage() {
                         const owners = sceneOwners.get(scene.id) ?? new Map();
 
                         return (
-                          <td
+                          <TableCell
                             key={scene.id}
                             className={[
-                              "border-b border-border px-1 py-1 text-center",
+                              "px-1 py-1 text-center",
                               isNeed ? "bg-highlight-muted/40" : "",
                               conflict || missingNeed ? "bg-amber-500/15" : "",
                               locked ? "opacity-80" : "",
@@ -915,55 +936,61 @@ export default function LavChartPage() {
                               .filter(Boolean)
                               .join(" ")}
                           >
-                            <select
-                              className="lav-print-hide max-w-[7.5rem] rounded border border-input bg-background px-1 py-1 text-xs disabled:cursor-not-allowed disabled:opacity-60"
-                              value={value ?? ""}
+                            <Select
+                              value={value != null ? String(value) : NO_ASSET_VALUE}
                               disabled={locked}
-                              onChange={(e) => {
-                                const raw = e.target.value;
-                                const next = raw === "" ? null : Number(raw);
+                              onValueChange={(raw) => {
+                                const next = raw === NO_ASSET_VALUE ? null : Number(raw);
                                 if (sheet === "wires") {
                                   setWireCell(row.row_key, scene.id, next);
                                 } else {
                                   setPackCell(row.row_key, scene.id, next);
                                 }
                               }}
-                              aria-label={`${row.label} ${sheet} for scene ${scene.act_number}.${scene.scene_number}`}
                             >
-                              <option value="">—</option>
-                              {catalog.map((item) => {
-                                const ownerKey = owners.get(item.id);
-                                const takenByOther =
-                                  ownerKey != null && ownerKey !== row.row_key;
-                                const ownerLabel = ownerKey
-                                  ? (rowLabelByKey.get(ownerKey) ?? ownerKey)
-                                  : "";
-                                return (
-                                  <option
-                                    key={item.id}
-                                    value={item.id}
-                                    disabled={takenByOther}
-                                  >
-                                    {takenByOther
-                                      ? `${item.identifier} (in use by ${ownerLabel})`
-                                      : item.identifier}
-                                  </option>
-                                );
-                              })}
-                            </select>
+                              <SelectTrigger
+                                size="sm"
+                                className="lav-print-hide h-7 max-w-[7.5rem] px-1.5 text-xs disabled:cursor-not-allowed disabled:opacity-60"
+                                aria-label={`${row.label} ${sheet} for scene ${scene.act_number}.${scene.scene_number}`}
+                              >
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={NO_ASSET_VALUE}>—</SelectItem>
+                                {catalog.map((item) => {
+                                  const ownerKey = owners.get(item.id);
+                                  const takenByOther =
+                                    ownerKey != null && ownerKey !== row.row_key;
+                                  const ownerLabel = ownerKey
+                                    ? (rowLabelByKey.get(ownerKey) ?? ownerKey)
+                                    : "";
+                                  return (
+                                    <SelectItem
+                                      key={item.id}
+                                      value={String(item.id)}
+                                      disabled={takenByOther}
+                                    >
+                                      {takenByOther
+                                        ? `${item.identifier} (in use by ${ownerLabel})`
+                                        : item.identifier}
+                                    </SelectItem>
+                                  );
+                                })}
+                              </SelectContent>
+                            </Select>
                             <span className="lav-print-only hidden text-xs">
                               {value == null
                                 ? "—"
                                 : catalog.find((item) => item.id === value)?.identifier ?? value}
                             </span>
-                          </td>
+                          </TableCell>
                         );
                       })}
-                    </tr>
+                    </TableRow>
                   );
                 })}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
 
@@ -1048,22 +1075,21 @@ export default function LavChartPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-2">
-            <label className="mb-1 block text-sm font-medium" htmlFor="lav-fill-asset">
+            <Label className="mb-1" htmlFor="lav-fill-asset">
               {sheet === "wires" ? "Wire" : "Pack"}
-            </label>
-            <select
-              id="lav-fill-asset"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={fillAssetId}
-              onChange={(e) => setFillAssetId(e.target.value)}
-            >
-              <option value="">Select…</option>
-              {catalog.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.identifier}
-                </option>
-              ))}
-            </select>
+            </Label>
+            <Select value={fillAssetId} onValueChange={setFillAssetId}>
+              <SelectTrigger id="lav-fill-asset" className="w-full">
+                <SelectValue placeholder="Select…" />
+              </SelectTrigger>
+              <SelectContent>
+                {catalog.map((item) => (
+                  <SelectItem key={item.id} value={String(item.id)}>
+                    {item.identifier}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setFillDialog(null)}>
@@ -1090,21 +1116,21 @@ export default function LavChartPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="py-2">
-            <label className="mb-1 block text-sm font-medium" htmlFor="lav-clear-act">
+            <Label className="mb-1" htmlFor="lav-clear-act">
               Act
-            </label>
-            <select
-              id="lav-clear-act"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              value={clearActNumber}
-              onChange={(e) => setClearActNumber(e.target.value)}
-            >
-              {actNumbers.map((n) => (
-                <option key={n} value={n}>
-                  Act {n}
-                </option>
-              ))}
-            </select>
+            </Label>
+            <Select value={clearActNumber} onValueChange={setClearActNumber}>
+              <SelectTrigger id="lav-clear-act" className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {actNumbers.map((n) => (
+                  <SelectItem key={n} value={String(n)}>
+                    Act {n}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
           <DialogFooter>
             <Button type="button" variant="outline" onClick={() => setClearActDialog(null)}>
@@ -1132,19 +1158,17 @@ export default function LavChartPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-4">
-              <input
+              <Input
                 value={editIdentifier}
                 onChange={(e) => setEditIdentifier(e.target.value)}
                 placeholder="Identifier"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 autoFocus
               />
-              <textarea
+              <Textarea
                 value={editNotes}
                 onChange={(e) => setEditNotes(e.target.value)}
                 placeholder="Notes (optional)"
                 rows={2}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
             <DialogFooter>
@@ -1215,21 +1239,21 @@ function InventoryColumn({
       {items.length === 0 ? (
         <p className="text-sm text-muted-foreground">{emptyLabel}</p>
       ) : (
-        <div className="overflow-x-auto rounded-md border border-border bg-background">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border bg-muted/40">
-              <tr>
-                <th className="px-3 py-2 text-left font-medium">Identifier</th>
-                <th className="px-3 py-2 text-left font-medium">Notes</th>
-                <th className="px-3 py-2 text-left font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
+        <div className="rounded-md border border-border bg-background">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Identifier</TableHead>
+                <TableHead>Notes</TableHead>
+                <TableHead>Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {items.map((item) => (
-                <tr key={item.id}>
-                  <td className="px-3 py-2 font-medium">{item.identifier}</td>
-                  <td className="px-3 py-2 text-muted-foreground">{item.notes ?? "—"}</td>
-                  <td className="px-3 py-2">
+                <TableRow key={item.id}>
+                  <TableCell className="font-medium">{item.identifier}</TableCell>
+                  <TableCell className="text-muted-foreground">{item.notes ?? "—"}</TableCell>
+                  <TableCell>
                     <div className="flex gap-1">
                       <Button
                         type="button"
@@ -1254,23 +1278,21 @@ function InventoryColumn({
                         <Trash2 />
                       </Button>
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
       <form onSubmit={onAdd} className="space-y-2">
-        <input
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+        <Input
           value={identifier}
           onChange={(e) => onIdentifierChange(e.target.value)}
           placeholder={identifierPlaceholder}
           aria-label={`${title} identifier`}
         />
-        <input
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+        <Input
           value={notes}
           onChange={(e) => onNotesChange(e.target.value)}
           placeholder="Notes (optional)"

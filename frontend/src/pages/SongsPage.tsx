@@ -13,6 +13,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
@@ -157,26 +167,24 @@ export default function SongsPage() {
           onAction={canManagePreparation ? openCreateDialog : undefined}
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium">Title</th>
-                <th className="px-4 py-3 text-left font-medium">Composer</th>
-                <th className="px-4 py-3 text-left font-medium">Lyricist</th>
-                {canManagePreparation && (
-                  <th className="px-4 py-3 text-left font-medium">Actions</th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
+        <div className="rounded-lg border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Title</TableHead>
+                <TableHead>Composer</TableHead>
+                <TableHead>Lyricist</TableHead>
+                {canManagePreparation && <TableHead>Actions</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {songs.map((song) => (
-                <tr key={song.id}>
-                  <td className="px-4 py-3 font-medium">{song.title}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{song.composer ?? "—"}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{song.lyricist ?? "—"}</td>
+                <TableRow key={song.id}>
+                  <TableCell className="font-medium">{song.title}</TableCell>
+                  <TableCell className="text-muted-foreground">{song.composer ?? "—"}</TableCell>
+                  <TableCell className="text-muted-foreground">{song.lyricist ?? "—"}</TableCell>
                   {canManagePreparation && (
-                    <td className="px-4 py-3">
+                    <TableCell>
                       <Button
                         type="button"
                         variant="ghost"
@@ -187,12 +195,12 @@ export default function SongsPage() {
                       >
                         <Pencil />
                       </Button>
-                    </td>
+                    </TableCell>
                   )}
-                </tr>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 
@@ -215,34 +223,30 @@ export default function SongsPage() {
             </DialogHeader>
             <div className="space-y-3 py-4">
               {!editingSong && (
-                <input
+                <Input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
                   placeholder="Song title"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   autoFocus
                 />
               )}
-              <input
+              <Input
                 value={composer}
                 onChange={(e) => setComposer(e.target.value)}
                 placeholder="Composer (optional)"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 autoFocus={!!editingSong}
               />
-              <input
+              <Input
                 value={lyricist}
                 onChange={(e) => setLyricist(e.target.value)}
                 placeholder="Lyricist (optional)"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
               {editingSong && (
-                <textarea
+                <Textarea
                   value={description}
                   onChange={(e) => setDescription(e.target.value)}
                   placeholder="Description (optional)"
                   rows={2}
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 />
               )}
             </div>

@@ -17,11 +17,21 @@ import SearchableSelect from "@/components/SearchableSelect";
 import type { SearchableSelectOption } from "@/components/SearchableSelect";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
 } from "@/components/ui/sheet";
+import { Textarea } from "@/components/ui/textarea";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { api, ApiError, formatApiError } from "@/lib/api";
@@ -42,6 +52,9 @@ import type {
   SongDetailResponse,
 } from "@/lib/types";
 import { cn, momentTypeLabel, sortByName } from "@/lib/utils";
+
+/** Radix Select cannot use an empty string value, so "no song" needs a sentinel. */
+const NO_SONG_VALUE = "__none__";
 
 type PersonType = "none" | "character" | "user";
 
@@ -971,12 +984,12 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
               Stage direction
             </h3>
             {canEdit ? (
-              <textarea
+              <Textarea
                 value={stageDirectionText}
                 onChange={(e) => setStageDirectionText(e.target.value)}
                 onBlur={() => void saveStageDirection()}
                 rows={1}
-                className="mt-2 field-sizing-content min-h-[3rem] w-full resize-none overflow-hidden whitespace-pre-wrap rounded-md border border-input bg-background px-3 py-2 text-base italic leading-relaxed"
+                className="mt-2 min-h-[3rem] resize-none overflow-hidden whitespace-pre-wrap text-base italic leading-relaxed"
               />
             ) : (
               <p className="mt-1 whitespace-pre-wrap text-base italic leading-relaxed">
@@ -996,20 +1009,24 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                 <li key={line.id} className="text-base leading-relaxed">
                   {canEdit ? (
                     <div className="flex flex-col gap-1">
-                      <select
-                        value={line.character_id}
+                      <Select
+                        value={String(line.character_id)}
                         disabled={saving}
-                        onChange={(e) =>
-                          void handleDialogueCharacterChange(line.id, Number(e.target.value))
+                        onValueChange={(value) =>
+                          void handleDialogueCharacterChange(line.id, Number(value))
                         }
-                        className="rounded-md border border-input bg-background px-2 py-1 text-sm"
                       >
-                        {sortedCharacters.map((character) => (
-                          <option key={character.id} value={character.id}>
-                            {character.name}
-                          </option>
-                        ))}
-                      </select>
+                        <SelectTrigger size="sm" className="w-fit">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {sortedCharacters.map((character) => (
+                            <SelectItem key={character.id} value={String(character.id)}>
+                              {character.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                       <span>{line.dialogue_text}</span>
                     </div>
                   ) : (
@@ -1070,22 +1087,30 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         {canEdit && (
           <div className="space-y-3">
             {isSongRelated && (
-              <label className="block text-xs text-muted-foreground">
-                Linked song
-                <select
-                  value={selectedSongId}
-                  onChange={(e) => setSelectedSongId(e.target.value)}
-                  onBlur={() => void saveMomentFields()}
-                  className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Linked song</Label>
+                <Select
+                  value={selectedSongId || NO_SONG_VALUE}
+                  onValueChange={(value) =>
+                    setSelectedSongId(value === NO_SONG_VALUE ? "" : value)
+                  }
                 >
-                  <option value="">None</option>
-                  {songs.map((song) => (
-                    <option key={song.id} value={String(song.id)}>
-                      {song.title}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  <SelectTrigger
+                    className="w-full"
+                    onBlur={() => void saveMomentFields()}
+                  >
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NO_SONG_VALUE}>None</SelectItem>
+                    {songs.map((song) => (
+                      <SelectItem key={song.id} value={String(song.id)}>
+                        {song.title}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
             )}
 
             <div className="rounded-md border border-border p-3">
@@ -1105,32 +1130,37 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
               {showParsedEdit && (
                 <div className="mt-3 space-y-3">
-                  <label className="block text-xs text-muted-foreground">
-                    Moment type
-                    <select
-                      value={selectedTypeId}
-                      onChange={(e) => setSelectedTypeId(e.target.value)}
-                      onBlur={() => void saveMomentFields()}
-                      className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Moment type</Label>
+                    <Select
+                      value={String(selectedTypeId)}
+                      onValueChange={(value) => setSelectedTypeId(value)}
                     >
-                      {momentTypes.map((type) => (
-                        <option key={type.id} value={type.id}>
-                          {momentTypeLabel(type.name as MomentDetailResponse["moment_type"])}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                      <SelectTrigger
+                        className="w-full"
+                        onBlur={() => void saveMomentFields()}
+                      >
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {momentTypes.map((type) => (
+                          <SelectItem key={type.id} value={String(type.id)}>
+                            {momentTypeLabel(type.name as MomentDetailResponse["moment_type"])}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
 
-                  <label className="block text-xs text-muted-foreground">
-                    Imported text
-                    <textarea
+                  <div className="space-y-1">
+                    <Label className="text-xs text-muted-foreground">Imported text</Label>
+                    <Textarea
                       value={parsedText}
                       onChange={(e) => setParsedText(e.target.value)}
                       onBlur={() => void saveMomentFields()}
                       rows={3}
-                      className="mt-1 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                     />
-                  </label>
+                  </div>
                 </div>
               )}
             </div>
@@ -1258,24 +1288,23 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   placeholder="Person (optional)"
                   clearLabel="No person"
                 />
-                <input
+                <Input
                   value={attachPropNotes}
                   onChange={(e) => setAttachPropNotes(e.target.value)}
                   placeholder="Notes (optional)"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 />
-                <button
+                <Button
                   type="submit"
+                  variant="outline"
                   disabled={
                     saving ||
                     !attachPropId ||
                     (attachPropPersonType === "character" && !attachPropCharacterId) ||
                     (attachPropPersonType === "user" && !attachPropUserId)
                   }
-                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
                 >
                   Add
-                </button>
+                </Button>
               </form>
             )}
 
@@ -1288,25 +1317,23 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   placeholder="Select category…"
                   clearLabel="Clear selection"
                 />
-                <input
+                <Input
                   value={newCueTitle}
                   onChange={(e) => setNewCueTitle(e.target.value)}
                   placeholder="Cue title"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 />
-                <input
+                <Input
                   value={newCueNotes}
                   onChange={(e) => setNewCueNotes(e.target.value)}
                   placeholder="Notes (optional)"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 />
-                <button
+                <Button
                   type="submit"
+                  variant="outline"
                   disabled={saving || !newCueCategoryId || !newCueTitle.trim()}
-                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
                 >
                   Add
-                </button>
+                </Button>
               </form>
             )}
 
@@ -1336,24 +1363,23 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   placeholder="Person (optional)"
                   clearLabel="No person"
                 />
-                <input
+                <Input
                   value={attachSetPieceNotes}
                   onChange={(e) => setAttachSetPieceNotes(e.target.value)}
                   placeholder="Notes (optional)"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 />
-                <button
+                <Button
                   type="submit"
+                  variant="outline"
                   disabled={
                     saving ||
                     !attachSetPieceId ||
                     (attachSetPiecePersonType === "character" && !attachSetPieceCharacterId) ||
                     (attachSetPiecePersonType === "user" && !attachSetPieceUserId)
                   }
-                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
                 >
                   Add
-                </button>
+                </Button>
               </form>
             )}
 
@@ -1384,23 +1410,22 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                     clearLabel="Clear selection"
                   />
                 )}
-                <input
+                <Input
                   value={attachCostumeNotes}
                   onChange={(e) => setAttachCostumeNotes(e.target.value)}
                   placeholder="Notes (optional)"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 />
-                <button
+                <Button
                   type="submit"
+                  variant="outline"
                   disabled={
                     saving ||
                     !attachCostumeCharacterId ||
                     (attachCostumeKind === "on" && !attachCostumeId)
                   }
-                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
                 >
                   Add
-                </button>
+                </Button>
               </form>
             )}
 
@@ -1413,19 +1438,14 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   placeholder="Select character…"
                   clearLabel="Clear selection"
                 />
-                <input
+                <Input
                   value={attachEntranceNotes}
                   onChange={(e) => setAttachEntranceNotes(e.target.value)}
                   placeholder="Notes (optional)"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 />
-                <button
-                  type="submit"
-                  disabled={saving || !attachEntranceCharacterId}
-                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
-                >
+                <Button type="submit" variant="outline" disabled={saving || !attachEntranceCharacterId}>
                   Add
-                </button>
+                </Button>
               </form>
             )}
 
@@ -1438,19 +1458,14 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   placeholder="Select character…"
                   clearLabel="Clear selection"
                 />
-                <input
+                <Input
                   value={attachExitNotes}
                   onChange={(e) => setAttachExitNotes(e.target.value)}
                   placeholder="Notes (optional)"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 />
-                <button
-                  type="submit"
-                  disabled={saving || !attachExitCharacterId}
-                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
-                >
+                <Button type="submit" variant="outline" disabled={saving || !attachExitCharacterId}>
                   Add
-                </button>
+                </Button>
               </form>
             )}
 
@@ -1463,22 +1478,21 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   placeholder="Select character…"
                   clearLabel="Clear selection"
                 />
-                <textarea
+                <Textarea
                   value={attachBlockingNotes}
                   onChange={(e) => setAttachBlockingNotes(e.target.value)}
                   placeholder="Blocking notes"
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                   rows={2}
                 />
-                <button
+                <Button
                   type="submit"
+                  variant="outline"
                   disabled={
                     saving || !attachBlockingCharacterId || !attachBlockingNotes.trim()
                   }
-                  className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted disabled:opacity-50"
                 >
                   Add
-                </button>
+                </Button>
               </form>
             )}
               </>
@@ -1683,30 +1697,29 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           )}
 
           <form onSubmit={(e) => void handleAddNote(e)} className="mt-4 flex flex-col gap-3">
-            <textarea
+            <Textarea
               value={noteContent}
               onChange={(e) => setNoteContent(e.target.value)}
               placeholder="Add a note…"
               rows={3}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             />
             {canChooseVisibility && (
-              <select
+              <Select
                 value={noteVisibility}
-                onChange={(e) => setNoteVisibility(e.target.value as "public" | "private")}
-                className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+                onValueChange={(value) => setNoteVisibility(value as "public" | "private")}
               >
-                <option value="public">Visible to cast</option>
-                <option value="private">Only me</option>
-              </select>
+                <SelectTrigger className="w-fit">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="public">Visible to cast</SelectItem>
+                  <SelectItem value="private">Only me</SelectItem>
+                </SelectContent>
+              </Select>
             )}
-            <button
-              type="submit"
-              disabled={saving || !noteContent.trim()}
-              className="rounded-md bg-primary px-4 py-2 text-sm text-primary-foreground hover:bg-primary/90 disabled:opacity-50"
-            >
+            <Button type="submit" disabled={saving || !noteContent.trim()}>
               Add note
-            </button>
+            </Button>
           </form>
         </div>
       </div>
@@ -1775,11 +1788,11 @@ function AttachmentSection({
                         <span className="text-muted-foreground"> — {item.sublabel}</span>
                       )}
                       {item.editableNotes && canEdit ? (
-                        <textarea
+                        <Textarea
                           defaultValue={item.notes}
                           disabled={saving}
                           onBlur={(e) => item.onNotesBlur?.(e.target.value)}
-                          className="mt-2 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                          className="mt-2"
                           rows={2}
                         />
                       ) : (
@@ -2141,11 +2154,10 @@ function AssetEventRow({
                 placeholder="Person (optional)"
                 clearLabel="No person"
               />
-              <input
+              <Input
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Notes (optional)"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
               <div className="flex gap-2">
                 <Button
@@ -2384,11 +2396,10 @@ function CostumeEventRow({
                   clearLabel="Clear selection"
                 />
               )}
-              <input
+              <Input
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Notes (optional)"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
               <div className="flex gap-2">
                 <Button

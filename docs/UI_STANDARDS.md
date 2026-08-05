@@ -163,7 +163,8 @@ Use shadcn/ui throughout ([DEVELOPMENT_GUIDE](../.agents/skills/DEVELOPMENT_GUID
 | Need | Component |
 | --- | --- |
 | Production list | `Table` |
-| Forms | `Input`, `Button`, native `select` |
+| Forms | `Input`, `Label`, `Textarea`, `Button`, `Select` / `SearchableSelect` |
+| Toggles | `Checkbox`, `Switch`, `RadioGroup` |
 | File upload | `Input type="file"` + `Button` |
 | Errors | bordered alert div (destructive colors) |
 | Timeline rows | scrollable list + custom row |
@@ -172,6 +173,8 @@ Use shadcn/ui throughout ([DEVELOPMENT_GUIDE](../.agents/skills/DEVELOPMENT_GUID
 | Side panel | `Sheet` |
 | Bookmark toggle | `Button` (icon-sm) + lucide icon |
 | Navigation | sidebar `nav` links |
+| Toasts | `ToastProvider` / `useToast` |
+| Component review | Admin `/dev/ui` gallery |
 
 ---
 

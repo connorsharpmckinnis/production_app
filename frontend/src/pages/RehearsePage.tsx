@@ -3,6 +3,17 @@ import { Link, useParams } from "react-router-dom";
 import MomentDetailSheet from "@/components/MomentDetailSheet";
 import SceneMultiSelect from "@/components/SceneMultiSelect";
 import TimelineMomentList, { type TimelineSection } from "@/components/TimelineMomentList";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useTimelineScene } from "@/hooks/useTimelineScene";
 import { isMyMoment, isMySpokenLine } from "@/lib/momentHighlight";
@@ -206,94 +217,93 @@ export default function RehearsePage() {
             onChange={scene.setSelectedSceneIds}
           />
 
-          <select
+          <Select
             value={effectivePreset === "custom" ? "custom" : effectivePreset}
-            onChange={(e) => {
-              const value = e.target.value;
+            onValueChange={(value) => {
               if (value === "custom") return;
               handlePresetChange(value as Exclude<RehearsePresetId, "custom">);
             }}
-            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
           >
-            {(
-              Object.entries(REHEARSE_PRESET_LABELS) as [
-                Exclude<RehearsePresetId, "custom">,
-                string,
-              ][]
-            ).map(([value, label]) => (
-              <option key={value} value={value}>
-                {label}
-              </option>
-            ))}
-            {effectivePreset === "custom" && (
-              <option
-                value="custom"
-                disabled
-                title="Adjust toggles to create a custom view"
-              >
-                Custom
-              </option>
-            )}
-          </select>
+            <SelectTrigger className="w-fit">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {(
+                Object.entries(REHEARSE_PRESET_LABELS) as [
+                  Exclude<RehearsePresetId, "custom">,
+                  string,
+                ][]
+              ).map(([value, label]) => (
+                <SelectItem key={value} value={value}>
+                  {label}
+                </SelectItem>
+              ))}
+              {effectivePreset === "custom" && (
+                <SelectItem
+                  value="custom"
+                  disabled
+                  title="Adjust toggles to create a custom view"
+                >
+                  Custom
+                </SelectItem>
+              )}
+            </SelectContent>
+          </Select>
         </div>
 
         <form onSubmit={handleSearchSubmit} className="flex gap-1.5">
-          <input
+          <Input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search timeline…"
-            className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+            className="min-w-0 flex-1"
           />
-          <button
-            type="submit"
-            className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
-          >
+          <Button type="submit" variant="outline">
             Search
-          </button>
+          </Button>
         </form>
       </div>
 
       <div className="flex shrink-0 flex-wrap gap-x-3 gap-y-1.5 rounded-md border border-border bg-card px-3 py-2 text-sm">
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
+        <Label className="flex items-center gap-2 font-normal">
+          <Checkbox
             checked={toggles.highlightMyLines}
-            onChange={(e) => handleToggleChange("highlightMyLines", e.target.checked)}
+            onCheckedChange={(value) => handleToggleChange("highlightMyLines", value === true)}
           />
           Highlight my lines
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
+        </Label>
+        <Label className="flex items-center gap-2 font-normal">
+          <Checkbox
             checked={toggles.showStageDirections}
-            onChange={(e) => handleToggleChange("showStageDirections", e.target.checked)}
+            onCheckedChange={(value) =>
+              handleToggleChange("showStageDirections", value === true)
+            }
           />
           Show stage directions
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
+        </Label>
+        <Label className="flex items-center gap-2 font-normal">
+          <Checkbox
             checked={toggles.showLyricsAndSongs}
-            onChange={(e) => handleToggleChange("showLyricsAndSongs", e.target.checked)}
+            onCheckedChange={(value) =>
+              handleToggleChange("showLyricsAndSongs", value === true)
+            }
           />
           Show lyrics &amp; songs
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
+        </Label>
+        <Label className="flex items-center gap-2 font-normal">
+          <Checkbox
             checked={toggles.showPrepBadges}
-            onChange={(e) => handleToggleChange("showPrepBadges", e.target.checked)}
+            onCheckedChange={(value) => handleToggleChange("showPrepBadges", value === true)}
           />
           Show prep badges
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="checkbox"
+        </Label>
+        <Label className="flex items-center gap-2 font-normal">
+          <Checkbox
             checked={toggles.blurMyLines}
-            onChange={(e) => handleToggleChange("blurMyLines", e.target.checked)}
+            onCheckedChange={(value) => handleToggleChange("blurMyLines", value === true)}
           />
           Blur my lines
-        </label>
+        </Label>
       </div>
 
       <p className="shrink-0 text-xs font-medium text-muted-foreground">{scene.selectionLabel}</p>

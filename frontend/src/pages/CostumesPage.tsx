@@ -13,6 +13,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
@@ -193,28 +210,26 @@ export default function CostumesPage() {
           onAction={canManagePreparation ? openCreateDialog : undefined}
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium">Character</th>
-                <th className="px-4 py-3 text-left font-medium">Costume</th>
-                <th className="px-4 py-3 text-left font-medium">Description</th>
-                {canManagePreparation && (
-                  <th className="px-4 py-3 text-left font-medium">Actions</th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
+        <div className="rounded-lg border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Character</TableHead>
+                <TableHead>Costume</TableHead>
+                <TableHead>Description</TableHead>
+                {canManagePreparation && <TableHead>Actions</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {costumes.map((costume) => (
-                <tr key={costume.id}>
-                  <td className="px-4 py-3 font-medium">{costume.character_name}</td>
-                  <td className="px-4 py-3 font-medium">{costume.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                <TableRow key={costume.id}>
+                  <TableCell className="font-medium">{costume.character_name}</TableCell>
+                  <TableCell className="font-medium">{costume.name}</TableCell>
+                  <TableCell className="text-muted-foreground">
                     {costume.description ?? "—"}
-                  </td>
+                  </TableCell>
                   {canManagePreparation && (
-                    <td className="px-4 py-3">
+                    <TableCell>
                       <div className="flex gap-1">
                         <Button
                           type="button"
@@ -239,12 +254,12 @@ export default function CostumesPage() {
                           <Trash2 />
                         </Button>
                       </div>
-                    </td>
+                    </TableCell>
                   )}
-                </tr>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 
@@ -266,30 +281,28 @@ export default function CostumesPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-4">
-              <select
-                value={characterId}
-                onChange={(e) => setCharacterId(e.target.value)}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-              >
-                <option value="">Select character…</option>
-                {characters.map((character) => (
-                  <option key={character.id} value={String(character.id)}>
-                    {character.name}
-                  </option>
-                ))}
-              </select>
-              <input
+              <Select value={characterId} onValueChange={setCharacterId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select character…" />
+                </SelectTrigger>
+                <SelectContent>
+                  {characters.map((character) => (
+                    <SelectItem key={character.id} value={String(character.id)}>
+                      {character.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Costume name"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
-              <textarea
+              <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Description (optional)"
                 rows={2}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
             <DialogFooter>

@@ -12,6 +12,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useAuth } from "@/context/AuthContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
@@ -152,66 +169,65 @@ export default function UsersPage() {
           </DialogHeader>
           <form id="create-user-form" onSubmit={handleCreate} className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
-              <label className="text-sm font-medium">Username</label>
-              <input
+              <Label>Username</Label>
+              <Input
                 required
                 value={createForm.username}
                 onChange={(e) => setCreateForm({ ...createForm, username: e.target.value })}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Password</label>
-              <input
+              <Label>Password</Label>
+              <Input
                 required
                 type="password"
                 value={createForm.password}
                 onChange={(e) => setCreateForm({ ...createForm, password: e.target.value })}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">First name</label>
-              <input
+              <Label>First name</Label>
+              <Input
                 required
                 value={createForm.first_name}
                 onChange={(e) => setCreateForm({ ...createForm, first_name: e.target.value })}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Last name</label>
-              <input
+              <Label>Last name</Label>
+              <Input
                 required
                 value={createForm.last_name}
                 onChange={(e) => setCreateForm({ ...createForm, last_name: e.target.value })}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Email</label>
-              <input
+              <Label>Email</Label>
+              <Input
                 type="email"
                 value={createForm.email}
                 onChange={(e) => setCreateForm({ ...createForm, email: e.target.value })}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
             <div className="space-y-2">
-              <label className="text-sm font-medium">Role</label>
-              <select
+              <Label>Role</Label>
+              <Select
                 value={createForm.role_name}
-                onChange={(e) =>
-                  setCreateForm({ ...createForm, role_name: e.target.value as AppRole })
+                onValueChange={(value) =>
+                  setCreateForm({ ...createForm, role_name: value as AppRole })
                 }
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               >
-                {ROLES.map((role) => (
-                  <option key={role} value={role}>
-                    {role}
-                  </option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Role" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ROLES.map((role) => (
+                    <SelectItem key={role} value={role}>
+                      {role}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </form>
           <DialogFooter>
@@ -236,16 +252,13 @@ export default function UsersPage() {
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-2">
-            <label className="text-sm font-medium" htmlFor="new-password">
-              New password
-            </label>
-            <input
+            <Label htmlFor="new-password">New password</Label>
+            <Input
               id="new-password"
               type="password"
               placeholder="New password"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             />
           </div>
           <DialogFooter>
@@ -269,26 +282,26 @@ export default function UsersPage() {
           onAction={() => setCreateDialogOpen(true)}
         />
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium">Name</th>
-                <th className="px-4 py-3 text-left font-medium">Username</th>
-                <th className="px-4 py-3 text-left font-medium">Roles</th>
-                <th className="px-4 py-3 text-left font-medium">Status</th>
-                <th className="px-4 py-3 text-right font-medium">Actions</th>
-              </tr>
-            </thead>
-            <tbody>
+        <div className="rounded-lg border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Username</TableHead>
+                <TableHead>Roles</TableHead>
+                <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {users.map((user) => (
-                <tr key={user.id} className="border-b border-border last:border-0">
-                  <td className="px-4 py-3">
+                <TableRow key={user.id}>
+                  <TableCell>
                     {user.first_name} {user.last_name}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">{user.username}</td>
-                  <td className="px-4 py-3">{user.roles.join(", ")}</td>
-                  <td className="px-4 py-3">
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">{user.username}</TableCell>
+                  <TableCell>{user.roles.join(", ")}</TableCell>
+                  <TableCell>
                     <Badge variant="outline" className="gap-1.5">
                       <Circle
                         className={
@@ -300,8 +313,8 @@ export default function UsersPage() {
                       />
                       {user.is_active ? "Active" : "Inactive"}
                     </Badge>
-                  </td>
-                  <td className="px-4 py-3 text-right">
+                  </TableCell>
+                  <TableCell className="text-right">
                     <div className="flex justify-end gap-1">
                       <Button
                         type="button"
@@ -327,11 +340,11 @@ export default function UsersPage() {
                         </Button>
                       )}
                     </div>
-                  </td>
-                </tr>
+                  </TableCell>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
     </div>

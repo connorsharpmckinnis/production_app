@@ -332,13 +332,16 @@ Visit http://localhost:5173. The Vite dev server proxies `/api` to http://localh
 
 ### shadcn/ui
 
-The project includes a basic shadcn/ui configuration (`components.json`, `src/lib/utils.ts`). Add components with:
+Configured via `components.json` with Tailwind CSS variables. Shared primitives live in `frontend/src/components/ui/` (`button`, `badge`, `dialog`, `alert-dialog`, `sheet`, `skeleton`, `input`, `label`, `textarea`, `checkbox`, `switch`, `radio-group`, `select`, `table`).
+
+Add more with:
 
 ```bash
 cd frontend
-npx shadcn@latest add button
+npx shadcn@latest add <component>
 ```
 
+Admin component gallery (theme preview + all primitives): `/dev/ui` (also linked from Settings → Developer).
 ## Project Structure
 
 ```

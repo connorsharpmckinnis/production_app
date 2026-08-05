@@ -1,6 +1,9 @@
 import { useMemo, useRef, useState } from "react";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
 import type { ActSummary } from "@/lib/types";
-import { formatActLabel } from "@/lib/utils";
+import { cn, formatActLabel } from "@/lib/utils";
 
 export interface SceneMultiSelectProps {
   acts: ActSummary[];
@@ -60,15 +63,17 @@ export default function SceneMultiSelect({
 
   return (
     <div ref={containerRef} className="relative">
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
         onClick={() => setOpen((value) => !value)}
-        className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+        className="font-normal shadow-xs"
         aria-expanded={open}
         aria-haspopup="listbox"
       >
         {buttonLabel}
-      </button>
+      </Button>
 
       {open && (
         <>
@@ -78,7 +83,7 @@ export default function SceneMultiSelect({
             aria-label="Close scene picker"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute left-0 top-full z-30 mt-1 max-h-72 w-72 overflow-y-auto rounded-md border border-border bg-background p-2 shadow-md">
+          <div className="absolute top-full left-0 z-30 mt-1 max-h-72 w-72 overflow-y-auto rounded-md border bg-popover p-2 text-popover-foreground shadow-md">
             <div className="mb-2 flex gap-2 border-b border-border pb-2">
               <button
                 type="button"
@@ -102,22 +107,31 @@ export default function SceneMultiSelect({
                     {formatActLabel(act)}
                   </p>
                   <ul className="space-y-1">
-                    {act.scenes.map((scene) => (
-                      <li key={scene.id}>
-                        <label className="flex cursor-pointer items-start gap-2 rounded px-1 py-0.5 text-sm hover:bg-muted">
-                          <input
-                            type="checkbox"
-                            className="mt-0.5"
-                            checked={selectedSet.has(scene.id)}
-                            onChange={() => toggleScene(scene.id)}
-                          />
-                          <span>
-                            Scene {scene.number}
-                            {scene.title ? `: ${scene.title}` : ""}
-                          </span>
-                        </label>
-                      </li>
-                    ))}
+                    {act.scenes.map((scene) => {
+                      const checked = selectedSet.has(scene.id);
+                      const id = `scene-${scene.id}`;
+                      return (
+                        <li key={scene.id}>
+                          <Label
+                            htmlFor={id}
+                            className={cn(
+                              "flex cursor-pointer items-start gap-2 rounded-sm px-1 py-1 font-normal hover:bg-accent",
+                            )}
+                          >
+                            <Checkbox
+                              id={id}
+                              className="mt-0.5"
+                              checked={checked}
+                              onCheckedChange={() => toggleScene(scene.id)}
+                            />
+                            <span className="text-sm leading-snug">
+                              Scene {scene.number}
+                              {scene.title ? `: ${scene.title}` : ""}
+                            </span>
+                          </Label>
+                        </li>
+                      );
+                    })}
                   </ul>
                 </div>
               ))}

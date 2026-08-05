@@ -16,6 +16,7 @@ import PropsPage from "@/pages/PropsPage";
 import RehearsePage from "@/pages/RehearsePage";
 import ReportsPage from "@/pages/ReportsPage";
 import SetPiecesPage from "@/pages/SetPiecesPage";
+import ComponentGalleryPage from "@/pages/ComponentGalleryPage";
 import SettingsPage from "@/pages/SettingsPage";
 import SongsPage from "@/pages/SongsPage";
 import TimelinePage from "@/pages/TimelinePage";
@@ -52,6 +53,7 @@ export default function App() {
             <Route path="productions/:id/import" element={<ImportPage />} />
             <Route path="users" element={<UsersPage />} />
             <Route path="settings" element={<SettingsPage />} />
+            <Route path="dev/ui" element={<ComponentGalleryPage />} />
           </Route>
         </Route>
       </Route>

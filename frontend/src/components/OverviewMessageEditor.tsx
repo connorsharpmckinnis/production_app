@@ -1,5 +1,17 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
 import {
@@ -210,46 +222,43 @@ export default function OverviewMessageEditor({
                   {settings ? ` (currently ${settings.effective_rotation_seconds}s when inheriting)` : ""}.
                   0 turns rotation off.
                 </p>
-                <div className="flex flex-wrap gap-4 text-sm">
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="rotation-mode"
-                      checked={rotationMode === "inherit"}
-                      onChange={() => setRotationMode("inherit")}
-                    />
-                    Inherit global
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="rotation-mode"
-                      checked={rotationMode === "off"}
-                      onChange={() => setRotationMode("off")}
-                    />
-                    Off (0)
-                  </label>
-                  <label className="flex items-center gap-2">
-                    <input
-                      type="radio"
-                      name="rotation-mode"
-                      checked={rotationMode === "custom"}
-                      onChange={() => setRotationMode("custom")}
-                    />
-                    Custom
-                  </label>
+                <RadioGroup
+                  value={rotationMode}
+                  onValueChange={(value) =>
+                    setRotationMode(value as "inherit" | "off" | "custom")
+                  }
+                  className="flex flex-wrap items-center gap-4"
+                >
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="inherit" id="rotation-inherit" />
+                    <Label htmlFor="rotation-inherit" className="font-normal">
+                      Inherit global
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="off" id="rotation-off" />
+                    <Label htmlFor="rotation-off" className="font-normal">
+                      Off (0)
+                    </Label>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <RadioGroupItem value="custom" id="rotation-custom" />
+                    <Label htmlFor="rotation-custom" className="font-normal">
+                      Custom
+                    </Label>
+                  </div>
                   {rotationMode === "custom" && (
-                    <input
+                    <Input
                       type="number"
                       min={ROTATION_MIN_SECONDS}
                       max={ROTATION_MAX_SECONDS}
                       value={customSeconds}
                       onChange={(e) => setCustomSeconds(e.target.value)}
-                      className="w-24 rounded-md border border-input bg-background px-2 py-1 text-sm"
+                      className="h-8 w-24"
                       aria-label="Custom rotation seconds"
                     />
                   )}
-                </div>
+                </RadioGroup>
               </div>
 
               {drafts.length === 0 ? (
@@ -268,16 +277,15 @@ export default function OverviewMessageEditor({
                           Message {index + 1}
                         </p>
                         <div className="flex flex-wrap items-center gap-3">
-                          <label className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <input
-                              type="checkbox"
+                          <Label className="flex items-center gap-2 text-sm font-normal text-muted-foreground">
+                            <Checkbox
                               checked={item.active}
-                              onChange={(e) =>
-                                updateDraft(item.key, { active: e.target.checked })
+                              onCheckedChange={(value) =>
+                                updateDraft(item.key, { active: value === true })
                               }
                             />
                             Active
-                          </label>
+                          </Label>
                           <Button
                             type="button"
                             variant="ghost"
@@ -291,28 +299,32 @@ export default function OverviewMessageEditor({
                       </div>
 
                       <div className="grid gap-2 sm:grid-cols-2">
-                        <label className="block text-sm">
-                          <span className="mb-1 block text-muted-foreground">Kind</span>
-                          <select
+                        <div className="space-y-1 text-sm">
+                          <Label className="text-muted-foreground">Kind</Label>
+                          <Select
                             value={item.kind}
-                            onChange={(e) =>
+                            onValueChange={(value) =>
                               updateDraft(item.key, {
-                                kind: e.target.value as OverviewMessageKind,
+                                kind: value as OverviewMessageKind,
                               })
                             }
-                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                           >
-                            <option value="announcement">Announcement</option>
-                            <option value="scripture">Scripture</option>
-                            <option value="encouragement">Quote</option>
-                          </select>
-                        </label>
+                            <SelectTrigger className="w-full">
+                              <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                              <SelectItem value="announcement">Announcement</SelectItem>
+                              <SelectItem value="scripture">Scripture</SelectItem>
+                              <SelectItem value="encouragement">Quote</SelectItem>
+                            </SelectContent>
+                          </Select>
+                        </div>
 
-                        <label className="block text-sm">
-                          <span className="mb-1 block text-muted-foreground">
+                        <div className="space-y-1 text-sm">
+                          <Label className="text-muted-foreground">
                             {item.kind === "scripture" ? "Citation" : "Title (optional)"}
-                          </span>
-                          <input
+                          </Label>
+                          <Input
                             value={item.title}
                             onChange={(e) => updateDraft(item.key, { title: e.target.value })}
                             placeholder={
@@ -320,20 +332,18 @@ export default function OverviewMessageEditor({
                                 ? "e.g. Philippians 4:13"
                                 : "Optional title"
                             }
-                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                           />
-                        </label>
+                        </div>
                       </div>
 
-                      <label className="block text-sm">
-                        <span className="mb-1 block text-muted-foreground">Body</span>
-                        <textarea
+                      <div className="space-y-1 text-sm">
+                        <Label className="text-muted-foreground">Body</Label>
+                        <Textarea
                           value={item.body}
                           onChange={(e) => updateDraft(item.key, { body: e.target.value })}
                           rows={2}
-                          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                         />
-                      </label>
+                      </div>
                     </li>
                   ))}
                 </ul>

@@ -9,6 +9,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
 import type { FeedbackKind } from "@/lib/types";
@@ -109,16 +111,15 @@ export default function FeedbackDialog({ open, onOpenChange }: FeedbackDialogPro
               </button>
             </div>
 
-            <input
+            <Input
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               placeholder={kind === "bug" ? "Short bug title" : "Short idea title"}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               maxLength={200}
               autoFocus
               required
             />
-            <textarea
+            <Textarea
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder={
@@ -127,7 +128,6 @@ export default function FeedbackDialog({ open, onOpenChange }: FeedbackDialogPro
                   : "What would you like to see? Why would it help?"
               }
               rows={5}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               maxLength={8000}
               required
             />

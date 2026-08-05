@@ -13,6 +13,15 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useAuth } from "@/context/AuthContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
@@ -207,26 +216,24 @@ export default function CueCategoriesPage() {
           onAction={canManagePreparation ? openCreateDialog : undefined}
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium">Name</th>
-                <th className="px-4 py-3 text-left font-medium">Description</th>
-                {canManagePreparation && (
-                  <th className="px-4 py-3 text-left font-medium">Actions</th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
+        <div className="rounded-lg border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Description</TableHead>
+                {canManagePreparation && <TableHead>Actions</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {categories.map((category) => (
-                <tr key={category.id}>
-                  <td className="px-4 py-3 font-medium">{category.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                <TableRow key={category.id}>
+                  <TableCell className="font-medium">{category.name}</TableCell>
+                  <TableCell className="text-muted-foreground">
                     {category.description ?? "—"}
-                  </td>
+                  </TableCell>
                   {canManagePreparation && (
-                    <td className="px-4 py-3">
+                    <TableCell>
                       <div className="flex gap-1">
                         <Button
                           type="button"
@@ -251,12 +258,12 @@ export default function CueCategoriesPage() {
                           <Trash2 />
                         </Button>
                       </div>
-                    </td>
+                    </TableCell>
                   )}
-                </tr>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 
@@ -278,18 +285,16 @@ export default function CueCategoriesPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-4">
-              <input
+              <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Category name (e.g. Lighting)"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 autoFocus
               />
-              <input
+              <Input
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Description (optional)"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
             <DialogFooter>

@@ -7,6 +7,16 @@ import SceneMultiSelect from "@/components/SceneMultiSelect";
 import TimelineMomentList from "@/components/TimelineMomentList";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   Sheet,
   SheetContent,
@@ -14,6 +24,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
@@ -527,27 +538,20 @@ export default function TimelinePage() {
 
       <div className="flex shrink-0 flex-col gap-1.5">
         <form onSubmit={handleSearchSubmit} className="flex flex-wrap gap-1.5">
-          <input
+          <Input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search timeline…"
             title="Filters combine with AND — all selected conditions must match."
-            className="min-w-0 flex-1 rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+            className="min-w-0 flex-1"
           />
-          <button
-            type="submit"
-            className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
-          >
+          <Button type="submit" variant="outline">
             Search
-          </button>
+          </Button>
           {hasActiveFilters && (
-            <button
-              type="button"
-              onClick={clearAllFilters}
-              className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
-            >
+            <Button type="button" variant="outline" onClick={clearAllFilters}>
               Clear filters
-            </button>
+            </Button>
           )}
         </form>
 
@@ -558,61 +562,60 @@ export default function TimelinePage() {
             onChange={scene.setSelectedSceneIds}
           />
 
-          <select
+          <Select
             value={characterFilter}
-            onChange={(e) => {
-              setCharacterFilter(e.target.value as CharacterFilterValue);
+            onValueChange={(value) => {
+              setCharacterFilter(value as CharacterFilterValue);
               setGroupFilter("all");
             }}
             disabled={groupFilter !== "all"}
-            className="rounded-md border border-input bg-background px-3 py-1.5 text-sm disabled:opacity-50"
           >
-            <option value="all">All characters</option>
-            {myCharacterIds.length > 0 && <option value="mine">My characters</option>}
-            {scene.characters.map((character) => (
-              <option key={character.id} value={String(character.id)}>
-                {character.name}
-              </option>
-            ))}
-          </select>
+            <SelectTrigger className="w-fit">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All characters</SelectItem>
+              {myCharacterIds.length > 0 && (
+                <SelectItem value="mine">My characters</SelectItem>
+              )}
+              {scene.characters.map((character) => (
+                <SelectItem key={character.id} value={String(character.id)}>
+                  {character.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
 
-          <button
-            type="button"
-            onClick={() => setAdvancedOpen((open) => !open)}
-            className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
-          >
+          <Button type="button" variant="outline" onClick={() => setAdvancedOpen((open) => !open)}>
             Advanced filters
             {advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ""}
-          </button>
+          </Button>
         </div>
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
           {canManagePreparation && (
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
+            <Label className="flex items-center gap-2 font-normal">
+              <Checkbox
                 checked={editTimeline}
-                onChange={(e) => setEditTimeline(e.target.checked)}
+                onCheckedChange={(value) => setEditTimeline(value === true)}
               />
               Edit Timeline
-            </label>
+            </Label>
           )}
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
+          <Label className="flex items-center gap-2 font-normal">
+            <Checkbox
               checked={showSequenceNumbers}
-              onChange={(e) => setShowSequenceNumbers(e.target.checked)}
+              onCheckedChange={(value) => setShowSequenceNumbers(value === true)}
             />
             Moment numbers
-          </label>
-          <label className="flex items-center gap-2">
-            <input
-              type="checkbox"
+          </Label>
+          <Label className="flex items-center gap-2 font-normal">
+            <Checkbox
               checked={showPrepBadges}
-              onChange={(e) => setShowPrepBadges(e.target.checked)}
+              onCheckedChange={(value) => setShowPrepBadges(value === true)}
             />
             Prep badges
-          </label>
+          </Label>
         </div>
 
         {advancedOpen && isMediumScreen && (
@@ -928,140 +931,157 @@ function AdvancedFiltersPanel({
       )}
     >
       {canManagePreparation && groups.length > 0 && (
-        <select
+        <Select
           value={groupFilter}
-          onChange={(e) => {
-            setGroupFilter(e.target.value as GroupFilterValue);
+          onValueChange={(value) => {
+            setGroupFilter(value as GroupFilterValue);
             setCharacterFilter("all");
           }}
-          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
         >
-          <option value="all">All groups</option>
-          {groups.map((group) => (
-            <option key={group.id} value={String(group.id)}>
-              {group.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-fit">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All groups</SelectItem>
+            {groups.map((group) => (
+              <SelectItem key={group.id} value={String(group.id)}>
+                {group.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
 
       {canManagePreparation && (
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
+        <Label className="flex items-center gap-2 text-sm font-normal">
+          <Checkbox
             checked={costumeOnly}
-            onChange={(e) => setCostumeOnly(e.target.checked)}
+            onCheckedChange={(value) => setCostumeOnly(value === true)}
           />
           Costume moments only
-        </label>
+        </Label>
       )}
 
       {canManagePreparation && (
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
+        <Label className="flex items-center gap-2 text-sm font-normal">
+          <Checkbox
             checked={entranceOnly}
-            onChange={(e) => setEntranceOnly(e.target.checked)}
+            onCheckedChange={(value) => setEntranceOnly(value === true)}
           />
           Entrance moments only
-        </label>
+        </Label>
       )}
 
       {canManagePreparation && (
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={exitOnly}
-            onChange={(e) => setExitOnly(e.target.checked)}
-          />
+        <Label className="flex items-center gap-2 text-sm font-normal">
+          <Checkbox checked={exitOnly} onCheckedChange={(value) => setExitOnly(value === true)} />
           Exit moments only
-        </label>
+        </Label>
       )}
 
       {canManagePreparation && (
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
+        <Label className="flex items-center gap-2 text-sm font-normal">
+          <Checkbox
             checked={blockingOnly}
-            onChange={(e) => setBlockingOnly(e.target.checked)}
+            onCheckedChange={(value) => setBlockingOnly(value === true)}
           />
           Blocking moments only
-        </label>
+        </Label>
       )}
 
       {canManagePreparation && (
-        <select
+        <Select
           value={blockingCharacterFilter}
-          onChange={(e) => setBlockingCharacterFilter(e.target.value as ResourceFilterValue)}
-          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+          onValueChange={(value) => setBlockingCharacterFilter(value as ResourceFilterValue)}
         >
-          <option value="all">All blocking characters</option>
-          {characters.map((character) => (
-            <option key={character.id} value={String(character.id)}>
-              Blocking: {character.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-fit">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All blocking characters</SelectItem>
+            {characters.map((character) => (
+              <SelectItem key={character.id} value={String(character.id)}>
+                Blocking: {character.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
 
       {songs.length > 0 && (
-        <select
+        <Select
           value={songFilter}
-          onChange={(e) => setSongFilter(e.target.value as ResourceFilterValue)}
-          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+          onValueChange={(value) => setSongFilter(value as ResourceFilterValue)}
         >
-          <option value="all">All songs</option>
-          {songs.map((song) => (
-            <option key={song.id} value={String(song.id)}>
-              {song.title}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-fit">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All songs</SelectItem>
+            {songs.map((song) => (
+              <SelectItem key={song.id} value={String(song.id)}>
+                {song.title}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
 
       {canManagePreparation && propsCatalog.length > 0 && (
-        <select
+        <Select
           value={propFilter}
-          onChange={(e) => setPropFilter(e.target.value as ResourceFilterValue)}
-          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+          onValueChange={(value) => setPropFilter(value as ResourceFilterValue)}
         >
-          <option value="all">All props</option>
-          {propsCatalog.map((prop) => (
-            <option key={prop.id} value={String(prop.id)}>
-              {prop.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-fit">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All props</SelectItem>
+            {propsCatalog.map((prop) => (
+              <SelectItem key={prop.id} value={String(prop.id)}>
+                {prop.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
 
       {canManagePreparation && cueCategories.length > 0 && (
-        <select
+        <Select
           value={cueCategoryFilter}
-          onChange={(e) => setCueCategoryFilter(e.target.value as ResourceFilterValue)}
-          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+          onValueChange={(value) => setCueCategoryFilter(value as ResourceFilterValue)}
         >
-          <option value="all">All cue categories</option>
-          {cueCategories.map((category) => (
-            <option key={category.id} value={String(category.id)}>
-              {category.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-fit">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All cue categories</SelectItem>
+            {cueCategories.map((category) => (
+              <SelectItem key={category.id} value={String(category.id)}>
+                {category.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
 
       {canManagePreparation && setPiecesCatalog.length > 0 && (
-        <select
+        <Select
           value={setPieceFilter}
-          onChange={(e) => setSetPieceFilter(e.target.value as ResourceFilterValue)}
-          className="rounded-md border border-input bg-background px-3 py-1.5 text-sm"
+          onValueChange={(value) => setSetPieceFilter(value as ResourceFilterValue)}
         >
-          <option value="all">All set pieces</option>
-          {setPiecesCatalog.map((piece) => (
-            <option key={piece.id} value={String(piece.id)}>
-              {piece.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="w-fit">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All set pieces</SelectItem>
+            {setPiecesCatalog.map((piece) => (
+              <SelectItem key={piece.id} value={String(piece.id)}>
+                {piece.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
     </div>
   );
@@ -1102,38 +1122,37 @@ function InsertMomentForm({
       className="mx-4 mb-3 space-y-2 rounded-md border border-dashed border-border bg-muted/30 p-3"
     >
       <p className="text-xs font-medium text-muted-foreground">Insert new moment</p>
-      <select
-        value={insertTypeId}
-        onChange={(e) => onTypeChange(e.target.value)}
-        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-      >
-        <option value="">Moment type…</option>
-        {momentTypes.map((type) => (
-          <option key={type.id} value={String(type.id)}>
-            {momentTypeLabel(type.name as MomentDetailResponse["moment_type"])}
-          </option>
-        ))}
-      </select>
-      <textarea
+      <Select value={insertTypeId} onValueChange={onTypeChange}>
+        <SelectTrigger className="w-full">
+          <SelectValue placeholder="Moment type…" />
+        </SelectTrigger>
+        <SelectContent>
+          {momentTypes.map((type) => (
+            <SelectItem key={type.id} value={String(type.id)}>
+              {momentTypeLabel(type.name as MomentDetailResponse["moment_type"])}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+      <Textarea
         value={insertText}
         onChange={(e) => onTextChange(e.target.value)}
         placeholder="Original text for new moment"
         rows={2}
-        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
       />
       {insertTypeName === "dialogue" && (
-        <select
-          value={insertCharacterId}
-          onChange={(e) => onCharacterChange(e.target.value)}
-          className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
-        >
-          <option value="">Speaking character…</option>
-          {sortedCharacters.map((character) => (
-            <option key={character.id} value={String(character.id)}>
-              {character.name}
-            </option>
-          ))}
-        </select>
+        <Select value={insertCharacterId} onValueChange={onCharacterChange}>
+          <SelectTrigger className="w-full">
+            <SelectValue placeholder="Speaking character…" />
+          </SelectTrigger>
+          <SelectContent>
+            {sortedCharacters.map((character) => (
+              <SelectItem key={character.id} value={String(character.id)}>
+                {character.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       )}
       <div className="flex gap-2">
         <Button
@@ -1143,13 +1162,9 @@ function InsertMomentForm({
         >
           Insert
         </Button>
-        <button
-          type="button"
-          onClick={onCancel}
-          className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
-        >
+        <Button type="button" variant="outline" size="sm" onClick={onCancel}>
           Cancel
-        </button>
+        </Button>
       </div>
     </form>
   );

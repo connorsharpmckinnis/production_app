@@ -13,6 +13,16 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
@@ -176,26 +186,24 @@ export default function PropsPage() {
           onAction={canManagePreparation ? openCreateDialog : undefined}
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium">Name</th>
-                <th className="px-4 py-3 text-left font-medium">Description</th>
-                <th className="px-4 py-3 text-left font-medium">Notes</th>
-                {canManagePreparation && (
-                  <th className="px-4 py-3 text-left font-medium">Actions</th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
+        <div className="rounded-lg border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Description</TableHead>
+                <TableHead>Notes</TableHead>
+                {canManagePreparation && <TableHead>Actions</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {props.map((prop) => (
-                <tr key={prop.id}>
-                  <td className="px-4 py-3 font-medium">{prop.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{prop.description ?? "—"}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{prop.notes ?? "—"}</td>
+                <TableRow key={prop.id}>
+                  <TableCell className="font-medium">{prop.name}</TableCell>
+                  <TableCell className="text-muted-foreground">{prop.description ?? "—"}</TableCell>
+                  <TableCell className="text-muted-foreground">{prop.notes ?? "—"}</TableCell>
                   {canManagePreparation && (
-                    <td className="px-4 py-3">
+                    <TableCell>
                       <div className="flex gap-1">
                         <Button
                           type="button"
@@ -220,12 +228,12 @@ export default function PropsPage() {
                           <Trash2 />
                         </Button>
                       </div>
-                    </td>
+                    </TableCell>
                   )}
-                </tr>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 
@@ -247,25 +255,22 @@ export default function PropsPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-4">
-              <input
+              <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Prop name"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 autoFocus
               />
-              <input
+              <Input
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Description (optional)"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
-              <textarea
+              <Textarea
                 value={notes}
                 onChange={(e) => setNotes(e.target.value)}
                 placeholder="Notes (optional)"
                 rows={2}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
             <DialogFooter>

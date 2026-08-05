@@ -5,6 +5,7 @@ import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import CatalogCsvImport from "@/components/CatalogCsvImport";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -13,6 +14,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
@@ -176,30 +188,28 @@ export default function SetPiecesPage() {
           onAction={canManagePreparation ? openCreateDialog : undefined}
         />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-border">
-          <table className="w-full text-sm">
-            <thead className="border-b border-border bg-muted/50">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium">Name</th>
-                <th className="px-4 py-3 text-left font-medium">Mobile</th>
-                <th className="px-4 py-3 text-left font-medium">Description</th>
-                {canManagePreparation && (
-                  <th className="px-4 py-3 text-left font-medium">Actions</th>
-                )}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
+        <div className="rounded-lg border border-border">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Name</TableHead>
+                <TableHead>Mobile</TableHead>
+                <TableHead>Description</TableHead>
+                {canManagePreparation && <TableHead>Actions</TableHead>}
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {setPieces.map((piece) => (
-                <tr key={piece.id}>
-                  <td className="px-4 py-3 font-medium">{piece.name}</td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                <TableRow key={piece.id}>
+                  <TableCell className="font-medium">{piece.name}</TableCell>
+                  <TableCell className="text-muted-foreground">
                     {piece.mobile ? "Yes" : "No"}
-                  </td>
-                  <td className="px-4 py-3 text-muted-foreground">
+                  </TableCell>
+                  <TableCell className="text-muted-foreground">
                     {piece.description ?? "—"}
-                  </td>
+                  </TableCell>
                   {canManagePreparation && (
-                    <td className="px-4 py-3">
+                    <TableCell>
                       <div className="flex gap-1">
                         <Button
                           type="button"
@@ -224,12 +234,12 @@ export default function SetPiecesPage() {
                           <Trash2 />
                         </Button>
                       </div>
-                    </td>
+                    </TableCell>
                   )}
-                </tr>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
+            </TableBody>
+          </Table>
         </div>
       )}
 
@@ -251,27 +261,24 @@ export default function SetPiecesPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-4">
-              <input
+              <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Set piece name"
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 autoFocus
               />
-              <label className="flex items-center gap-2 text-sm">
-                <input
-                  type="checkbox"
+              <Label className="font-normal">
+                <Checkbox
                   checked={mobile}
-                  onChange={(e) => setMobile(e.target.checked)}
+                  onCheckedChange={(v) => setMobile(v === true)}
                 />
                 Mobile (can be moved between moments)
-              </label>
-              <textarea
+              </Label>
+              <Textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Description (optional)"
                 rows={2}
-                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
               />
             </div>
             <DialogFooter>

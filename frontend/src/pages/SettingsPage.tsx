@@ -4,6 +4,10 @@ import AnnouncementManager from "@/components/AnnouncementManager";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
 import {
@@ -150,37 +154,37 @@ export default function SettingsPage() {
       {settings && (
         <section className="space-y-4 rounded-lg border border-border p-4">
           <h2 className="text-sm font-medium">Display</h2>
-          <label className="flex items-start gap-3">
-            <input
-              type="checkbox"
+          <div className="flex items-start gap-3">
+            <Switch
+              id="show-original-text"
+              className="mt-0.5"
               checked={settings.show_original_text}
               disabled={saving}
-              onChange={(e) => void handleToggle("show_original_text", e.target.checked)}
-              className="mt-1"
+              onCheckedChange={(value) => void handleToggle("show_original_text", value)}
             />
-            <span>
+            <Label htmlFor="show-original-text" className="block items-start font-normal">
               <span className="block text-sm font-medium">Show original text</span>
-              <span className="block text-sm text-muted-foreground">
+              <span className="mt-1 block text-sm font-normal text-muted-foreground">
                 Display imported script text in moment detail panels.
               </span>
-            </span>
-          </label>
+            </Label>
+          </div>
 
-          <label className="flex items-start gap-3">
-            <input
-              type="checkbox"
+          <div className="flex items-start gap-3">
+            <Switch
+              id="show-parsed-text"
+              className="mt-0.5"
               checked={settings.show_parsed_text}
               disabled={saving}
-              onChange={(e) => void handleToggle("show_parsed_text", e.target.checked)}
-              className="mt-1"
+              onCheckedChange={(value) => void handleToggle("show_parsed_text", value)}
             />
-            <span>
+            <Label htmlFor="show-parsed-text" className="block items-start font-normal">
               <span className="block text-sm font-medium">Show imported text</span>
-              <span className="block text-sm text-muted-foreground">
+              <span className="mt-1 block text-sm font-normal text-muted-foreground">
                 Display imported script text overrides in moment detail panels.
               </span>
-            </span>
-          </label>
+            </Label>
+          </div>
         </section>
       )}
 
@@ -194,17 +198,20 @@ export default function SettingsPage() {
             </p>
           </div>
           <div className="flex flex-wrap items-end gap-3">
-            <label className="block text-sm">
-              <span className="mb-1 block text-muted-foreground">Seconds between lines</span>
-              <input
+            <div className="space-y-2">
+              <Label htmlFor="rotation-seconds" className="text-muted-foreground">
+                Seconds between lines
+              </Label>
+              <Input
+                id="rotation-seconds"
                 type="number"
                 min={0}
                 max={ROTATION_MAX_SECONDS}
                 value={rotationInput}
                 onChange={(e) => setRotationInput(e.target.value)}
-                className="w-28 rounded-md border border-input bg-background px-3 py-2 text-sm"
+                className="w-28"
               />
-            </label>
+            </div>
             <Button type="button" disabled={saving} onClick={() => void handleSaveRotation()}>
               Save interval
             </Button>
@@ -213,16 +220,19 @@ export default function SettingsPage() {
             Allowed: 0 (off — show first line only) or {ROTATION_MIN_SECONDS}–
             {ROTATION_MAX_SECONDS}.
           </p>
-          <label className="block text-sm">
-            <span className="mb-1 block text-muted-foreground">Messages (one per line)</span>
-            <textarea
+          <div className="space-y-2">
+            <Label htmlFor="rotating-messages" className="text-muted-foreground">
+              Messages (one per line)
+            </Label>
+            <Textarea
+              id="rotating-messages"
               value={quotesText}
               onChange={(e) => setQuotesText(e.target.value)}
               rows={10}
               placeholder={"Blank stage — import a script and let's get rolling.\nGood start — the bones are there."}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm leading-relaxed"
+              className="leading-relaxed"
             />
-          </label>
+          </div>
           <Button
             type="button"
             disabled={savingQuotes}
@@ -237,6 +247,16 @@ export default function SettingsPage() {
 
       <div className="rounded-lg border border-border p-4">
         <ThemeToggle />
+      </div>
+
+      <div className="rounded-lg border border-border p-4">
+        <h2 className="text-sm font-medium">Developer</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          Review shared UI primitives across theme modes.
+        </p>
+        <Button type="button" variant="outline" className="mt-3" asChild>
+          <Link to="/dev/ui">Open component gallery</Link>
+        </Button>
       </div>
     </div>
   );

@@ -8,6 +8,8 @@
 
 **Progress (2026-07-12 share-prep passes):** Most **P0** and a large **P1** set shipped (dialogs for users/groups/catalogs, filter chips, reports TOC + clickable moments + print, import drag-drop, skeletons, localStorage presets, shell polish, DEMO_WALKTHROUGH). Remaining P1/P2 are thinner polish. See checkmarks below.
 
+**Progress (2026-08-04):** WP0/WP1 design-system pass — expanded shadcn primitives, `/dev/ui` gallery, SearchableSelect/Toast polish, form/catalog migration.
+
 ---
 
 ## How to use this list
@@ -121,8 +123,8 @@ Timeline already uses Lucide icon buttons for structural actions, bookmark, deta
 ## P2 — Consistency & smaller wins
 
 ### Component consistency
-- Only a few shadcn primitives exist today (`button`, `badge`, `sheet`). Add **AlertDialog**, **Dialog**, **Select**, **Input**, **Table**, **Toast** and migrate raw `<button>` / `<select>` / `<input>` toward them. *(AlertDialog + Dialog + Skeleton + lightweight Toast provider shipped; Select/Input/Table still open.)*
-- Primary actions should consistently use the shared `Button` component (many pages still hand-roll Tailwind buttons).
+- ~~Only a few shadcn primitives exist today (`button`, `badge`, `sheet`). Add **AlertDialog**, **Dialog**, **Select**, **Input**, **Table**, **Toast** and migrate raw `<button>` / `<select>` / `<input>` toward them.~~ **Done 2026-08-04:** Added `Input`, `Label`, `Textarea`, `Checkbox`, `Switch`, `RadioGroup`, `Select`, `Table`; polished `SearchableSelect` + Toast; migrated catalogs/forms/login/settings/moment panel/timeline/rehearse. Admin review gallery at `/dev/ui`. Remaining WP2: replace leftover raw `<button>`s in shell/chrome with `Button` where appropriate.
+- Primary actions should consistently use the shared `Button` component (many pages still hand-roll Tailwind buttons). *(Partial — forms/catalogs done; shell/chrome leftover raw buttons are WP2.)*
 - Groups always shows the create form; other catalogs toggle `showAddForm` — pick one pattern. *(Catalogs now use Dialog; Groups still inline create.)*
 - Characters “Add character manually” styling differs from other “Add …” primaries.
 - Songs: no Delete in UI; Characters: limited rename/delete — decide intentional vs gap.

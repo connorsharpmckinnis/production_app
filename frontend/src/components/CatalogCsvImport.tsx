@@ -8,6 +8,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
 import {
@@ -181,9 +183,7 @@ export default function CatalogCsvImport({
             )}
 
             <div className="space-y-2">
-              <label htmlFor={fileInputId} className="text-sm font-medium">
-                CSV file
-              </label>
+              <Label htmlFor={fileInputId}>CSV file</Label>
               <div
                 role="button"
                 tabIndex={0}
@@ -215,7 +215,7 @@ export default function CatalogCsvImport({
                   </p>
                 )}
               </div>
-              <input
+              <Input
                 ref={fileInputRef}
                 id={fileInputId}
                 type="file"

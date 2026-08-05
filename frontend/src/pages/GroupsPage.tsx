@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
@@ -12,6 +13,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
@@ -152,11 +155,11 @@ export default function GroupsPage() {
       )}
 
       <form onSubmit={(e) => void handleCreateGroup(e)} className="flex flex-wrap gap-2">
-        <input
+        <Input
           value={newName}
           onChange={(e) => setNewName(e.target.value)}
           placeholder="Group name (e.g. Ensemble)"
-          className="rounded-md border border-input bg-background px-3 py-2 text-sm"
+          className="w-64"
         />
         <Button type="submit">Create group</Button>
       </form>
@@ -225,12 +228,11 @@ export default function GroupsPage() {
           </DialogHeader>
 
           <div className="space-y-4">
-            <input
+            <Input
               type="search"
               value={memberSearch}
               onChange={(e) => setMemberSearch(e.target.value)}
               placeholder="Search characters and actors…"
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
             />
 
             <div>
@@ -242,20 +244,19 @@ export default function GroupsPage() {
               ) : (
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   {filteredCharacters.map((character) => (
-                    <label key={character.id} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
+                    <Label key={character.id} className="font-normal">
+                      <Checkbox
                         checked={selectedCharacterIds.includes(character.id)}
-                        onChange={(e) => {
+                        onCheckedChange={(checked) => {
                           setSelectedCharacterIds((prev) =>
-                            e.target.checked
+                            checked === true
                               ? [...prev, character.id]
                               : prev.filter((id) => id !== character.id),
                           );
                         }}
                       />
                       {character.name}
-                    </label>
+                    </Label>
                   ))}
                 </div>
               )}
@@ -273,20 +274,19 @@ export default function GroupsPage() {
               ) : (
                 <div className="mt-2 grid gap-2 sm:grid-cols-2">
                   {filteredUsers.map((user) => (
-                    <label key={user.id} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
+                    <Label key={user.id} className="font-normal">
+                      <Checkbox
                         checked={selectedUserIds.includes(user.id)}
-                        onChange={(e) => {
+                        onCheckedChange={(checked) => {
                           setSelectedUserIds((prev) =>
-                            e.target.checked
+                            checked === true
                               ? [...prev, user.id]
                               : prev.filter((id) => id !== user.id),
                           );
                         }}
                       />
                       {user.display_name}
-                    </label>
+                    </Label>
                   ))}
                 </div>
               )}

@@ -1,6 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { api, formatApiError } from "@/lib/api";
 
 export default function CreateProductionPage() {
@@ -45,30 +47,26 @@ export default function CreateProductionPage() {
         )}
 
         <div className="space-y-2">
-          <label htmlFor="title" className="text-sm font-medium">
+          <Label htmlFor="title">
             Title <span className="text-destructive">*</span>
-          </label>
-          <input
+          </Label>
+          <Input
             id="title"
             type="text"
             required
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
 
         <div className="space-y-2">
-          <label htmlFor="season" className="text-sm font-medium">
-            Season
-          </label>
-          <input
+          <Label htmlFor="season">Season</Label>
+          <Input
             id="season"
             type="text"
             value={season}
             onChange={(e) => setSeason(e.target.value)}
             placeholder="e.g. Spring 2026"
-            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-ring"
           />
         </div>
 
