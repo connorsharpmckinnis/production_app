@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import SearchableSelect from "@/components/SearchableSelect";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -125,6 +126,9 @@ export default function ComponentGalleryPage() {
           <Button type="button" variant="ghost">
             Ghost
           </Button>
+          <Button type="button" variant="success">
+            Success
+          </Button>
           <Button type="button" variant="destructive">
             Destructive
           </Button>
@@ -148,7 +152,31 @@ export default function ComponentGalleryPage() {
           <Badge>Default</Badge>
           <Badge variant="secondary">Secondary</Badge>
           <Badge variant="outline">Outline</Badge>
+          <Badge variant="info">Info</Badge>
+          <Badge variant="success">Success</Badge>
+          <Badge variant="warning">Warning</Badge>
           <Badge variant="destructive">Destructive</Badge>
+        </div>
+      </Section>
+
+      <Section title="Alerts" description="Semantic feedback follows the active palette.">
+        <div className="space-y-3">
+          <Alert variant="info">
+            <AlertTitle>Information</AlertTitle>
+            <AlertDescription>A neutral message that needs attention.</AlertDescription>
+          </Alert>
+          <Alert variant="success">
+            <AlertTitle>Success</AlertTitle>
+            <AlertDescription>The changes were saved successfully.</AlertDescription>
+          </Alert>
+          <Alert variant="warning">
+            <AlertTitle>Warning</AlertTitle>
+            <AlertDescription>Review this item before continuing.</AlertDescription>
+          </Alert>
+          <Alert variant="destructive">
+            <AlertTitle>Error</AlertTitle>
+            <AlertDescription>Something went wrong and needs correction.</AlertDescription>
+          </Alert>
         </div>
       </Section>
 
@@ -253,7 +281,7 @@ export default function ComponentGalleryPage() {
 
       <Section title="Table">
         <div className="rounded-lg border border-border">
-          <Table>
+          <Table storageKey="component-gallery">
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
@@ -311,7 +339,11 @@ export default function ComponentGalleryPage() {
           <Button type="button" onClick={() => toast.message("Heads up", "Neutral toast")}>
             Toast
           </Button>
-          <Button type="button" onClick={() => toast.success("Saved", "Changes applied")}>
+          <Button
+            type="button"
+            variant="success"
+            onClick={() => toast.success("Saved", "Changes applied")}
+          >
             Success toast
           </Button>
           <Button

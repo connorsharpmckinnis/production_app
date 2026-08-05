@@ -40,8 +40,8 @@ const VARIANT_STYLES: Record<
   },
   success: {
     icon: CheckCircle2Icon,
-    className: "border-emerald-500/35 bg-emerald-500/5",
-    iconClassName: "text-emerald-600 dark:text-emerald-400",
+    className: "border-success/40 bg-success/10",
+    iconClassName: "text-success",
   },
   error: {
     icon: CircleAlertIcon,

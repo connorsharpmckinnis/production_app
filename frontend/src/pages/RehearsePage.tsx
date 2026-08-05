@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import MomentDetailSheet from "@/components/MomentDetailSheet";
 import SceneMultiSelect from "@/components/SceneMultiSelect";
 import TimelineMomentList, { type TimelineSection } from "@/components/TimelineMomentList";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -204,9 +205,9 @@ export default function RehearsePage() {
       </div>
 
       {scene.error && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {scene.error}
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{scene.error}</AlertDescription>
+        </Alert>
       )}
 
       <div className="flex shrink-0 flex-col gap-1.5 lg:flex-row lg:items-end lg:justify-between">
@@ -224,7 +225,7 @@ export default function RehearsePage() {
               handlePresetChange(value as Exclude<RehearsePresetId, "custom">);
             }}
           >
-            <SelectTrigger className="w-fit">
+            <SelectTrigger className="w-fit" aria-label="Rehearsal preset">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>

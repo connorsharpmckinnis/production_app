@@ -80,40 +80,32 @@ function CtaButtons({
       {ctas.map((cta) => {
         if (cta.kind === "external") {
           return (
-            <a
+            <Button
               key={cta.id}
-              href={cta.target}
-              target="_blank"
-              rel="noopener noreferrer"
-              className={cn(
-                "inline-flex items-center rounded-md px-3 py-1.5 text-sm font-medium",
-                cta.style === "primary"
-                  ? "bg-primary text-primary-foreground"
-                  : "border border-border hover:bg-muted",
-              )}
+              size="sm"
+              variant={cta.style === "primary" ? "default" : "outline"}
+              asChild
             >
-              {cta.label}
-              <span className="sr-only"> (opens in new tab)</span>
-            </a>
+              <a href={cta.target} target="_blank" rel="noopener noreferrer">
+                {cta.label}
+                <span className="sr-only"> (opens in new tab)</span>
+              </a>
+            </Button>
           );
         }
         return (
-          <button
+          <Button
             key={cta.id}
             type="button"
-            className={cn(
-              "inline-flex items-center rounded-md px-3 py-1.5 text-sm font-medium",
-              cta.style === "primary"
-                ? "bg-primary text-primary-foreground"
-                : "border border-border hover:bg-muted",
-            )}
+            size="sm"
+            variant={cta.style === "primary" ? "default" : "outline"}
             onClick={() => {
               onNavigate?.();
               void navigate(cta.target);
             }}
           >
             {cta.label}
-          </button>
+          </Button>
         );
       })}
     </div>
@@ -195,9 +187,11 @@ export function NotificationBell() {
 
   return (
     <div className="relative">
-      <button
+      <Button
         type="button"
-        className="relative rounded-md p-2 text-muted-foreground hover:bg-muted hover:text-foreground"
+        variant="ghost"
+        size="icon"
+        className="relative text-muted-foreground"
         aria-label={
           unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"
         }
@@ -209,7 +203,7 @@ export function NotificationBell() {
             {badgeLabel}
           </span>
         )}
-      </button>
+      </Button>
 
       {panelOpen && (
         <>
@@ -223,13 +217,15 @@ export function NotificationBell() {
             <div className="flex items-center justify-between border-b border-border px-3 py-2">
               <h2 className="text-sm font-medium">Notifications</h2>
               {unreadCount > 0 && (
-                <button
+                <Button
                   type="button"
-                  className="text-xs text-muted-foreground hover:text-foreground"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 px-2 text-xs text-muted-foreground"
                   onClick={() => void markAllRead()}
                 >
                   Mark all read
-                </button>
+                </Button>
               )}
             </div>
             {error && (
@@ -252,9 +248,10 @@ export function NotificationBell() {
                         unread && "bg-muted/40",
                       )}
                     >
-                      <button
+                      <Button
                         type="button"
-                        className="w-full px-3 py-2.5 text-left hover:bg-muted/60"
+                        variant="ghost"
+                        className="h-auto w-full justify-start rounded-none px-3 py-2.5 text-left font-normal hover:bg-muted/60"
                         onClick={() => {
                           setExpandedId(expanded ? null : item.id);
                           if (unread) void markRead(item.id);
@@ -279,7 +276,7 @@ export function NotificationBell() {
                             {item.body}
                           </p>
                         )}
-                      </button>
+                      </Button>
                       {expanded && (
                         <div className="px-3 pb-3">
                           <CtaButtons
@@ -287,16 +284,18 @@ export function NotificationBell() {
                             onNavigate={() => setPanelOpen(false)}
                           />
                           {item.deep_link && item.ctas.length === 0 && (
-                            <button
+                            <Button
                               type="button"
-                              className="mt-2 text-sm font-medium text-primary hover:underline"
+                              variant="link"
+                              size="sm"
+                              className="mt-2 h-auto p-0"
                               onClick={() => {
                                 setPanelOpen(false);
                                 void navigate(item.deep_link!);
                               }}
                             >
                               Open
-                            </button>
+                            </Button>
                           )}
                         </div>
                       )}

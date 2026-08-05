@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -41,9 +42,9 @@ export default function CreateProductionPage() {
 
       <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-border bg-card p-6">
         {error && (
-          <div className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {error}
-          </div>
+          <Alert variant="destructive">
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
         )}
 
         <div className="space-y-2">
@@ -74,12 +75,9 @@ export default function CreateProductionPage() {
           <Button type="submit" disabled={submitting}>
             {submitting ? "Creating…" : "Create Production"}
           </Button>
-          <Link
-            to="/productions"
-            className="rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
-          >
-            Cancel
-          </Link>
+          <Button type="button" variant="outline" asChild>
+            <Link to="/productions">Cancel</Link>
+          </Button>
         </div>
       </form>
     </div>

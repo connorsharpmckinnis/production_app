@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from "react";
 import { Circle, KeyRound, UserX } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -156,9 +157,9 @@ export default function UsersPage() {
       </div>
 
       {error && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       <Dialog open={createDialogOpen} onOpenChange={(open) => !open && closeCreateDialog()}>
@@ -283,7 +284,7 @@ export default function UsersPage() {
         />
       ) : (
         <div className="rounded-lg border border-border">
-          <Table>
+          <Table storageKey="users">
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
@@ -302,11 +303,14 @@ export default function UsersPage() {
                   <TableCell className="text-muted-foreground">{user.username}</TableCell>
                   <TableCell>{user.roles.join(", ")}</TableCell>
                   <TableCell>
-                    <Badge variant="outline" className="gap-1.5">
+                    <Badge
+                      variant={user.is_active ? "success" : "outline"}
+                      className="gap-1.5"
+                    >
                       <Circle
                         className={
                           user.is_active
-                            ? "fill-green-600 text-green-600"
+                            ? "fill-current"
                             : "fill-muted-foreground text-muted-foreground"
                         }
                         aria-hidden

@@ -166,7 +166,7 @@ Use shadcn/ui throughout ([DEVELOPMENT_GUIDE](../.agents/skills/DEVELOPMENT_GUID
 | Forms | `Input`, `Label`, `Textarea`, `Button`, `Select` / `SearchableSelect` |
 | Toggles | `Checkbox`, `Switch`, `RadioGroup` |
 | File upload | `Input type="file"` + `Button` |
-| Errors | bordered alert div (destructive colors) |
+| Feedback / errors | `Alert` (`info`, `success`, `warning`, `destructive`) |
 | Timeline rows | scrollable list + custom row |
 | Moment type badge | `Badge` |
 | Prop/Cue/Mic/Set/Costume indicator | `Badge variant="outline"` |
@@ -175,6 +175,22 @@ Use shadcn/ui throughout ([DEVELOPMENT_GUIDE](../.agents/skills/DEVELOPMENT_GUID
 | Navigation | sidebar `nav` links |
 | Toasts | `ToastProvider` / `useToast` |
 | Component review | Admin `/dev/ui` gallery |
+
+### Data tables
+
+* Columns are resizable from the right edge of each column header. Keyboard users can focus the resize separator and use the left/right arrow keys.
+* Column widths persist in local browser storage for that table.
+* Cell and header content truncates when it exceeds the column width. Hovering truncated content for 500 ms shows the full value.
+* Tables remain horizontally scrollable when their resized columns exceed the available page width.
+
+Semantic action colors:
+
+* Default/primary — normal actions and navigation.
+* Success — positive confirmations and completed actions (`Button` / `Badge` `variant="success"`).
+* Info — contextual notices that are neither positive nor warnings.
+* Warning — cautionary states that need review.
+* Destructive — dangerous, failed, or irreversible actions.
+* Use semantic tokens (`info`, `success`, `warning`, `destructive`) rather than hard-coded color utilities so every palette supplies its own color.
 
 ---
 

@@ -136,7 +136,7 @@ export default function SearchableSelect({
                   aria-selected={value === ""}
                   onClick={() => selectValue("")}
                   className={cn(
-                    "relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-2 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground",
+                    "relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-2 text-left text-sm outline-none select-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground",
                     value === "" && "bg-accent text-accent-foreground",
                   )}
                 >
@@ -160,7 +160,7 @@ export default function SearchableSelect({
                       aria-selected={isSelected}
                       onClick={() => selectValue(option.value)}
                       className={cn(
-                        "relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-2 text-left text-sm outline-hidden select-none hover:bg-accent hover:text-accent-foreground",
+                        "relative flex w-full cursor-default items-center gap-2 rounded-sm py-1.5 pr-2 pl-2 text-left text-sm outline-none select-none hover:bg-accent hover:text-accent-foreground focus-visible:bg-accent focus-visible:text-accent-foreground",
                         isSelected && "bg-accent text-accent-foreground",
                       )}
                     >

@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ChevronRight, Trash2 } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -87,9 +88,9 @@ export default function ProductionListPage() {
       </div>
 
       {error && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {productions.length === 0 ? (
@@ -111,7 +112,7 @@ export default function ProductionListPage() {
         />
       ) : (
         <div className="rounded-lg border border-border">
-          <Table>
+          <Table storageKey="productions">
             <TableHeader>
               <TableRow>
                 <TableHead>Title</TableHead>

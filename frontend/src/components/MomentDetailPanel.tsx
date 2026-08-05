@@ -129,7 +129,7 @@ function KindToggle({
         disabled={disabled}
         onClick={() => onChange("on")}
         className={cn(
-          "rounded-sm px-3 py-1.5 text-sm transition-colors disabled:opacity-50",
+          "rounded-sm px-3 py-1.5 text-sm outline-none transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50",
           value === "on" ? "bg-primary text-primary-foreground" : "hover:bg-muted",
         )}
       >
@@ -140,7 +140,7 @@ function KindToggle({
         disabled={disabled}
         onClick={() => onChange("off")}
         className={cn(
-          "rounded-sm px-3 py-1.5 text-sm transition-colors disabled:opacity-50",
+          "rounded-sm px-3 py-1.5 text-sm outline-none transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50",
           value === "off" ? "bg-primary text-primary-foreground" : "hover:bg-muted",
         )}
       >
@@ -1188,7 +1188,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             <button
               type="button"
               onClick={() => setAddSectionExpanded((open) => !open)}
-              className="flex w-full items-center justify-between gap-2 text-left"
+              className="flex w-full items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
               aria-expanded={addSectionExpanded}
             >
               <span className="text-sm font-medium">Add to moment</span>
@@ -1216,7 +1216,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                       aria-pressed={selected}
                       onClick={() => selectAttachmentType(option.value)}
                       className={cn(
-                        "flex flex-col items-center gap-1 rounded-md border px-1.5 py-2 text-[10px] font-medium transition-colors",
+                        "flex flex-col items-center gap-1 rounded-md border px-1.5 py-2 text-[10px] font-medium outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
                         selected
                           ? "border-primary bg-primary/10 text-foreground"
                           : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -1766,7 +1766,7 @@ function AttachmentSection({
       <button
         type="button"
         onClick={() => setExpanded((open) => !open)}
-        className="flex w-full items-center justify-between gap-2 text-left"
+        className="flex w-full items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
       >
         <h3 className="text-sm font-medium">{title}</h3>
         <span className="text-xs text-muted-foreground">
@@ -1908,7 +1908,7 @@ function AssetEventSection({
       <button
         type="button"
         onClick={() => setExpanded((open) => !open)}
-        className="flex w-full items-center justify-between gap-2 text-left"
+        className="flex w-full items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
       >
         <h3 className="text-sm font-medium">{title}</h3>
         <span className="text-xs text-muted-foreground">
@@ -2245,7 +2245,7 @@ function CostumeEventSection({
       <button
         type="button"
         onClick={() => setExpanded((open) => !open)}
-        className="flex w-full items-center justify-between gap-2 text-left"
+        className="flex w-full items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
       >
         <h3 className="text-sm font-medium">Costumes</h3>
         <span className="text-xs text-muted-foreground">

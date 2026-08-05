@@ -13,9 +13,9 @@ export function productionIdFromPath(pathname: string): number | null {
 }
 
 export const SEVERITY_BANNER_CLASSES: Record<string, string> = {
-  info: "border-sky-500/40 bg-sky-500/10 text-foreground",
-  success: "border-emerald-500/40 bg-emerald-500/10 text-foreground",
-  warning: "border-amber-500/40 bg-amber-500/10 text-foreground",
+  info: "border-info/40 bg-info/10 text-foreground",
+  success: "border-success/40 bg-success/10 text-foreground",
+  warning: "border-warning/40 bg-warning/10 text-foreground",
   urgent: "border-destructive/40 bg-destructive/10 text-foreground",
 };
 

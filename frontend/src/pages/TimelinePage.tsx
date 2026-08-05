@@ -5,6 +5,7 @@ import EmptyState from "@/components/EmptyState";
 import MomentDetailSheet from "@/components/MomentDetailSheet";
 import SceneMultiSelect from "@/components/SceneMultiSelect";
 import TimelineMomentList from "@/components/TimelineMomentList";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -531,9 +532,9 @@ export default function TimelinePage() {
       </div>
 
       {scene.error && (
-        <div className="shrink-0 rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {scene.error}
-        </div>
+        <Alert variant="destructive" className="shrink-0">
+          <AlertDescription>{scene.error}</AlertDescription>
+        </Alert>
       )}
 
       <div className="flex shrink-0 flex-col gap-1.5">
@@ -570,7 +571,7 @@ export default function TimelinePage() {
             }}
             disabled={groupFilter !== "all"}
           >
-            <SelectTrigger className="w-fit">
+            <SelectTrigger className="w-fit" aria-label="Filter by character">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -710,13 +711,15 @@ export default function TimelinePage() {
                 </Button>
               </Badge>
             ))}
-            <button
+            <Button
               type="button"
+              variant="link"
+              size="sm"
               onClick={clearAllFilters}
-              className="text-xs text-muted-foreground hover:text-foreground"
+              className="h-auto px-0 text-xs text-muted-foreground hover:text-foreground"
             >
               Clear all
-            </button>
+            </Button>
           </div>
         )}
       </div>
@@ -810,18 +813,20 @@ export default function TimelinePage() {
                       onCancel={resetInsertForm}
                     />
                   ) : (
-                    <button
+                    <Button
                       type="button"
+                      variant="link"
+                      size="sm"
                       disabled={structuralSaving}
                       onClick={() => {
                         resetInsertForm();
                         setInsertAtEnd(true);
                         setInsertSceneId(scene.selectedSceneId);
                       }}
-                      className="text-sm text-primary hover:underline disabled:opacity-50"
+                      className="h-auto px-0"
                     >
                       + Insert moment at end of scene
-                    </button>
+                    </Button>
                   )}
                 </li>
               ) : undefined
@@ -938,7 +943,7 @@ function AdvancedFiltersPanel({
             setCharacterFilter("all");
           }}
         >
-          <SelectTrigger className="w-fit">
+          <SelectTrigger className="w-fit" aria-label="Filter by group">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -994,7 +999,7 @@ function AdvancedFiltersPanel({
           value={blockingCharacterFilter}
           onValueChange={(value) => setBlockingCharacterFilter(value as ResourceFilterValue)}
         >
-          <SelectTrigger className="w-fit">
+          <SelectTrigger className="w-fit" aria-label="Filter by blocking character">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -1013,7 +1018,7 @@ function AdvancedFiltersPanel({
           value={songFilter}
           onValueChange={(value) => setSongFilter(value as ResourceFilterValue)}
         >
-          <SelectTrigger className="w-fit">
+          <SelectTrigger className="w-fit" aria-label="Filter by song">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -1032,7 +1037,7 @@ function AdvancedFiltersPanel({
           value={propFilter}
           onValueChange={(value) => setPropFilter(value as ResourceFilterValue)}
         >
-          <SelectTrigger className="w-fit">
+          <SelectTrigger className="w-fit" aria-label="Filter by prop">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -1051,7 +1056,7 @@ function AdvancedFiltersPanel({
           value={cueCategoryFilter}
           onValueChange={(value) => setCueCategoryFilter(value as ResourceFilterValue)}
         >
-          <SelectTrigger className="w-fit">
+          <SelectTrigger className="w-fit" aria-label="Filter by cue category">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -1070,7 +1075,7 @@ function AdvancedFiltersPanel({
           value={setPieceFilter}
           onValueChange={(value) => setSetPieceFilter(value as ResourceFilterValue)}
         >
-          <SelectTrigger className="w-fit">
+          <SelectTrigger className="w-fit" aria-label="Filter by set piece">
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
@@ -1123,7 +1128,7 @@ function InsertMomentForm({
     >
       <p className="text-xs font-medium text-muted-foreground">Insert new moment</p>
       <Select value={insertTypeId} onValueChange={onTypeChange}>
-        <SelectTrigger className="w-full">
+        <SelectTrigger className="w-full" aria-label="Moment type">
           <SelectValue placeholder="Moment type…" />
         </SelectTrigger>
         <SelectContent>
@@ -1142,7 +1147,7 @@ function InsertMomentForm({
       />
       {insertTypeName === "dialogue" && (
         <Select value={insertCharacterId} onValueChange={onCharacterChange}>
-          <SelectTrigger className="w-full">
+          <SelectTrigger className="w-full" aria-label="Speaking character">
             <SelectValue placeholder="Speaking character…" />
           </SelectTrigger>
           <SelectContent>

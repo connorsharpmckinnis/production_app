@@ -334,9 +334,11 @@ export default function AnnouncementManager({ productionId }: Props) {
                     <span>
                       {cta.label} → {cta.target} ({cta.kind})
                     </span>
-                    <button
+                    <Button
                       type="button"
-                      className="text-xs hover:text-foreground"
+                      variant="ghost"
+                      size="xs"
+                      className="h-auto px-1 text-xs"
                       onClick={() =>
                         setForm((prev) => ({
                           ...prev,
@@ -345,7 +347,7 @@ export default function AnnouncementManager({ productionId }: Props) {
                       }
                     >
                       Remove
-                    </button>
+                    </Button>
                   </li>
                 ))}
               </ul>

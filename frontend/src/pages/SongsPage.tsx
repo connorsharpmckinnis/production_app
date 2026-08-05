@@ -4,6 +4,7 @@ import { Pencil } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import CatalogCsvImport from "@/components/CatalogCsvImport";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -141,9 +143,9 @@ export default function SongsPage() {
       </div>
 
       {error && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {canManagePreparation && (
@@ -168,7 +170,7 @@ export default function SongsPage() {
         />
       ) : (
         <div className="rounded-lg border border-border">
-          <Table>
+          <Table storageKey="songs">
             <TableHeader>
               <TableRow>
                 <TableHead>Title</TableHead>
@@ -223,31 +225,47 @@ export default function SongsPage() {
             </DialogHeader>
             <div className="space-y-3 py-4">
               {!editingSong && (
-                <Input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Song title"
-                  autoFocus
-                />
+                <div className="space-y-2">
+                  <Label htmlFor="song-title">Title</Label>
+                  <Input
+                    id="song-title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Song title"
+                    autoFocus
+                  />
+                </div>
               )}
-              <Input
-                value={composer}
-                onChange={(e) => setComposer(e.target.value)}
-                placeholder="Composer (optional)"
-                autoFocus={!!editingSong}
-              />
-              <Input
-                value={lyricist}
-                onChange={(e) => setLyricist(e.target.value)}
-                placeholder="Lyricist (optional)"
-              />
-              {editingSong && (
-                <Textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  placeholder="Description (optional)"
-                  rows={2}
+              <div className="space-y-2">
+                <Label htmlFor="song-composer">Composer</Label>
+                <Input
+                  id="song-composer"
+                  value={composer}
+                  onChange={(e) => setComposer(e.target.value)}
+                  placeholder="Optional"
+                  autoFocus={!!editingSong}
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="song-lyricist">Lyricist</Label>
+                <Input
+                  id="song-lyricist"
+                  value={lyricist}
+                  onChange={(e) => setLyricist(e.target.value)}
+                  placeholder="Optional"
+                />
+              </div>
+              {editingSong && (
+                <div className="space-y-2">
+                  <Label htmlFor="song-description">Description</Label>
+                  <Textarea
+                    id="song-description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    placeholder="Optional"
+                    rows={2}
+                  />
+                </div>
               )}
             </div>
             <DialogFooter>

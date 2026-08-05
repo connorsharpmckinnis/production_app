@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, formatApiError } from "@/lib/api";
 import { humanTimelinePath } from "@/lib/timelineDeepLinks";
@@ -114,13 +116,14 @@ export default function ReportsPage() {
               for editable wire/pack assignments.
             </p>
           </div>
-          <button
+          <Button
             type="button"
+            variant="outline"
             onClick={() => window.print()}
-            className="reports-print-hide rounded-md border border-border px-4 py-2 text-sm hover:bg-muted"
+            className="reports-print-hide"
           >
             Print
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -129,20 +132,16 @@ export default function ReportsPage() {
         className="reports-toc sticky top-0 z-10 -mx-1 flex flex-wrap gap-2 border-b border-border bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80"
       >
         {REPORT_SECTIONS.map((section) => (
-          <a
-            key={section.id}
-            href={`#${section.id}`}
-            className="rounded-md border border-border px-3 py-1.5 text-sm hover:bg-muted"
-          >
-            {section.label}
-          </a>
+          <Button key={section.id} variant="outline" size="sm" asChild>
+            <a href={`#${section.id}`}>{section.label}</a>
+          </Button>
         ))}
       </nav>
 
       {error && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       <section id="report-prop-sheet" className="reports-section space-y-4 scroll-mt-20">

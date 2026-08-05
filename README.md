@@ -332,7 +332,7 @@ Visit http://localhost:5173. The Vite dev server proxies `/api` to http://localh
 
 ### shadcn/ui
 
-Configured via `components.json` with Tailwind CSS variables. Shared primitives live in `frontend/src/components/ui/` (`button`, `badge`, `dialog`, `alert-dialog`, `sheet`, `skeleton`, `input`, `label`, `textarea`, `checkbox`, `switch`, `radio-group`, `select`, `table`).
+Configured via `components.json` with Tailwind CSS variables. Shared primitives live in `frontend/src/components/ui/` (`button`, `badge`, `alert`, `dialog`, `alert-dialog`, `sheet`, `skeleton`, `input`, `label`, `textarea`, `checkbox`, `switch`, `radio-group`, `select`, `table`).
 
 Add more with:
 

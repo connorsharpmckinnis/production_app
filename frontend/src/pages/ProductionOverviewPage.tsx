@@ -4,6 +4,7 @@ import AnnouncementManager from "@/components/AnnouncementManager";
 import EmptyState from "@/components/EmptyState";
 import OverviewMessageEditor from "@/components/OverviewMessageEditor";
 import OverviewSpotlight from "@/components/OverviewSpotlight";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/AuthContext";
@@ -101,9 +102,9 @@ export default function ProductionOverviewPage() {
 
   if (error || !overview) {
     return (
-      <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-        {error ?? "Production not found"}
-      </div>
+      <Alert variant="destructive">
+        <AlertDescription>{error ?? "Production not found"}</AlertDescription>
+      </Alert>
     );
   }
 
@@ -280,7 +281,7 @@ function ActorOverview({
       <section className="space-y-3">
         <h2 className="text-sm font-medium">Your roles</h2>
         {rolesError ? (
-          <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm text-foreground">
+          <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-foreground">
             The overview loaded, but your roles could not be loaded: {rolesError}
           </p>
         ) : rolesLoading ? (
@@ -298,12 +299,9 @@ function ActorOverview({
             <ul className="flex flex-wrap gap-2">
               {myRoles.map((role) => (
                 <li key={role.id}>
-                  <Link
-                    to={`/productions/${productionId}/rehearse`}
-                    className="inline-flex rounded-md border border-border px-3 py-1.5 text-sm font-medium hover:bg-muted"
-                  >
-                    {role.name}
-                  </Link>
+                  <Button asChild size="sm" variant="outline">
+                    <Link to={`/productions/${productionId}/rehearse`}>{role.name}</Link>
+                  </Button>
                 </li>
               ))}
             </ul>
@@ -342,7 +340,7 @@ function DimensionCard({
   const remaining = dimension.gaps.length - previewGaps.length;
 
   return (
-    <article className="rounded-lg border border-border p-4">
+    <article className="rounded-lg border border-border bg-card p-4 shadow-xs">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-medium">{dimension.label}</h3>
@@ -367,24 +365,18 @@ function DimensionCard({
         </details>
       )}
 
-      <Link
-        to={href}
-        className="mt-3 inline-block text-sm font-medium text-primary hover:underline"
-      >
-        Open {dimension.label.toLowerCase()}
-      </Link>
+      <Button asChild variant="link" className="mt-3 h-auto p-0">
+        <Link to={href}>Open {dimension.label.toLowerCase()}</Link>
+      </Button>
     </article>
   );
 }
 
 function QuickLink({ to, label }: { to: string; label: string }) {
   return (
-    <Link
-      to={to}
-      className="rounded-md border border-border px-3 py-2 text-sm font-medium hover:bg-muted"
-    >
-      {label}
-    </Link>
+    <Button asChild variant="outline" className="justify-start">
+      <Link to={to}>{label}</Link>
+    </Button>
   );
 }
 

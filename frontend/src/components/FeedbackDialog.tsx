@@ -87,8 +87,9 @@ export default function FeedbackDialog({ open, onOpenChange }: FeedbackDialogPro
             <div className="flex gap-2" role="group" aria-label="Feedback type">
               <button
                 type="button"
+                aria-pressed={kind === "bug"}
                 className={cn(
-                  "flex-1 rounded-md border px-3 py-2 text-sm",
+                  "flex-1 rounded-md border px-3 py-2 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
                   kind === "bug"
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-input bg-background hover:bg-muted",
@@ -99,8 +100,9 @@ export default function FeedbackDialog({ open, onOpenChange }: FeedbackDialogPro
               </button>
               <button
                 type="button"
+                aria-pressed={kind === "idea"}
                 className={cn(
-                  "flex-1 rounded-md border px-3 py-2 text-sm",
+                  "flex-1 rounded-md border px-3 py-2 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
                   kind === "idea"
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-input bg-background hover:bg-muted",

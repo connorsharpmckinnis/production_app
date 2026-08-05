@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -119,9 +120,9 @@ export default function CharactersPage() {
       </div>
 
       {error && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {canManagePreparation && (
@@ -158,7 +159,7 @@ export default function CharactersPage() {
         />
       ) : (
         <div className="rounded-lg border border-border">
-          <Table>
+          <Table storageKey="characters">
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>

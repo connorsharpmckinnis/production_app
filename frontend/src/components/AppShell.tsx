@@ -11,6 +11,7 @@ import {
 } from "@/components/NotificationHost";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
@@ -21,14 +22,14 @@ import { cn } from "@/lib/utils";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
-    "block rounded-md px-3 py-2 text-sm font-medium transition-colors",
+    "block rounded-md px-3 py-2 text-sm font-medium outline-none transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:ring-ring/50",
     isActive
       ? "bg-primary text-primary-foreground"
       : "text-muted-foreground hover:bg-muted hover:text-foreground",
   );
 
 const sectionSummaryClass =
-  "flex cursor-pointer list-none items-center gap-1 pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground marker:content-none [&::-webkit-details-marker]:hidden";
+  "flex cursor-pointer list-none items-center gap-1 rounded-md pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground outline-none marker:content-none focus-visible:ring-[3px] focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden";
 
 export default function AppShell() {
   return (
@@ -215,23 +216,25 @@ function AppShellInner() {
     <div className="flex h-dvh flex-col overflow-hidden bg-background">
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:outline-none focus:ring-[3px] focus:ring-ring/50"
       >
         Skip to content
       </a>
 
       <header className="app-shell-header flex h-14 items-center justify-between border-b border-border px-4">
         <div className="flex min-w-0 items-center gap-3">
-          <button
+          <Button
             type="button"
-            className="rounded-md p-2 text-muted-foreground hover:bg-muted md:hidden"
+            variant="ghost"
+            size="icon"
+            className="text-muted-foreground md:hidden"
             onClick={() => setSidebarOpen((open) => !open)}
             aria-label="Toggle navigation"
           >
             <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
-          </button>
+          </Button>
           <Link to="/productions" className="shrink-0 text-lg font-semibold tracking-tight">
             The Theater Thing
           </Link>
@@ -253,9 +256,10 @@ function AppShellInner() {
         <div className="flex items-center gap-1">
           <NotificationBell />
           <div className="relative">
-            <button
+            <Button
               type="button"
-              className="flex items-center gap-2 rounded-md px-3 py-1.5 text-sm hover:bg-muted"
+              variant="ghost"
+              className="h-9 gap-2 px-3 font-normal"
               onClick={() => setMenuOpen((open) => !open)}
             >
               <span>
@@ -268,7 +272,7 @@ function AppShellInner() {
                   </Badge>
                 ))}
               </span>
-            </button>
+            </Button>
             {menuOpen && (
               <>
                 <button
@@ -281,58 +285,65 @@ function AppShellInner() {
                   <div className="border-b border-border px-3 py-2 text-xs text-muted-foreground">
                     @{user?.username}
                   </div>
-                  <button
+                  <Button
                     type="button"
-                    className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                    variant="ghost"
+                    className="h-auto w-full justify-start rounded-none px-3 py-2 font-normal"
                     onClick={() => {
                       setMenuOpen(false);
                       setBookmarksOpen((open) => !open);
                     }}
                   >
                     My bookmarks
-                  </button>
+                  </Button>
                   {isAdmin && !isImpersonating && (
-                    <button
+                    <Button
                       type="button"
-                      className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                      variant="ghost"
+                      className="h-auto w-full justify-start rounded-none px-3 py-2 font-normal"
                       onClick={() => {
                         setMenuOpen(false);
                         setActAsOpen(true);
                       }}
                     >
                       Act as user…
-                    </button>
+                    </Button>
                   )}
-                  <Link
-                    to="/about"
-                    className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
-                    onClick={() => setMenuOpen(false)}
-                  >
-                    About the App
-                  </Link>
-                  <button
+                  <Button
                     type="button"
-                    className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                    variant="ghost"
+                    className="h-auto w-full justify-start rounded-none px-3 py-2 font-normal"
+                    asChild
+                  >
+                    <Link to="/about" onClick={() => setMenuOpen(false)}>
+                      About the App
+                    </Link>
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    className="h-auto w-full justify-start rounded-none px-3 py-2 font-normal"
                     onClick={() => {
                       setMenuOpen(false);
                       setFeedbackOpen(true);
                     }}
                   >
                     Send feedback
-                  </button>
+                  </Button>
                   <div className="border-t border-border px-3 py-2">
                     <ThemeToggle compact />
                   </div>
-                  <button
+                  <Button
                     type="button"
-                    className="block w-full px-3 py-2 text-left text-sm hover:bg-muted"
+                    variant="ghost"
+                    className="h-auto w-full justify-start rounded-none px-3 py-2 font-normal"
                     onClick={() => {
                       setMenuOpen(false);
                       logout();
                     }}
                   >
                     Log out
-                  </button>
+                  </Button>
                 </div>
               </>
             )}
@@ -342,7 +353,7 @@ function AppShellInner() {
 
       {isImpersonating && impersonation && (
         <div
-          className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-600/40 bg-amber-500/15 px-4 py-2 text-sm"
+          className="flex flex-wrap items-center justify-between gap-2 border-b border-warning/40 bg-warning/15 px-4 py-2 text-sm"
           role="status"
         >
           <p>
@@ -363,14 +374,16 @@ function AppShellInner() {
               {impersonation.original_last_name}
             </span>
           </p>
-          <button
+          <Button
             type="button"
-            className="rounded-md border border-amber-700/40 bg-background px-3 py-1 text-sm font-medium hover:bg-muted"
+            variant="outline"
+            size="sm"
+            className="border-warning/50 bg-background"
             disabled={returning}
             onClick={() => void handleStopActAs()}
           >
             {returning ? "Returning…" : "Return to admin"}
-          </button>
+          </Button>
         </div>
       )}
 
@@ -380,13 +393,15 @@ function AppShellInner() {
         <div className="border-b border-border bg-muted/30 px-4 py-3">
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-medium">My bookmarks</h2>
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={() => setBookmarksOpen(false)}
-              className="text-xs text-muted-foreground hover:text-foreground"
+              className="h-7 px-2 text-xs text-muted-foreground"
             >
               Close
-            </button>
+            </Button>
           </div>
           {bookmarks.length === 0 ? (
             <p className="mt-2 text-sm text-muted-foreground">No bookmarks yet.</p>

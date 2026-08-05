@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import CatalogCsvImport from "@/components/CatalogCsvImport";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -162,9 +163,9 @@ export default function SetPiecesPage() {
       </div>
 
       {error && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {canManagePreparation && (
@@ -189,7 +190,7 @@ export default function SetPiecesPage() {
         />
       ) : (
         <div className="rounded-lg border border-border">
-          <Table>
+          <Table storageKey="set-pieces">
             <TableHeader>
               <TableRow>
                 <TableHead>Name</TableHead>
@@ -261,12 +262,16 @@ export default function SetPiecesPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-4">
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Set piece name"
-                autoFocus
-              />
+              <div className="space-y-2">
+                <Label htmlFor="set-piece-name">Name</Label>
+                <Input
+                  id="set-piece-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Set piece name"
+                  autoFocus
+                />
+              </div>
               <Label className="font-normal">
                 <Checkbox
                   checked={mobile}
@@ -274,12 +279,16 @@ export default function SetPiecesPage() {
                 />
                 Mobile (can be moved between moments)
               </Label>
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Description (optional)"
-                rows={2}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="set-piece-description">Description</Label>
+                <Textarea
+                  id="set-piece-description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Optional"
+                  rows={2}
+                />
+              </div>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeDialog}>

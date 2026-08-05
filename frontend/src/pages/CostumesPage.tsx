@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import CatalogCsvImport from "@/components/CatalogCsvImport";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -14,6 +15,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -184,9 +186,9 @@ export default function CostumesPage() {
       </div>
 
       {error && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {canManagePreparation && (
@@ -211,7 +213,7 @@ export default function CostumesPage() {
         />
       ) : (
         <div className="rounded-lg border border-border">
-          <Table>
+          <Table storageKey="costumes">
             <TableHeader>
               <TableRow>
                 <TableHead>Character</TableHead>
@@ -281,29 +283,40 @@ export default function CostumesPage() {
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-4">
-              <Select value={characterId} onValueChange={setCharacterId}>
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Select character…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {characters.map((character) => (
-                    <SelectItem key={character.id} value={String(character.id)}>
-                      {character.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                placeholder="Costume name"
-              />
-              <Textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                placeholder="Description (optional)"
-                rows={2}
-              />
+              <div className="space-y-2">
+                <Label htmlFor="costume-character">Character</Label>
+                <Select value={characterId} onValueChange={setCharacterId}>
+                  <SelectTrigger id="costume-character" className="w-full">
+                    <SelectValue placeholder="Select character…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {characters.map((character) => (
+                      <SelectItem key={character.id} value={String(character.id)}>
+                        {character.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="costume-name">Name</Label>
+                <Input
+                  id="costume-name"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Costume name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="costume-description">Description</Label>
+                <Textarea
+                  id="costume-description"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  placeholder="Optional"
+                  rows={2}
+                />
+              </div>
             </div>
             <DialogFooter>
               <Button type="button" variant="outline" onClick={closeDialog}>

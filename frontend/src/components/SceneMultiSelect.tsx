@@ -85,20 +85,24 @@ export default function SceneMultiSelect({
           />
           <div className="absolute top-full left-0 z-30 mt-1 max-h-72 w-72 overflow-y-auto rounded-md border bg-popover p-2 text-popover-foreground shadow-md">
             <div className="mb-2 flex gap-2 border-b border-border pb-2">
-              <button
+              <Button
                 type="button"
+                variant="link"
+                size="sm"
                 onClick={selectAll}
-                className="text-xs text-primary hover:underline"
+                className="h-auto px-0 text-xs"
               >
                 Select all
-              </button>
-              <button
+              </Button>
+              <Button
                 type="button"
+                variant="link"
+                size="sm"
                 onClick={clearAll}
-                className="text-xs text-muted-foreground hover:text-foreground"
+                className="h-auto px-0 text-xs text-muted-foreground hover:text-foreground"
               >
                 Clear
-              </button>
+              </Button>
             </div>
             <div className="space-y-3">
               {acts.map((act) => (

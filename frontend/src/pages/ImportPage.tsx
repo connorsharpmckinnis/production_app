@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/context/ToastContext";
 import { api, ApiError, formatApiError, isImportErrorsDetail } from "@/lib/api";
@@ -223,13 +224,14 @@ export default function ImportPage() {
           >
             <p className="text-sm font-medium">Drop your script here</p>
             <p className="mt-1 text-xs text-muted-foreground">or choose a file to upload</p>
-            <button
+            <Button
               type="button"
+              variant="outline"
               onClick={openFilePicker}
-              className="mt-4 rounded-md border border-border bg-background px-3 py-1.5 text-sm font-medium hover:bg-muted/50"
+              className="mt-4"
             >
               Choose file
-            </button>
+            </Button>
             {file && (
               <p className="mt-3 text-xs text-muted-foreground">Selected: {file.name}</p>
             )}
@@ -249,13 +251,15 @@ export default function ImportPage() {
             {importing ? "Importing…" : "Import Script"}
           </Button>
           {file && (
-            <button
+            <Button
               type="button"
+              variant="ghost"
+              size="sm"
               onClick={openFilePicker}
-              className="text-sm text-muted-foreground hover:text-foreground"
+              className="text-muted-foreground hover:text-foreground"
             >
               Change file
-            </button>
+            </Button>
           )}
         </div>
       </form>
@@ -286,12 +290,9 @@ export default function ImportPage() {
       )}
 
       {error && !importErrors && (
-        <div
-          ref={errorRef}
-          className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
-        >
-          {error}
-        </div>
+        <Alert ref={errorRef} variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       <div className="rounded-lg border border-border bg-muted/20 p-4">

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import AnnouncementManager from "@/components/AnnouncementManager";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import ThemeToggle from "@/components/ThemeToggle";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -146,9 +147,9 @@ export default function SettingsPage() {
       </div>
 
       {error && (
-        <div className="rounded-md border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
 
       {settings && (

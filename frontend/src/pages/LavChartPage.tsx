@@ -674,12 +674,12 @@ export default function LavChartPage() {
               </div>
             )}
             {warningIssues.length > 0 && (
-              <div className="rounded-md border border-amber-500/40 bg-amber-500/5 px-3 py-2 text-sm">
-                <p className="font-medium text-amber-800 dark:text-amber-200">
+              <div className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+                <p className="font-medium text-warning-foreground">
                   {warningIssues.length} warning{warningIssues.length === 1 ? "" : "s"} — mid-act
                   or uncovered need scenes may need manual booth changes
                 </p>
-                <ul className="mt-1 list-disc pl-5 text-amber-900/90 dark:text-amber-100/90">
+                <ul className="mt-1 list-disc pl-5 text-warning-foreground/90">
                   {warningIssues.slice(0, 8).map((issue, index) => (
                     <li key={`w-${index}`}>{issue.message}</li>
                   ))}
@@ -775,7 +775,7 @@ export default function LavChartPage() {
                 )}
                 {errorIssues.length > 0 && warningIssues.length > 0 && " · "}
                 {warningIssues.length > 0 && (
-                  <span className="text-amber-700 dark:text-amber-300">
+                  <span className="text-warning">
                     {warningIssues.length} warnings
                   </span>
                 )}
@@ -824,7 +824,10 @@ export default function LavChartPage() {
           </p>
         ) : (
           <div className="lav-chart-scroll rounded-b-md border border-border">
-            <Table className="lav-chart-table min-w-full border-collapse">
+            <Table
+              storageKey="lav-chart"
+              className="lav-chart-table min-w-full border-collapse"
+            >
               <TableHeader>
                 {actGroups.length > 1 && (
                   <TableRow className="bg-muted/40 hover:bg-muted/40">
@@ -864,15 +867,17 @@ export default function LavChartPage() {
                     <TableRow key={row.row_key} className="align-middle">
                       <TableHead className="lav-chart-sticky sticky left-0 z-10 border-r border-border bg-background px-2 py-2 text-left font-normal">
                         <div className="flex min-w-[10rem] items-start gap-1">
-                          <button
+                          <Button
                             type="button"
-                            className="lav-print-hide mt-0.5 rounded p-0.5 text-muted-foreground hover:bg-muted hover:text-foreground"
+                            variant="ghost"
+                            size="icon-xs"
+                            className="lav-print-hide mt-0.5 text-muted-foreground hover:text-foreground"
                             title={locked ? "Unlock row" : "Lock row"}
                             aria-label={locked ? `Unlock ${row.label}` : `Lock ${row.label}`}
                             onClick={() => toggleRowLock(row.row_key)}
                           >
                             {locked ? <Lock className="size-3.5" /> : <LockOpen className="size-3.5" />}
-                          </button>
+                          </Button>
                           <div className="min-w-0 flex-1">
                             <span className="font-medium">
                               {row.label}
@@ -930,7 +935,7 @@ export default function LavChartPage() {
                             className={[
                               "px-1 py-1 text-center",
                               isNeed ? "bg-highlight-muted/40" : "",
-                              conflict || missingNeed ? "bg-amber-500/15" : "",
+                              conflict || missingNeed ? "bg-warning/15" : "",
                               locked ? "opacity-80" : "",
                             ]
                               .filter(Boolean)
@@ -1194,13 +1199,15 @@ function RowMenuButton({
   onClick: () => void;
 }) {
   return (
-    <button
+    <Button
       type="button"
-      className="block w-full px-3 py-1.5 text-left text-sm hover:bg-muted"
+      variant="ghost"
+      size="sm"
+      className="h-auto w-full justify-start rounded-none px-3 py-1.5 text-left font-normal"
       onClick={onClick}
     >
       {children}
-    </button>
+    </Button>
   );
 }
 
@@ -1239,8 +1246,8 @@ function InventoryColumn({
       {items.length === 0 ? (
         <p className="text-sm text-muted-foreground">{emptyLabel}</p>
       ) : (
-        <div className="rounded-md border border-border bg-background">
-          <Table>
+        <div className="rounded-lg border border-border bg-background">
+          <Table storageKey="lav-inventory">
             <TableHeader>
               <TableRow>
                 <TableHead>Identifier</TableHead>
