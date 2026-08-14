@@ -1585,12 +1585,15 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         <CostumeEventSection
           canEdit={canEdit}
           saving={saving}
+          productionId={productionId}
           defaultExpanded={detail.costume_events.length > 0}
           events={detail.costume_events}
           costumesCatalog={costumesCatalog}
           onUpdate={handleUpdateMomentCostume}
           onDetach={handleDetachCostume}
-          wearing={detail.costumes_wearing}
+          wearing={detail.costumes_wearing.filter(
+            (item) => item.source_moment_id !== detail.id,
+          )}
         />
 
         <AttachmentSection
@@ -2216,6 +2219,7 @@ function AssetEventRow({
 function CostumeEventSection({
   canEdit,
   saving,
+  productionId,
   events,
   costumesCatalog,
   onUpdate,
@@ -2225,6 +2229,7 @@ function CostumeEventSection({
 }: {
   canEdit: boolean;
   saving: boolean;
+  productionId: number;
   events: MomentCostumeEventResponse[];
   costumesCatalog: CostumeResponse[];
   onUpdate: (
@@ -2258,13 +2263,70 @@ function CostumeEventSection({
           <h4 className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
             Currently wearing
           </h4>
-          <ul className="mt-1 space-y-0.5 text-xs text-muted-foreground">
-            {wearing.map((item) => (
-              <li key={`wearing-${item.character_id}`}>
-                <span className="font-medium text-foreground">{item.character_name}</span>
-                {` — ${item.costume_name}`}
-              </li>
-            ))}
+          <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
+            {wearing.map((item) => {
+              const sourceCode = formatMomentCode(
+                item.source_act_number,
+                item.source_scene_number,
+                item.source_sequence_number,
+              );
+              const hasNextChange =
+                item.next_change_act_number != null &&
+                item.next_change_scene_number != null &&
+                item.next_change_sequence_number != null;
+              const nextCode = hasNextChange
+                ? formatMomentCode(
+                    item.next_change_act_number!,
+                    item.next_change_scene_number!,
+                    item.next_change_sequence_number!,
+                  )
+                : null;
+
+              return (
+                <li
+                  key={`wearing-${item.character_id}`}
+                  className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5"
+                >
+                  <span>
+                    <span className="font-medium text-foreground">
+                      {item.character_name}
+                    </span>
+                    {` — ${item.costume_name}`}
+                  </span>
+                  <span className="inline-flex flex-wrap items-center gap-x-1.5">
+                    <Link
+                      to={humanTimelinePath(
+                        productionId,
+                        item.source_act_number,
+                        item.source_scene_number,
+                        item.source_sequence_number,
+                      )}
+                      className="underline underline-offset-2 hover:text-foreground"
+                      aria-label={`Open moment ${sourceCode} that set this state`}
+                    >
+                      {sourceCode}
+                    </Link>
+                    {nextCode != null && (
+                      <>
+                        <span aria-hidden="true">→</span>
+                        <Link
+                          to={humanTimelinePath(
+                            productionId,
+                            item.next_change_act_number!,
+                            item.next_change_scene_number!,
+                            item.next_change_sequence_number!,
+                          )}
+                          className="underline underline-offset-2 hover:text-foreground"
+                          aria-label={`Open moment ${nextCode} where this changes next`}
+                        >
+                          {nextCode}
+                        </Link>
+                      </>
+                    )}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
@@ -2283,6 +2345,7 @@ function CostumeEventSection({
                   event={event}
                   canEdit={canEdit}
                   saving={saving}
+                  productionId={productionId}
                   costumesCatalog={costumesCatalog}
                   onUpdate={onUpdate}
                   onDetach={onDetach}
@@ -2306,6 +2369,7 @@ function CostumeEventRow({
   event,
   canEdit,
   saving,
+  productionId,
   costumesCatalog,
   onUpdate,
   onDetach,
@@ -2313,6 +2377,7 @@ function CostumeEventRow({
   event: MomentCostumeEventResponse;
   canEdit: boolean;
   saving: boolean;
+  productionId: number;
   costumesCatalog: CostumeResponse[];
   onUpdate: (
     eventId: number,
@@ -2334,6 +2399,17 @@ function CostumeEventRow({
   }, [event.id, event.kind, event.costume_id, event.notes]);
 
   const ready = kind === "off" || Boolean(costumeId);
+  const priorOnCode =
+    event.kind === "off" &&
+    event.prior_on_act_number != null &&
+    event.prior_on_scene_number != null &&
+    event.prior_on_sequence_number != null
+      ? formatMomentCode(
+          event.prior_on_act_number,
+          event.prior_on_scene_number,
+          event.prior_on_sequence_number,
+        )
+      : null;
 
   async function handleSave() {
     if (!ready) return;
@@ -2369,6 +2445,23 @@ function CostumeEventRow({
           {event.costume_name && <p className="text-muted-foreground">{event.costume_name}</p>}
           {!editing && event.notes && (
             <p className="mt-1 text-muted-foreground">{event.notes}</p>
+          )}
+          {!editing && priorOnCode != null && (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Started{" "}
+              <Link
+                to={humanTimelinePath(
+                  productionId,
+                  event.prior_on_act_number!,
+                  event.prior_on_scene_number!,
+                  event.prior_on_sequence_number!,
+                )}
+                className="underline underline-offset-2 hover:text-foreground"
+                aria-label={`Open start moment ${priorOnCode}`}
+              >
+                {priorOnCode}
+              </Link>
+            </p>
           )}
 
           {editing && (

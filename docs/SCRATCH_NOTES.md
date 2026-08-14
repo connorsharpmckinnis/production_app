@@ -51,7 +51,7 @@ I'll be using this document to store temporary notes relating to the project. St
   - If we keep the Open button, the text needs to be fixed to sit in the center. 
 - I want to add a link to the Github repo into the About the App. Also a link to quickly/easily add an issue to the Github repo (I haven't used issues before in Github so keep it simple for now)
 - Timeline deep links for announcements/CTAs: use human show position `?act=1&scene=2&moment=115` (per-scene sequence). Scene start omits `moment`. Legacy PK links still work. Bookmarks + reports emit human URLs. → **Shipped 2026-07-29** (consume + uniqueness + producers); race fix same night so catalog reload does not wipe deep-link scene selection.
-- In-play cards → jump to source / next-change Moments → **Shipped 2026-07-30** (props/set pieces; dotted codes; costumes deferred).
+- In-play cards → jump to source / next-change Moments → **Shipped 2026-07-30** (props/set pieces; dotted codes). **Costumes Slice C 2026-08-13:** same source → next-change + Clear prior-on back-link.
 
 
 

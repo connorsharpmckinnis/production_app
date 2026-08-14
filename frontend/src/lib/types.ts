@@ -492,6 +492,11 @@ export interface MomentCostumeEventResponse {
   costume_id: number | null;
   costume_name: string | null;
   notes: string | null;
+  prior_on_moment_id?: number | null;
+  prior_on_scene_id?: number | null;
+  prior_on_act_number?: number | null;
+  prior_on_scene_number?: number | null;
+  prior_on_sequence_number?: number | null;
 }
 
 export interface CostumeWearingResponse {
@@ -500,6 +505,16 @@ export interface CostumeWearingResponse {
   costume_id: number;
   costume_name: string;
   notes: string | null;
+  source_moment_id: number;
+  source_scene_id: number;
+  source_act_number: number;
+  source_scene_number: number;
+  source_sequence_number: number;
+  next_change_moment_id: number | null;
+  next_change_scene_id: number | null;
+  next_change_act_number: number | null;
+  next_change_scene_number: number | null;
+  next_change_sequence_number: number | null;
 }
 
 export interface PropSheetMomentReference {

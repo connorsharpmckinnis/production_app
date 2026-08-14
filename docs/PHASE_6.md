@@ -137,7 +137,7 @@ Implement as pure functions in `rehearsePresets.ts` operating on `MomentSummary[
 | Control | Behavior |
 | ------- | -------- |
 | Act / Scene | Same as Timeline — scene change triggers the single moments fetch |
-| Search | Scene-scoped; submit on Enter (live search = P2) |
+| Search | Scene-scoped; live debounce (~275ms) plus Enter / Search to commit immediately |
 
 No character dropdown on Rehearse — "my characters" is always derived from the logged-in user's casting (`myCharacterIds`). Directors/admins using Rehearse see the same presets relative to **their** cast assignments (if any); uncast staff see Scene run-through as undifferentiated full script.
 
@@ -372,7 +372,7 @@ All roles retain on Rehearse: moment detail (read-only prep data for actors), no
 
 - [ ] **Blur my lines** — CSS blur on own line text in list rows; reveal on click or hover; toggle in Rehearse controls
 - [ ] Scene summary clickable chips → character modal (entrance/exit/costume/prop drill-down)
-- [ ] Live search on Timeline + Rehearse
+- [x] Live search on Timeline + Rehearse
 - [ ] `localStorage` persistence for Rehearse presets
 - [ ] Named prop chips in scene summary (evaluate extending `MomentSummary` vs separate fetch)
 

@@ -52,7 +52,7 @@ When implementing, agents should read the matching plan here for goals, non-goal
 | [app-announcements.md](app-announcements.md) | Prototype shipped | In-app announcements, banners/modals, bell inbox |
 | [tasks-and-mentions.md](tasks-and-mentions.md) | Proposal | Basic production Tasks + @-mentions → notifications |
 | [email-notifications.md](email-notifications.md) | Proposal | Templated outbound email (blasts, later mentions/digest) |
-| [in-play-moment-deep-links.md](in-play-moment-deep-links.md) | Shipped | In-play source + next-change deep links (props/set pieces); costumes/sticky URL deferred |
+| [in-play-moment-deep-links.md](../shipped_features/in-play-moment-deep-links.md) | Shipped | In-play source + next-change + OFF prior-on (props/set pieces/costumes); sticky URL deferred |
 
 ## Far-future (v2+ / post first season)
 

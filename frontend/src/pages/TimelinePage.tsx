@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { X } from "lucide-react";
+import CharacterMultiSelect from "@/components/CharacterMultiSelect";
 import EmptyState from "@/components/EmptyState";
 import MomentDetailSheet from "@/components/MomentDetailSheet";
 import SceneMultiSelect from "@/components/SceneMultiSelect";
@@ -49,7 +50,6 @@ import type {
 } from "@/lib/types";
 import { momentTypeLabel, sortByName, cn } from "@/lib/utils";
 
-type CharacterFilterValue = "all" | "mine" | string;
 type GroupFilterValue = "all" | string;
 type ResourceFilterValue = "all" | string;
 
@@ -65,12 +65,13 @@ export default function TimelinePage() {
 
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [costumeOnly, setCostumeOnly] = useState(false);
   const [entranceOnly, setEntranceOnly] = useState(false);
   const [exitOnly, setExitOnly] = useState(false);
   const [blockingOnly, setBlockingOnly] = useState(false);
-  const [characterFilter, setCharacterFilter] = useState<CharacterFilterValue>("all");
+  const [selectedCharacterIds, setSelectedCharacterIds] = useState<number[]>([]);
   const [groupFilter, setGroupFilter] = useState<GroupFilterValue>("all");
   const [blockingCharacterFilter, setBlockingCharacterFilter] =
     useState<ResourceFilterValue>("all");
@@ -94,7 +95,7 @@ export default function TimelinePage() {
 
   const filterInput = useMemo(
     () => ({
-      characterFilter,
+      characterIds: selectedCharacterIds,
       groupFilter,
       searchQuery,
       costumeOnly,
@@ -108,7 +109,7 @@ export default function TimelinePage() {
       setPieceFilter,
     }),
     [
-      characterFilter,
+      selectedCharacterIds,
       groupFilter,
       searchQuery,
       costumeOnly,
@@ -135,6 +136,24 @@ export default function TimelinePage() {
       setEditTimeline(false);
     }
   }, [canManagePreparation, editTimeline]);
+
+  useEffect(() => {
+    const trimmed = searchInput.trim();
+    if (trimmed === "") {
+      setSearchQuery("");
+      return;
+    }
+    searchDebounceRef.current = setTimeout(() => {
+      setSearchQuery(trimmed);
+      searchDebounceRef.current = null;
+    }, 275);
+    return () => {
+      if (searchDebounceRef.current != null) {
+        clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = null;
+      }
+    };
+  }, [searchInput]);
 
   useEffect(() => {
     if (defaultInsertTypeReady || scene.momentTypes.length === 0) return;
@@ -207,10 +226,9 @@ export default function TimelinePage() {
       const group = groups.find((item) => item.id === Number(groupFilter));
       return group?.character_ids;
     }
-    if (characterFilter === "all") return undefined;
-    if (characterFilter === "mine") return myCharacterIds;
-    return [Number(characterFilter)];
-  }, [characterFilter, groupFilter, groups, myCharacterIds]);
+    if (selectedCharacterIds.length === 0) return undefined;
+    return selectedCharacterIds;
+  }, [selectedCharacterIds, groupFilter, groups]);
 
   const advancedFilterCount = [
     groupFilter !== "all",
@@ -227,7 +245,7 @@ export default function TimelinePage() {
 
   const hasActiveFilters =
     searchQuery !== "" ||
-    characterFilter !== "all" ||
+    selectedCharacterIds.length > 0 ||
     advancedFilterCount > 0;
 
   const activeFilterChips = useMemo(() => {
@@ -244,19 +262,16 @@ export default function TimelinePage() {
       });
     }
 
-    if (characterFilter === "mine") {
-      chips.push({
-        key: "character-mine",
-        label: "My characters",
-        onDismiss: () => setCharacterFilter("all"),
-      });
-    } else if (characterFilter !== "all") {
-      const character = scene.characters.find((item) => String(item.id) === characterFilter);
-      chips.push({
-        key: `character-${characterFilter}`,
-        label: character?.name ?? "Character",
-        onDismiss: () => setCharacterFilter("all"),
-      });
+    if (selectedCharacterIds.length > 0) {
+      for (const characterId of selectedCharacterIds) {
+        const character = scene.characters.find((item) => item.id === characterId);
+        chips.push({
+          key: `character-${characterId}`,
+          label: character?.name ?? "Character",
+          onDismiss: () =>
+            setSelectedCharacterIds((ids) => ids.filter((id) => id !== characterId)),
+        });
+      }
     }
 
     if (groupFilter !== "all") {
@@ -351,7 +366,7 @@ export default function TimelinePage() {
     return chips;
   }, [
     searchQuery,
-    characterFilter,
+    selectedCharacterIds,
     groupFilter,
     costumeOnly,
     entranceOnly,
@@ -372,13 +387,17 @@ export default function TimelinePage() {
 
   function handleSearchSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (searchDebounceRef.current != null) {
+      clearTimeout(searchDebounceRef.current);
+      searchDebounceRef.current = null;
+    }
     setSearchQuery(searchInput.trim());
   }
 
   function clearAllFilters() {
     setSearchInput("");
     setSearchQuery("");
-    setCharacterFilter("all");
+    setSelectedCharacterIds([]);
     setGroupFilter("all");
     setCostumeOnly(false);
     setEntranceOnly(false);
@@ -543,7 +562,7 @@ export default function TimelinePage() {
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search timeline…"
-            title="Filters combine with AND — all selected conditions must match."
+            title="Filters combine with AND. Multiple characters within that filter are OR."
             className="min-w-0 flex-1"
           />
           <Button type="submit" variant="outline">
@@ -563,29 +582,16 @@ export default function TimelinePage() {
             onChange={scene.setSelectedSceneIds}
           />
 
-          <Select
-            value={characterFilter}
-            onValueChange={(value) => {
-              setCharacterFilter(value as CharacterFilterValue);
+          <CharacterMultiSelect
+            characters={scene.characters}
+            selectedIds={selectedCharacterIds}
+            myCharacterIds={myCharacterIds}
+            onChange={(ids) => {
+              setSelectedCharacterIds(ids);
               setGroupFilter("all");
             }}
             disabled={groupFilter !== "all"}
-          >
-            <SelectTrigger className="w-fit" aria-label="Filter by character">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All characters</SelectItem>
-              {myCharacterIds.length > 0 && (
-                <SelectItem value="mine">My characters</SelectItem>
-              )}
-              {scene.characters.map((character) => (
-                <SelectItem key={character.id} value={String(character.id)}>
-                  {character.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          />
 
           <Button type="button" variant="outline" onClick={() => setAdvancedOpen((open) => !open)}>
             Advanced filters
@@ -625,7 +631,7 @@ export default function TimelinePage() {
             groups={groups}
             groupFilter={groupFilter}
             setGroupFilter={setGroupFilter}
-            setCharacterFilter={setCharacterFilter}
+            setSelectedCharacterIds={setSelectedCharacterIds}
             costumeOnly={costumeOnly}
             setCostumeOnly={setCostumeOnly}
             entranceOnly={entranceOnly}
@@ -665,7 +671,7 @@ export default function TimelinePage() {
               groups={groups}
               groupFilter={groupFilter}
               setGroupFilter={setGroupFilter}
-              setCharacterFilter={setCharacterFilter}
+              setSelectedCharacterIds={setSelectedCharacterIds}
               costumeOnly={costumeOnly}
               setCostumeOnly={setCostumeOnly}
               entranceOnly={entranceOnly}
@@ -872,7 +878,7 @@ function AdvancedFiltersPanel({
   groups,
   groupFilter,
   setGroupFilter,
-  setCharacterFilter,
+  setSelectedCharacterIds,
   costumeOnly,
   setCostumeOnly,
   entranceOnly,
@@ -902,7 +908,7 @@ function AdvancedFiltersPanel({
   groups: { id: number; name: string }[];
   groupFilter: GroupFilterValue;
   setGroupFilter: (value: GroupFilterValue) => void;
-  setCharacterFilter: (value: CharacterFilterValue) => void;
+  setSelectedCharacterIds: (value: number[]) => void;
   costumeOnly: boolean;
   setCostumeOnly: (value: boolean) => void;
   entranceOnly: boolean;
@@ -940,7 +946,7 @@ function AdvancedFiltersPanel({
           value={groupFilter}
           onValueChange={(value) => {
             setGroupFilter(value as GroupFilterValue);
-            setCharacterFilter("all");
+            setSelectedCharacterIds([]);
           }}
         >
           <SelectTrigger className="w-fit" aria-label="Filter by group">

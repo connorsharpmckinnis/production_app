@@ -203,7 +203,7 @@ def find_next_asset_event_refs(
 
 def find_prior_on_refs(
     moments: list[Moment],
-    states_by_moment: dict[int, dict[int, AssetStateSnapshot]],
+    states_by_moment: dict[int, dict[int, "AssetStateSnapshot | CostumeWearingSnapshot"]],
     *,
     current_moment_id: int,
     asset_ids: set[int],
@@ -328,6 +328,13 @@ class CostumeWearingSnapshot:
     costume_name: str | None = None
     notes: str | None = None
     last_kind: str | None = None
+    # Moment that last set this snapshot (last Wear / re-Wear for in-play looks).
+    source_moment_id: int | None = None
+    source_scene_id: int | None = None
+
+    @property
+    def in_play(self) -> bool:
+        return self.costume_id is not None
 
 
 def compute_costume_state_by_moment(
@@ -352,19 +359,23 @@ def compute_costume_state_by_moment(
                     costume_id=event.costume_id,
                     notes=event.notes,
                     last_kind="on",
+                    source_moment_id=moment.id,
+                    source_scene_id=moment.scene_id,
                 )
             else:
                 state_by_character_id[event.character_id] = CostumeWearingSnapshot(
                     costume_id=None,
                     notes=event.notes,
                     last_kind="off",
+                    source_moment_id=moment.id,
+                    source_scene_id=moment.scene_id,
                 )
         result[moment.id] = dict(state_by_character_id)
 
     return result
 
 
-def _group_costume_events_by_moment_id(
+def group_costume_events_by_moment_id(
     db: Session, production_id: int
 ) -> dict[int, list[MomentCostumeEvent]]:
     events = (
@@ -387,6 +398,6 @@ def costume_states_at_moment(
 ) -> dict[int, CostumeWearingSnapshot]:
     """Return current costume states (character_id -> snapshot) as of the given Moment."""
     moments = load_production_moments_in_show_order(db, production_id)
-    events_by_moment_id = _group_costume_events_by_moment_id(db, production_id)
+    events_by_moment_id = group_costume_events_by_moment_id(db, production_id)
     states_by_moment_id = compute_costume_state_by_moment(moments, events_by_moment_id)
     return states_by_moment_id.get(moment_id, {})

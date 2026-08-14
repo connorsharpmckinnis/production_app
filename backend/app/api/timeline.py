@@ -60,11 +60,12 @@ from app.schemas.timeline_editing import (
 from app.services.asset_state import (
     AssetMomentRef,
     AssetStateSnapshot,
+    compute_costume_state_by_moment,
     compute_prop_state_by_moment,
     compute_set_piece_state_by_moment,
-    costume_states_at_moment,
     find_next_asset_event_refs,
     find_prior_on_refs,
+    group_costume_events_by_moment_id,
     group_prop_events_by_moment_id,
     group_set_piece_events_by_moment_id,
     load_production_moments_in_show_order,
@@ -172,7 +173,11 @@ def _prior_on_deep_link_fields(
     )
 
 
-def _moment_costume_event_response(event: MomentCostumeEvent) -> MomentCostumeEventResponse:
+def _moment_costume_event_response(
+    event: MomentCostumeEvent,
+    *,
+    prior_on: dict[str, int | None] | None = None,
+) -> MomentCostumeEventResponse:
     return MomentCostumeEventResponse(
         id=event.id,
         character_id=event.character_id,
@@ -181,6 +186,7 @@ def _moment_costume_event_response(event: MomentCostumeEvent) -> MomentCostumeEv
         costume_id=event.costume_id,
         costume_name=event.costume.name if event.costume else None,
         notes=event.notes,
+        **(prior_on or {}),
     )
 
 
@@ -395,12 +401,31 @@ def _costumes_wearing_response(
     db: Session, production_id: int, moment_id: int
 ) -> list[CostumeWearingResponse]:
     """Characters currently wearing a costume as of this Moment (event-derived)."""
-    states = costume_states_at_moment(db, production_id, moment_id)
+    moments = load_production_moments_in_show_order(db, production_id)
+    events_by_moment_id = group_costume_events_by_moment_id(db, production_id)
+    states = compute_costume_state_by_moment(moments, events_by_moment_id).get(
+        moment_id, {}
+    )
     wearing = {
         character_id: state for character_id, state in states.items() if state.costume_id
     }
     if not wearing:
         return []
+
+    next_refs = find_next_asset_event_refs(
+        moments,
+        events_by_moment_id,
+        current_moment_id=moment_id,
+        asset_ids=set(wearing.keys()),
+        asset_id_attr="character_id",
+    )
+    position_ids = {
+        state.source_moment_id
+        for state in wearing.values()
+        if state.source_moment_id is not None
+    }
+    position_ids.update(ref.moment_id for ref in next_refs.values())
+    positions = _moment_show_positions(db, position_ids)
 
     character_names = {
         character.id: character.name
@@ -414,18 +439,39 @@ def _costumes_wearing_response(
         for costume in db.query(Costume).filter(Costume.id.in_(costume_ids)).all()
     }
 
-    return [
-        CostumeWearingResponse(
-            character_id=character_id,
-            character_name=character_names.get(character_id, ""),
-            costume_id=state.costume_id,
-            costume_name=costume_names.get(state.costume_id, ""),
-            notes=state.notes,
+    rows: list[CostumeWearingResponse] = []
+    for character_id, state in sorted(
+        wearing.items(), key=lambda item: character_names.get(item[0], "")
+    ):
+        if (
+            state.costume_id is None
+            or state.source_moment_id is None
+            or state.source_scene_id is None
+        ):
+            continue
+        next_ref: AssetMomentRef | None = next_refs.get(character_id)
+        rows.append(
+            CostumeWearingResponse(
+                character_id=character_id,
+                character_name=character_names.get(character_id, ""),
+                costume_id=state.costume_id,
+                costume_name=costume_names.get(state.costume_id, ""),
+                notes=state.notes,
+                **_deep_link_fields(
+                    state.source_moment_id,
+                    positions,
+                    state.source_scene_id,
+                    prefix="source",
+                ),
+                **_deep_link_fields(
+                    next_ref.moment_id if next_ref else None,
+                    positions,
+                    next_ref.scene_id if next_ref else None,
+                    prefix="next_change",
+                ),
+            )
         )
-        for character_id, state in sorted(
-            wearing.items(), key=lambda item: character_names.get(item[0], "")
-        )
-    ]
+    return rows
 
 
 def _moment_entrance_response(entrance: MomentEntrance) -> MomentEntranceResponse:
@@ -727,9 +773,13 @@ def get_moment_detail(
     show_moments = load_production_moments_in_show_order(db, production_id)
     prop_events_by_moment = group_prop_events_by_moment_id(db, production_id)
     set_piece_events_by_moment = group_set_piece_events_by_moment_id(db, production_id)
+    costume_events_by_moment = group_costume_events_by_moment_id(db, production_id)
     prop_states_by_moment = compute_prop_state_by_moment(show_moments, prop_events_by_moment)
     set_piece_states_by_moment = compute_set_piece_state_by_moment(
         show_moments, set_piece_events_by_moment
+    )
+    costume_states_by_moment = compute_costume_state_by_moment(
+        show_moments, costume_events_by_moment
     )
     off_prop_ids = {
         event.prop_id for event in moment.moment_prop_events if event.kind == "off"
@@ -737,6 +787,11 @@ def get_moment_detail(
     off_set_piece_ids = {
         event.set_piece_id
         for event in moment.moment_set_piece_events
+        if event.kind == "off"
+    }
+    off_character_ids = {
+        event.character_id
+        for event in moment.moment_costume_events
         if event.kind == "off"
     }
     prior_prop_refs = find_prior_on_refs(
@@ -751,9 +806,17 @@ def get_moment_detail(
         current_moment_id=moment.id,
         asset_ids=off_set_piece_ids,
     )
-    prior_position_ids = {
-        ref.moment_id for ref in prior_prop_refs.values()
-    } | {ref.moment_id for ref in prior_set_piece_refs.values()}
+    prior_costume_refs = find_prior_on_refs(
+        show_moments,
+        costume_states_by_moment,
+        current_moment_id=moment.id,
+        asset_ids=off_character_ids,
+    )
+    prior_position_ids = (
+        {ref.moment_id for ref in prior_prop_refs.values()}
+        | {ref.moment_id for ref in prior_set_piece_refs.values()}
+        | {ref.moment_id for ref in prior_costume_refs.values()}
+    )
     prior_positions = _moment_show_positions(db, prior_position_ids)
 
     return MomentDetailResponse(
@@ -808,7 +871,16 @@ def get_moment_detail(
         ],
         set_pieces_in_play=_set_pieces_in_play_response(db, production_id, moment.id),
         costume_events=[
-            _moment_costume_event_response(event) for event in moment.moment_costume_events
+            _moment_costume_event_response(
+                event,
+                prior_on=_prior_on_deep_link_fields(
+                    prior_costume_refs.get(event.character_id)
+                    if event.kind == "off"
+                    else None,
+                    prior_positions,
+                ),
+            )
+            for event in moment.moment_costume_events
         ],
         costumes_wearing=_costumes_wearing_response(db, production_id, moment.id),
         entrances=[_moment_entrance_response(item) for item in moment.moment_entrances],

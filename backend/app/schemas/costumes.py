@@ -62,6 +62,12 @@ class MomentCostumeEventResponse(BaseModel):
     costume_id: int | None
     costume_name: str | None
     notes: str | None
+    # When kind is "off": last Wear (or re-Wear) that put this look in play.
+    prior_on_moment_id: int | None = None
+    prior_on_scene_id: int | None = None
+    prior_on_act_number: int | None = None
+    prior_on_scene_number: int | None = None
+    prior_on_sequence_number: int | None = None
 
 
 class CostumeWearingResponse(BaseModel):
@@ -72,3 +78,15 @@ class CostumeWearingResponse(BaseModel):
     costume_id: int
     costume_name: str
     notes: str | None
+    # Moment that last set this wearing state (last Wear / re-Wear).
+    source_moment_id: int
+    source_scene_id: int
+    source_act_number: int
+    source_scene_number: int
+    source_sequence_number: int
+    # Next Wear/Clear after the viewed Moment, if any.
+    next_change_moment_id: int | None = None
+    next_change_scene_id: int | None = None
+    next_change_act_number: int | None = None
+    next_change_scene_number: int | None = None
+    next_change_sequence_number: int | None = None

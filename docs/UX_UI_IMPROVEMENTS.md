@@ -2,13 +2,15 @@
 
 **Purpose:** Candidate polish before sharing the app with the theater group for real-world consideration. This is a working inventory — not committed scope. Items come from owner scratch notes, the product wish list, phase docs, UI standards, and a pass over the current frontend.
 
-**Last updated:** 2026-07-12
+**Last updated:** 2026-08-13
 
 **Related docs:** [SCRATCH_NOTES.md](SCRATCH_NOTES.md), [PROJECT.md](PROJECT.md) Wish List, [UI_STANDARDS.md](UI_STANDARDS.md), [PHASE_6.md](PHASE_6.md), [DEMO_WALKTHROUGH.md](DEMO_WALKTHROUGH.md)
 
 **Progress (2026-07-12 share-prep passes):** Most **P0** and a large **P1** set shipped (dialogs for users/groups/catalogs, filter chips, reports TOC + clickable moments + print, import drag-drop, skeletons, localStorage presets, shell polish, DEMO_WALKTHROUGH). Remaining P1/P2 are thinner polish. See checkmarks below.
 
 **Progress (2026-08-04):** WP0/WP1 design-system pass — expanded shadcn primitives, `/dev/ui` gallery, SearchableSelect/Toast polish, form/catalog migration.
+
+**Progress (2026-08-13):** Timeline + Rehearse live search (debounce ~275ms); Timeline multi-select character filter (OR). Prop/cue multi-select still open.
 
 ---
 
@@ -94,8 +96,9 @@ Timeline already uses Lucide icon buttons for structural actions, bookmark, deta
 - [x] **Clear filters** control.
 - [x] Active filter chips (dismissible) + Clear all.
 - [x] Helper text for how filters compose (AND/OR expectations).
-- [ ] Live search (filter as you type) — long-standing deferred item.
-- [ ] Multi-select character filter (OR); multi-select prop/cue category filters with badge chips on rows.
+- [x] Live search (filter as you type) — Timeline + Rehearse; debounce ~275ms; Enter still commits immediately.
+- [x] Multi-select character filter (OR within character; AND with other dimensions). Mine pre-checks cast ids; exclusive with group.
+- [ ] Multi-select prop/cue category filters with badge chips on rows.
 - [ ] Shared act/scene/search toolbar between Timeline and Rehearse for consistency.
 - [x] Speaker column: tooltip on truncated names.
 - [x] On mobile, consider badge overflow (“+N”) when prep badges wrap the row.
@@ -209,7 +212,7 @@ These are already captured in [PROJECT.md](PROJECT.md) and [SCRATCH_NOTES.md](SC
 | **App shell** | Actor-simplified prep nav; Import when empty; bookmarks deep-link; breadcrumb consistency; role badge vs long “(roles)” text; collapsible Preparation/Reports (session persist); Admin Act-as banner |
 | **Productions list** | Status chip; icon Delete; row Open; AlertDialog; table overflow |
 | **Overview** | Rehearse + Import + next-step CTAs; cast progress |
-| **Timeline** | Clear filters; live search; multi-select; defaults on insert; skeletons; mobile filter sheet; tooltips |
+| **Timeline** | Clear filters; live search; character multi-select; defaults on insert; skeletons; mobile filter sheet; tooltips |
 | **Rehearse** | Touch blur; compact toggles; jump-to-next-line; preset dropdown clarity; localStorage |
 | **Moment detail** | Collapse empties; confirm delete/detach; spacing; visibility copy; catalog-empty hints; costumes explanation |
 | **Catalogs** | Icon actions; Sheet/Dialog edit; unified empties; usage counts; common cue seeds |
@@ -259,6 +262,6 @@ If time is limited before the theater group sees it, do roughly this order:
 8. ~~Timeline clear-filters + active chips + AND helper~~
 9. ~~Reports clickable moments + light print support~~
 10. ~~DEMO_WALKTHROUGH + password / deploy expectations~~
-11. Optional remaining: advanced filters Sheet on mobile; live search; catalog usage counts
+11. Optional remaining: catalog usage counts; multi-select prop/cue filters
 
 Everything in **Wish** can wait until after feedback from a real rehearsal pass — then update [SCRATCH_NOTES.md](SCRATCH_NOTES.md) with what actually hurt.

@@ -1110,8 +1110,8 @@ These bullets remain for lighter capture so good ideas are not lost:
 - **Rehearse line blur** — in Rehearse mode, actor's own lines stay in the list but text is blurred until click or hover reveal, so they can practice against visible context lines without seeing their line prematurely. Phase 6 P2; presets alone are sufficient for P0.
 - **Production home page** — a dedicated landing page per production instead of opening straight into the timeline hub.
 - **Bookmarks timeline view** — a dedicated timeline-like view for bookmarks with gaps (`…`) between non-adjacent moments; click through to the main timeline. Owner undecided on interaction design — leave as-is until settled.
-- **Live search** — filter timeline results as you type (no Enter required).
-- **Multi-select character filter** — show moments for any of several selected characters at once.
+- ~~**Live search**~~ — **Shipped 2026-08-13:** Timeline + Rehearse debounce (~275ms); Enter still commits immediately.
+- ~~**Multi-select character filter**~~ — **Shipped 2026-08-13:** Timeline OR within selected characters; Mine pre-checks cast ids; exclusive with group. Prop/cue multi-select still deferred.
 - **Character colors** — assign colors to characters for auto-highlighting (Actors and other roles).
 - **Split / merge moments** — divide one moment into two or combine adjacent moments during structural editing.
 - **Costume pieces / outfits** — Phase 14 WP5 shipped a thin on/off slice for whole costumes (`moment_costume_events`), replacing scene-level assignment. Tracking individual costume **pieces** and outfit combinations stays a later wish-list item.

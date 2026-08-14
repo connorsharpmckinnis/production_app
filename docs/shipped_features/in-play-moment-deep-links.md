@@ -1,6 +1,6 @@
 # Feature plan — In-play → Moment deep links
 
-**Status:** Shipped (Slice A + B — props/set pieces; OFF prior-on back-link 2026-08-01)  
+**Status:** Shipped (Slice A + B + C — props/set pieces + costumes; OFF prior-on back-link 2026-08-01 / costume Slice C 2026-08-13)  
 **Created:** 2026-07-27  
 **Shipped:** 2026-07-30  
 **Related:** [PHASE_14.md](../PHASE_14.md) (event-driven asset state), bookmarks/reports Timeline deep-links (already shipped), [UX_UI_IMPROVEMENTS.md](../UX_UI_IMPROVEMENTS.md) scene-summary drill-down wish, [SCRATCH_NOTES.md](../SCRATCH_NOTES.md) scene-level entrance/exit drill-down
@@ -42,10 +42,10 @@ So the missing piece for in-play drill-down is **data + UI on the in-play card**
 | Selection model | `selectedMomentId` in React state (`useTimelineScene`); sheet open when non-null |
 | Rehearse deep-link | **None** (path param only) |
 | Sticky URL while panel open | **No** — manual selection does not write `?moment=` back |
-| `props_in_play` / `set_pieces_in_play` API | Asset id/name, person, notes only — **no moment ids** |
-| `AssetStateSnapshot` | `in_play`, person, notes, `last_kind` — **no source moment id** |
-| Costumes “wearing” | Same gap (no originating wear-moment id) |
-| In-play UI | Label + person + notes list under Props / Set pieces sections |
+| `props_in_play` / `set_pieces_in_play` API | Asset id/name, person, notes + source / next-change human triples |
+| `AssetStateSnapshot` | `in_play`, person, notes, `last_kind`, `source_moment_id` / `source_scene_id` |
+| Costumes “wearing” | Same source + next-change + OFF prior-on pattern, keyed by `character_id` |
+| In-play UI | Dotted `1.3.10` source → next links; OFF rows “Started a.s.n”; hide wearing/in-play row when source is the current moment |
 
 Relevant code (approximate):
 
@@ -94,11 +94,9 @@ For an asset still in play at the **current** moment, OFF has not happened yet i
 
 **Done when:** User can jump to the later Moment that takes the asset out of play, when one exists.
 
-### Slice C — Same pattern for costumes (optional)
+### Slice C — Same pattern for costumes (shipped 2026-08-13)
 
-Mirror Slice A (and optionally B) for `costumes_wearing`: source wear moment, optional next clear moment.
-
-Lower priority unless costume walkthroughs need the same “where did this look start?” jump.
+Mirror Slice A+B for `costumes_wearing`: source = last Wear / re-Wear; next change = next Wear **or** Clear for that **character** (not OFF-only); hide next when null. OFF/Clear event rows get prior-on (“Started a.s.n”) like props. Still derived; no migration; costume CRUD endpoints do not fill prior-on (moment detail only).
 
 ### Slice D — Sticky / shareable Timeline URLs (orthogonal)
 
@@ -170,9 +168,10 @@ None of these block writing the plan; **Q1–Q3 and Q6** should be locked before
 
 **Done when:** Stop link works when an OFF exists; absent when not.
 
-### WP4 — Optional costumes (Slice C) / sticky URL (Slice D)
+### WP4 — Costumes (Slice C) / sticky URL (Slice D)
 
-- Only if prioritized after A (and maybe B).
+- Slice C shipped 2026-08-13 (source + next-change + OFF prior-on on costumes).
+- Slice D (sticky URL) still optional / deferred.
 
 ---
 
@@ -197,11 +196,11 @@ None of these block writing the plan; **Q1–Q3 and Q6** should be locked before
 | Scope creep into sticky URLs + costumes + scene chips | Ship Slice A alone; park B–E |
 | Forward OFF scan cost | Show-order walk already happens; tracking next OFF is cheap if done carefully in the same pass family |
 
-**Recommendation (updated 2026-07-30):** Ship **Slice A + B** together (source + next-change deep links on props & set pieces). Defer costumes and sticky URLs.
+**Recommendation (updated 2026-08-13):** Slice A+B+C shipped (props, set pieces, and costumes). Defer sticky URLs (D), scene-summary reuse (E), and Rehearse parity.
 
 **Why this fits now:** Phase 14 derived in-play already walks the show; tracking source + forward-scanning next event is cheap; deep-link plumbing already exists.
 
-**Deferring:** Slice C–E; Rehearse parity; scene-summary drill-down.
+**Deferring:** Slice D–E; Rehearse parity; scene-summary drill-down; costume pieces/outfits.
 
 ---
 
@@ -221,10 +220,11 @@ None of these block writing the plan; **Q1–Q3 and Q6** should be locked before
 | 2026-07-30 | Q1 start | Last event that set current state (today: last ON; future MOVE etc. also update source; OFF clears in-play) |
 | 2026-07-30 | Q2 next change in v1? | **Yes** — next event for that asset after the viewed Moment (ON or OFF, not OFF-only). Hide link when null. |
 | 2026-07-30 | Q3 navigation | Human `?act=&scene=&moment=` via `humanTimelinePath` |
-| 2026-07-30 | Q6 costumes in v1? | **Defer** (Slice C) |
+| 2026-07-30 | Q6 costumes in v1? | **Defer** (Slice C) — later authorized and shipped 2026-08-13 |
 | 2026-07-30 | Q7 sticky URL? | **Defer** (Slice D) |
 | 2026-07-30 | Q8 affordance | Dotted moment codes (`1.3.10`) as underlined links; source always; next when present (`source → next`) |
 | 2026-07-30 | Ship scope | Slice A + B (props/set pieces) |
+| 2026-08-13 | Q6 / Slice C | **Ship costumes** — same source + next-change + OFF prior-on as props; keyed by `character_id`; next = Wear or Clear |
 
 ---
 

@@ -81,7 +81,7 @@ Share derivation helpers (who’s in scenes, assets in play) but keep **two UIs 
 
 | Area | Today |
 | ---- | ----- |
-| Character filter on Timeline | Single-character filter exists |
+| Character filter on Timeline | Multi-select (OR); Mine pre-checks cast ids |
 | Multi-select scenes | Not a first-class “pack builder” |
 | Phase 14 asset events | Props / sets / costumes on/off; derived `asset_state` |
 | Entrances / exits | Structured on moments |

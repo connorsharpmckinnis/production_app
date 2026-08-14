@@ -23,6 +23,7 @@ from app.services.asset_state import (
     compute_prop_state_by_moment,
     compute_set_piece_state_by_moment,
     find_next_asset_event_refs,
+    find_prior_on_refs,
 )
 from app.services.importer import import_script
 
@@ -250,6 +251,9 @@ def test_costume_on_persists_across_moments_until_next_event() -> None:
         assert state.costume_id == 50
         assert state.notes == "Opening look"
         assert state.last_kind == "on"
+        assert state.in_play is True
+        assert state.source_moment_id == 1
+        assert state.source_scene_id == 1
 
 
 def test_costume_off_clears_wearing() -> None:
@@ -265,9 +269,13 @@ def test_costume_off_clears_wearing() -> None:
     off_state = states_by_moment[2][7]
     assert off_state.costume_id is None
     assert off_state.last_kind == "off"
+    assert off_state.in_play is False
+    assert off_state.source_moment_id == 2
+    assert off_state.source_scene_id == 1
 
     still_off = states_by_moment[3][7]
     assert still_off.costume_id is None
+    assert still_off.in_play is False
 
 
 def test_costume_re_on_changes_costume() -> None:
@@ -281,10 +289,14 @@ def test_costume_re_on_changes_costume() -> None:
     states_by_moment = compute_costume_state_by_moment(moments, events_by_moment_id)
 
     assert states_by_moment[2][7].costume_id == 50
+    assert states_by_moment[2][7].source_moment_id == 1
 
     changed = states_by_moment[3][7]
     assert changed.costume_id == 51
     assert changed.notes == "Finale look"
+    assert changed.in_play is True
+    assert changed.source_moment_id == 3
+    assert changed.source_scene_id == 1
 
 
 def test_costume_unrelated_characters_do_not_interfere() -> None:
@@ -303,6 +315,85 @@ def test_costume_unrelated_characters_do_not_interfere() -> None:
     assert states_by_moment[2][7].costume_id is None
     assert states_by_moment[2][8].costume_id == 51
     assert states_by_moment[2][8].notes == "Character B on"
+
+
+def test_costume_next_event_ref_finds_later_wear_or_clear() -> None:
+    """Forward scan keyed by character_id finds later Wear or Clear."""
+    moments = [
+        _moment(1, scene_id=10),
+        _moment(2, scene_id=10),
+        _moment(3, scene_id=20),
+        _moment(4, scene_id=20),
+    ]
+    events_by_moment_id = {
+        1: [_costume_event(7, "on", costume_id=50)],
+        3: [_costume_event(7, "on", costume_id=51)],  # re-wear
+        4: [_costume_event(7, "off")],
+    }
+
+    next_from_1 = find_next_asset_event_refs(
+        moments,
+        events_by_moment_id,
+        current_moment_id=1,
+        asset_ids={7},
+        asset_id_attr="character_id",
+    )
+    assert next_from_1[7].moment_id == 3
+    assert next_from_1[7].scene_id == 20
+
+    next_from_3 = find_next_asset_event_refs(
+        moments,
+        events_by_moment_id,
+        current_moment_id=3,
+        asset_ids={7},
+        asset_id_attr="character_id",
+    )
+    assert next_from_3[7].moment_id == 4
+
+    assert (
+        find_next_asset_event_refs(
+            moments,
+            events_by_moment_id,
+            current_moment_id=4,
+            asset_ids={7},
+            asset_id_attr="character_id",
+        )
+        == {}
+    )
+
+
+def test_costume_prior_on_ref_from_off_uses_last_wear_source() -> None:
+    """OFF looks at the previous moment's wearing source (last Wear / re-Wear)."""
+    moments = [
+        _moment(1, scene_id=10),
+        _moment(2, scene_id=10),
+        _moment(3, scene_id=20),
+    ]
+    events_by_moment_id = {
+        1: [_costume_event(7, "on", costume_id=50)],
+        2: [_costume_event(7, "on", costume_id=51)],  # re-wear overwrites source
+        3: [_costume_event(7, "off")],
+    }
+    states_by_moment = compute_costume_state_by_moment(moments, events_by_moment_id)
+
+    prior = find_prior_on_refs(
+        moments,
+        states_by_moment,
+        current_moment_id=3,
+        asset_ids={7},
+    )
+    assert prior[7].moment_id == 2
+    assert prior[7].scene_id == 10
+
+    assert (
+        find_prior_on_refs(
+            moments,
+            states_by_moment,
+            current_moment_id=1,
+            asset_ids={7},
+        )
+        == {}
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -590,6 +681,10 @@ def test_set_piece_event_persists_across_scenes_via_api(
     )
     assert in_play["character_name"] == "CREAN"
     assert in_play["notes"] == "Center stage"
+    assert in_play["source_moment_id"] == on_moment_id
+    assert in_play["source_act_number"] == 1
+    assert in_play["source_scene_number"] == 1
+    assert in_play["next_change_moment_id"] is None
 
 
 def test_costume_event_persists_across_scenes_via_api(
@@ -636,6 +731,11 @@ def test_costume_event_persists_across_scenes_via_api(
     )
     assert wearing["costume_name"] == "Parka"
     assert wearing["notes"] == "Opening look"
+    assert wearing["source_moment_id"] == on_moment_id
+    assert wearing["source_act_number"] == 1
+    assert wearing["source_scene_number"] == 1
+    assert wearing["source_sequence_number"] is not None
+    assert wearing["next_change_moment_id"] is None
 
     off_response = seeded_client.post(
         f"/api/productions/{production_id}/moments/{later_moment_id}/costumes",
@@ -643,6 +743,37 @@ def test_costume_event_persists_across_scenes_via_api(
         headers=headers,
     )
     assert off_response.status_code == 201
+
+    earlier_detail = seeded_client.get(
+        f"/api/productions/{production_id}/moments/{on_moment_id}",
+        headers=headers,
+    ).json()
+    earlier_wearing = next(
+        item
+        for item in earlier_detail["costumes_wearing"]
+        if item["character_id"] == crean_id
+    )
+    assert earlier_wearing["source_moment_id"] == on_moment_id
+    assert earlier_wearing["next_change_moment_id"] == later_moment_id
+    assert earlier_wearing["next_change_act_number"] == 1
+    assert earlier_wearing["next_change_scene_number"] == 2
+
+    off_detail = seeded_client.get(
+        f"/api/productions/{production_id}/moments/{later_moment_id}",
+        headers=headers,
+    ).json()
+    assert all(
+        item["character_id"] != crean_id for item in off_detail["costumes_wearing"]
+    )
+    off_event = next(
+        item
+        for item in off_detail["costume_events"]
+        if item["character_id"] == crean_id
+    )
+    assert off_event["kind"] == "off"
+    assert off_event["prior_on_moment_id"] == on_moment_id
+    assert off_event["prior_on_act_number"] == 1
+    assert off_event["prior_on_scene_number"] == 1
 
     later_scenes = acts[0]["scenes"]
     if len(later_scenes) > 2:

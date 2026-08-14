@@ -172,7 +172,7 @@ Emmy’s Stage Write doubt was partly **multi-show investment**. Lean into remou
 Pick a few that directors will feel in the first hour:
 
 - [ ] Further **moment-detail declutter** under heavy use (add-flow still feels dense — scratch + UX wish).
-- [ ] **Live search** and/or **multi-select character filter** ([UX_UI_IMPROVEMENTS.md](UX_UI_IMPROVEMENTS.md) remaining P1).
+- [x] **Live search** and **multi-select character filter** ([UX_UI_IMPROVEMENTS.md](UX_UI_IMPROVEMENTS.md)). Prop/cue multi-select still deferred.
 - [ ] Scene-level summary visibility improvements if cheap; full chip drill-down can wait ([PROJECT.md](PROJECT.md) wish list).
 
 

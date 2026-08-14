@@ -86,9 +86,9 @@ Moments listed in sequence order; click row → read-only detail in a `Sheet`.
 | Control | Behavior |
 | --- | --- |
 | Act / Scene | Navigate structure; act label avoids duplicate "Act 1: Act 1" |
-| Group (Director+) | Filter to group's character members; disables character filter |
-| Character | All / My characters / single character; includes stage directions referencing that name |
-| Search | Scene-scoped substring match; submit on Enter |
+| Group (Director+) | Filter to group's character members; disables character multi-select and clears character ids |
+| Character | Multi-select (OR within this filter). Empty = all characters. **My characters** pre-checks the actor's cast ids (hidden if none). Mutually exclusive with group. Includes stage directions referencing those names |
+| Search | Scene-scoped substring match; live debounce (~275ms) plus Enter / Search to commit immediately. Empty/whitespace clears immediately |
 | Cue-only | Stage directions, song headers, and moments with attached technical cues |
 
 **Moment list:**
@@ -256,6 +256,7 @@ Semantic action colors:
 * **Scene summary strip** — client-side character/song chips and props-used count below act/scene selectors (Timeline + Rehearse)
 * Shared `TimelineMomentList` — full-row click targets, keyboard accessible, shared highlight styles
 * Timeline **Advanced filters** disclosure for director prep controls; cue-only checkbox removed; Sheet on small screens
+* Timeline **live search** (debounce ~275ms; Enter commits immediately) and **multi-select character filter** (OR within characters; AND with other filters). Rehearse has live search only
 * Moment detail: **Imported data** label; **Add to moment** menu; on-stage block removed; irrelevant fields hidden
 * **Theme** — light/dark/system plus Warm and Stage palette presets (Settings + user menu); tokens in `index.css`
 
@@ -263,8 +264,7 @@ Semantic action colors:
 
 ## Deferred to Later Slices
 
-* Live search (filter as you type)
-* Multi-select character / prop / cue filters
+* Multi-select prop / cue filters
 * Bookmarks dedicated view
 * Saved filter views / rehearsal modes
 * Preparation progress dashboard

@@ -24,4 +24,4 @@ Give each production a clearer **landing home** and optional **saved views / mod
 
 ## Recommendation
 
-Don’t build home until nav feels crowded in a pilot. Saved views are higher leverage than decorative home pages — especially with multi-select character filter / live search still open in UX backlog.
+Don’t build home until nav feels crowded in a pilot. Saved views are higher leverage than decorative home pages — live search and multi-select character filter are now shipped; prop/cue multi-select and named saved views remain open.

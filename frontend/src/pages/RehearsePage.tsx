@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import MomentDetailSheet from "@/components/MomentDetailSheet";
 import SceneMultiSelect from "@/components/SceneMultiSelect";
@@ -65,6 +65,7 @@ export default function RehearsePage() {
 
   const [searchInput, setSearchInput] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
+  const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [preset, setPreset] = useState<RehearsePresetId>("scene_run_through");
   const [toggles, setToggles] = useState<RehearseDisplayToggles>(
     PRESET_DEFAULT_TOGGLES.scene_run_through,
@@ -83,6 +84,24 @@ export default function RehearsePage() {
     setPreset(stored.preset);
     setToggles(stored.toggles);
   }, [productionId]);
+
+  useEffect(() => {
+    const trimmed = searchInput.trim();
+    if (trimmed === "") {
+      setSearchQuery("");
+      return;
+    }
+    searchDebounceRef.current = setTimeout(() => {
+      setSearchQuery(trimmed);
+      searchDebounceRef.current = null;
+    }, 275);
+    return () => {
+      if (searchDebounceRef.current != null) {
+        clearTimeout(searchDebounceRef.current);
+        searchDebounceRef.current = null;
+      }
+    };
+  }, [searchInput]);
 
   useEffect(() => {
     saveStoredState(productionId, { preset, toggles });
@@ -146,6 +165,10 @@ export default function RehearsePage() {
 
   function handleSearchSubmit(event: React.FormEvent) {
     event.preventDefault();
+    if (searchDebounceRef.current != null) {
+      clearTimeout(searchDebounceRef.current);
+      searchDebounceRef.current = null;
+    }
     setSearchQuery(searchInput.trim());
   }
 

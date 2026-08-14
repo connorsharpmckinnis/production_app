@@ -23,7 +23,7 @@ import type {
 import { formatSceneSectionLabel, sortByName } from "@/lib/utils";
 
 export interface TimelineFilterInput {
-  characterFilter: "all" | "mine" | string;
+  characterIds: number[];
   groupFilter: "all" | string;
   searchQuery: string;
   costumeOnly: boolean;
@@ -45,20 +45,13 @@ export interface UseTimelineSceneOptions {
 
 function buildMomentFilters(
   filterInput: TimelineFilterInput | undefined,
-  myCharacterIds: number[],
 ): MomentListFilters | undefined {
   if (!filterInput) return undefined;
 
-  let characterIds: number[] | undefined;
-  if (filterInput.groupFilter === "all") {
-    if (filterInput.characterFilter === "all") {
-      characterIds = undefined;
-    } else if (filterInput.characterFilter === "mine") {
-      characterIds = myCharacterIds.length > 0 ? myCharacterIds : undefined;
-    } else {
-      characterIds = [Number(filterInput.characterFilter)];
-    }
-  }
+  const characterIds =
+    filterInput.groupFilter === "all" && filterInput.characterIds.length > 0
+      ? filterInput.characterIds
+      : undefined;
 
   return {
     characterIds,
@@ -133,8 +126,8 @@ export function useTimelineScene({
 
   const momentFilters = useMemo(() => {
     if (explicitMomentFilters) return explicitMomentFilters;
-    return buildMomentFilters(filterInput, myCharacterIds);
-  }, [explicitMomentFilters, filterInput, myCharacterIds]);
+    return buildMomentFilters(filterInput);
+  }, [explicitMomentFilters, filterInput]);
 
   const sortedCharacters = useMemo(() => sortByName(characters), [characters]);
 
