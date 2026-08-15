@@ -2,7 +2,7 @@
 
 **Status:** Proposal (not scheduled)  
 **Created:** 2026-07-28  
-**Related:** [app-announcements.md](app-announcements.md), [tasks-and-mentions.md](tasks-and-mentions.md), `users.email` (optional), [SECURITY_REVIEW.md](../SECURITY_REVIEW.md) (no mail stack today)
+**Related:** [app-announcements.md](../shipped_features/app-announcements.md), [tasks-and-mentions.md](tasks-and-mentions.md), `users.email` (optional), [SECURITY_REVIEW.md](../SECURITY_REVIEW.md) (no mail stack today)
 
 ---
 
@@ -141,7 +141,7 @@ Composer / domain event
 
 | Plan | Relationship |
 | ---- | ------------ |
-| [app-announcements.md](app-announcements.md) | Blast email is an optional channel on publish; in-app bell remains required for parity among openers |
+| [app-announcements.md](../shipped_features/app-announcements.md) | Blast email is an optional channel on publish; in-app bell remains required for parity among openers |
 | [tasks-and-mentions.md](tasks-and-mentions.md) | Mention / assignment emails need notification events + deep links first |
 | Auth / invites | Optional follow-on; not required to prove announcement mail |
 
@@ -329,7 +329,7 @@ Still pick ESP (Q1) and blast opt-in policy (Q4) before WP0 send-to-prod.
 
 ## References
 
-- Announcements: [app-announcements.md](app-announcements.md)
+- Announcements: [app-announcements.md](../shipped_features/app-announcements.md)
 - Tasks / mentions: [tasks-and-mentions.md](tasks-and-mentions.md)
 - Security baseline (no mail today): [SECURITY_REVIEW.md](../SECURITY_REVIEW.md)
 - Users.email: [DATABASE.md](../DATABASE.md) USERS

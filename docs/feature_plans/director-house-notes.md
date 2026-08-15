@@ -2,7 +2,7 @@
 
 **Status:** Roadmap (approved intent — build eventually; not yet phased)  
 **Created:** 2026-07-29  
-**Related:** [STP_PRODUCT_OVERVIEW.md](../STP_PRODUCT_OVERVIEW.md) idea #4, [PROJECT.md](../PROJECT.md) wish list (real-time note-flagging, mobile interface), Notes model, Timeline deep links, [app-announcements.md](app-announcements.md) (not this)
+**Related:** [STP_PRODUCT_OVERVIEW.md](../STP_PRODUCT_OVERVIEW.md) idea #4, [PROJECT.md](../PROJECT.md) wish list (real-time note-flagging, mobile interface), Notes model, Timeline deep links, [app-announcements.md](../shipped_features/app-announcements.md) (not this)
 
 ---
 

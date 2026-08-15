@@ -571,8 +571,8 @@ Tasks:
 
 Captured from [SCRATCH_NOTES.md](SCRATCH_NOTES.md) and [PROJECT.md](PROJECT.md). Not Phase 2 scope:
 
-- Live search (filter as you type)
-- Multi-select character filter
+- ~~Live search (filter as you type)~~ — **Shipped 2026-08-13**
+- ~~Multi-select character filter~~ — **Shipped 2026-08-13**
 - Cue-only / rehearsal as dedicated modes (not just a checkbox filter)
 - Bookmarks dedicated timeline-like view
 - Production home page (vs opening timeline hub)

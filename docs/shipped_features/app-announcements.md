@@ -3,7 +3,7 @@
 **Status:** Prototype shipped (Slices A–C) — 2026-07-29  
 **Created:** 2026-07-28  
 **Updated:** 2026-08-01 — hard-delete inactive announcements (#84)  
-**Related:** Overview spotlight messages ([PHASE_8.md](../PHASE_8.md), [PREP_READINESS.md](../PREP_READINESS.md)), [ROLES.md](../ROLES.md), [SCRATCH_NOTES.md](../SCRATCH_NOTES.md) (spotlight vs future notifications), [UX_UI_IMPROVEMENTS.md](../UX_UI_IMPROVEMENTS.md) (bookmarks panel as header-panel precedent), [tasks-and-mentions.md](tasks-and-mentions.md), [email-notifications.md](email-notifications.md)
+**Related:** Overview spotlight messages ([PHASE_8.md](../PHASE_8.md), [PREP_READINESS.md](../PREP_READINESS.md)), [ROLES.md](../ROLES.md), [SCRATCH_NOTES.md](../SCRATCH_NOTES.md) (spotlight vs future notifications), [UX_UI_IMPROVEMENTS.md](../UX_UI_IMPROVEMENTS.md) (bookmarks panel as header-panel precedent), [tasks-and-mentions.md](../feature_plans/tasks-and-mentions.md), [email-notifications.md](../feature_plans/email-notifications.md)
 
 ---
 
@@ -32,7 +32,7 @@ Leaders currently have no good in-app channel for group communication:
 
 We expect mixed usage patterns: some cast members open the app weekly for line practice; others live in it during tech week. Announcements need to **persist until acknowledged or expired**, not only flash on the day they are posted.
 
-Public two-way communication (@-mentions, tasks, DMs) is a separate future feature — see [tasks-and-mentions.md](tasks-and-mentions.md). Outbound email is separate too — see [email-notifications.md](email-notifications.md). This plan is **one-way broadcast + read tracking**, not chat. Prefer designing the bell as a **multi-kind notification feed** (announcements, later mentions/assignments) so those plans can plug in without a second inbox.
+Public two-way communication (@-mentions, tasks, DMs) is a separate future feature — see [tasks-and-mentions.md](../feature_plans/tasks-and-mentions.md). Outbound email is separate too — see [email-notifications.md](../feature_plans/email-notifications.md). This plan is **one-way broadcast + read tracking**, not chat. Prefer designing the bell as a **multi-kind notification feed** (announcements, later mentions/assignments) so those plans can plug in without a second inbox.
 
 ---
 
@@ -387,8 +387,8 @@ Optional “welcome” modal for brand-new users (product tour) can be a normal 
 
 | Date | Topic | Decision |
 | ---- | ----- | -------- |
-| 2026-07-28 | Bell / feed shape | **One multi-kind notifications feed** (one bell). Announcements are a `kind`; future mentions / task assignments plug into the same inbox — do not ship an announcements-only table that forces a second inbox later. See [tasks-and-mentions.md](tasks-and-mentions.md). |
-| 2026-07-28 | Sequencing with related plans | In-app announcements/inbox → optional email blast ([email-notifications.md](email-notifications.md)) → Tasks CRUD → comments/@-mentions → mention email → digest. |
+| 2026-07-28 | Bell / feed shape | **One multi-kind notifications feed** (one bell). Announcements are a `kind`; future mentions / task assignments plug into the same inbox — do not ship an announcements-only table that forces a second inbox later. See [tasks-and-mentions.md](../feature_plans/tasks-and-mentions.md). |
+| 2026-07-28 | Sequencing with related plans | In-app announcements/inbox → optional email blast ([email-notifications.md](../feature_plans/email-notifications.md)) → Tasks CRUD → comments/@-mentions → mention email → digest. |
 | 2026-07-29 | Q1 spotlight vs this system | **Keep separate.** Spotlight stays ambient (scripture / encouragement); Announcements are productive broadcasts. |
 | 2026-07-29 | Q2 all items in inbox? | **Yes.** Every announcement enters the bell. DB retains all rows for posterity; UI shows unread + last ~100. |
 | 2026-07-29 | Q3 org-wide author = Admin only? | **Yes.** Directors author production-scoped only. |

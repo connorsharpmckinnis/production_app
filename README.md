@@ -94,8 +94,9 @@ Some assets can be re-used between completely different productions (props, cost
 The **Timeline** is a beat-by-beat walk through the show. Directors live here for prep:
 
 - Review and adjust structure (add, delete, reorder moments)  
-- Cast characters to actors  
-- Attach prep to specific moments: props, cues, entrances, exits, blocking, notes  
+- Search the scene as you type; filter by one or more characters  
+- Attach prep to specific moments: props, cues, costumes, entrances, exits, blocking, notes  
+- From Moment Detail, jump from an in-play prop, set piece, or costume to the moment that set it (and the next change, if any)  
 - Bookmark moments that need attention later  
 
 ![Timeline — the main view](docs/screenshots/timeline-page.png?raw=true)
@@ -360,6 +361,8 @@ production_app/
 - [docs/STP_PRODUCT_OVERVIEW.md](docs/STP_PRODUCT_OVERVIEW.md) — non-technical product intro for STP
 - [docs/DEMO_WALKTHROUGH.md](docs/DEMO_WALKTHROUGH.md) — click-through demo path
 - [docs/PHASE_1.md](docs/PHASE_1.md) — current implementation plan
+- [docs/feature_plans/README.md](docs/feature_plans/README.md) — upcoming feature intent
+- [docs/shipped_features/README.md](docs/shipped_features/README.md) — shipped feature-plan history
 - [docs/SEED_DATA.md](docs/SEED_DATA.md) — bootstrap seed specification
 - [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](.agents/skills/DEVELOPMENT_GUIDE/SKILL.md) — coding standards
 

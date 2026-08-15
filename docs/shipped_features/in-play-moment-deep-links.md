@@ -9,7 +9,7 @@
 
 ## Goal
 
-From a Moment’s **Currently in play** readout (props / set pieces), let the user jump to the Timeline Moment that last set that asset’s current state, and (when one exists) the next Moment where that asset changes again.
+From a Moment’s **Currently in play** / **Currently wearing** readout (props, set pieces, costumes), let the user jump to the Timeline Moment that last set that asset’s current state, and (when one exists) the next Moment where that asset changes again.
 
 Primary motivating UX: while looking at a moment mid-show, see “Iceberg — Downstage Left” and open the Moment where that location was set, without hunting the Timeline by hand.
 
@@ -123,7 +123,7 @@ Parked here so Phase 14 follow-ons stay aligned with [PROJECT.md](../PROJECT.md)
 | **Q3** | Navigation style from Moment Detail? | **Reuse existing human** `?act=&scene=&moment=` deep-link (same as bookmarks/reports). Works across scenes; one code path. Legacy PK still OK if only ids are available. | In-process `setSelectedMomentId` only when same scene; URL when crossing scenes — more branches for little gain. |
 | **Q4** | Cross-scene jumps while a sheet is open — expected UX? | Switching scene + opening the source moment **replaces** the current detail (same as picking another moment). Optional toast: “Opened Act 1 Scene 2 · Moment N”. | Open source in a second panel / modal — overbuilt for MVP. |
 | **Q5** | What if filters hide the target moment? | Deep-link selects scene then waits for moment list; if still missing after load, show a short error toast and leave selection unchanged. Do **not** auto-clear all filters unless owner wants that. | Clear filters automatically so the jump always succeeds. |
-| **Q6** | Include **costumes** in v1? | **Defer** (Slice C). Props/sets are the motivating case. | Include if costume walkthroughs are equally important before next rehearsal. |
+| **Q6** | Include **costumes** in v1? | **Defer** (Slice C) at first ship; **shipped 2026-08-13**. | Include if costume walkthroughs are equally important before next rehearsal. |
 | **Q7** | Sticky URL (Slice D) in same effort? | **Defer.** Separate concern; don’t block in-play links. | Bundle if share/refresh of open moments is a near-term pain. |
 | **Q8** | Label / affordance copy? | Compact: asset row + link control **“Set here”** / icon with `aria-label` “Open moment that set this state”. Avoid cluttering the muted in-play block. | Show act/scene/sequence text inline (more informative, noisier). |
 | **Q9** | Should the **ON event row on the source moment itself** also deep-link anywhere? | No — you’re already there. Links only on **derived** in-play cards (and later drill-downs). | Also link from reports (already have moment links). |
@@ -225,6 +225,7 @@ None of these block writing the plan; **Q1–Q3 and Q6** should be locked before
 | 2026-07-30 | Q8 affordance | Dotted moment codes (`1.3.10`) as underlined links; source always; next when present (`source → next`) |
 | 2026-07-30 | Ship scope | Slice A + B (props/set pieces) |
 | 2026-08-13 | Q6 / Slice C | **Ship costumes** — same source + next-change + OFF prior-on as props; keyed by `character_id`; next = Wear or Clear |
+| 2026-08-14 | Owner check | Live search, costume (and prop/set) deep links, and character multi-select **tested and approved** |
 
 ---
 

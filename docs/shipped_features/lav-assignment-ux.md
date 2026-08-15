@@ -2,7 +2,7 @@
 
 **Status:** Shipped (UX polish — no PHASE doc; 2026-08-02)  
 **Created:** 2026-08-02  
-**Related:** [PHASE_12.md](../PHASE_12.md) (shipped matrix MVP), [lav-follow-ons.md](lav-follow-ons.md) (Timeline markers / change-list — separate track), `frontend/src/pages/LavChartPage.tsx`, `backend/app/services/lav_chart.py`
+**Related:** [PHASE_12.md](../PHASE_12.md) (shipped matrix MVP), [lav-follow-ons.md](../feature_plans/lav-follow-ons.md) (Timeline markers / change-list — separate track), `frontend/src/pages/LavChartPage.tsx`, `backend/app/services/lav_chart.py`
 
 **Owner decisions at build:** fill row/act = **all scenes** (not need-only); taken assets shown **disabled + “in use by X”** (may switch to hide later); **row locks only** (manual-edit guard). **Propose (2026-08-03):** full overwrite of the **active sheet** — one-shot starter chart, then manual tweak; does not preserve filled/locked cells.
 
@@ -33,7 +33,7 @@ If booth operators bounce back to Excel for drag-fill and “who has Pack 3,” 
 | Wide shows | Many narrow selects; hard to scan; sticky actor column helps but chrome doesn’t |
 | Propose is blunt | Always both sheets; persists immediately; no preview; overwrites without range control |
 
-Data model is fine for v1: per-(wearer × scene) assignments + production wire/pack catalogs. This plan is mostly **interaction + small API helpers**, not a re-architecture. Timeline lav events / change-list stay in [lav-follow-ons.md](lav-follow-ons.md).
+Data model is fine for v1: per-(wearer × scene) assignments + production wire/pack catalogs. This plan is mostly **interaction + small API helpers**, not a re-architecture. Timeline lav events / change-list stay in [lav-follow-ons.md](../feature_plans/lav-follow-ons.md).
 
 ---
 
@@ -96,7 +96,7 @@ Visual: lock icon on row header / act header; unlock requires explicit click (Di
 
 ### Explicitly out of scope (this plan)
 
-- Timeline lav Moments / change-list sheet ([lav-follow-ons.md](lav-follow-ons.md))
+- Timeline lav Moments / change-list sheet ([lav-follow-ons.md](../feature_plans/lav-follow-ons.md))
 - Real spreadsheet grid (Handsontable, etc.)
 - Org inventory / CSV
 - Configurable assignment rules UI

@@ -64,7 +64,7 @@ Phase 5 completed the functional MVP prep workflow. **The product works; it does
 | Bookmarks dedicated timeline view | Wish list — owner design undecided |
 | Stage diagram blocking picker | Wish list |
 | New Rehearse API endpoints or filter params | Out of scope — client-side only |
-| Live search, multi-select character filter | P2 within Phase 6 if time; otherwise wish list |
+| Live search, multi-select character filter | **Shipped 2026-08-13** (was P2 / wish list) |
 | PDF export, preparation progress dashboard | Post-MVP |
 | Saved named views (persisted rehearsal modes) | Post-MVP |
 
@@ -373,6 +373,7 @@ All roles retain on Rehearse: moment detail (read-only prep data for actors), no
 - [ ] **Blur my lines** — CSS blur on own line text in list rows; reveal on click or hover; toggle in Rehearse controls
 - [ ] Scene summary clickable chips → character modal (entrance/exit/costume/prop drill-down)
 - [x] Live search on Timeline + Rehearse
+- [x] Multi-select character filter on Timeline (OR within characters)
 - [ ] `localStorage` persistence for Rehearse presets
 - [ ] Named prop chips in scene summary (evaluate extending `MomentSummary` vs separate fetch)
 

@@ -3,7 +3,7 @@
 **Status:** Far-future (v2+ / post first full show·season) — **do not phase or build now**  
 **Created:** 2026-07-29  
 **Parked:** 2026-08-02 — owner decision: wait until the system has been used for at least one whole show/season before reconsidering  
-**Related:** [STP_PRODUCT_OVERVIEW.md](../STP_PRODUCT_OVERVIEW.md) idea #1, [PHASE_14.md](../PHASE_14.md) (derived asset state), [print-and-call-sheets.md](print-and-call-sheets.md), [in-play-moment-deep-links.md](in-play-moment-deep-links.md)
+**Related:** [STP_PRODUCT_OVERVIEW.md](../STP_PRODUCT_OVERVIEW.md) idea #1, [PHASE_14.md](../PHASE_14.md) (derived asset state), [print-and-call-sheets.md](print-and-call-sheets.md), [in-play-moment-deep-links.md](../shipped_features/in-play-moment-deep-links.md)
 
 ---
 

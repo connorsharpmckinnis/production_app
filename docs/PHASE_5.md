@@ -71,7 +71,7 @@ This phase is **not** about UX polish. Filter polish, live search, bookmarks red
 
 | Item                                                    | Target                      |
 | ------------------------------------------------------- | --------------------------- |
-| Live search, multi-select filters, filter badges polish | Wish list                   |
+| Live search, multi-select filters, filter badges polish | Wish list (live search + character multi-select **shipped 2026-08-13**; prop/cue multi-select still open) |
 | Bookmarks dedicated timeline view                       | Wish list                   |
 | Split / merge moments                                   | Wish list                   |
 | Rehearsals, attendance, archives                        | Post-MVP                    |

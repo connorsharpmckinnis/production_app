@@ -91,7 +91,7 @@ Phase 2 is complete. This document is the execution plan for the implementing ag
 
 - [ ] Costumes, microphones, set pieces
 - [ ] Prop/cue filter UX polish (multi-select, list badges)
-- [ ] Live search / multi-select character filter (Phase 2 wish list)
+- [x] Live search / multi-select character filter (Phase 2 wish list) — **shipped 2026-08-13**
 
 ## Out of Scope (defer to Phase 4+)
 

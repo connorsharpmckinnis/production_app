@@ -2,7 +2,7 @@
 
 **Status:** Roadmap (approved intent — build eventually; not yet phased)  
 **Created:** 2026-07-29  
-**Related:** [PRE_AUGUST_STP_PREP.md](../PRE_AUGUST_STP_PREP.md) soft pilot packaging, [STP_PRODUCT_OVERVIEW.md](../STP_PRODUCT_OVERVIEW.md) Phase A/B/C, [DEPLOY.md](../DEPLOY.md), in-app feedback (shipped), [app-announcements.md](app-announcements.md), [crew-roles.md](crew-roles.md)
+**Related:** [PRE_AUGUST_STP_PREP.md](../PRE_AUGUST_STP_PREP.md) soft pilot packaging, [STP_PRODUCT_OVERVIEW.md](../STP_PRODUCT_OVERVIEW.md) Phase A/B/C, [DEPLOY.md](../DEPLOY.md), in-app feedback (shipped), [app-announcements.md](../shipped_features/app-announcements.md), [crew-roles.md](crew-roles.md)
 
 ---
 

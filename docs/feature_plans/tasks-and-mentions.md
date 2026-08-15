@@ -2,7 +2,7 @@
 
 **Status:** Proposal (not scheduled)  
 **Created:** 2026-07-28  
-**Related:** [app-announcements.md](app-announcements.md) (bell / inbox), [email-notifications.md](email-notifications.md), deferred Tasks in [PROJECT.md](../PROJECT.md) / [DATABASE.md](../DATABASE.md), Notes (moment annotations), [STP_PRODUCT_OVERVIEW.md](../STP_PRODUCT_OVERVIEW.md) (“not yet: assignable task lists”)
+**Related:** [app-announcements.md](../shipped_features/app-announcements.md) (bell / inbox), [email-notifications.md](email-notifications.md), deferred Tasks in [PROJECT.md](../PROJECT.md) / [DATABASE.md](../DATABASE.md), Notes (moment annotations), [STP_PRODUCT_OVERVIEW.md](../STP_PRODUCT_OVERVIEW.md) (“not yet: assignable task lists”)
 
 ---
 
@@ -34,7 +34,7 @@ Tasks are already sketched in the long-term domain model and explicitly deferred
 | Notes | Moment (and API-ready character) annotations; `public` \| `private`; no @-parse; no notifications |
 | Note UI | Moment detail panel only; actors always private; Directors/Admins can choose public |
 | Mentions | None |
-| Notification inbox | Proposed in [app-announcements.md](app-announcements.md) — not built |
+| Notification inbox | Prototype shipped — [app-announcements.md](../shipped_features/app-announcements.md) |
 | Email | No outbound mail; `users.email` optional metadata only |
 | Deep links | Timeline `?scene=&moment=`; good target for “open the note’s moment” |
 
@@ -269,7 +269,7 @@ Architectural locks (Q1, Q2, Q7) are recorded below; remaining opens can wait un
 
 ## Suggested sequence
 
-1. Align notification model with [app-announcements.md](app-announcements.md) (one bell, many kinds).
+1. Align notification model with [app-announcements.md](../shipped_features/app-announcements.md) (one bell, many kinds).
 2. Ship announcements inbox (or minimal notifications table).
 3. Authorize Tasks Slice A → B → C.
 4. Wire [email-notifications.md](email-notifications.md) for `mention` / `task_assigned` when outbound mail exists.
@@ -323,7 +323,7 @@ v1 list filters beat full-text search; add search when task volume hurts.
 
 ## References
 
-- Announcements / bell: [app-announcements.md](app-announcements.md)
+- Announcements / bell: [app-announcements.md](../shipped_features/app-announcements.md)
 - Email: [email-notifications.md](email-notifications.md)
 - Domain: [PROJECT.md](../PROJECT.md) Task, [DATABASE.md](../DATABASE.md) TASKS / Notes
 - Notes UI: `frontend/src/components/MomentDetailPanel.tsx`

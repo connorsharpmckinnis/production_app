@@ -114,7 +114,7 @@ Phase 3 made the timeline *editable*. Phase 4 makes it *trustworthy and complete
 
 - [x] Admin navigation section — User Management + App Settings visually separated from production prep
 - [ ] Prop/cue filter UX polish (multi-select, badges on list rows)
-- [ ] Live search / multi-select character filter (wish list carryover)
+- [x] Live search / multi-select character filter (wish list carryover) — **shipped 2026-08-13**
 - [ ] Production-level settings page (only if a concrete per-production flag emerges)
 
 ## Out of Scope (defer)
@@ -294,8 +294,8 @@ Per [DATABASE.md](DATABASE.md), costumes belong to production + character and ar
 **Tasks:**
 
 - [ ] Multi-select prop/cue category filters with badge chips
-- [ ] Live search (debounced query param; no Enter required)
-- [ ] Multi-select character filter (OR semantics)
+- [x] Live search (debounced; Enter still commits immediately) — **shipped 2026-08-13**
+- [x] Multi-select character filter (OR semantics) — **shipped 2026-08-13**
 - [ ] Document filter composition in UI helper text
 
 ---

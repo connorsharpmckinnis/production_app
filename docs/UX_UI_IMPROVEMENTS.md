@@ -10,7 +10,7 @@
 
 **Progress (2026-08-04):** WP0/WP1 design-system pass — expanded shadcn primitives, `/dev/ui` gallery, SearchableSelect/Toast polish, form/catalog migration.
 
-**Progress (2026-08-13):** Timeline + Rehearse live search (debounce ~275ms); Timeline multi-select character filter (OR). Prop/cue multi-select still open.
+**Progress (2026-08-13):** Timeline + Rehearse live search (debounce ~275ms); Timeline multi-select character filter (OR). Prop/cue multi-select still open. **Owner-approved 2026-08-14.**
 
 ---
 

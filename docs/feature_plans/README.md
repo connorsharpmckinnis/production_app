@@ -13,7 +13,7 @@ Use this folder when:
 1. Draft a plan here (`docs/feature_plans/<slug>.md`)
 2. Resolve open questions with the owner
 3. Either promote to a `docs/PHASE_*.md` work package list, fold into an existing phase, or park / decline
-4. Update status in the plan header when outcome is known
+4. When the authorized slice **ships**, move the file to [shipped_features/](../shipped_features/README.md) and leave a one-line pointer here if useful
 
 **Status vocabulary**
 
@@ -25,6 +25,7 @@ Use this folder when:
 | **Far-future (v2+)** | Valid idea; explicitly deferred past first real show/season (or equivalent). Do not phase or prioritize against near work |
 | **Parked / declined** | Explicitly not pursuing (say why) |
 | **Promoted** | Superseded by a `PHASE_*.md` (link it) |
+| **Shipped** | File belongs in [shipped_features/](../shipped_features/README.md) |
 
 These are **not** more authoritative than [PROJECT.md](../PROJECT.md), [DATABASE.md](../DATABASE.md), or active phase docs when they conflict — but they **are** the preferred place for upcoming feature intent beyond scratch notes.
 
@@ -36,7 +37,6 @@ When implementing, agents should read the matching plan here for goals, non-goal
 
 | Plan | Status | One-liner |
 | ---- | ------ | --------- |
-| [lav-assignment-ux.md](lav-assignment-ux.md) | Shipped | Excel-competitive lav matrix: chrome, fill-row, taken filtering, locks |
 | [print-and-call-sheets.md](print-and-call-sheets.md) | Roadmap | Rehearsal call sheet: selected scenes → cast + assets needed |
 | [org-catalog-and-shop.md](org-catalog-and-shop.md) | Roadmap | Theater-wide catalog + CSV; check out / copy assets into a show |
 | [tech-week-chart-suite.md](tech-week-chart-suite.md) | Roadmap | Visual burn-down, break-time, set-change (+ lav change-list later) |
@@ -45,14 +45,12 @@ When implementing, agents should read the matching plan here for goals, non-goal
 | [show-archives.md](show-archives.md) | Roadmap | Archive past shows as institutional memory |
 | [crew-roles.md](crew-roles.md) | Roadmap | Stage Manager / crew-shaped access beyond Admin·Director·Actor |
 
-## Earlier proposals (comms / deep links)
+## Earlier proposals (comms)
 
 | Plan | Status | One-liner |
 | ---- | ------ | --------- |
-| [app-announcements.md](app-announcements.md) | Prototype shipped | In-app announcements, banners/modals, bell inbox |
 | [tasks-and-mentions.md](tasks-and-mentions.md) | Proposal | Basic production Tasks + @-mentions → notifications |
 | [email-notifications.md](email-notifications.md) | Proposal | Templated outbound email (blasts, later mentions/digest) |
-| [in-play-moment-deep-links.md](../shipped_features/in-play-moment-deep-links.md) | Shipped | In-play source + next-change + OFF prior-on (props/set pieces/costumes); sticky URL deferred |
 
 ## Far-future (v2+ / post first season)
 
@@ -76,3 +74,9 @@ When implementing, agents should read the matching plan here for goals, non-goal
 | [stage-diagram-blocking.md](stage-diagram-blocking.md) | Curiosity | Lightweight zone tap-to-block (not Stage Write) |
 | [scheduling-and-attendance.md](scheduling-and-attendance.md) | Curiosity | Lane decision vs Planning Center; thin complement only |
 | [ai-assisted-querying.md](ai-assisted-querying.md) | Curiosity | NL query over Timeline data; very low priority |
+
+## Already shipped
+
+See [shipped_features/](../shipped_features/README.md): in-play deep links (including costumes), lav assignment UX, announcements prototype.
+
+UX backlog items shipped 2026-08-13 (no standalone plan): Timeline + Rehearse **live search**; Timeline **multi-select character filter**.

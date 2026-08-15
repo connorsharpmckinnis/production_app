@@ -83,7 +83,7 @@ This phase is **not** the event engine, org-wide inventory, or explicit “revie
 | Full actor personalization (call times, mic pack, etc.) | Placeholder slots only in Phase 8 |
 | Deployment / security hardening | Separate phase |
 | Re-import script / replace timeline | Post-MVP |
-| Bookmarks redesign, live search, filter sheet | Wish list |
+| Bookmarks redesign, live search, filter sheet | Wish list (live search + character multi-select **shipped 2026-08-13**) |
 | Character burn-down / set-change / break-time charts | Wish list ([SCRATCH_NOTES.md](SCRATCH_NOTES.md)) |
 
 

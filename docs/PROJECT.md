@@ -1101,7 +1101,7 @@ See [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](../.agents/skills/DEVELOPMENT_GU
 
 **Approved roadmap feature plans** (stronger than a wish-list bullet — intended to build eventually, not yet phased) live in [feature_plans/](feature_plans/README.md). Prefer those docs when shaping or implementing upcoming work.
 
-**Shipped prototype (2026-07-29):** In-app **Notifications** (header bell) + **Announcements** composers (org-wide in App Settings; production-scoped on Overview). Supports banners, Admin-only blocking modals, role targeting, CTAs, and a multi-kind feed ready for future @-mentions. Timeline CTAs use human deep links `?act=&scene=&moment=`. See [feature_plans/app-announcements.md](feature_plans/app-announcements.md). Email / Tasks / mentions UI still deferred.
+**Shipped prototype (2026-07-29):** In-app **Notifications** (header bell) + **Announcements** composers (org-wide in App Settings; production-scoped on Overview). Supports banners, Admin-only blocking modals, role targeting, CTAs, and a multi-kind feed ready for future @-mentions. Timeline CTAs use human deep links `?act=&scene=&moment=`. See [shipped_features/app-announcements.md](shipped_features/app-announcements.md). Email / Tasks / mentions UI still deferred.
 
 These bullets remain for lighter capture so good ideas are not lost:
 
