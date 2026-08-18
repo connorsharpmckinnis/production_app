@@ -78,3 +78,51 @@ class BlockingSheetEntry(BaseModel):
     character_id: int
     character_name: str
     notes: str
+
+
+class OnStageChartMomentRef(BaseModel):
+    moment_id: int
+    sequence_number: int
+    act_number: int
+    scene_number: int
+    scene_title: str | None = None
+
+
+class OnStageChartInterval(BaseModel):
+    start_index: int
+    end_index: int
+    entrance: OnStageChartMomentRef
+    entrance_notes: str | None = None
+    exit: OnStageChartMomentRef | None = None
+    exit_notes: str | None = None
+    ends_at_scene_boundary: bool = False
+
+
+class OnStageChartCharacterRow(BaseModel):
+    character_id: int
+    character_name: str
+    intervals: list[OnStageChartInterval]
+
+
+class OnStageChartSceneBand(BaseModel):
+    scene_id: int
+    act_number: int
+    scene_number: int
+    scene_title: str | None = None
+    start_index: int
+    moment_count: int
+
+
+class OnStageChartActBand(BaseModel):
+    act_id: int
+    act_number: int
+    act_title: str | None = None
+    start_index: int
+    moment_count: int
+
+
+class OnStageChartReport(BaseModel):
+    moment_count: int
+    acts: list[OnStageChartActBand]
+    scenes: list[OnStageChartSceneBand]
+    characters: list[OnStageChartCharacterRow]

@@ -391,6 +391,15 @@ body {
     page-break-inside: avoid;
   }
 
+  .reports-section-chart {
+    break-inside: auto;
+    page-break-inside: auto;
+  }
+
+  .onstage-chart-scroll {
+    overflow: visible;
+  }
+
   .lav-chart-table {
     font-size: 10pt;
   }

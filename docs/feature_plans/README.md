@@ -40,6 +40,7 @@ When implementing, agents should read the matching plan here for goals, non-goal
 | [print-and-call-sheets.md](print-and-call-sheets.md) | Roadmap | Rehearsal call sheet: selected scenes → cast + assets needed |
 | [org-catalog-and-shop.md](org-catalog-and-shop.md) | Roadmap | Theater-wide catalog + CSV; check out / copy assets into a show |
 | [tech-week-chart-suite.md](tech-week-chart-suite.md) | Roadmap | Visual burn-down, break-time, set-change (+ lav change-list later) |
+| [character-onstage-chart.md](character-onstage-chart.md) | Prototype shipped | Reports Gantt of who is on stage, from entrance/exit records |
 | [soft-pilot-ops.md](soft-pilot-ops.md) | Roadmap | Pilot runbook, What’s new, support loop for one-show soft pilots |
 | [director-house-notes.md](director-house-notes.md) | Roadmap | Mobile house mode, dictation, optional follow-along assist |
 | [show-archives.md](show-archives.md) | Roadmap | Archive past shows as institutional memory |

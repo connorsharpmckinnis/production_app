@@ -4,6 +4,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
+import { OnStagePresenceChart } from "@/components/OnStagePresenceChart";
 import { api, formatApiError } from "@/lib/api";
 import { humanTimelinePath } from "@/lib/timelineDeepLinks";
 import type {
@@ -11,10 +12,12 @@ import type {
   CostumeChangeEntry,
   CueSheetCategory,
   EntranceExitSheetGroup,
+  OnStageChartReport,
   PropSheetEntry,
 } from "@/lib/types";
 
 const REPORT_SECTIONS = [
+  { id: "report-on-stage-chart", label: "On-stage chart" },
   { id: "report-prop-sheet", label: "Prop sheet" },
   { id: "report-cue-sheet", label: "Cue sheet" },
   { id: "report-costumes", label: "Costume changes" },
@@ -31,6 +34,7 @@ export default function ReportsPage() {
   const [costumeChanges, setCostumeChanges] = useState<CostumeChangeEntry[]>([]);
   const [entranceExitReport, setEntranceExitReport] = useState<EntranceExitSheetGroup[]>([]);
   const [blockingReport, setBlockingReport] = useState<BlockingSheetEntry[]>([]);
+  const [onStageChart, setOnStageChart] = useState<OnStageChartReport | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,13 +45,15 @@ export default function ReportsPage() {
       api.getCostumeChangesReport(productionId),
       api.getEntranceExitSheetReport(productionId),
       api.getBlockingSheetReport(productionId),
+      api.getOnStageChartReport(productionId),
     ])
-      .then(([props, cues, costumeChangeRows, entranceExit, blocking]) => {
+      .then(([props, cues, costumeChangeRows, entranceExit, blocking, onStage]) => {
         setPropSheet(props);
         setCueSheet(cues);
         setCostumeChanges(costumeChangeRows);
         setEntranceExitReport(entranceExit);
         setBlockingReport(blocking);
+        setOnStageChart(onStage);
       })
       .catch((err: unknown) => {
         setError(formatApiError(err, "Failed to load reports"));
@@ -83,7 +89,7 @@ export default function ReportsPage() {
         <Skeleton className="h-8 w-32" />
         <Skeleton className="h-4 w-64" />
         <div className="flex flex-wrap gap-2">
-          {Array.from({ length: 5 }).map((_, index) => (
+          {Array.from({ length: 6 }).map((_, index) => (
             <Skeleton key={index} className="h-9 w-28" />
           ))}
         </div>
@@ -143,6 +149,21 @@ export default function ReportsPage() {
           <AlertDescription>{error}</AlertDescription>
         </Alert>
       )}
+
+      <section
+        id="report-on-stage-chart"
+        className="reports-section reports-section-chart space-y-4 scroll-mt-20"
+      >
+        <h2 className="text-lg font-medium">On-stage chart</h2>
+        <p className="text-sm text-muted-foreground">
+          Prototype: character presence across the show, derived from entrance and exit records.
+        </p>
+        {onStageChart ? (
+          <OnStagePresenceChart productionId={productionId} report={onStageChart} />
+        ) : (
+          <p className="text-sm text-muted-foreground">Chart data is unavailable.</p>
+        )}
+      </section>
 
       <section id="report-prop-sheet" className="reports-section space-y-4 scroll-mt-20">
         <h2 className="text-lg font-medium">Prop sheet</h2>

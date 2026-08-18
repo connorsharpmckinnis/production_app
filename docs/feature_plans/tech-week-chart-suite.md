@@ -2,7 +2,9 @@
 
 **Status:** Roadmap (approved intent — build eventually; not yet phased)  
 **Created:** 2026-07-29  
-**Related:** [SCRATCH_NOTES.md](../SCRATCH_NOTES.md) Report Ideas, [PHASE_12.md](../PHASE_12.md) lav matrix, [PHASE_13.md](../PHASE_13.md) lav follow-ons, [PHASE_14.md](../PHASE_14.md), [print-and-call-sheets.md](print-and-call-sheets.md), [character-nightly-packs.md](character-nightly-packs.md)
+**Related:** [SCRATCH_NOTES.md](../SCRATCH_NOTES.md) Report Ideas, [PHASE_12.md](../PHASE_12.md) lav matrix, [PHASE_13.md](../PHASE_13.md) lav follow-ons, [PHASE_14.md](../PHASE_14.md), [print-and-call-sheets.md](print-and-call-sheets.md), [character-nightly-packs.md](character-nightly-packs.md), [character-onstage-chart.md](character-onstage-chart.md)
+
+**Related prototype (2026-08-18):** [character-onstage-chart.md](character-onstage-chart.md) is a concept test on Reports — moment-axis presence bars from E/E, not the scene-column burn-down sketched below. Use it to decide whether this visual family is worth expanding.
 
 ---
 

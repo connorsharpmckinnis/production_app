@@ -1115,7 +1115,7 @@ These bullets remain for lighter capture so good ideas are not lost:
 - **Character colors** — assign colors to characters for auto-highlighting (Actors and other roles).
 - **Split / merge moments** — divide one moment into two or combine adjacent moments during structural editing.
 - **Costume pieces / outfits** — Phase 14 WP5 shipped a thin on/off slice for whole costumes (`moment_costume_events`), replacing scene-level assignment. Tracking individual costume **pieces** and outfit combinations stays a later wish-list item.
-- **Rich reports** — PDF export, print layouts, cross-production analytics, preparation progress dashboards.
+- **Rich reports** — PDF export, print layouts, cross-production analytics, preparation progress dashboards. *(On-stage presence chart prototype on Reports, 2026-08-18 — see [character-onstage-chart.md](feature_plans/character-onstage-chart.md).)*
 - **Production-level settings** — per-production overrides for display and workflow flags (if global App Settings prove insufficient).
 - **Real-time note-flagging** -- A tool/ability for directors (or other roles too) to quickly flag or add a note to a moment without fulling disengaging from watching the scene play out. Possibly voice-transcribed, so the person could mumble into their phone while watching the rest of the scene. 
 - **Mobile Interface** -- Some interface ability that's mobile-optimized, probably to support the director in quickly making notes in a mostly-finished show. The idea being that they could sit in the audience with their phone, click through moments of the show passively, and then bring their phone up to talk into it, dictating a brief note that's attached to that moment without disrupting the scene or taking their eyes off the action. 

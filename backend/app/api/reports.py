@@ -25,9 +25,11 @@ from app.schemas.reports import (
     CueSheetMomentReference,
     EntranceExitSheetGroup,
     EntranceExitSheetRow,
+    OnStageChartReport,
     PropSheetEntry,
     PropSheetMomentReference,
 )
+from app.services.on_stage_chart import build_on_stage_chart
 
 router = APIRouter(prefix="/productions", tags=["reports"])
 
@@ -368,3 +370,16 @@ def blocking_sheet(
 
     entries.sort(key=lambda entry: (entry.act_number, entry.scene_number, entry.sequence_number))
     return entries
+
+
+@router.get(
+    "/{production_id}/reports/on-stage-chart",
+    response_model=OnStageChartReport,
+)
+def on_stage_chart(
+    production_id: int,
+    user: User = Depends(require_director_or_admin),
+    db: Session = Depends(get_db),
+) -> OnStageChartReport:
+    get_accessible_production(db, user, production_id)
+    return build_on_stage_chart(db, production_id)

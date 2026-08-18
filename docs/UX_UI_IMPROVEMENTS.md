@@ -115,6 +115,7 @@ Timeline already uses Lucide icon buttons for structural actions, bookmark, deta
 - [x] Tabs or sticky TOC instead of five long sections on one page.
 - [x] Moment references **clickable** into Timeline (open that moment).
 - [x] At least basic print CSS / “Print this section” until full PDF export exists.
+- [x] **Prototype 2026-08-18:** On-stage presence chart (character rows × show timeline) from entrance/exit data. Still evaluating; not the full tech-week suite.
 
 ### Import
 - [x] Link to script format help ([SCRIPT_FORMAT.md](SCRIPT_FORMAT.md) / short in-app tips). *(About link + Import page tips.)*

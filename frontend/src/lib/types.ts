@@ -596,6 +596,54 @@ export interface BlockingSheetEntry {
   notes: string;
 }
 
+export interface OnStageChartMomentRef {
+  moment_id: number;
+  sequence_number: number;
+  act_number: number;
+  scene_number: number;
+  scene_title: string | null;
+}
+
+export interface OnStageChartInterval {
+  start_index: number;
+  end_index: number;
+  entrance: OnStageChartMomentRef;
+  entrance_notes: string | null;
+  exit: OnStageChartMomentRef | null;
+  exit_notes: string | null;
+  ends_at_scene_boundary: boolean;
+}
+
+export interface OnStageChartCharacterRow {
+  character_id: number;
+  character_name: string;
+  intervals: OnStageChartInterval[];
+}
+
+export interface OnStageChartSceneBand {
+  scene_id: number;
+  act_number: number;
+  scene_number: number;
+  scene_title: string | null;
+  start_index: number;
+  moment_count: number;
+}
+
+export interface OnStageChartActBand {
+  act_id: number;
+  act_number: number;
+  act_title: string | null;
+  start_index: number;
+  moment_count: number;
+}
+
+export interface OnStageChartReport {
+  moment_count: number;
+  acts: OnStageChartActBand[];
+  scenes: OnStageChartSceneBand[];
+  characters: OnStageChartCharacterRow[];
+}
+
 export interface ProductionOverviewResponse {
   id: number;
   title: string;

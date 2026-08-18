@@ -19,6 +19,7 @@ import type {
   CueSheetCategory,
   EntranceExitSheetGroup,
   BlockingSheetEntry,
+  OnStageChartReport,
   FeedbackCreate,
   FeedbackResponse,
   GroupResponse,
@@ -1211,6 +1212,12 @@ export const api = {
   getBlockingSheetReport(productionId: number) {
     return request<BlockingSheetEntry[]>(
       `/productions/${productionId}/reports/blocking-sheet`,
+    );
+  },
+
+  getOnStageChartReport(productionId: number) {
+    return request<OnStageChartReport>(
+      `/productions/${productionId}/reports/on-stage-chart`,
     );
   },
 
