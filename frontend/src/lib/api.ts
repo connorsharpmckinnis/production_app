@@ -47,7 +47,21 @@ import type {
   LavChartResponse,
   LavPackCell,
   LavWireCell,
+  LocationCreate,
+  LocationResponse,
+  MyCallResponse,
   ProductionCreate,
+  RehearsalCreate,
+  RehearsalDetailResponse,
+  RehearsalNoteCreate,
+  RehearsalNoteResponse,
+  RehearsalNoteUpdate,
+  RehearsalPlanReplace,
+  RehearsalStatusUpdate,
+  RehearsalSummaryResponse,
+  RehearsalUpdate,
+  SceneRecommendationResponse,
+  SuggestedCallResponse,
   ProductionOverviewMessageItem,
   ProductionOverviewMessageResponse,
   ProductionOverviewResponse,
@@ -1226,5 +1240,161 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     });
+  },
+
+  listLocations(productionId: number) {
+    return request<LocationResponse[]>(`/productions/${productionId}/locations`);
+  },
+
+  createLocation(productionId: number, body: LocationCreate) {
+    return request<LocationResponse>(`/productions/${productionId}/locations`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  listRehearsals(productionId: number) {
+    return request<RehearsalSummaryResponse[]>(`/productions/${productionId}/rehearsals`);
+  },
+
+  createRehearsal(productionId: number, body: RehearsalCreate) {
+    return request<RehearsalDetailResponse>(`/productions/${productionId}/rehearsals`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  getRehearsal(productionId: number, rehearsalId: number) {
+    return request<RehearsalDetailResponse>(
+      `/productions/${productionId}/rehearsals/${rehearsalId}`,
+    );
+  },
+
+  updateRehearsal(productionId: number, rehearsalId: number, body: RehearsalUpdate) {
+    return request<RehearsalDetailResponse>(
+      `/productions/${productionId}/rehearsals/${rehearsalId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      },
+    );
+  },
+
+  deleteRehearsal(productionId: number, rehearsalId: number) {
+    return request<void>(`/productions/${productionId}/rehearsals/${rehearsalId}`, {
+      method: "DELETE",
+    });
+  },
+
+  replaceRehearsalPlan(
+    productionId: number,
+    rehearsalId: number,
+    body: RehearsalPlanReplace,
+  ) {
+    return request<RehearsalDetailResponse>(
+      `/productions/${productionId}/rehearsals/${rehearsalId}/plan`,
+      {
+        method: "PUT",
+        body: JSON.stringify(body),
+      },
+    );
+  },
+
+  suggestCalls(productionId: number, sceneIds: number[]) {
+    const params = new URLSearchParams();
+    for (const sceneId of sceneIds) {
+      params.append("scene_ids", String(sceneId));
+    }
+    const query = params.toString();
+    return request<SuggestedCallResponse[]>(
+      `/productions/${productionId}/rehearsals/suggest-calls${query ? `?${query}` : ""}`,
+    );
+  },
+
+  listSceneRecommendations(productionId: number) {
+    return request<SceneRecommendationResponse[]>(
+      `/productions/${productionId}/rehearsals/scene-recommendations`,
+    );
+  },
+
+  listMyCalls(productionId: number) {
+    return request<MyCallResponse[]>(`/productions/${productionId}/rehearsals/my-calls`);
+  },
+
+  publishRehearsal(productionId: number, rehearsalId: number) {
+    return request<RehearsalDetailResponse>(
+      `/productions/${productionId}/rehearsals/${rehearsalId}/publish`,
+      { method: "POST" },
+    );
+  },
+
+  openRehearsal(productionId: number, rehearsalId: number) {
+    return request<RehearsalDetailResponse>(
+      `/productions/${productionId}/rehearsals/${rehearsalId}/open`,
+      { method: "POST" },
+    );
+  },
+
+  completeRehearsal(productionId: number, rehearsalId: number) {
+    return request<RehearsalDetailResponse>(
+      `/productions/${productionId}/rehearsals/${rehearsalId}/complete`,
+      { method: "POST" },
+    );
+  },
+
+  setRehearsalStatus(
+    productionId: number,
+    rehearsalId: number,
+    body: RehearsalStatusUpdate,
+  ) {
+    return request<RehearsalDetailResponse>(
+      `/productions/${productionId}/rehearsals/${rehearsalId}/status`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      },
+    );
+  },
+
+  createRehearsalNote(
+    productionId: number,
+    rehearsalId: number,
+    body: RehearsalNoteCreate,
+  ) {
+    return request<RehearsalNoteResponse>(
+      `/productions/${productionId}/rehearsals/${rehearsalId}/notes`,
+      {
+        method: "POST",
+        body: JSON.stringify(body),
+      },
+    );
+  },
+
+  updateRehearsalNote(
+    productionId: number,
+    rehearsalId: number,
+    noteId: number,
+    body: RehearsalNoteUpdate,
+  ) {
+    return request<RehearsalNoteResponse>(
+      `/productions/${productionId}/rehearsals/${rehearsalId}/notes/${noteId}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      },
+    );
+  },
+
+  deleteRehearsalNote(productionId: number, rehearsalId: number, noteId: number) {
+    return request<void>(
+      `/productions/${productionId}/rehearsals/${rehearsalId}/notes/${noteId}`,
+      { method: "DELETE" },
+    );
+  },
+
+  getCallSheet(productionId: number, rehearsalId: number) {
+    return request<RehearsalDetailResponse>(
+      `/productions/${productionId}/rehearsals/${rehearsalId}/call-sheet`,
+    );
   },
 };

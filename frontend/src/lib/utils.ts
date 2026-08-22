@@ -13,6 +13,62 @@ export function formatDate(iso: string): string {
   });
 }
 
+export function formatDateTime(iso: string): string {
+  return new Date(iso).toLocaleString(undefined, {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+export function formatTime(iso: string): string {
+  return new Date(iso).toLocaleTimeString(undefined, {
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
+/** Convert an ISO timestamp to a value for `<input type="time">` (HH:MM). */
+export function toTimeInputValue(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** Combine a rehearsal date (from ISO) with a time input value → ISO string. */
+export function combineRehearsalDateAndTime(rehearsalDateIso: string, time: string): string {
+  const base = new Date(rehearsalDateIso);
+  const [hours, minutes] = time.split(":").map((part) => Number(part));
+  if (Number.isNaN(base.getTime()) || Number.isNaN(hours) || Number.isNaN(minutes)) {
+    return new Date(time).toISOString();
+  }
+  base.setHours(hours, minutes, 0, 0);
+  return base.toISOString();
+}
+
+/** Minutes since midnight for comparing block times on the same rehearsal night. */
+export function timeInputToMinutes(time: string): number {
+  const [hours, minutes] = time.split(":").map((part) => Number(part));
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return 0;
+  return hours * 60 + minutes;
+}
+
+/** Convert an ISO timestamp to a value for `<input type="datetime-local">`. */
+export function toDatetimeLocalValue(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return "";
+  const pad = (n: number) => String(n).padStart(2, "0");
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
+}
+
+/** Convert a datetime-local value to an ISO string (with timezone). */
+export function fromDatetimeLocalValue(local: string): string {
+  return new Date(local).toISOString();
+}
+
 export function truncate(text: string, maxLength = 80): string {
   if (text.length <= maxLength) return text;
   return `${text.slice(0, maxLength)}…`;

@@ -24,6 +24,7 @@ Companion documents:
 - [PHASE_12.md](PHASE_12.md) — Phase 12 execution plan (lav chart: wires, packs, propose, print)
 - [PHASE_13.md](PHASE_13.md) — Phase 13 WP-slim: retire Timeline microphones; lav chart owns lavs; derivation follow-on
 - [PHASE_14.md](PHASE_14.md) — Phase 14 plan: event-driven asset state on the Timeline (props, sets, costumes, lav markers)
+- [PHASE_15.md](PHASE_15.md)–[PHASE_18.md](PHASE_18.md) — Rehearsal management (slots, planner, call sheets, notes)
 - [ROLES.md](ROLES.md) — MVP role permissions
 - [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](../.agents/skills/DEVELOPMENT_GUIDE/SKILL.md) — coding standards for humans and AI
 
@@ -851,7 +852,7 @@ Summary:
 - Extended minimal reports (entrance/exit sheet, blocking sheet)
 - Demo package (multi-scene script validation, staff/director walkthrough doc)
 
-**Explicitly deferred past MVP:** rehearsals, attendance, tasks, performances, re-import, production status, event engine, UX polish (live search, multi-select filters, bookmarks redesign).
+**Explicitly deferred past MVP:** attendance, tasks, performances, re-import, production status, actor availability/conflict forms, outbound email for calls. **Rehearsal management** (slots, planner, soft-publish call sheets, notes, times rehearsed) shipped in Phases 15–18 — see [feature_plans/rehearsal-management.md](feature_plans/rehearsal-management.md).
 
 ---
 
@@ -1013,6 +1014,19 @@ Summary:
 - Specialized event tables + shared derivation (not a polymorphic event store)
 
 **Explicitly out of Phase 14:** lav Timeline markers, costume pieces/outfits, stage diagram / zone enum, richer event kinds, character packets UI
+
+## Phases 15–18 — Rehearsal management (Complete)
+
+See [feature_plans/rehearsal-management.md](feature_plans/rehearsal-management.md) and [PHASE_15.md](PHASE_15.md)–[PHASE_18.md](PHASE_18.md).
+
+- Org locations + production rehearsal slots
+- Call planner (blocks, scenes, suggested cast, recommendations)
+- Soft publish + director call sheet + actor My call
+- Open rehearsal notes + complete increments `scenes.times_rehearsed`
+
+**Still deferred:** actor availability forms, outbound email/SMS, attendance, Planning Center sync
+
+---
 
 ---
 

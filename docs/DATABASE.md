@@ -68,6 +68,8 @@ deleted_at
 ```text
 Organization
 
+├── Location (org room catalog: Main Stage, Dance Room, …)
+
 └── Production
 
     ├── Performance
@@ -95,6 +97,12 @@ Organization
     ├── CueCategory
 
     ├── SetPiece
+
+    ├── Rehearsal
+
+    │     ├── RehearsalBlock (scenes + calls)
+
+    │     └── RehearsalNote
 
     ├── Task
 
@@ -376,6 +384,8 @@ Fields
 * number
 * title
 * sort_order
+* times_rehearsed (int, default 0 — incremented when a rehearsal that included this scene is completed)
+* last_rehearsed_at (nullable timestamptz)
 
 **Decision:** Unique `(act_id, number)` — one Scene N per Act.
 
@@ -1086,8 +1096,6 @@ UI shows unread + recent (~100); rows are retained indefinitely.
 
 Preparation progress (derived checklist per moment/production)
 
-Rehearsals
-
 Attendance
 
 AI Conversations
@@ -1096,7 +1104,89 @@ Audit Logs
 
 Version History
 
-**Note:** Blocking, Entrances, Exits, and lav chart assignments (wires/packs) are no longer future work — see `MOMENT_BLOCKING`, `MOMENT_ENTRANCES`, `MOMENT_EXITS`, `LAV_WIRE_ASSIGNMENTS`, and `LAV_PACK_ASSIGNMENTS` above. Prop/set-piece/costume "state changes" shipped as `moment_prop_events`, `moment_set_piece_events`, and `moment_costume_events` (Phase 14) — see Planned Event Model below for what's still unscheduled.
+**Note:** Blocking, Entrances, Exits, and lav chart assignments (wires/packs) are no longer future work — see `MOMENT_BLOCKING`, `MOMENT_ENTRANCES`, `MOMENT_EXITS`, `LAV_WIRE_ASSIGNMENTS`, and `LAV_PACK_ASSIGNMENTS` above. Prop/set-piece/costume "state changes" shipped as `moment_prop_events`, `moment_set_piece_events`, and `moment_costume_events` (Phase 14) — see Planned Event Model below for what's still unscheduled. **Rehearsals** shipped in Phases 15–18 — see LOCATIONS / REHEARSALS below.
+
+---
+
+# LOCATIONS
+
+Purpose
+
+Org-level rehearsal room / venue labels reused across productions.
+
+Fields
+
+* id
+* organization_id
+* name
+* sort_order
+
+**Decision:** Unique `(organization_id, name)`. Seed defaults: Main Stage, Dance Room, Music Room, Cafe.
+
+---
+
+# REHEARSALS
+
+Purpose
+
+Reserved rehearsal slots and call plans for a production (not a full org calendar).
+
+Fields
+
+* id
+* production_id
+* starts_at / ends_at
+* kind (`all_call` | `called`)
+* status (`scheduled` | `planned` | `published` | `in_progress` | `completed` | `cancelled`)
+* title (optional)
+* location_id (optional default room)
+* created_at / updated_at
+
+Relationships
+
+One → Many RehearsalBlocks
+
+One → Many RehearsalNotes
+
+**Actor visibility:** Call details only when status is `published`, `in_progress`, or `completed`.
+
+---
+
+# REHEARSAL_BLOCKS
+
+Purpose
+
+Time/location slice within a rehearsal (early call, concurrent rooms).
+
+Fields
+
+* id
+* rehearsal_id
+* starts_at / ends_at
+* location_id (optional)
+* label (optional free-text work focus)
+* sort_order
+
+Junctions
+
+* `rehearsal_block_scenes` (block × scene)
+* `rehearsal_block_calls` (block × user — explicit call list)
+
+---
+
+# REHEARSAL_NOTES
+
+Purpose
+
+Director notes scoped to a rehearsal session (separate from Moment notes).
+
+Fields
+
+* id
+* rehearsal_id
+* author_user_id
+* content
+* created_at / updated_at
 
 ---
 

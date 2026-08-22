@@ -25,3 +25,7 @@ class Organization(Base):
 
     users: Mapped[list["User"]] = relationship(back_populates="organization")
     productions: Mapped[list["Production"]] = relationship(back_populates="organization")
+    locations: Mapped[list["Location"]] = relationship(
+        back_populates="organization",
+        cascade="all, delete-orphan",
+    )

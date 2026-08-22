@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from pydantic import BaseModel
 
 from app.schemas.costumes import CostumeWearingResponse, MomentCostumeEventResponse
@@ -18,6 +20,8 @@ class SceneSummary(BaseModel):
     number: int
     title: str | None
     sort_order: int
+    times_rehearsed: int = 0
+    last_rehearsed_at: datetime | None = None
 
     model_config = {"from_attributes": True}
 

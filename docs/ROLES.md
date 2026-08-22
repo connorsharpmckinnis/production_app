@@ -29,6 +29,9 @@ MVP roles: **Admin**, **Director**, **Actor**.
 | Act as another user (session)      | Yes   | No       | No                   |
 | Actor-filtered timeline view       | Yes   | Yes      | Yes (own characters) |
 | Cue-only rehearsal mode            | Yes   | Yes      | Yes                  |
+| Manage rehearsal slots / plans     | Yes   | Yes      | No                   |
+| View published call / My call      | Yes   | Yes      | Yes                  |
+| Rehearsal notes (session)          | Yes   | Yes      | No (directorial staff only) |
 
 
 ---

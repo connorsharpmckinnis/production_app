@@ -17,6 +17,7 @@ from app.models.group import CharacterGroup, Group, UserGroup
 from app.models.lav_pack_assignment import LavPackAssignment
 from app.models.lav_row_lock import LavRowLock
 from app.models.lav_wire_assignment import LavWireAssignment
+from app.models.location import Location
 from app.models.lyric_line import LyricLine
 from app.models.moment import Moment
 from app.models.moment_blocking import MomentBlocking
@@ -33,6 +34,13 @@ from app.models.pack import Pack
 from app.models.production import Production
 from app.models.production_overview_message import ProductionOverviewMessage
 from app.models.prop import Prop
+from app.models.rehearsal import (
+    Rehearsal,
+    RehearsalBlock,
+    RehearsalBlockCall,
+    RehearsalBlockScene,
+    RehearsalNote,
+)
 from app.models.scene import Scene
 from app.models.set_piece import SetPiece
 from app.models.song import Song
@@ -61,6 +69,7 @@ __all__ = [
     "LavPackAssignment",
     "LavRowLock",
     "LavWireAssignment",
+    "Location",
     "LyricLine",
     "Moment",
     "MomentBlocking",
@@ -77,6 +86,11 @@ __all__ = [
     "Production",
     "ProductionOverviewMessage",
     "Prop",
+    "Rehearsal",
+    "RehearsalBlock",
+    "RehearsalBlockCall",
+    "RehearsalBlockScene",
+    "RehearsalNote",
     "Scene",
     "SetPiece",
     "Song",

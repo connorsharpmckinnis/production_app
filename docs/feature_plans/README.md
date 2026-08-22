@@ -37,7 +37,8 @@ When implementing, agents should read the matching plan here for goals, non-goal
 
 | Plan | Status | One-liner |
 | ---- | ------ | --------- |
-| [print-and-call-sheets.md](print-and-call-sheets.md) | Roadmap | Rehearsal call sheet: selected scenes → cast + assets needed |
+| [rehearsal-management.md](rehearsal-management.md) | Shipped (Phases 15–18) | Reserved slots, call planner, soft-publish call sheets, notes, times rehearsed |
+| [print-and-call-sheets.md](print-and-call-sheets.md) | Roadmap | Plan-driven call sheet (Phase 17) + optional scene-select Reports shortcut |
 | [org-catalog-and-shop.md](org-catalog-and-shop.md) | Roadmap | Theater-wide catalog + CSV; check out / copy assets into a show |
 | [tech-week-chart-suite.md](tech-week-chart-suite.md) | Roadmap | Visual burn-down, break-time, set-change (+ lav change-list later) |
 | [character-onstage-chart.md](character-onstage-chart.md) | Prototype shipped | Reports Gantt of who is on stage, from entrance/exit records |
@@ -73,7 +74,7 @@ When implementing, agents should read the matching plan here for goals, non-goal
 | [production-home-and-modes.md](production-home-and-modes.md) | Curiosity | Production landing + saved views / modes |
 | [bookmarks-redesign.md](bookmarks-redesign.md) | Curiosity | Dedicated bookmarks timeline-like UX |
 | [stage-diagram-blocking.md](stage-diagram-blocking.md) | Curiosity | Lightweight zone tap-to-block (not Stage Write) |
-| [scheduling-and-attendance.md](scheduling-and-attendance.md) | Curiosity | Lane decision vs Planning Center; thin complement only |
+| [scheduling-and-attendance.md](scheduling-and-attendance.md) | Parked / superseded | See [rehearsal-management.md](rehearsal-management.md) |
 | [ai-assisted-querying.md](ai-assisted-querying.md) | Curiosity | NL query over Timeline data; very low priority |
 
 ## Already shipped

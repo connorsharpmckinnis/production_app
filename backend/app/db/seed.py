@@ -10,11 +10,19 @@ from app.models import (
     AppOverviewMessageDefault,
     AppRole,
     AppSetting,
+    Location,
     MomentType,
     Organization,
     User,
     UserAppRole,
 )
+
+DEFAULT_LOCATIONS = [
+    ("Main Stage", 0),
+    ("Dance Room", 1),
+    ("Music Room", 2),
+    ("Cafe", 3),
+]
 APP_ROLES = [
     ("Admin", "Full system access; import scripts; manage users"),
     ("Director", "Edit timeline; cast actors; no create/delete production, import, or user management"),
@@ -127,6 +135,27 @@ def _seed_app_settings(db: Session) -> None:
         db.flush()
 
 
+def _seed_locations(db: Session, organization: Organization) -> None:
+    for name, sort_order in DEFAULT_LOCATIONS:
+        existing = (
+            db.query(Location)
+            .filter(
+                Location.organization_id == organization.id,
+                Location.name == name,
+            )
+            .first()
+        )
+        if existing is None:
+            db.add(
+                Location(
+                    organization_id=organization.id,
+                    name=name,
+                    sort_order=sort_order,
+                )
+            )
+    db.flush()
+
+
 def _seed_overview_message_defaults(db: Session) -> None:
     # Only insert the built-in band copy when the table is empty so admin edits survive re-seed.
     existing = db.query(AppOverviewMessageDefault).count()
@@ -151,6 +180,7 @@ def seed_database(db: Session, settings: Settings) -> None:
     _seed_moment_types(db)
     _seed_app_settings(db)
     _seed_overview_message_defaults(db)
+    _seed_locations(db, organization)
 
     user_count = db.query(User).count()
     if user_count == 0:
