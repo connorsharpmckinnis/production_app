@@ -477,11 +477,11 @@ function AppShellInner() {
                   Overview
                 </NavLink>
                 <NavLink
-                  to={`/productions/${productionId}/rehearse`}
+                  to={`/productions/${productionId}/timeline`}
                   className={navLinkClass}
                   onClick={() => setSidebarOpen(false)}
                 >
-                  Rehearse
+                  Timeline
                 </NavLink>
                 <NavLink
                   to={`/productions/${productionId}/rehearsals`}
@@ -489,13 +489,6 @@ function AppShellInner() {
                   onClick={() => setSidebarOpen(false)}
                 >
                   Rehearsals
-                </NavLink>
-                <NavLink
-                  to={`/productions/${productionId}/timeline`}
-                  className={navLinkClass}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  Timeline
                 </NavLink>
                 {isAdmin && !productionHasScript && (
                   <NavLink

@@ -4,8 +4,9 @@ import { X } from "lucide-react";
 import CharacterMultiSelect from "@/components/CharacterMultiSelect";
 import EmptyState from "@/components/EmptyState";
 import MomentDetailSheet from "@/components/MomentDetailSheet";
+import RehearseModeControls from "@/components/RehearseModeControls";
 import SceneMultiSelect from "@/components/SceneMultiSelect";
-import TimelineMomentList from "@/components/TimelineMomentList";
+import TimelineMomentList, { type TimelineSection } from "@/components/TimelineMomentList";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -26,6 +27,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
@@ -33,7 +35,16 @@ import { useAuth } from "@/context/AuthContext";
 import { useIsMediumScreen } from "@/hooks/useIsMediumScreen";
 import { useTimelineScene } from "@/hooks/useTimelineScene";
 import { api, formatApiError } from "@/lib/api";
-import { isHighlightedMoment } from "@/lib/momentHighlight";
+import { isHighlightedMoment, isMyMoment, isMySpokenLine } from "@/lib/momentHighlight";
+import {
+  applyRehearsePreset,
+  applyRehearseToggles,
+  PRESET_DEFAULT_TOGGLES,
+  togglesMatchPreset,
+  type RehearseDisplayToggles,
+  type RehearsePresetId,
+} from "@/lib/rehearsePresets";
+import { loadRehearseState, saveRehearseState } from "@/lib/rehearseStorage";
 import {
   isPendingSceneReady,
   parseTimelineDeepLink,
@@ -84,6 +95,15 @@ export default function TimelinePage() {
   const [showSequenceNumbers, setShowSequenceNumbers] = useState(false);
   const [showPrepBadges, setShowPrepBadges] = useState(false);
 
+  const [rehearseMode, setRehearseMode] = useState(
+    () => searchParams.get("rehearse") === "1",
+  );
+  const [rehearsePreset, setRehearsePreset] = useState<RehearsePresetId>("scene_run_through");
+  const [rehearseToggles, setRehearseToggles] = useState<RehearseDisplayToggles>(
+    PRESET_DEFAULT_TOGGLES.scene_run_through,
+  );
+  const rehearseStateLoadedRef = useRef(false);
+
   const [insertAfterSequence, setInsertAfterSequence] = useState<number | null>(null);
   const [insertSceneId, setInsertSceneId] = useState<number | null>(null);
   const [insertAtEnd, setInsertAtEnd] = useState(false);
@@ -94,21 +114,38 @@ export default function TimelinePage() {
   const [defaultInsertTypeReady, setDefaultInsertTypeReady] = useState(false);
 
   const filterInput = useMemo(
-    () => ({
-      characterIds: selectedCharacterIds,
-      groupFilter,
-      searchQuery,
-      costumeOnly,
-      entranceOnly,
-      exitOnly,
-      blockingOnly,
-      blockingCharacterFilter,
-      songFilter,
-      propFilter,
-      cueCategoryFilter,
-      setPieceFilter,
-    }),
+    () =>
+      rehearseMode
+        ? {
+            characterIds: [] as number[],
+            groupFilter: "all" as const,
+            searchQuery,
+            costumeOnly: false,
+            entranceOnly: false,
+            exitOnly: false,
+            blockingOnly: false,
+            blockingCharacterFilter: "all" as const,
+            songFilter: "all" as const,
+            propFilter: "all" as const,
+            cueCategoryFilter: "all" as const,
+            setPieceFilter: "all" as const,
+          }
+        : {
+            characterIds: selectedCharacterIds,
+            groupFilter,
+            searchQuery,
+            costumeOnly,
+            entranceOnly,
+            exitOnly,
+            blockingOnly,
+            blockingCharacterFilter,
+            songFilter,
+            propFilter,
+            cueCategoryFilter,
+            setPieceFilter,
+          },
     [
+      rehearseMode,
       selectedCharacterIds,
       groupFilter,
       searchQuery,
@@ -136,6 +173,45 @@ export default function TimelinePage() {
       setEditTimeline(false);
     }
   }, [canManagePreparation, editTimeline]);
+
+  useEffect(() => {
+    if (rehearseMode && editTimeline) {
+      setEditTimeline(false);
+    }
+  }, [rehearseMode, editTimeline]);
+
+  useEffect(() => {
+    if (rehearseStateLoadedRef.current) return;
+    rehearseStateLoadedRef.current = true;
+    const stored = loadRehearseState(productionId);
+    if (!stored) return;
+    if (searchParams.get("rehearse") !== "1") {
+      setRehearseMode(stored.rehearseMode);
+    }
+    setRehearsePreset(stored.preset);
+    setRehearseToggles(stored.toggles);
+  }, [productionId, searchParams]);
+
+  useEffect(() => {
+    if (!rehearseStateLoadedRef.current) return;
+    saveRehearseState(productionId, {
+      rehearseMode,
+      preset: rehearsePreset,
+      toggles: rehearseToggles,
+    });
+  }, [productionId, rehearseMode, rehearsePreset, rehearseToggles]);
+
+  useEffect(() => {
+    const next = new URLSearchParams(searchParams);
+    if (rehearseMode) {
+      next.set("rehearse", "1");
+    } else {
+      next.delete("rehearse");
+    }
+    if (next.toString() !== searchParams.toString()) {
+      setSearchParams(next, { replace: true });
+    }
+  }, [rehearseMode, searchParams, setSearchParams]);
 
   useEffect(() => {
     const trimmed = searchInput.trim();
@@ -245,8 +321,80 @@ export default function TimelinePage() {
 
   const hasActiveFilters =
     searchQuery !== "" ||
-    selectedCharacterIds.length > 0 ||
-    advancedFilterCount > 0;
+    (!rehearseMode && (selectedCharacterIds.length > 0 || advancedFilterCount > 0));
+
+  const effectiveRehearsePreset: RehearsePresetId = useMemo(() => {
+    if (rehearsePreset === "custom") return "custom";
+    return togglesMatchPreset(rehearsePreset, rehearseToggles) ? rehearsePreset : "custom";
+  }, [rehearsePreset, rehearseToggles]);
+
+  const displaySections: TimelineSection[] = useMemo(() => {
+    if (!rehearseMode) return scene.momentSections;
+
+    const basePreset =
+      effectiveRehearsePreset === "custom" ? "scene_run_through" : effectiveRehearsePreset;
+
+    return scene.momentSections
+      .map((section) => {
+        const presetFiltered = applyRehearsePreset(
+          basePreset,
+          section.moments,
+          scene.myCharacterIds,
+          scene.characters,
+        );
+        return {
+          ...section,
+          moments: applyRehearseToggles(presetFiltered, rehearseToggles),
+        };
+      })
+      .filter((section) => section.moments.length > 0);
+  }, [
+    rehearseMode,
+    scene.momentSections,
+    scene.myCharacterIds,
+    scene.characters,
+    effectiveRehearsePreset,
+    rehearseToggles,
+  ]);
+
+  const displayMomentCount = useMemo(
+    () => displaySections.reduce((sum, section) => sum + section.moments.length, 0),
+    [displaySections],
+  );
+
+  function handleRehearsePresetChange(nextPreset: Exclude<RehearsePresetId, "custom">) {
+    setRehearsePreset(nextPreset);
+    setRehearseToggles({
+      ...PRESET_DEFAULT_TOGGLES[nextPreset],
+      blurMyLines: rehearseToggles.blurMyLines,
+    });
+  }
+
+  function handleRehearseToggleChange(field: keyof RehearseDisplayToggles, value: boolean) {
+    const nextToggles = { ...rehearseToggles, [field]: value };
+    setRehearseToggles(nextToggles);
+    if (rehearsePreset !== "custom" && field !== "blurMyLines") {
+      if (!togglesMatchPreset(rehearsePreset, nextToggles)) {
+        setRehearsePreset("custom");
+      }
+    }
+  }
+
+  const rehearseEmptyMessage = (() => {
+    if (scene.selectedSceneIds.length === 0) {
+      return "Choose one or more scenes to practice.";
+    }
+    if (scene.myCharacterIds.length === 0) {
+      return "No cast characters — showing full selection.";
+    }
+    if (
+      (effectiveRehearsePreset === "my_lines" || effectiveRehearsePreset === "line_cues") &&
+      displayMomentCount === 0
+    ) {
+      return "You have no lines in the selected scenes.";
+    }
+    return "No moments match these filters.";
+  })();
 
   const activeFilterChips = useMemo(() => {
     const chips: { key: string; label: string; onDismiss: () => void }[] = [];
@@ -582,25 +730,37 @@ export default function TimelinePage() {
             onChange={scene.setSelectedSceneIds}
           />
 
-          <CharacterMultiSelect
-            characters={scene.characters}
-            selectedIds={selectedCharacterIds}
-            myCharacterIds={myCharacterIds}
-            onChange={(ids) => {
-              setSelectedCharacterIds(ids);
-              setGroupFilter("all");
-            }}
-            disabled={groupFilter !== "all"}
-          />
+          {!rehearseMode && (
+            <>
+              <CharacterMultiSelect
+                characters={scene.characters}
+                selectedIds={selectedCharacterIds}
+                myCharacterIds={myCharacterIds}
+                onChange={(ids) => {
+                  setSelectedCharacterIds(ids);
+                  setGroupFilter("all");
+                }}
+                disabled={groupFilter !== "all"}
+              />
 
-          <Button type="button" variant="outline" onClick={() => setAdvancedOpen((open) => !open)}>
-            Advanced filters
-            {advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ""}
-          </Button>
+              <Button type="button" variant="outline" onClick={() => setAdvancedOpen((open) => !open)}>
+                Advanced filters
+                {advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ""}
+              </Button>
+            </>
+          )}
         </div>
 
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
-          {canManagePreparation && (
+          <Label className="flex items-center gap-2 font-normal">
+            <Switch
+              checked={rehearseMode}
+              onCheckedChange={(value) => setRehearseMode(value)}
+              aria-label="Rehearse mode"
+            />
+            Rehearse mode
+          </Label>
+          {!rehearseMode && canManagePreparation && (
             <Label className="flex items-center gap-2 font-normal">
               <Checkbox
                 checked={editTimeline}
@@ -609,23 +769,36 @@ export default function TimelinePage() {
               Edit Timeline
             </Label>
           )}
-          <Label className="flex items-center gap-2 font-normal">
-            <Checkbox
-              checked={showSequenceNumbers}
-              onCheckedChange={(value) => setShowSequenceNumbers(value === true)}
-            />
-            Moment numbers
-          </Label>
-          <Label className="flex items-center gap-2 font-normal">
-            <Checkbox
-              checked={showPrepBadges}
-              onCheckedChange={(value) => setShowPrepBadges(value === true)}
-            />
-            Prep badges
-          </Label>
+          {!rehearseMode && (
+            <>
+              <Label className="flex items-center gap-2 font-normal">
+                <Checkbox
+                  checked={showSequenceNumbers}
+                  onCheckedChange={(value) => setShowSequenceNumbers(value === true)}
+                />
+                Moment numbers
+              </Label>
+              <Label className="flex items-center gap-2 font-normal">
+                <Checkbox
+                  checked={showPrepBadges}
+                  onCheckedChange={(value) => setShowPrepBadges(value === true)}
+                />
+                Prep badges
+              </Label>
+            </>
+          )}
         </div>
 
-        {advancedOpen && isMediumScreen && (
+        {rehearseMode && (
+          <RehearseModeControls
+            effectivePreset={effectiveRehearsePreset}
+            toggles={rehearseToggles}
+            onPresetChange={handleRehearsePresetChange}
+            onToggleChange={handleRehearseToggleChange}
+          />
+        )}
+
+        {!rehearseMode && advancedOpen && isMediumScreen && (
           <AdvancedFiltersPanel
             canManagePreparation={canManagePreparation}
             groups={groups}
@@ -659,7 +832,7 @@ export default function TimelinePage() {
         )}
 
         <Sheet
-          open={advancedOpen && !isMediumScreen}
+          open={!rehearseMode && advancedOpen && !isMediumScreen}
           onOpenChange={setAdvancedOpen}
         >
           <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
@@ -700,7 +873,7 @@ export default function TimelinePage() {
           </SheetContent>
         </Sheet>
 
-        {hasActiveFilters && activeFilterChips.length > 0 && (
+        {hasActiveFilters && activeFilterChips.length > 0 && !rehearseMode && (
           <div className="flex flex-wrap items-center gap-2">
             {activeFilterChips.map((chip) => (
               <Badge key={chip.key} variant="secondary" className="gap-1 pr-1">
@@ -739,6 +912,17 @@ export default function TimelinePage() {
               <Skeleton key={index} className="h-10 w-full" />
             ))}
           </div>
+        ) : rehearseMode && displayMomentCount === 0 ? (
+          <div className="p-3">
+            <EmptyState
+              title={
+                scene.selectedSceneIds.length === 0
+                  ? "No scenes selected"
+                  : "No moments match"
+              }
+              description={rehearseEmptyMessage}
+            />
+          </div>
         ) : scene.moments.length === 0 ? (
           <div className="p-3">
             <EmptyState
@@ -762,29 +946,51 @@ export default function TimelinePage() {
           </div>
         ) : (
           <TimelineMomentList
-            sections={scene.momentSections}
+            sections={displaySections}
             characters={scene.characters}
             selectedMomentId={scene.selectedMomentId}
             onSelectMoment={scene.setSelectedMomentId}
             isHighlighted={(moment) =>
-              isHighlightedMoment(moment, highlightCharacterIds, scene.characters)
+              rehearseMode
+                ? rehearseToggles.highlightMyLines &&
+                  isMyMoment(moment, scene.myCharacterIds, scene.characters)
+                : isHighlightedMoment(moment, highlightCharacterIds, scene.characters)
             }
-            showPrepBadges={showPrepBadges}
-            showSequenceNumbers={showSequenceNumbers}
-            showTypeBadge={showStructuralControls}
-            showStructuralControls={showStructuralControls}
+            showPrepBadges={rehearseMode ? rehearseToggles.showPrepBadges : showPrepBadges}
+            showSequenceNumbers={rehearseMode ? false : showSequenceNumbers}
+            showTypeBadge={!rehearseMode && showStructuralControls}
+            blurMyLines={rehearseMode ? rehearseToggles.blurMyLines : false}
+            isMyLine={
+              rehearseMode
+                ? (moment) => isMySpokenLine(moment, scene.myCharacterIds)
+                : undefined
+            }
+            showStructuralControls={!rehearseMode && showStructuralControls}
             structuralSaving={structuralSaving}
-            onMoveUp={(moment) => void handleMoveMoment(moment, "up")}
-            onMoveDown={(moment) => void handleMoveMoment(moment, "down")}
-            onInsertAfter={(sequenceNumber, targetSceneId) => {
-              resetInsertForm();
-              setInsertAfterSequence(sequenceNumber);
-              setInsertSceneId(targetSceneId);
-            }}
-            onDelete={(momentId) => void handleDeleteMoment(momentId)}
-            insertAfterSequence={insertAfterSequence}
-            insertSceneId={insertSceneId}
-            insertFormSlot={() => (
+            onMoveUp={
+              rehearseMode ? undefined : (moment) => void handleMoveMoment(moment, "up")
+            }
+            onMoveDown={
+              rehearseMode ? undefined : (moment) => void handleMoveMoment(moment, "down")
+            }
+            onInsertAfter={
+              rehearseMode
+                ? undefined
+                : (sequenceNumber, targetSceneId) => {
+                    resetInsertForm();
+                    setInsertAfterSequence(sequenceNumber);
+                    setInsertSceneId(targetSceneId);
+                  }
+            }
+            onDelete={
+              rehearseMode ? undefined : (momentId) => void handleDeleteMoment(momentId)
+            }
+            insertAfterSequence={rehearseMode ? null : insertAfterSequence}
+            insertSceneId={rehearseMode ? null : insertSceneId}
+            insertFormSlot={
+              rehearseMode
+                ? undefined
+                : () => (
               <InsertMomentForm
                 momentTypes={scene.momentTypes}
                 characters={scene.characters}
@@ -799,9 +1005,10 @@ export default function TimelinePage() {
                 onSubmit={handleInsertMoment}
                 onCancel={resetInsertForm}
               />
-            )}
+                )
+            }
             footerSlot={
-              showStructuralControls && scene.selectedSceneId !== null ? (
+              !rehearseMode && showStructuralControls && scene.selectedSceneId !== null ? (
                 <li className="border-t border-border px-3 py-2">
                   {insertAtEnd ? (
                     <InsertMomentForm

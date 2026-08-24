@@ -249,7 +249,7 @@ Semantic action colors:
 
 ## Slice 6 (Phase 6 — shipped)
 
-* **Rehearse page** at `/productions/:id/rehearse` — all roles; sidebar nav above Timeline
+* **Timeline** at `/productions/:id/timeline` — all roles; includes **Rehearse mode** toggle for actor practice (presets, blur my lines, etc.). Old `/rehearse` URLs redirect to `/timeline?rehearse=1`.
 * Client-side practice presets: Scene run-through, My lines, Line cues (zero API refetch on preset change)
 * Rehearse display toggles: highlight my lines, stage directions, lyrics/songs, prep badges, blur my lines
 * `sessionStorage` persistence for Rehearse controls per production

@@ -14,7 +14,7 @@ export const aboutContent = {
     version: "0.1.0",
     author: "Connor McKinnis",
     purpose:
-      "I built this for community theater prep and rehearsal. You import a script, get a timeline of moments, then layer casting, props, cues, blocking, notes, on top of that timeline. Rehearse mode is there so actors can run lines. More is coming.",
+      "I built this for community theater prep and rehearsal. You import a script, get a timeline of moments, then layer casting, props, cues, blocking, notes, on top of that timeline. Rehearse mode on the Timeline lets actors run lines. More is coming.",
     stack: [
       "Frontend: React, TypeScript, Vite, Tailwind CSS, shadcn/ui",
       "Backend: Python, FastAPI, SQLAlchemy, Alembic, PostgreSQL",
@@ -36,13 +36,13 @@ export const aboutContent = {
       "Review and edit the Timeline — add, delete, and reorder moments.",
       "Cast characters, manage groups, and keep catalogs for props, cues, costumes, mics, set pieces, and songs.",
       "Attach prep data and notes to moments; bookmark moments for later.",
-      "Rehearse with practice presets (scene run-through, my lines, line cues) and optional line blur.",
+      "Rehearse mode on the Timeline — practice presets (scene run-through, my lines, line cues) and optional line blur.",
       "Overview page plus basic reports for props, cues, entrances/exits, and blocking.",
     ],
     howToUse: [
       "Admins: create a production → Import script → open Overview.",
-      "Directors: live in Timeline for prep; use Rehearse to see what actors see.",
-      "Actors: start from Overview or Rehearse; open moments for notes and bookmarks.",
+      "Directors: live in Timeline for prep; toggle Rehearse mode to see what actors see.",
+      "Actors: start from Overview or Timeline with Rehearse mode on; open moments for notes and bookmarks.",
       "Attach props, cues, entrances, exits, and blocking from a moment's detail panel.",
       "Costumes are assigned per character/scene on the Costumes page (not per moment — for now).",
     ],

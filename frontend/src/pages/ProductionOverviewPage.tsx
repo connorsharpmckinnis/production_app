@@ -228,7 +228,7 @@ function StaffOverview({
       <section>
         <h2 className="mb-3 text-sm font-medium">Quick links</h2>
         <div className="flex flex-wrap gap-2">
-          <QuickLink to={`/productions/${productionId}/rehearse`} label="Rehearse" />
+          <QuickLink to={`/productions/${productionId}/timeline?rehearse=1`} label="Rehearse" />
           <QuickLink to={`/productions/${productionId}/timeline`} label="Timeline" />
           <QuickLink to={`/productions/${productionId}/characters`} label="Characters" />
           <QuickLink to={`/productions/${productionId}/reports`} label="Reports" />
@@ -300,7 +300,7 @@ function ActorOverview({
               {myRoles.map((role) => (
                 <li key={role.id}>
                   <Button asChild size="sm" variant="outline">
-                    <Link to={`/productions/${productionId}/rehearse`}>{role.name}</Link>
+                    <Link to={`/productions/${productionId}/timeline?rehearse=1`}>{role.name}</Link>
                   </Button>
                 </li>
               ))}
@@ -311,7 +311,7 @@ function ActorOverview({
 
       <div>
         <Button asChild size="lg">
-          <Link to={`/productions/${productionId}/rehearse`}>Rehearse</Link>
+          <Link to={`/productions/${productionId}/timeline?rehearse=1`}>Rehearse</Link>
         </Button>
       </div>
 

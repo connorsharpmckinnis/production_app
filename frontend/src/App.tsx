@@ -16,7 +16,6 @@ import PropsPage from "@/pages/PropsPage";
 import CallSheetPage from "@/pages/CallSheetPage";
 import RehearsalDetailPage from "@/pages/RehearsalDetailPage";
 import RehearsalsPage from "@/pages/RehearsalsPage";
-import RehearsePage from "@/pages/RehearsePage";
 import ReportsPage from "@/pages/ReportsPage";
 import SetPiecesPage from "@/pages/SetPiecesPage";
 import ComponentGalleryPage from "@/pages/ComponentGalleryPage";
@@ -37,7 +36,10 @@ export default function App() {
           <Route path="productions" element={<ProductionListPage />} />
           <Route path="productions/:id" element={<ProductionOverviewPage />} />
           <Route path="productions/:id/timeline" element={<TimelinePage />} />
-          <Route path="productions/:id/rehearse" element={<RehearsePage />} />
+          <Route
+            path="productions/:id/rehearse"
+            element={<Navigate to="../timeline?rehearse=1" replace />}
+          />
           <Route path="productions/:id/rehearsals" element={<RehearsalsPage />} />
           <Route
             path="productions/:id/rehearsals/:rehearsalId"
