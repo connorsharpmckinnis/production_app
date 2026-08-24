@@ -110,6 +110,8 @@ export interface SceneSummary {
   number: number;
   title: string | null;
   sort_order: number;
+  times_rehearsed?: number;
+  last_rehearsed_at?: string | null;
 }
 
 export interface ActSummary {
@@ -828,4 +830,168 @@ export interface NotificationInboxResponse {
   items: NotificationInboxItem[];
   active_banner: NotificationInboxItem | null;
   pending_modal: NotificationInboxItem | null;
+}
+
+export type RehearsalKind = "all_call" | "called";
+
+export type RehearsalStatus =
+  | "scheduled"
+  | "planned"
+  | "published"
+  | "in_progress"
+  | "completed"
+  | "cancelled";
+
+export interface LocationResponse {
+  id: number;
+  name: string;
+  sort_order: number;
+}
+
+export interface LocationCreate {
+  name: string;
+  sort_order?: number;
+}
+
+export interface RehearsalBlockSceneResponse {
+  id: number;
+  number: number;
+  title: string | null;
+  act_number: number | null;
+  times_rehearsed: number;
+}
+
+export interface RehearsalBlockCallResponse {
+  user_id: number;
+  display_name: string;
+  available: boolean;
+}
+
+export interface RehearsalBlockResponse {
+  id: number;
+  starts_at: string;
+  ends_at: string;
+  location_id: number | null;
+  location_name: string | null;
+  label: string | null;
+  sort_order: number;
+  scenes: RehearsalBlockSceneResponse[];
+  calls: RehearsalBlockCallResponse[];
+  double_book_user_ids: number[];
+}
+
+export interface RehearsalNoteResponse {
+  id: number;
+  author_user_id: number;
+  author_display_name: string;
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RehearsalSummaryResponse {
+  id: number;
+  starts_at: string;
+  ends_at: string;
+  kind: RehearsalKind | string;
+  status: RehearsalStatus | string;
+  title: string | null;
+  location_id: number | null;
+  location_name: string | null;
+  block_count: number;
+}
+
+export interface RehearsalDetailResponse {
+  id: number;
+  production_id: number;
+  starts_at: string;
+  ends_at: string;
+  kind: RehearsalKind | string;
+  status: RehearsalStatus | string;
+  title: string | null;
+  location_id: number | null;
+  location_name: string | null;
+  blocks: RehearsalBlockResponse[];
+  notes: RehearsalNoteResponse[];
+  created_at: string;
+  updated_at: string;
+}
+
+export interface RehearsalCreate {
+  starts_at: string;
+  ends_at: string;
+  kind?: RehearsalKind | string;
+  title?: string | null;
+  location_id?: number | null;
+}
+
+export interface RehearsalUpdate {
+  starts_at?: string;
+  ends_at?: string;
+  kind?: RehearsalKind | string;
+  title?: string | null;
+  location_id?: number | null;
+}
+
+export interface RehearsalBlockWrite {
+  starts_at: string;
+  ends_at: string;
+  location_id?: number | null;
+  label?: string | null;
+  sort_order?: number;
+  scene_ids?: number[];
+  user_ids?: number[];
+}
+
+export interface RehearsalPlanReplace {
+  blocks: RehearsalBlockWrite[];
+  mark_planned?: boolean;
+}
+
+export interface RehearsalStatusUpdate {
+  status: RehearsalStatus | string;
+}
+
+export interface RehearsalNoteCreate {
+  content: string;
+}
+
+export interface RehearsalNoteUpdate {
+  content: string;
+}
+
+export interface SuggestedCallResponse {
+  user_id: number;
+  display_name: string;
+  character_names: string[];
+  available: boolean;
+}
+
+export interface SceneRecommendationResponse {
+  id: number;
+  act_number: number;
+  number: number;
+  title: string | null;
+  times_rehearsed: number;
+  last_rehearsed_at: string | null;
+}
+
+export interface MyCallBlockResponse {
+  block_id: number;
+  starts_at: string;
+  ends_at: string;
+  location_name: string | null;
+  label: string | null;
+  scenes: RehearsalBlockSceneResponse[];
+}
+
+export interface MyCallResponse {
+  rehearsal_id: number;
+  starts_at: string;
+  ends_at: string;
+  kind: RehearsalKind | string;
+  status: RehearsalStatus | string;
+  title: string | null;
+  location_name: string | null;
+  blocks: MyCallBlockResponse[];
 }

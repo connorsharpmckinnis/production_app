@@ -1,16 +1,18 @@
 # Feature plan — Print & call sheets (rehearsal scene selection)
 
-**Status:** Roadmap (approved intent — build eventually; not yet phased)  
+**Status:** Roadmap (approved intent) — primary path is **plan-driven** via [rehearsal-management.md](rehearsal-management.md) Phase 17  
 **Created:** 2026-07-29  
-**Related:** [character-nightly-packs.md](character-nightly-packs.md), [tech-week-chart-suite.md](tech-week-chart-suite.md), existing Reports, [PHASE_14.md](../PHASE_14.md), [PRE_AUGUST_STP_PREP.md](../PRE_AUGUST_STP_PREP.md) print polish
+**Related:** [rehearsal-management.md](rehearsal-management.md), [character-nightly-packs.md](character-nightly-packs.md), [tech-week-chart-suite.md](tech-week-chart-suite.md), existing Reports, [PHASE_14.md](../PHASE_14.md), [PRE_AUGUST_STP_PREP.md](../PRE_AUGUST_STP_PREP.md) print polish
 
 ---
 
 ## Goal
 
-Let a director (or SM) **select the scene(s) being rehearsed** and generate a **call / prep sheet**: who is needed, and which costumes, props, set pieces (and later lavs) are required for that slice of the show.
+Let a director (or SM) generate a **call / prep sheet** from a **planned rehearsal** (preferred) or from an ad-hoc scene selection: who is needed when/where, and (later) which costumes, props, set pieces are required.
 
-**Primary motivating UX:** “We’re working Act 1 Scenes 4–6 tonight.” One click produces a printable sheet: cast list for those scenes, props that appear, costumes worn, set pieces that move — so stage management can pull and actors know they’re on.
+**Primary motivating UX (Phase 17):** Soft-publish a rehearsal plan → printable director call sheet + actor “My call” (times, locations, scenes). Cast + call times are Pam-critical; asset sections can stay thin initially.
+
+**Secondary motivating UX:** “We’re working Act 1 Scenes 4–6 tonight.” Scene multi-select still useful as a Reports shortcut when no rehearsal plan exists.
 
 **Secondary motivating UX:** Improve **print CSS** on existing production-wide reports so paper/PDF-from-browser looks intentional.
 

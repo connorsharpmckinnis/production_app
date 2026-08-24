@@ -13,6 +13,7 @@ from app.api import (
     packs,
     productions,
     props,
+    rehearsals,
     reports,
     set_pieces,
     settings,
@@ -42,4 +43,5 @@ api_router.include_router(packs.router)
 api_router.include_router(lav_chart.router)
 api_router.include_router(set_pieces.router)
 api_router.include_router(stage_movements.router)
+api_router.include_router(rehearsals.router)
 api_router.include_router(reports.router)

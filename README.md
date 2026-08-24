@@ -115,6 +115,10 @@ The **Timeline** is a beat-by-beat walk through the show. Directors live here fo
 
 ![Rehearsal Mode](docs/screenshots/rehearsal-mode.png?raw=true)
 
+### 6b. Rehearsals (call planning)
+
+**Rehearsals** (distinct from Rehearse Mode) digitizes STP call planning: reserved slots on a production, a director planner (time/location blocks, scenes, who’s called), soft-publish so cast see **My call**, printable call sheets, session notes, and scene `times_rehearsed` after complete. See [docs/feature_plans/rehearsal-management.md](docs/feature_plans/rehearsal-management.md).
+
 ### 7. Reports
 
 **Reports** currently include basic views for:

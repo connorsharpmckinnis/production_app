@@ -89,3 +89,7 @@ class Production(Base):
         back_populates="production",
         cascade="all, delete-orphan",
     )
+    rehearsals: Mapped[list["Rehearsal"]] = relationship(
+        back_populates="production",
+        cascade="all, delete-orphan",
+    )

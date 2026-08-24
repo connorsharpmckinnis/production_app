@@ -484,6 +484,13 @@ function AppShellInner() {
                   Rehearse
                 </NavLink>
                 <NavLink
+                  to={`/productions/${productionId}/rehearsals`}
+                  className={navLinkClass}
+                  onClick={() => setSidebarOpen(false)}
+                >
+                  Rehearsals
+                </NavLink>
+                <NavLink
                   to={`/productions/${productionId}/timeline`}
                   className={navLinkClass}
                   onClick={() => setSidebarOpen(false)}
