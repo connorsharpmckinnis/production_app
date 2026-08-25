@@ -10,9 +10,6 @@
 ## Scene One \- Welcome to the Age of Adventure
 
 
-Note: CHORUS is an ensemble singing attribution used later in the show.
-CHORUS: (offstage vocalization)
-
 *LIGHTS UP on a haggard trio standing at the edge of the stage or platform, looking down into the yawning depths below. SHACKLETON, WORSLEY, and CREAN look tired beyond belief and unsure what to do next.*
 
 *Adventurous music (Into the Deep?) plays quietly underneath the dialog, building up and eventually freezing on ‘Tom. Danger. Crean.’*
