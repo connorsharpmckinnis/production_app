@@ -213,7 +213,7 @@ export function NotificationBell() {
             aria-label="Close notifications"
             onClick={() => setPanelOpen(false)}
           />
-          <div className="absolute right-0 z-40 mt-1 w-[22rem] max-w-[calc(100vw-2rem)] rounded-md border border-border bg-card shadow-md">
+          <div className="absolute right-0 z-40 mt-1 w-[22rem] max-w-[calc(100vw-2rem)] rounded-md border border-border bg-card">
             <div className="flex items-center justify-between border-b border-border px-3 py-2">
               <h2 className="text-sm font-medium">Notifications</h2>
               {unreadCount > 0 && (
@@ -251,13 +251,13 @@ export function NotificationBell() {
                       <Button
                         type="button"
                         variant="ghost"
-                        className="h-auto w-full justify-start rounded-none px-3 py-2.5 text-left font-normal hover:bg-muted/60"
+                        className="h-auto w-full flex-col items-stretch justify-start gap-0 rounded-none px-3 py-2.5 text-left font-normal whitespace-normal hover:bg-muted/60"
                         onClick={() => {
                           setExpandedId(expanded ? null : item.id);
                           if (unread) void markRead(item.id);
                         }}
                       >
-                        <div className="flex items-start justify-between gap-2">
+                        <div className="flex w-full items-start justify-between gap-2">
                           <p className="text-sm font-medium leading-snug">{item.title}</p>
                           {unread && (
                             <span className="mt-1 h-2 w-2 shrink-0 rounded-full bg-primary" />
@@ -272,7 +272,7 @@ export function NotificationBell() {
                           {formatPostedAt(item.created_at)}
                         </p>
                         {expanded && item.body && (
-                          <p className="mt-2 whitespace-pre-wrap text-sm text-muted-foreground">
+                          <p className="mt-2 w-full whitespace-pre-wrap text-sm text-muted-foreground">
                             {item.body}
                           </p>
                         )}

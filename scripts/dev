@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+# Day-to-day local stack: Postgres in Docker; API + Vite on the host with reload.
+#
+# Usage (from repo root):
+#   ./scripts/dev
+#
+# Code edits: save and refresh (Vite HMR / uvicorn --reload). No rebuild.
+# New Alembic migrations: Ctrl+C, then re-run ./scripts/dev (migrates + seeds on start).
+#
+# Postgres keeps running after Ctrl+C. Stop it with: docker compose stop db
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+POSTGRES_USER="${POSTGRES_USER:-production_app}"
+POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-production_app}"
+POSTGRES_DB="${POSTGRES_DB:-production_app}"
+export DATABASE_URL="${DATABASE_URL:-postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:5432/${POSTGRES_DB}}"
+export ENVIRONMENT="${ENVIRONMENT:-dev}"
+
+if ! command -v docker >/dev/null 2>&1; then
+  echo "Docker is required (for Postgres). Install Docker Desktop and try again." >&2
+  exit 1
+fi
+if ! command -v uv >/dev/null 2>&1; then
+  echo "uv is required. Install: https://docs.astral.sh/uv/" >&2
+  exit 1
+fi
+if ! command -v npm >/dev/null 2>&1; then
+  echo "Node.js/npm is required (22+). Install from https://nodejs.org/" >&2
+  exit 1
+fi
+
+# Free :8000 / :5173 if a previous full Compose stack left app containers running.
+docker compose stop backend frontend >/dev/null 2>&1 || true
+
+echo "Starting Postgres..."
+docker compose up -d db
+
+echo "Waiting for Postgres..."
+ready=0
+for _ in $(seq 1 60); do
+  if docker compose exec -T db pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; then
+    ready=1
+    break
+  fi
+  sleep 1
+done
+if [[ "$ready" -ne 1 ]]; then
+  echo "Postgres did not become ready in time." >&2
+  exit 1
+fi
+
+echo "Syncing backend dependencies..."
+(cd backend && uv sync)
+
+if [[ ! -d frontend/node_modules ]]; then
+  echo "Installing frontend dependencies..."
+  (cd frontend && npm install)
+fi
+
+echo "Applying migrations and seed..."
+(cd backend && uv run alembic upgrade head && uv run python -m app.seed)
+
+BACKEND_PID=""
+FRONTEND_PID=""
+
+cleanup() {
+  echo ""
+  echo "Stopping API and Vite (Postgres stays up)..."
+  if [[ -n "$BACKEND_PID" ]]; then
+    kill "$BACKEND_PID" 2>/dev/null || true
+  fi
+  if [[ -n "$FRONTEND_PID" ]]; then
+    kill "$FRONTEND_PID" 2>/dev/null || true
+  fi
+  wait 2>/dev/null || true
+}
+trap cleanup EXIT INT TERM
+
+echo "Starting API with reload on :8000 ..."
+(cd backend && uv run uvicorn app.main:app --reload --host 127.0.0.1 --port 8000) &
+BACKEND_PID=$!
+
+echo "Starting Vite on :5173 ..."
+(cd frontend && npm run dev) &
+FRONTEND_PID=$!
+
+echo ""
+echo "App:  http://localhost:5173"
+echo "API:  http://localhost:8000/health"
+echo "Ctrl+C stops API + Vite. Postgres keeps running (docker compose stop db to stop it)."
+echo ""
+
+# Exit when either child dies (portable; macOS bash 3.2 has no wait -n).
+while true; do
+  if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+    echo "API process exited." >&2
+    break
+  fi
+  if ! kill -0 "$FRONTEND_PID" 2>/dev/null; then
+    echo "Vite process exited." >&2
+    break
+  fi
+  sleep 1
+done

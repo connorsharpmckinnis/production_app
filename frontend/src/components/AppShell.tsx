@@ -22,14 +22,14 @@ import { cn } from "@/lib/utils";
 
 const navLinkClass = ({ isActive }: { isActive: boolean }) =>
   cn(
-    "block rounded-md px-3 py-2 text-sm font-medium outline-none transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:ring-ring/50",
+    "block rounded-md px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring",
     isActive
       ? "bg-primary text-primary-foreground"
       : "text-muted-foreground hover:bg-muted hover:text-foreground",
   );
 
 const sectionSummaryClass =
-  "flex cursor-pointer list-none items-center gap-1 rounded-md pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground outline-none marker:content-none focus-visible:ring-[3px] focus-visible:ring-ring/50 [&::-webkit-details-marker]:hidden";
+  "flex cursor-pointer list-none items-center gap-1 rounded-md pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground outline-none marker:content-none focus-visible:ring-1 focus-visible:ring-ring [&::-webkit-details-marker]:hidden";
 
 export default function AppShell() {
   return (
@@ -216,7 +216,7 @@ function AppShellInner() {
     <div className="flex h-dvh flex-col overflow-hidden bg-background">
       <a
         href="#main-content"
-        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:outline-none focus:ring-[3px] focus:ring-ring/50"
+        className="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-md focus:bg-primary focus:px-4 focus:py-2 focus:text-primary-foreground focus:outline-none focus:ring-1 focus:ring-ring"
       >
         Skip to content
       </a>
@@ -281,7 +281,7 @@ function AppShellInner() {
                   aria-label="Close menu"
                   onClick={() => setMenuOpen(false)}
                 />
-                <div className="absolute right-0 z-20 mt-1 w-56 rounded-md border border-border bg-card py-1 shadow-md">
+                <div className="absolute right-0 z-20 mt-1 w-56 rounded-md border border-border bg-card py-1">
                   <div className="border-b border-border px-3 py-2 text-xs text-muted-foreground">
                     @{user?.username}
                   </div>

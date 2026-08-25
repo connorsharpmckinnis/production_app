@@ -1,6 +1,6 @@
 # UI Standards
 
-**Version:** 0.3 (Phase 3 — Slice 3)
+**Version:** 0.4 (flat / crisp chrome)
 
 Minimum UI conventions for the Theater App. Slice 1 covers import and read-only timeline; Slice 2 adds casting, filters, notes, and bookmarks; Slice 3 adds import-review editing, songs, props, and cues.
 
@@ -259,6 +259,18 @@ Semantic action colors:
 * Timeline **live search** (debounce ~275ms; Enter commits immediately) and **multi-select character filter** (OR within characters; AND with other filters). Rehearse has live search only
 * Moment detail: **Imported data** label; **Add to moment** menu; on-stage block removed; irrelevant fields hidden
 * **Theme** — light/dark/system plus Warm and Stage palette presets (Settings + user menu); tokens in `index.css`
+
+---
+
+## Surface & chrome (flat / crisp)
+
+Prefer a flat UI: borders and color/alpha changes for hierarchy and hover, not elevation.
+
+* **No decorative shadows** on buttons, inputs, cards, menus, dialogs, toasts, or sheets
+* **No backdrop-blur** on sticky headers or chrome (solid `bg-background` / `bg-muted` is fine)
+* **Focus:** crisp `ring-1 ring-ring` (not soft multi-pixel glow rings)
+* **OK:** alpha fills for hover/dark input surfaces; overlay scrims (`bg-black/50`); sheet slide motion; Rehearse “blur my lines” (product feature, not chrome)
+* Re-add shadow/blur only when a specific surface clearly needs it
 
 ---
 

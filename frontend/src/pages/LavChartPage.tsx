@@ -1012,7 +1012,7 @@ export default function LavChartPage() {
         createPortal(
           <div
             data-lav-row-menu
-            className="fixed z-50 w-44 rounded-md border border-border bg-background py-1 shadow-md"
+            className="fixed z-50 w-44 rounded-md border border-border bg-background py-1"
             style={{ top: rowMenuPos.top, left: rowMenuPos.left }}
           >
             <RowMenuButton

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link, useParams } from "react-router-dom";
-import { Pencil, Trash2 } from "lucide-react";
+import { Link, useNavigate, useParams } from "react-router-dom";
+import { ChevronRight, Pencil, Trash2 } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -42,6 +42,7 @@ import type {
   RehearsalSummaryResponse,
 } from "@/lib/types";
 import {
+  cn,
   formatDate,
   formatDateTime,
   formatTime,
@@ -95,9 +96,14 @@ function defaultEndsAt(startsLocal: string): string {
 export default function RehearsalsPage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
+  const navigate = useNavigate();
   const { canManagePreparation } = useAuth();
   const confirm = useConfirm();
   const toast = useToast();
+
+  function openRehearsal(rehearsalId: number) {
+    navigate(`/productions/${productionId}/rehearsals/${rehearsalId}`);
+  }
 
   const [rehearsals, setRehearsals] = useState<RehearsalSummaryResponse[]>([]);
   const [myCalls, setMyCalls] = useState<MyCallResponse[]>([]);
@@ -268,16 +274,23 @@ export default function RehearsalsPage() {
             {myCalls.map((call) => (
               <li
                 key={call.rehearsal_id}
-                className="rounded-lg border border-border px-4 py-3"
+                role="link"
+                tabIndex={0}
+                aria-label={`Open ${call.title?.trim() || formatDate(call.starts_at)}`}
+                className="cursor-pointer rounded-lg border border-border px-4 py-3 transition-colors hover:bg-muted/40"
+                onClick={() => openRehearsal(call.rehearsal_id)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    openRehearsal(call.rehearsal_id);
+                  }
+                }}
               >
                 <div className="flex flex-wrap items-start justify-between gap-2">
                   <div>
-                    <Link
-                      to={`/productions/${productionId}/rehearsals/${call.rehearsal_id}`}
-                      className="font-medium hover:underline"
-                    >
+                    <p className="font-medium">
                       {call.title?.trim() || formatDate(call.starts_at)}
-                    </Link>
+                    </p>
                     <p className="text-sm text-muted-foreground">
                       {formatDateTime(call.starts_at)} – {formatTime(call.ends_at)}
                       {call.location_name ? ` · ${call.location_name}` : ""}
@@ -350,18 +363,27 @@ export default function RehearsalsPage() {
               {sortedRehearsals.map((rehearsal) => {
                 const draftForActor =
                   !canManagePreparation && !isPublishedStatus(rehearsal.status);
+                const titleLabel = rehearsal.title?.trim() || formatDateTime(rehearsal.starts_at);
                 return (
                   <TableRow
                     key={rehearsal.id}
-                    className={draftForActor ? "bg-muted/30" : undefined}
+                    className={cn(
+                      "cursor-pointer",
+                      draftForActor && "bg-muted/30",
+                    )}
+                    onClick={() => openRehearsal(rehearsal.id)}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        openRehearsal(rehearsal.id);
+                      }
+                    }}
+                    tabIndex={0}
+                    role="link"
+                    aria-label={`Open ${titleLabel}`}
                   >
                     <TableCell className="whitespace-nowrap font-medium">
-                      <Link
-                        to={`/productions/${productionId}/rehearsals/${rehearsal.id}`}
-                        className="hover:underline"
-                      >
-                        {formatDateTime(rehearsal.starts_at)}
-                      </Link>
+                      {formatDateTime(rehearsal.starts_at)}
                       <div className="text-xs font-normal text-muted-foreground">
                         until {formatTime(rehearsal.ends_at)}
                       </div>
@@ -371,18 +393,7 @@ export default function RehearsalsPage() {
                         </p>
                       )}
                     </TableCell>
-                    <TableCell>
-                      {rehearsal.title ? (
-                        <Link
-                          to={`/productions/${productionId}/rehearsals/${rehearsal.id}`}
-                          className="hover:underline"
-                        >
-                          {rehearsal.title}
-                        </Link>
-                      ) : (
-                        "—"
-                      )}
-                    </TableCell>
+                    <TableCell>{rehearsal.title ? rehearsal.title : "—"}</TableCell>
                     <TableCell>{kindLabel(rehearsal.kind)}</TableCell>
                     <TableCell className="text-muted-foreground">
                       {rehearsal.location_name ?? "—"}
@@ -399,7 +410,11 @@ export default function RehearsalsPage() {
                     )}
                     {canManagePreparation && (
                       <TableCell>
-                        <div className="flex items-center gap-1">
+                        <div
+                          className="flex items-center justify-end gap-1"
+                          onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => event.stopPropagation()}
+                        >
                           <Button
                             type="button"
                             variant="ghost"
@@ -421,6 +436,10 @@ export default function RehearsalsPage() {
                           >
                             <Trash2 />
                           </Button>
+                          <ChevronRight
+                            className="size-4 text-muted-foreground"
+                            aria-hidden
+                          />
                         </div>
                       </TableCell>
                     )}

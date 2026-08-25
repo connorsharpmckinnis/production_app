@@ -62,7 +62,7 @@ class Announcement(Base):
         nullable=False,
     )
 
-    production: Mapped["Production | None"] = relationship()
+    production: Mapped["Production | None"] = relationship(back_populates="announcements")
     created_by: Mapped["User"] = relationship(foreign_keys=[created_by_user_id])
     ctas: Mapped[list["AnnouncementCta"]] = relationship(
         back_populates="announcement",

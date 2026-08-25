@@ -9,11 +9,13 @@ from sqlalchemy.orm import Session
 from app.db.seed import seed_database
 from app.models import (
     Act,
+    Announcement,
     Bookmark,
     Character,
     Dialogue,
     Moment,
     Note,
+    Notification,
     Production,
     Song,
     StageDirection,
@@ -40,7 +42,7 @@ def _admin_headers(client: TestClient) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def test_delete_empty_production(seeded_client: TestClient) -> None:
+def test_delete_empty_production(seeded_client: TestClient, db_session: Session) -> None:
     headers = _admin_headers(seeded_client)
     create = seeded_client.post(
         "/api/productions",
@@ -49,9 +51,59 @@ def test_delete_empty_production(seeded_client: TestClient) -> None:
     )
     production_id = create.json()["id"]
 
+    # Create always fans out admin inbox rows keyed to the production.
+    assert (
+        db_session.query(Notification)
+        .filter(Notification.production_id == production_id)
+        .count()
+        > 0
+    )
+
     response = seeded_client.delete(f"/api/productions/{production_id}", headers=headers)
     assert response.status_code == 204
     assert seeded_client.get(f"/api/productions/{production_id}", headers=headers).status_code == 404
+    assert (
+        db_session.query(Notification)
+        .filter(Notification.production_id == production_id)
+        .count()
+        == 0
+    )
+
+
+def test_delete_production_cascades_announcements(
+    seeded_client: TestClient,
+    db_session: Session,
+) -> None:
+    headers = _admin_headers(seeded_client)
+    create = seeded_client.post(
+        "/api/productions",
+        json={"title": "Announce Then Delete", "season": "2026"},
+        headers=headers,
+    )
+    production_id = create.json()["id"]
+
+    announce = seeded_client.post(
+        f"/api/productions/{production_id}/announcements",
+        json={
+            "title": "Call time",
+            "body": "Be early.",
+            "severity": "info",
+            "audience_roles": ["Admin"],
+        },
+        headers=headers,
+    )
+    assert announce.status_code == 201
+    announcement_id = announce.json()["id"]
+
+    response = seeded_client.delete(f"/api/productions/{production_id}", headers=headers)
+    assert response.status_code == 204
+    assert db_session.get(Announcement, announcement_id) is None
+    assert (
+        db_session.query(Notification)
+        .filter(Notification.production_id == production_id)
+        .count()
+        == 0
+    )
 
 
 def test_delete_imported_production_cascades(

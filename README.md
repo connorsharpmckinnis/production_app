@@ -218,24 +218,29 @@ Theater production management platform — monorepo with FastAPI backend, React 
 
 ## Prerequisites
 
-- [Docker](https://docs.docker.com/get-docker/) and Docker Compose
-- (Optional, local dev) [uv](https://docs.astral.sh/uv/) for Python, [Node.js](https://nodejs.org/) 22+ for frontend
+- [Docker](https://docs.docker.com/get-docker/) and Docker Compose (Postgres only for day-to-day)
+- [uv](https://docs.astral.sh/uv/) for Python
+- [Node.js](https://nodejs.org/) 22+ for the frontend
 
-## Quick Start (Docker)
+## Quick Start (day-to-day)
+
+Postgres runs in Docker. The API and Vite run on your machine with hot reload — **no image rebuild** for normal code edits.
 
 1. Clone the repository and open a terminal in the project root.
 
-2. Copy environment defaults (optional — `docker compose` works without a `.env` file):
+2. Copy environment defaults (optional):
 
    ```bash
    cp .env.example .env
    ```
 
-3. Start all services:
+3. Start the stack:
 
    ```bash
-   docker compose up -d --build
+   ./scripts/dev
    ```
+
+   That command: starts Postgres if needed, applies migrations + seed, then runs the API (`--reload`) and Vite together.
 
 4. Open the app:
 
@@ -243,14 +248,33 @@ Theater production management platform — monorepo with FastAPI backend, React 
    |----------|------------------------------|
    | Frontend | http://localhost:5173        |
    | Backend  | http://localhost:8000/health |
-   | Database | internal only (not published)|
+   | Database | `127.0.0.1:5432` (loopback)  |
 
 5. Default admin login (development only):
 
    - **Username:** `admin`
    - **Password:** `admin`
 
-   Change these before any shared or production-like deploy. For phone access over Tailscale (Serve on port 5173), see [docs/DEPLOY.md](docs/DEPLOY.md).
+**What to do when something changes**
+
+| Change | What you do |
+|--------|-------------|
+| Frontend / backend code | Save; refresh the browser (Vite HMR / API reload). No extra command. |
+| New Alembic migration or seed | Ctrl+C, then `./scripts/dev` again (migrates + seeds on start). |
+| Stop API + Vite | Ctrl+C (Postgres keeps running). |
+| Stop Postgres | `docker compose stop db` |
+
+Change default passwords before any shared or production-like deploy. For phone access over Tailscale (Serve on port 5173), see [docs/DEPLOY.md](docs/DEPLOY.md).
+
+### Optional: full Docker stack
+
+To run API + frontend **inside** containers (baked-in code; rebuild after edits):
+
+```bash
+docker compose up -d --build
+```
+
+Use this for a containerized smoke-test, not daily coding. See [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## Importing a script
 
@@ -265,13 +289,13 @@ See [docs/IMPORT_SPEC.md](docs/IMPORT_SPEC.md) and [docs/SCRIPT_FORMAT.md](docs/
 
 | Service  | Description                                      | Port |
 |----------|--------------------------------------------------|------|
-| `db`     | PostgreSQL 16                                    | 5432 |
-| `backend`| FastAPI API — migrations and seed run on startup | 8000 |
-| `frontend` | Vite **dev** server (code baked into the image; rebuild frontend after host edits) | 5173 |
+| `db`     | PostgreSQL 16 (Docker; also used by `./scripts/dev`) | 5432 on localhost |
+| API      | FastAPI — migrations and seed run via `./scripts/dev` (or container startup) | 8000 |
+| Frontend | Vite **dev** server on the host (or in Docker for smoke-tests) | 5173 |
 
 ### Phone access (Tailscale)
 
-Day-to-day stack is the Vite **dev** frontend above. Source is copied into the image at build time (no bind mounts), so after editing frontend or backend code run `docker compose up -d --build` for the service you changed. To open the same app on your phone over a private Tailscale URL (`tailscale serve --bg 5173`), see **[docs/DEPLOY.md](docs/DEPLOY.md)**.
+Day-to-day: run `./scripts/dev`, then `tailscale serve --bg 5173`. Details in **[docs/DEPLOY.md](docs/DEPLOY.md)**.
 
 An optional nginx “preview” Compose overlay exists only for future VPS smoke-tests; it is not required for laptop + phone.
 
@@ -304,22 +328,25 @@ Set these in a root `.env` file or pass them to `docker compose`.
 
 **Security:** With `ENVIRONMENT=prod`, the backend refuses the documented default `SECRET_KEY` and weak `ADMIN_PASSWORD` values. See [docs/DEPLOY.md](docs/DEPLOY.md) and [docs/SEED_DATA.md](docs/SEED_DATA.md).
 
-### Frontend (`frontend` service)
+### Frontend (Vite)
 
 | Variable                 | Required | Default                  | Description                          |
 |--------------------------|----------|--------------------------|--------------------------------------|
 | `VITE_API_PROXY_TARGET`  | No       | `http://localhost:8000`  | Backend URL for Vite dev proxy       |
 
-In Docker, this is set to `http://backend:8000` automatically. API requests from the browser go to `/api/*` and are proxied to the backend.
+With `./scripts/dev`, the default proxy target is correct. In the full Docker stack, Compose sets this to `http://backend:8000`. Browser requests go to `/api/*` and are proxied to the API.
 
-## Local Development (without Docker)
+## Local Development (manual)
+
+Prefer `./scripts/dev` (above). To run pieces yourself:
 
 ### Backend
 
 ```bash
+docker compose up -d db
 cd backend
 uv sync
-export DATABASE_URL=postgresql://production_app:production_app@localhost:5432/production_app
+export DATABASE_URL=postgresql://production_app:production_app@127.0.0.1:5432/production_app
 uv run alembic upgrade head
 uv run python -m app.seed
 uv run uvicorn app.main:app --reload --port 8000
@@ -353,6 +380,7 @@ Admin component gallery (theme preview + all primitives): `/dev/ui` (also linked
 production_app/
 ├── backend/          # FastAPI, SQLAlchemy, Alembic
 ├── frontend/         # React, TypeScript, Vite, Tailwind
+├── scripts/dev       # Day-to-day: db + migrate/seed + API + Vite
 ├── docker-compose.yml
 ├── docs/             # Architecture and phase plans
 │   └── screenshots/  # README images (add annotated screenshots here)
@@ -374,15 +402,15 @@ production_app/
 
 **Backend won't start — database connection refused**
 
-Wait for the `db` health check to pass. The backend depends on a healthy database.
+Start Postgres (`docker compose up -d db` or `./scripts/dev`) and wait until healthy.
 
 **Port already in use**
 
-Change the host port mapping in `docker-compose.yml`, e.g. `"5174:5173"` for frontend.
+If `:8000` or `:5173` is taken by old Compose app containers: `docker compose stop backend frontend`. For Postgres conflicts on `:5432`, stop other local Postgres instances or change the published port in `docker-compose.yml`.
 
 **Frontend API calls fail**
 
-Confirm the backend is running at http://localhost:8000/health. In Docker, ensure `VITE_API_PROXY_TARGET=http://backend:8000`.
+Confirm the API is running at http://localhost:8000/health. Vite proxies `/api` to that URL by default.
 
 ## Tests
 

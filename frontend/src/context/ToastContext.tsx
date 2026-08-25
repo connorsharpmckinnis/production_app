@@ -40,12 +40,12 @@ const VARIANT_STYLES: Record<
   },
   success: {
     icon: CheckCircle2Icon,
-    className: "border-success/40 bg-success/10",
+    className: "border-success bg-card",
     iconClassName: "text-success",
   },
   error: {
     icon: CircleAlertIcon,
-    className: "border-destructive/40 bg-destructive/5",
+    className: "border-destructive bg-card",
     iconClassName: "text-destructive",
   },
 };
@@ -89,7 +89,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
             <div
               key={toast.id}
               className={cn(
-                "pointer-events-auto flex items-start gap-3 rounded-lg border bg-card px-4 py-3 shadow-lg animate-in fade-in-0 slide-in-from-bottom-2",
+                "pointer-events-auto flex items-start gap-3 rounded-lg border bg-card px-4 py-3 animate-in fade-in-0 slide-in-from-bottom-2",
                 variant.className,
               )}
             >

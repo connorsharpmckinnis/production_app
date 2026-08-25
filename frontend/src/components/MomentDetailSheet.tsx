@@ -11,6 +11,7 @@ import type {
   CharacterDetailResponse,
   CostumeResponse,
   CueCategoryResponse,
+  GroupResponse,
   MomentDetailResponse,
   MomentTypeResponse,
   PropResponse,
@@ -29,6 +30,7 @@ interface MomentDetailSheetProps {
   canEdit: boolean;
   characters: CharacterDetailResponse[];
   castableUsers: CastableUserResponse[];
+  groups: GroupResponse[];
   songs: SongDetailResponse[];
   propsCatalog: PropResponse[];
   setPiecesCatalog: SetPieceResponse[];
@@ -49,6 +51,7 @@ export default function MomentDetailSheet({
   canEdit,
   characters,
   castableUsers,
+  groups,
   songs,
   propsCatalog,
   setPiecesCatalog,
@@ -119,6 +122,7 @@ export default function MomentDetailSheet({
             canChooseVisibility={canEdit}
             characters={characters}
             castableUsers={castableUsers}
+            groups={groups}
             songs={songs}
             propsCatalog={propsCatalog}
             setPiecesCatalog={setPiecesCatalog}

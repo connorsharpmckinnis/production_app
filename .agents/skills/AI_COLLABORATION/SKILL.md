@@ -95,6 +95,11 @@ Require explicit owner authorization for:
 * deploys and remote system changes (DB, cloud, CI, DNS, SaaS config)
 * overwriting planning docs the owner is actively editing (unless asked)
 * expanding into adjacent domains outside the theater production workflow
+* adding, removing, or upgrading Python packages via uv (`uv add` / `uv remove` / dependency bumps)
+
+## Ask for tooling help (do not thrash)
+
+When a tool fails for auth, permissions, or environment reasons — especially `gh` (issues, PRs, checks), GitHub access, or similar CLI auth — stop and ask the owner. Say what you need and why. The owner can run it, approve a specific command, or fix auth. Do not burn turns inventing workarounds or retrying the same blocked path.
 
 ## Related skills
 

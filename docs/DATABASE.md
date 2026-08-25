@@ -778,16 +778,23 @@ Fields
 
 Purpose
 
-Attach blocking notes to moments for specific characters (Phase 5).
+Attach blocking notes to moments for a character, a user (e.g. an unnamed
+walk-on), or a group.
 
 Fields
 
 * id
 * moment_id
-* character_id
+* character_id (nullable)
+* user_id (nullable)
+* group_id (nullable)
 * notes (required)
 
-**Decision:** Unique `(moment_id, character_id)` — one blocking row per character per moment. On-stage presence within a scene is derived from entrance/exit sequence, not stored.
+**Decision:** Exactly one of `character_id`, `user_id`, or `group_id` must be
+set (CHECK constraint). Unique per subject on a moment
+(`(moment_id, character_id)`, `(moment_id, user_id)`, `(moment_id, group_id)`).
+On-stage presence within a scene is derived from entrance/exit sequence, not
+stored.
 
 ---
 

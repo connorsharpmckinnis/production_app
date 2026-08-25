@@ -1,7 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
-from app.api.deps import get_accessible_production
+from app.api.deps import (
+    get_accessible_production,
+    user_display_name,
+    validate_blocking_subject,
+)
 from app.auth.dependencies import require_authenticated, require_director_or_admin
 from app.db.session import get_db
 from app.models import (
@@ -80,11 +84,23 @@ def _exit_response(exit_row: MomentExit) -> MomentExitResponse:
     )
 
 
+def _blocking_load_options():
+    return (
+        joinedload(MomentBlocking.character),
+        joinedload(MomentBlocking.user),
+        joinedload(MomentBlocking.group),
+    )
+
+
 def _blocking_response(blocking: MomentBlocking) -> MomentBlockingResponse:
     return MomentBlockingResponse(
         id=blocking.id,
         character_id=blocking.character_id,
-        character_name=blocking.character.name,
+        character_name=blocking.character.name if blocking.character else None,
+        user_id=blocking.user_id,
+        user_display_name=user_display_name(blocking.user) if blocking.user else None,
+        group_id=blocking.group_id,
+        group_name=blocking.group.name if blocking.group else None,
         notes=blocking.notes,
     )
 
@@ -293,7 +309,7 @@ def list_moment_blocking(
     _get_moment_in_production_or_404(db, production_id, moment_id)
     blocking_rows = (
         db.query(MomentBlocking)
-        .options(joinedload(MomentBlocking.character))
+        .options(*_blocking_load_options())
         .filter(MomentBlocking.moment_id == moment_id)
         .order_by(MomentBlocking.id)
         .all()
@@ -315,32 +331,45 @@ def attach_moment_blocking(
 ) -> MomentBlockingResponse:
     get_accessible_production(db, director, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
-    _validate_character_in_production(db, production_id, body.character_id)
+    validate_blocking_subject(
+        db,
+        production_id,
+        body.character_id,
+        body.user_id,
+        body.group_id,
+    )
 
-    existing = (
-        db.query(MomentBlocking)
-        .filter(
-            MomentBlocking.moment_id == moment_id,
+    existing_query = db.query(MomentBlocking).filter(MomentBlocking.moment_id == moment_id)
+    if body.character_id is not None:
+        existing_query = existing_query.filter(
             MomentBlocking.character_id == body.character_id,
         )
-        .first()
-    )
-    if existing is not None:
+        conflict_detail = "This character already has blocking on this moment"
+    elif body.user_id is not None:
+        existing_query = existing_query.filter(MomentBlocking.user_id == body.user_id)
+        conflict_detail = "This user already has blocking on this moment"
+    else:
+        existing_query = existing_query.filter(MomentBlocking.group_id == body.group_id)
+        conflict_detail = "This group already has blocking on this moment"
+
+    if existing_query.first() is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="This character already has blocking on this moment",
+            detail=conflict_detail,
         )
 
     blocking = MomentBlocking(
         moment_id=moment_id,
         character_id=body.character_id,
+        user_id=body.user_id,
+        group_id=body.group_id,
         notes=body.notes.strip(),
     )
     db.add(blocking)
     db.commit()
     blocking = (
         db.query(MomentBlocking)
-        .options(joinedload(MomentBlocking.character))
+        .options(*_blocking_load_options())
         .filter(MomentBlocking.id == blocking.id)
         .one()
     )
@@ -363,7 +392,7 @@ def update_moment_blocking(
     _get_moment_in_production_or_404(db, production_id, moment_id)
     blocking = (
         db.query(MomentBlocking)
-        .options(joinedload(MomentBlocking.character))
+        .options(*_blocking_load_options())
         .filter(MomentBlocking.id == blocking_id, MomentBlocking.moment_id == moment_id)
         .first()
     )
@@ -374,7 +403,12 @@ def update_moment_blocking(
         )
     blocking.notes = body.notes.strip()
     db.commit()
-    db.refresh(blocking)
+    blocking = (
+        db.query(MomentBlocking)
+        .options(*_blocking_load_options())
+        .filter(MomentBlocking.id == blocking_id)
+        .one()
+    )
     return _blocking_response(blocking)
 
 

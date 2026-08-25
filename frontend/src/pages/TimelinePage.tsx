@@ -1063,6 +1063,7 @@ export default function TimelinePage() {
         canEdit={canManagePreparation}
         characters={scene.characters}
         castableUsers={scene.castableUsers}
+        groups={scene.groups}
         songs={scene.songs}
         propsCatalog={scene.propsCatalog}
         setPiecesCatalog={scene.setPiecesCatalog}

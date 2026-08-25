@@ -340,7 +340,7 @@ function DimensionCard({
   const remaining = dimension.gaps.length - previewGaps.length;
 
   return (
-    <article className="rounded-lg border border-border bg-card p-4 shadow-xs">
+    <article className="rounded-lg border border-border bg-card p-4">
       <div className="flex items-start justify-between gap-3">
         <div>
           <h3 className="text-sm font-medium">{dimension.label}</h3>

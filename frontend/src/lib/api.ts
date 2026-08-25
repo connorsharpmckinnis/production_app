@@ -1176,7 +1176,12 @@ export const api = {
   attachMomentBlocking(
     productionId: number,
     momentId: number,
-    body: { character_id: number; notes: string },
+    body: {
+      character_id?: number | null;
+      user_id?: number | null;
+      group_id?: number | null;
+      notes: string;
+    },
   ) {
     return request<MomentBlockingResponse>(
       `/productions/${productionId}/moments/${momentId}/blocking`,

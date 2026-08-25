@@ -353,7 +353,7 @@ export default function TimelineMomentList({
       {resolvedSections.map((section) => (
         <Fragment key={section.sceneId || "flat"}>
           {showHeaders && section.label ? (
-            <li className="sticky top-0 z-10 list-none border-b border-border bg-muted/80 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground backdrop-blur-sm">
+            <li className="sticky top-0 z-10 list-none border-b border-border bg-muted px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
               {section.label}
             </li>
           ) : null}
@@ -362,12 +362,17 @@ export default function TimelineMomentList({
               <SceneSummaryStrip summary={section.summary!} />
             </li>
           ) : null}
-          {section.moments.map((moment, index) => (
+          {section.moments
+            // Lyrics already show the singer in the speaker column; attribution
+            // rows are kept in the script data but hidden so they don't look
+            // like an empty "singer with no lyrics" line.
+            .filter((moment) => moment.moment_type !== "song_attribution")
+            .map((moment, index, visibleMoments) => (
             <li key={moment.id}>
               <MomentRow
                 moment={moment}
                 index={index}
-                sectionLength={section.moments.length}
+                sectionLength={visibleMoments.length}
                 sceneId={section.sceneId}
                 characters={characters}
                 selectedMomentId={selectedMomentId}

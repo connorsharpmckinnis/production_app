@@ -5,6 +5,10 @@ services:
       POSTGRES_USER: ${POSTGRES_USER:-production_app}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-production_app}
       POSTGRES_DB: ${POSTGRES_DB:-production_app}
+    ports:
+      # Host tools (./scripts/dev, uv, psql) talk to Postgres here.
+      # Bound to loopback only — not exposed on LAN/Tailscale.
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:

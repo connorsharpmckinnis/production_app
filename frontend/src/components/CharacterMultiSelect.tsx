@@ -74,7 +74,7 @@ export default function CharacterMultiSelect({
         size="sm"
         disabled={disabled}
         onClick={() => setOpen((value) => !value)}
-        className="font-normal shadow-xs"
+        className="font-normal"
         aria-label="Filter by character"
         aria-expanded={open}
         aria-haspopup="listbox"
@@ -90,7 +90,7 @@ export default function CharacterMultiSelect({
             aria-label="Close character picker"
             onClick={() => setOpen(false)}
           />
-          <div className="absolute top-full left-0 z-30 mt-1 max-h-72 w-72 overflow-y-auto rounded-md border bg-popover p-2 text-popover-foreground shadow-md">
+          <div className="absolute top-full left-0 z-30 mt-1 max-h-72 w-72 overflow-y-auto rounded-md border bg-popover p-2 text-popover-foreground">
             <div className="mb-2 flex gap-2 border-b border-border pb-2">
               <Button
                 type="button"

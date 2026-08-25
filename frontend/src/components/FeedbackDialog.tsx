@@ -89,7 +89,7 @@ export default function FeedbackDialog({ open, onOpenChange }: FeedbackDialogPro
                 type="button"
                 aria-pressed={kind === "bug"}
                 className={cn(
-                  "flex-1 rounded-md border px-3 py-2 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                  "flex-1 rounded-md border px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
                   kind === "bug"
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-input bg-background hover:bg-muted",
@@ -102,7 +102,7 @@ export default function FeedbackDialog({ open, onOpenChange }: FeedbackDialogPro
                 type="button"
                 aria-pressed={kind === "idea"}
                 className={cn(
-                  "flex-1 rounded-md border px-3 py-2 text-sm outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                  "flex-1 rounded-md border px-3 py-2 text-sm outline-none transition-colors focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
                   kind === "idea"
                     ? "border-primary bg-primary text-primary-foreground"
                     : "border-input bg-background hover:bg-muted",

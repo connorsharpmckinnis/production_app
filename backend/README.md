@@ -8,16 +8,24 @@ See the root [README.md](../README.md) for full-stack Docker setup.
 
 ## Local Development
 
-From the `backend/` directory:
+Prefer the repo-root helper (Postgres in Docker; API + Vite on the host):
+
+```bash
+./scripts/dev
+```
+
+That applies migrations and seed on each start, then runs `uvicorn --reload` and Vite. Re-run it after new Alembic migrations.
+
+### Manual (from `backend/`)
 
 ```bash
 uv sync
 ```
 
-Set a database URL (PostgreSQL must be running):
+Postgres must be running (`docker compose up -d db` from the repo root):
 
 ```bash
-export DATABASE_URL=postgresql://production_app:production_app@localhost:5432/production_app
+export DATABASE_URL=postgresql://production_app:production_app@127.0.0.1:5432/production_app
 ```
 
 Apply migrations and seed bootstrap data:
@@ -96,7 +104,7 @@ Configured via `.env` in the project root or environment. See [`app/config.py`](
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `DATABASE_URL` | Yes | `postgresql://postgres:postgres@localhost:5432/production_app` | SQLAlchemy connection string |
+| `DATABASE_URL` | Yes | `postgresql://production_app:production_app@127.0.0.1:5432/production_app` | SQLAlchemy connection string |
 | `SECRET_KEY` | Yes (prod) | `dev-secret-change-in-production-32chars` | JWT signing secret — use a strong random value in production |
 | `ADMIN_USERNAME` | No | `admin` | Bootstrap admin username (created on first seed) |
 | `ADMIN_PASSWORD` | Prod: Yes | `admin` (dev only) | Bootstrap admin password |

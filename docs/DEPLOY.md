@@ -2,7 +2,7 @@
 
 How to run The Theater Thing on your laptop day to day, reach it from your phone over Tailscale, and (later) move to a real host.
 
-Companion to [PHASE_10.md](PHASE_10.md). **One stack for daily use:** Docker Compose with the Vite **dev** frontend. Tailscale Serve on port **5173** for private multi-device access when Tailscale is available.
+Companion to [PHASE_10.md](PHASE_10.md). **Day-to-day:** Postgres in Docker; API + Vite on the host via `./scripts/dev`. Tailscale Serve on port **5173** for private multi-device access when Tailscale is available.
 
 ---
 
@@ -10,25 +10,34 @@ Companion to [PHASE_10.md](PHASE_10.md). **One stack for daily use:** Docker Com
 
 ```bash
 cp .env.example .env   # optional
-docker compose up -d --build
+./scripts/dev
 ```
-
-Code is baked into the images (no source bind mounts). Rebuild the service you edited after host changes (`docker compose up -d --build frontend` or `backend`). A browser hard refresh only helps with cached assets after a rebuild — it does not pick up new source by itself.
 
 | What | URL |
 | ---- | --- |
 | App | http://localhost:5173 |
 | API health | http://localhost:8000/health |
 
+`./scripts/dev` starts Postgres if needed, runs migrations + seed, then API (`uvicorn --reload`) and Vite together.
+
+| Change | Action |
+| ------ | ------ |
+| Frontend / backend code | Save + browser refresh (HMR / reload). No rebuild. |
+| New DB migration | Ctrl+C → `./scripts/dev` again |
+| Stop API + Vite | Ctrl+C (Postgres stays up) |
+| Stop Postgres | `docker compose stop db` |
+
 Dev logins (when `ENVIRONMENT=dev`): `admin` / `admin`, plus seeded `director` / `actor`.
 
-Stop:
+On a machine **without Tailscale** (for example a secondary Windows laptop), browser testing at `http://localhost:5173` is enough — leave the Tailscale steps for the machine that has Tailscale installed.
+
+### Optional: full Docker (baked-in code)
 
 ```bash
-docker compose down
+docker compose up -d --build
 ```
 
-That is the only Compose command you need for normal work. On a machine **without Tailscale** (for example a secondary Windows laptop), browser testing at `http://localhost:5173` is enough — leave the Tailscale steps for the machine that has Tailscale installed.
+Rebuild the service you edited after host changes. Prefer `./scripts/dev` for daily coding so images do not accumulate.
 
 ---
 
@@ -37,7 +46,7 @@ That is the only Compose command you need for normal work. On a machine **withou
 Goal: one bookmarkable private HTTPS URL. The laptop must be awake and online. Skip this section until Tailscale is installed on the host machine.
 
 1. Install/sign in to Tailscale on the laptop and phone (same account/tailnet).
-2. Start the app: `docker compose up -d --build`.
+2. Start the app: `./scripts/dev`.
 3. On the laptop, serve Vite:
 
    ```bash
@@ -54,13 +63,9 @@ Goal: one bookmarkable private HTTPS URL. The laptop must be awake and online. S
 
 5. Open that URL on your phone and bookmark it.
    If Vite says the host is not allowed, the frontend config must include
-   `server.allowedHosts: [".ts.net"]` (already set in this repo). Rebuild/restart
-   the frontend container if you still see the error after pulling that change.
-6. Add the exact `https://…` origin to `CORS_ORIGINS` in `.env` (keep the localhost entries), then recreate the backend so it picks up the env:
-
-   ```bash
-   docker compose up -d --force-recreate backend
-   ```
+   `server.allowedHosts: [".ts.net"]` (already set in this repo). Restart
+   `./scripts/dev` if you still see the error after pulling that change.
+6. Add the exact `https://…` origin to `CORS_ORIGINS` in `.env` (keep the localhost entries), then restart `./scripts/dev` so the API picks up the env.
 
    Example `.env` line:
 
@@ -94,7 +99,7 @@ Defaults keep `ENVIRONMENT=dev` so boot is easy. Before putting a real script on
 1. Put strong values in `.env` (checklist below).
 2. Set `ENVIRONMENT=prod`.
 3. Set `CORS_ORIGINS` to include your Tailscale Serve `https://…` origin.
-4. `docker compose up -d --force-recreate backend` (or full `up -d --build`).
+4. Restart `./scripts/dev` (or `docker compose up -d --force-recreate backend` if using the full Docker stack).
 
 With `ENVIRONMENT=prod`, the backend **refuses** the documented default `SECRET_KEY` and weak admin passwords, disables `/docs`, and does not seed demo director/actor users.
 
@@ -109,7 +114,7 @@ With `ENVIRONMENT=prod`, the backend **refuses** the documented default `SECRET_
 - [ ] `CORS_ORIGINS` matches laptop localhost **and** the Tailscale Serve origin
 - [ ] Confirm `/docs` is unavailable
 - [ ] No reliance on demo `director` / `actor` passwords
-- [ ] Postgres is not published publicly (Compose already keeps it internal)
+- [ ] Postgres is not exposed beyond this machine (Compose publishes `127.0.0.1:5432` only)
 
 Generate a secret key (example):
 
@@ -135,11 +140,11 @@ When STP pilots for real:
 | Symptom | Likely fix |
 | ------- | ---------- |
 | Phone cannot load app | Laptop asleep / offline; Tailscale disconnected; Serve not pointing at **5173** |
-| Vite “host is not allowed” / `allowedHosts` | Ensure `frontend/vite.config.ts` has `allowedHosts: [".ts.net"]`, then recreate frontend |
-| Login works on laptop, fails on phone with CORS error | Add the Tailscale HTTPS origin to `CORS_ORIGINS` and recreate backend |
-| `address already in use` on `:5173` or `:8000` | `docker compose down`, quit other local servers, then `up` again |
+| Vite “host is not allowed” / `allowedHosts` | Ensure `frontend/vite.config.ts` has `allowedHosts: [".ts.net"]`, then restart `./scripts/dev` |
+| Login works on laptop, fails on phone with CORS error | Add the Tailscale HTTPS origin to `CORS_ORIGINS` and restart `./scripts/dev` |
+| `address already in use` on `:5173` or `:8000` | `docker compose stop backend frontend`, quit other local servers, then `./scripts/dev` again |
 | Backend won’t start with `ENVIRONMENT=prod` | Replace default `SECRET_KEY` / weak `ADMIN_PASSWORD` |
-| Too many login attempts | Wait a minute, or restart the backend container (in-memory limiter resets) |
+| Too many login attempts | Wait a minute, or restart the API (in-memory limiter resets) |
 
 ---
 
@@ -152,7 +157,7 @@ docker compose down
 docker compose -f docker-compose.yml -f docker-compose.preview.yml up -d --build
 # http://127.0.0.1:8080 — then stop and return to normal Dev
 docker compose down
-docker compose up -d --build
+./scripts/dev
 ```
 
 The frontend `prod` Dockerfile stage and fixed nginx `/api` proxy live here so Tier B does not reinvent them.

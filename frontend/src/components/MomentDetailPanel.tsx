@@ -44,6 +44,7 @@ import type {
   CostumeResponse,
   CostumeWearingResponse,
   CueCategoryResponse,
+  GroupResponse,
   MomentCostumeEventResponse,
   MomentDetailResponse,
   MomentTypeResponse,
@@ -57,6 +58,7 @@ import { cn, momentTypeLabel, sortByName } from "@/lib/utils";
 const NO_SONG_VALUE = "__none__";
 
 type PersonType = "none" | "character" | "user";
+type BlockingSubjectType = "character" | "user" | "group";
 
 function personTypeOf(characterId: number | null, userId: number | null): PersonType {
   if (characterId !== null) return "character";
@@ -88,6 +90,51 @@ function decodePersonValue(value: string): {
   return { personType: "none", characterId: "", userId: "" };
 }
 
+function encodeBlockingSubjectValue(
+  subjectType: BlockingSubjectType | "",
+  characterId: string,
+  userId: string,
+  groupId: string,
+): string {
+  if (subjectType === "character" && characterId) return `character:${characterId}`;
+  if (subjectType === "user" && userId) return `user:${userId}`;
+  if (subjectType === "group" && groupId) return `group:${groupId}`;
+  return "";
+}
+
+function decodeBlockingSubjectValue(value: string): {
+  subjectType: BlockingSubjectType | "";
+  characterId: string;
+  userId: string;
+  groupId: string;
+} {
+  if (value.startsWith("character:")) {
+    return {
+      subjectType: "character",
+      characterId: value.slice("character:".length),
+      userId: "",
+      groupId: "",
+    };
+  }
+  if (value.startsWith("user:")) {
+    return {
+      subjectType: "user",
+      characterId: "",
+      userId: value.slice("user:".length),
+      groupId: "",
+    };
+  }
+  if (value.startsWith("group:")) {
+    return {
+      subjectType: "group",
+      characterId: "",
+      userId: "",
+      groupId: value.slice("group:".length),
+    };
+  }
+  return { subjectType: "", characterId: "", userId: "", groupId: "" };
+}
+
 function buildPersonOptions(
   characters: CharacterDetailResponse[],
   users: CastableUserResponse[],
@@ -107,6 +154,30 @@ function buildPersonOptions(
   return [...characterOptions, ...userOptions].sort((a, b) =>
     a.label.localeCompare(b.label, undefined, { sensitivity: "base" }),
   );
+}
+
+function buildBlockingSubjectOptions(
+  characters: CharacterDetailResponse[],
+  users: CastableUserResponse[],
+  groups: GroupResponse[],
+): SearchableSelectOption[] {
+  const groupOptions = groups.map((group) => ({
+    value: `group:${group.id}`,
+    label: group.name,
+    hint: "Group",
+    keywords: "group",
+  }));
+  return [...buildPersonOptions(characters, users), ...groupOptions].sort((a, b) =>
+    a.label.localeCompare(b.label, undefined, { sensitivity: "base" }),
+  );
+}
+
+function blockingSubjectLabel(row: {
+  character_name: string | null;
+  user_display_name: string | null;
+  group_name: string | null;
+}): string {
+  return row.character_name ?? row.user_display_name ?? row.group_name ?? "Unknown";
 }
 
 function KindToggle({
@@ -129,7 +200,7 @@ function KindToggle({
         disabled={disabled}
         onClick={() => onChange("on")}
         className={cn(
-          "rounded-sm px-3 py-1.5 text-sm outline-none transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50",
+          "rounded-sm px-3 py-1.5 text-sm outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50",
           value === "on" ? "bg-primary text-primary-foreground" : "hover:bg-muted",
         )}
       >
@@ -140,7 +211,7 @@ function KindToggle({
         disabled={disabled}
         onClick={() => onChange("off")}
         className={cn(
-          "rounded-sm px-3 py-1.5 text-sm outline-none transition-[color,box-shadow] focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50",
+          "rounded-sm px-3 py-1.5 text-sm outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-50",
           value === "off" ? "bg-primary text-primary-foreground" : "hover:bg-muted",
         )}
       >
@@ -194,6 +265,7 @@ interface MomentDetailPanelProps {
   canChooseVisibility: boolean;
   characters: CharacterDetailResponse[];
   castableUsers: CastableUserResponse[];
+  groups: GroupResponse[];
   songs: SongDetailResponse[];
   propsCatalog: PropResponse[];
   setPiecesCatalog: SetPieceResponse[];
@@ -215,6 +287,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       canChooseVisibility,
       characters,
       castableUsers,
+      groups,
       songs,
       propsCatalog,
       setPiecesCatalog,
@@ -238,6 +311,10 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     const personOptions = useMemo(
       () => buildPersonOptions(sortByName(characters), [...castableUsers]),
       [characters, castableUsers],
+    );
+    const blockingSubjectOptions = useMemo(
+      () => buildBlockingSubjectOptions(sortByName(characters), castableUsers, groups),
+      [characters, castableUsers, groups],
     );
     const characterOptions = useMemo(
       () =>
@@ -284,6 +361,8 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       if (characters.length > 0) {
         available.add("entrance");
         available.add("exit");
+      }
+      if (characters.length > 0 || castableUsers.length > 0 || groups.length > 0) {
         available.add("blocking");
       }
       return ATTACHMENT_TYPE_OPTIONS.filter((option) => available.has(option.value));
@@ -293,6 +372,8 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       costumesCatalog.length,
       cueCategories.length,
       characters.length,
+      castableUsers.length,
+      groups.length,
     ]);
 
     const isSongRelated =
@@ -340,7 +421,12 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     const [attachEntranceNotes, setAttachEntranceNotes] = useState("");
     const [attachExitCharacterId, setAttachExitCharacterId] = useState("");
     const [attachExitNotes, setAttachExitNotes] = useState("");
+    const [attachBlockingSubjectType, setAttachBlockingSubjectType] = useState<
+      BlockingSubjectType | ""
+    >("");
     const [attachBlockingCharacterId, setAttachBlockingCharacterId] = useState("");
+    const [attachBlockingUserId, setAttachBlockingUserId] = useState("");
+    const [attachBlockingGroupId, setAttachBlockingGroupId] = useState("");
     const [attachBlockingNotes, setAttachBlockingNotes] = useState("");
 
     const [newCueCategoryId, setNewCueCategoryId] = useState("");
@@ -853,15 +939,28 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
     async function handleAttachBlocking(event: React.FormEvent) {
       event.preventDefault();
-      if (!attachBlockingCharacterId || !attachBlockingNotes.trim()) return;
+      if (!attachBlockingSubjectType || !attachBlockingNotes.trim()) return;
+      if (attachBlockingSubjectType === "character" && !attachBlockingCharacterId) return;
+      if (attachBlockingSubjectType === "user" && !attachBlockingUserId) return;
+      if (attachBlockingSubjectType === "group" && !attachBlockingGroupId) return;
 
       setSaving(true);
       try {
         await api.attachMomentBlocking(productionId, detail.id, {
-          character_id: Number(attachBlockingCharacterId),
+          character_id:
+            attachBlockingSubjectType === "character"
+              ? Number(attachBlockingCharacterId)
+              : null,
+          user_id:
+            attachBlockingSubjectType === "user" ? Number(attachBlockingUserId) : null,
+          group_id:
+            attachBlockingSubjectType === "group" ? Number(attachBlockingGroupId) : null,
           notes: attachBlockingNotes.trim(),
         });
+        setAttachBlockingSubjectType("");
         setAttachBlockingCharacterId("");
+        setAttachBlockingUserId("");
+        setAttachBlockingGroupId("");
         setAttachBlockingNotes("");
         onChanged();
         toast.success("Blocking added");
@@ -1188,7 +1287,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             <button
               type="button"
               onClick={() => setAddSectionExpanded((open) => !open)}
-              className="flex w-full items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+              className="flex w-full items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-1 focus-visible:ring-ring"
               aria-expanded={addSectionExpanded}
             >
               <span className="text-sm font-medium">Add to moment</span>
@@ -1213,17 +1312,20 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                       key={option.value}
                       type="button"
                       title={option.label}
+                      aria-label={option.label}
                       aria-pressed={selected}
                       onClick={() => selectAttachmentType(option.value)}
                       className={cn(
-                        "flex flex-col items-center gap-1 rounded-md border px-1.5 py-2 text-[10px] font-medium outline-none transition-[color,box-shadow] focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50",
+                        "flex min-w-0 flex-col items-center gap-1 rounded-md border px-1 py-2 text-[10px] font-medium outline-none transition-colors focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
                         selected
                           ? "border-primary bg-primary/10 text-foreground"
                           : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
                       )}
                     >
-                      <Icon className="size-4" />
-                      <span className="leading-tight">{option.label}</span>
+                      <Icon className="size-4 shrink-0" />
+                      <span className="w-full text-center leading-tight break-words">
+                        {option.label}
+                      </span>
                     </button>
                   );
                 })}
@@ -1469,13 +1571,25 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
               </form>
             )}
 
-            {addAttachmentType === "blocking" && characters.length > 0 && (
+            {addAttachmentType === "blocking" &&
+              (characters.length > 0 || castableUsers.length > 0 || groups.length > 0) && (
               <form onSubmit={(e) => void handleAttachBlocking(e)} className="mt-3 space-y-2">
                 <SearchableSelect
-                  options={characterOptions}
-                  value={attachBlockingCharacterId}
-                  onChange={setAttachBlockingCharacterId}
-                  placeholder="Select character…"
+                  options={blockingSubjectOptions}
+                  value={encodeBlockingSubjectValue(
+                    attachBlockingSubjectType,
+                    attachBlockingCharacterId,
+                    attachBlockingUserId,
+                    attachBlockingGroupId,
+                  )}
+                  onChange={(value) => {
+                    const decoded = decodeBlockingSubjectValue(value);
+                    setAttachBlockingSubjectType(decoded.subjectType);
+                    setAttachBlockingCharacterId(decoded.characterId);
+                    setAttachBlockingUserId(decoded.userId);
+                    setAttachBlockingGroupId(decoded.groupId);
+                  }}
+                  placeholder="Select character, user, or group…"
                   clearLabel="Clear selection"
                 />
                 <Textarea
@@ -1488,7 +1602,13 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   type="submit"
                   variant="outline"
                   disabled={
-                    saving || !attachBlockingCharacterId || !attachBlockingNotes.trim()
+                    saving ||
+                    !attachBlockingSubjectType ||
+                    !attachBlockingNotes.trim() ||
+                    (attachBlockingSubjectType === "character" &&
+                      !attachBlockingCharacterId) ||
+                    (attachBlockingSubjectType === "user" && !attachBlockingUserId) ||
+                    (attachBlockingSubjectType === "group" && !attachBlockingGroupId)
                   }
                 >
                   Add
@@ -1634,7 +1754,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           defaultExpanded={detail.blocking.length > 0}
           items={detail.blocking.map((row) => ({
             id: row.id,
-            label: row.character_name,
+            label: blockingSubjectLabel(row),
             notes: row.notes ?? undefined,
             editableNotes: canEdit,
             onNotesBlur: (notes: string) => {
@@ -1644,7 +1764,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             },
           }))}
           onDetach={handleDetachBlocking}
-          catalogLength={characters.length}
+          catalogLength={characters.length + castableUsers.length + groups.length}
         />
 
         <AttachmentSection
@@ -1769,7 +1889,7 @@ function AttachmentSection({
       <button
         type="button"
         onClick={() => setExpanded((open) => !open)}
-        className="flex w-full items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        className="flex w-full items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-1 focus-visible:ring-ring"
       >
         <h3 className="text-sm font-medium">{title}</h3>
         <span className="text-xs text-muted-foreground">
@@ -1911,7 +2031,7 @@ function AssetEventSection({
       <button
         type="button"
         onClick={() => setExpanded((open) => !open)}
-        className="flex w-full items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        className="flex w-full items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-1 focus-visible:ring-ring"
       >
         <h3 className="text-sm font-medium">{title}</h3>
         <span className="text-xs text-muted-foreground">
@@ -2250,7 +2370,7 @@ function CostumeEventSection({
       <button
         type="button"
         onClick={() => setExpanded((open) => !open)}
-        className="flex w-full items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        className="flex w-full items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-1 focus-visible:ring-ring"
       >
         <h3 className="text-sm font-medium">Costumes</h3>
         <span className="text-xs text-muted-foreground">

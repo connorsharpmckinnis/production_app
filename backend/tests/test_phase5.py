@@ -246,3 +246,67 @@ def test_phase5_reports(seeded_client: TestClient, db_session: Session) -> None:
     assert blocking_sheet.status_code == 200
     assert len(blocking_sheet.json()) == 1
     assert blocking_sheet.json()[0]["character_name"] == "CREAN"
+
+
+def test_blocking_user_and_group_subjects(
+    seeded_client: TestClient, db_session: Session
+) -> None:
+    production_id = _imported_production(seeded_client, db_session)
+    director_headers = _login(seeded_client, "director", "director")
+    scene_id = _first_scene_id(seeded_client, production_id, director_headers)
+    moments = _scene_moments(seeded_client, production_id, scene_id, director_headers)
+    moment_id = moments[0]["id"]
+    actor = db_session.query(User).filter(User.username == "actor").one()
+
+    group = seeded_client.post(
+        f"/api/productions/{production_id}/groups",
+        json={"name": "The Impoverished Family"},
+        headers=director_headers,
+    )
+    assert group.status_code == 201
+    group_id = group.json()["id"]
+
+    user_blocking = seeded_client.post(
+        f"/api/productions/{production_id}/moments/{moment_id}/blocking",
+        json={"user_id": actor.id, "notes": "Hold SR for Art"},
+        headers=director_headers,
+    )
+    assert user_blocking.status_code == 201
+    assert user_blocking.json()["user_id"] == actor.id
+    assert user_blocking.json()["character_id"] is None
+    assert user_blocking.json()["group_id"] is None
+    assert user_blocking.json()["user_display_name"]
+
+    group_blocking = seeded_client.post(
+        f"/api/productions/{production_id}/moments/{moment_id}/blocking",
+        json={"group_id": group_id, "notes": "Cluster DSL"},
+        headers=director_headers,
+    )
+    assert group_blocking.status_code == 201
+    assert group_blocking.json()["group_id"] == group_id
+    assert group_blocking.json()["group_name"] == "The Impoverished Family"
+
+    invalid = seeded_client.post(
+        f"/api/productions/{production_id}/moments/{moment_id}/blocking",
+        json={
+            "character_id": _character_id_by_name(
+                seeded_client, production_id, "CREAN", director_headers
+            ),
+            "user_id": actor.id,
+            "notes": "too many subjects",
+        },
+        headers=director_headers,
+    )
+    assert invalid.status_code == 422
+
+    detail = seeded_client.get(
+        f"/api/productions/{production_id}/moments/{moment_id}",
+        headers=director_headers,
+    )
+    assert detail.status_code == 200
+    subjects = {
+        (row["user_id"], row["group_id"], row["character_id"])
+        for row in detail.json()["blocking"]
+    }
+    assert (actor.id, None, None) in subjects
+    assert (None, group_id, None) in subjects

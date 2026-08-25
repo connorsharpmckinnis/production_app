@@ -95,7 +95,7 @@ export default function SearchableSelect({
           setOpen((wasOpen) => !wasOpen);
           setQuery("");
         }}
-        className="h-9 w-full justify-between px-3 font-normal shadow-xs"
+        className="h-9 w-full justify-between px-3 font-normal"
       >
         <span className={cn("min-w-0 truncate", !selected && "text-muted-foreground")}>
           {selected ? (
@@ -113,7 +113,7 @@ export default function SearchableSelect({
       </Button>
 
       {open && (
-        <div className="absolute z-40 mt-1 w-full overflow-hidden rounded-md border bg-popover text-popover-foreground shadow-md">
+        <div className="absolute z-40 mt-1 w-full overflow-hidden rounded-md border bg-popover text-popover-foreground">
           <div className="border-b border-border p-2">
             <Input
               ref={inputRef}

@@ -190,7 +190,7 @@ export function OnStagePresenceChart({
                         interval.entrance.scene_number,
                         interval.entrance.sequence_number,
                       )}
-                      className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full outline-none ring-offset-background hover:brightness-110 focus-visible:ring-2 focus-visible:ring-ring"
+                      className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full outline-none hover:brightness-110 focus-visible:ring-1 focus-visible:ring-ring"
                       style={{
                         left: `${spinePercent(interval.start_index, n)}%`,
                         width: `max(${intervalWidthPercent(interval.start_index, interval.end_index, n)}%, 3px)`,
@@ -229,7 +229,7 @@ export function OnStagePresenceChart({
         createPortal(
           <div
             role="tooltip"
-            className="fixed z-50 max-w-xs rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground shadow-md"
+            className="fixed z-50 max-w-xs rounded-md border border-border bg-popover px-3 py-2 text-xs text-popover-foreground"
             style={{ left: hover.x, top: hover.y }}
             onMouseEnter={cancelHide}
             onMouseLeave={scheduleHide}

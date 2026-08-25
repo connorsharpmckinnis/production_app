@@ -56,5 +56,5 @@ class Notification(Base):
 
     user: Mapped["User"] = relationship(foreign_keys=[user_id])
     actor: Mapped["User | None"] = relationship(foreign_keys=[actor_user_id])
-    production: Mapped["Production | None"] = relationship()
+    production: Mapped["Production | None"] = relationship(back_populates="notifications")
     announcement: Mapped["Announcement | None"] = relationship(back_populates="notifications")

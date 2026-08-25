@@ -8,6 +8,7 @@ from app.auth.dependencies import user_has_role
 from app.models import (
     Cue,
     Dialogue,
+    Group,
     LyricLine,
     Moment,
     MomentBlocking,
@@ -78,7 +79,9 @@ def load_scene_moments(db: Session, scene_id: int) -> list[Moment]:
             joinedload(Moment.moment_costume_events),
             joinedload(Moment.moment_entrances),
             joinedload(Moment.moment_exits),
-            joinedload(Moment.moment_blocking),
+            joinedload(Moment.moment_blocking).joinedload(MomentBlocking.group).joinedload(
+                Group.characters,
+            ),
             joinedload(Moment.cues),
         )
         .filter(Moment.scene_id == scene_id)
@@ -208,10 +211,20 @@ def moment_matches_character_filter(
 
 
 def moment_has_blocking_for_characters(moment: Moment, character_ids: set[int]) -> bool:
-    """True when the moment has blocking for one of the given characters."""
+    """True when the moment has blocking for one of the given characters.
+
+    Direct character blocking counts, and so does group blocking when the group
+    includes one of the filtered characters.
+    """
     if not character_ids:
         return False
-    return any(row.character_id in character_ids for row in moment.moment_blocking)
+    for row in moment.moment_blocking:
+        if row.character_id is not None and row.character_id in character_ids:
+            return True
+        if row.group is not None:
+            if any(character.id in character_ids for character in row.group.characters):
+                return True
+    return False
 
 
 def apply_timeline_filters(

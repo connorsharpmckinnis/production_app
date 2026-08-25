@@ -46,7 +46,7 @@ export default function LoginPage() {
           <p className="mt-1 text-sm text-muted-foreground">Sign in to continue</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-border bg-card p-6 shadow-sm">
+        <form onSubmit={handleSubmit} className="space-y-4 rounded-lg border border-border bg-card p-6">
           {error && (
             <Alert variant="destructive">
               <AlertDescription>{error}</AlertDescription>

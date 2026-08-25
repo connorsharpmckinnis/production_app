@@ -63,7 +63,7 @@ function Section({
   children: React.ReactNode;
 }) {
   return (
-    <section className="space-y-4 rounded-lg border border-border bg-card p-5 shadow-xs">
+    <section className="space-y-4 rounded-lg border border-border bg-card p-5">
       <div>
         <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
         {description ? (

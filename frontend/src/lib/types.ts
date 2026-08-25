@@ -299,8 +299,12 @@ export interface MomentExitResponse {
 
 export interface MomentBlockingResponse {
   id: number;
-  character_id: number;
-  character_name: string;
+  character_id: number | null;
+  character_name: string | null;
+  user_id: number | null;
+  user_display_name: string | null;
+  group_id: number | null;
+  group_name: string | null;
   notes: string;
 }
 
@@ -593,8 +597,12 @@ export interface BlockingSheetEntry {
   act_number: number;
   scene_number: number;
   scene_title: string | null;
-  character_id: number;
-  character_name: string;
+  character_id: number | null;
+  character_name: string | null;
+  user_id: number | null;
+  user_display_name: string | null;
+  group_id: number | null;
+  group_name: string | null;
   notes: string;
 }
 

@@ -135,7 +135,7 @@ export default function ReportsPage() {
 
       <nav
         aria-label="Report sections"
-        className="reports-toc sticky top-0 z-10 -mx-1 flex flex-wrap gap-2 border-b border-border bg-background/95 px-1 py-3 backdrop-blur supports-[backdrop-filter]:bg-background/80"
+        className="reports-toc sticky top-0 z-10 -mx-1 flex flex-wrap gap-2 border-b border-border bg-background px-1 py-3"
       >
         {REPORT_SECTIONS.map((section) => (
           <Button key={section.id} variant="outline" size="sm" asChild>
@@ -327,7 +327,7 @@ export default function ReportsPage() {
             {blockingReport.map((entry) => {
               return (
                 <li
-                  key={entry.moment_id + "-" + entry.character_id}
+                  key={`${entry.moment_id}-${entry.character_id ?? entry.user_id ?? entry.group_id}`}
                   className="rounded-lg border border-border p-3"
                 >
                   Act {entry.act_number}, Scene {entry.scene_number}
@@ -339,7 +339,11 @@ export default function ReportsPage() {
                   >
                     Moment {entry.sequence_number}
                   </MomentLink>{" "}
-                  — {entry.character_name}: {entry.notes}
+                  —{" "}
+                  {entry.character_name ??
+                    entry.user_display_name ??
+                    entry.group_name}
+                  : {entry.notes}
                 </li>
               );
             })}

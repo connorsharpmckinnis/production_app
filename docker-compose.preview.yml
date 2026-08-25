@@ -1,7 +1,7 @@
 # Optional preview overlay — nginx frontend (prod image).
 #
-# NOT the day-to-day path. Daily use is plain:
-#   docker compose up -d --build
+# NOT the day-to-day path. Daily use is:
+#   ./scripts/dev
 #   tailscale serve --bg 5173
 #
 # Use this only to smoke-test the production frontend image before a VPS:

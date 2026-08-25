@@ -93,3 +93,13 @@ class Production(Base):
         back_populates="production",
         cascade="all, delete-orphan",
     )
+    # Inbox rows and production-scoped announcements are not part of the show
+    # catalog, but they FK to productions and must go when the show is deleted.
+    notifications: Mapped[list["Notification"]] = relationship(
+        back_populates="production",
+        cascade="all, delete-orphan",
+    )
+    announcements: Mapped[list["Announcement"]] = relationship(
+        back_populates="production",
+        cascade="all, delete-orphan",
+    )

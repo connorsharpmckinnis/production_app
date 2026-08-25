@@ -93,6 +93,13 @@ Infrastructure
 
 Prefer the Python standard library whenever practical.
 
+**Package manager:** use **uv** for all Python dependency and virtualenv work in this repo (`uv sync`, `uv add`, `uv remove`, `uv run`). Do not create or manage envs with plain `python -m venv` / `pip install` when uv is available.
+
+When a package is missing or a new dependency seems warranted:
+
+1. Tell the owner the package name and a one-line justification.
+2. Do **not** run `uv add` / `uv remove` / upgrade commands until the owner adds it themselves or explicitly approves the agent to do so.
+
 When external packages are needed:
 
 * Choose mature, widely adopted libraries.
@@ -310,7 +317,7 @@ Prefer platform-independent tooling.
 
 # Commands
 
-Prefer uv.
+Prefer uv for install, sync, and running Python tools.
 
 Examples:
 
@@ -320,6 +327,10 @@ uv sync
 uv run python main.py
 
 uv run pytest
+
+# Only after owner approval (or owner runs it):
+uv add <package>
+uv remove <package>
 ```
 
 Avoid assuming PowerShell, Bash, or platform-specific shell syntax.

@@ -496,7 +496,11 @@ def _moment_blocking_response(blocking: MomentBlocking) -> MomentBlockingRespons
     return MomentBlockingResponse(
         id=blocking.id,
         character_id=blocking.character_id,
-        character_name=blocking.character.name,
+        character_name=blocking.character.name if blocking.character else None,
+        user_id=blocking.user_id,
+        user_display_name=user_display_name(blocking.user) if blocking.user else None,
+        group_id=blocking.group_id,
+        group_name=blocking.group.name if blocking.group else None,
         notes=blocking.notes,
     )
 
@@ -744,6 +748,8 @@ def get_moment_detail(
             joinedload(Moment.moment_entrances).joinedload(MomentEntrance.character),
             joinedload(Moment.moment_exits).joinedload(MomentExit.character),
             joinedload(Moment.moment_blocking).joinedload(MomentBlocking.character),
+            joinedload(Moment.moment_blocking).joinedload(MomentBlocking.user),
+            joinedload(Moment.moment_blocking).joinedload(MomentBlocking.group),
             joinedload(Moment.cues).joinedload(Cue.cue_category),
         )
         .join(Scene)

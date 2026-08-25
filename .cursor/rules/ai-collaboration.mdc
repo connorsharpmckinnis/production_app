@@ -38,3 +38,18 @@ When work changes status (shipped, deferred, decided), update the relevant phase
 ## Authorization boundaries
 
 Do not commit, push, deploy, or change remote systems unless explicitly asked. Preserve existing uncommitted work.
+
+## Python packages (uv)
+
+This project uses **uv** for Python dependency and virtualenv management (`uv sync`, `uv add`, `uv remove`, `uv run`).
+
+Do **not** silently add, remove, or upgrade packages. If a dependency is missing or useful:
+
+1. Tell the owner **what** package and **why**.
+2. Wait for them to add it themselves, or for explicit approval to run `uv add` / `uv remove` / `uv sync` as needed.
+
+Prefer `uv run …` over activating `.venv` manually when running Python tools.
+
+## Ask the owner for tooling help
+
+If local tooling is blocked (e.g. `gh` auth, GitHub issue/PR access, missing credentials, sandbox limits), **ask the owner** instead of struggling or inventing workarounds. They can run the command, approve a specific action, or supply what is needed.

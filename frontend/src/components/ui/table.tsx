@@ -268,7 +268,7 @@ function Table({
         createPortal(
           <div
             role="tooltip"
-            className="pointer-events-none fixed z-50 max-w-[min(24rem,calc(100vw-1rem))] -translate-x-1/2 rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs whitespace-normal text-popover-foreground shadow-md"
+            className="pointer-events-none fixed z-50 max-w-[min(24rem,calc(100vw-1rem))] -translate-x-1/2 rounded-md border border-border bg-popover px-2.5 py-1.5 text-xs whitespace-normal text-popover-foreground"
             style={{ left: tooltip.left, top: tooltip.top }}
           >
             {tooltip.value}

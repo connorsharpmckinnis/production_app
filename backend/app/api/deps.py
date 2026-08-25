@@ -4,7 +4,7 @@ from fastapi import HTTPException, status
 from sqlalchemy.orm import Session
 
 from app.auth.dependencies import user_has_role
-from app.models import Character, Production, User, UserCharacterAssignment
+from app.models import Character, Group, Production, User, UserCharacterAssignment
 
 
 def user_display_name(user: User) -> str:
@@ -50,6 +50,38 @@ def validate_optional_person(
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="User is not available in this organization",
+            )
+
+
+def validate_blocking_subject(
+    db: Session,
+    production_id: int,
+    character_id: int | None,
+    user_id: int | None,
+    group_id: int | None,
+) -> None:
+    """Confirm blocking targets exactly one valid character, user, or group."""
+    subjects = [
+        character_id is not None,
+        user_id is not None,
+        group_id is not None,
+    ]
+    if sum(subjects) != 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Blocking must target exactly one of character, user, or group",
+        )
+    validate_optional_person(db, production_id, character_id, user_id)
+    if group_id is not None:
+        group = (
+            db.query(Group)
+            .filter(Group.id == group_id, Group.production_id == production_id)
+            .first()
+        )
+        if group is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Group is not in this production",
             )
 
 

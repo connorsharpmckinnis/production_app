@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import field_validator, model_validator
@@ -8,11 +9,22 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 _DEFAULT_SECRET_KEY = "dev-secret-change-in-production-32chars"
 _WEAK_ADMIN_PASSWORDS = frozenset({"admin", "password", "password123", "changeme"})
 
+# Prefer repo-root .env (same file docker compose reads), then backend/.env.
+_REPO_ROOT_ENV = Path(__file__).resolve().parents[2] / ".env"
+_BACKEND_ENV = Path(__file__).resolve().parents[1] / ".env"
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=(_REPO_ROOT_ENV, _BACKEND_ENV),
+        env_file_encoding="utf-8",
+        # Root .env also has Compose-only keys (POSTGRES_*), which Settings must ignore.
+        extra="ignore",
+    )
 
-    DATABASE_URL: str = "postgresql://postgres:postgres@localhost:5432/production_app"
+    DATABASE_URL: str = (
+        "postgresql://production_app:production_app@127.0.0.1:5432/production_app"
+    )
     SECRET_KEY: str = _DEFAULT_SECRET_KEY
     ADMIN_USERNAME: str = "admin"
     ADMIN_PASSWORD: str | None = None

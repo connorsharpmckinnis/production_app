@@ -75,8 +75,12 @@ class BlockingSheetEntry(BaseModel):
     act_number: int
     scene_number: int
     scene_title: str | None
-    character_id: int
-    character_name: str
+    character_id: int | None = None
+    character_name: str | None = None
+    user_id: int | None = None
+    user_display_name: str | None = None
+    group_id: int | None = None
+    group_name: str | None = None
     notes: str
 
 

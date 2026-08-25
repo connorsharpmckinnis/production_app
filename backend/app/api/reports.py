@@ -341,6 +341,8 @@ def blocking_sheet(
         db.query(MomentBlocking)
         .options(
             joinedload(MomentBlocking.character),
+            joinedload(MomentBlocking.user),
+            joinedload(MomentBlocking.group),
             joinedload(MomentBlocking.moment).joinedload(Moment.scene).joinedload(Scene.act),
         )
         .join(Moment, MomentBlocking.moment_id == Moment.id)
@@ -363,7 +365,13 @@ def blocking_sheet(
                 scene_number=scene.number,
                 scene_title=scene.title,
                 character_id=blocking.character_id,
-                character_name=blocking.character.name,
+                character_name=blocking.character.name if blocking.character else None,
+                user_id=blocking.user_id,
+                user_display_name=(
+                    user_display_name(blocking.user) if blocking.user else None
+                ),
+                group_id=blocking.group_id,
+                group_name=blocking.group.name if blocking.group else None,
                 notes=blocking.notes,
             )
         )
