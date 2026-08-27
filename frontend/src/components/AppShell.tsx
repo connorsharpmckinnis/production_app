@@ -559,7 +559,7 @@ function AppShellInner() {
           id="main-content"
           className="flex min-h-0 flex-1 flex-col overflow-auto px-3 pt-3 md:px-4 md:pt-4"
         >
-          <div className="flex min-h-0 flex-1 flex-col pb-3 md:pb-4">
+          <div className="flex min-h-0 flex-1 flex-col pb-6 md:pb-8">
             <Outlet />
           </div>
         </main>

@@ -2,7 +2,7 @@
 
 **Purpose:** Candidate polish before sharing the app with the theater group for real-world consideration. This is a working inventory — not committed scope. Items come from owner scratch notes, the product wish list, phase docs, UI standards, and a pass over the current frontend.
 
-**Last updated:** 2026-08-13
+**Last updated:** 2026-08-26
 
 **Related docs:** [SCRATCH_NOTES.md](SCRATCH_NOTES.md), [PROJECT.md](PROJECT.md) Wish List, [UI_STANDARDS.md](UI_STANDARDS.md), [PHASE_6.md](PHASE_6.md), [DEMO_WALKTHROUGH.md](DEMO_WALKTHROUGH.md)
 
@@ -11,6 +11,8 @@
 **Progress (2026-08-04):** WP0/WP1 design-system pass — expanded shadcn primitives, `/dev/ui` gallery, SearchableSelect/Toast polish, form/catalog migration.
 
 **Progress (2026-08-13):** Timeline + Rehearse live search (debounce ~275ms); Timeline multi-select character filter (OR). Prop/cue multi-select still open. **Owner-approved 2026-08-14.**
+
+**Progress (2026-08-26):** Admin-editable About page (Markdown + image upload); Settings layout aligned with other pages; main content bottom padding doubled.
 
 ---
 
@@ -57,7 +59,7 @@ Within each section, items are concrete enough to implement later without re-dis
 ### About the App (added for share)
 - [x] Global **About the App** nav for all users with App Details, Current State, and Future State sections.
 - [x] Feedback button opens email to `csharpmckinnis@gmail.com` with subject `Theater App Feedback`.
-- [x] Content kept easy to edit in `frontend/src/aboutContent.ts`.
+- [x] **Admin-editable About page** — Markdown editor in-app (Edit page on `/about`); images via upload; defaults from `frontend/src/aboutContent.ts` when nothing is saved yet.
 
 ---
 
@@ -221,7 +223,7 @@ These are already captured in [PROJECT.md](PROJECT.md) and [SCRATCH_NOTES.md](SC
 | **Reports** | TOC/tabs; clickable moments; print |
 | **Import** | Format help; drag-drop; success toast |
 | **Users / Settings** | Dialog password reset; fewer text actions; toast on save |
-| **About** | Editable `aboutContent.ts`; in-app Send feedback + mailto fallback |
+| **About** | Admin Markdown editor on `/about`; default copy in `aboutContent.ts`; in-app Send feedback + mailto fallback |
 | **Login** | Fine for MVP; forgot-password not required for internal share |
 
 ---

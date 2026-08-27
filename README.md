@@ -140,7 +140,7 @@ Click a moment reference in a report and jump straight back to that spot on the 
 
 ### 8. Admin tools
 
-Admins can manage **Users** (accounts and roles) and **Settings**. Anyone can open **About the App** for a plain-language summary of what works today and what's planned.
+Admins can manage **Users** (accounts and roles) and **Settings**. Anyone can open **About the App** for a plain-language summary of what works today and what's planned. Admins can edit that page in-app with Markdown (including image uploads) — no code changes required for copy updates.
 
 ---
 

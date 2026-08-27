@@ -263,6 +263,23 @@ Fields
 * show_original_text
 * show_parsed_text
 * default_message_rotation_seconds (integer; `0` = rotation off; otherwise 5–300; default `20`)
+* about_markdown (nullable — Admin-editable About page body; Markdown)
+* about_markdown_updated_at (nullable)
+
+---
+
+# APP_CONTENT_IMAGES
+
+Purpose
+
+Binary images embedded in app-level Markdown content (e.g. About page). Served to authenticated users via `/api/settings/about-images/{id}`.
+
+Fields
+
+* id (UUID string)
+* content_type (`image/png`, `image/jpeg`, `image/gif`, `image/webp`)
+* data (binary)
+* created_at
 
 ---
 

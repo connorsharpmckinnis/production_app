@@ -4,6 +4,7 @@ from app.models.announcement import (
     AnnouncementAudienceRole,
     AnnouncementCta,
 )
+from app.models.app_content_image import AppContentImage
 from app.models.app_overview_message_default import AppOverviewMessageDefault
 from app.models.app_role import AppRole, UserAppRole
 from app.models.app_setting import AppSetting
@@ -55,6 +56,7 @@ __all__ = [
     "Announcement",
     "AnnouncementAudienceRole",
     "AnnouncementCta",
+    "AppContentImage",
     "AppOverviewMessageDefault",
     "AppRole",
     "AppSetting",

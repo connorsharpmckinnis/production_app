@@ -135,7 +135,7 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="mx-auto max-w-2xl space-y-8 pb-10">
+    <div className="space-y-8">
       <div>
         <Link to="/productions" className="text-sm text-muted-foreground hover:text-foreground">
           ← Productions

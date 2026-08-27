@@ -340,6 +340,17 @@ export interface AppSettingsResponse {
   default_message_rotation_seconds: number;
 }
 
+export interface AboutPageResponse {
+  markdown: string | null;
+  updated_at: string | null;
+}
+
+export interface AboutImageUploadResponse {
+  id: string;
+  url: string;
+  markdown: string;
+}
+
 export type OverviewMessageKind = "encouragement" | "scripture" | "announcement";
 
 export type EncouragementBand =

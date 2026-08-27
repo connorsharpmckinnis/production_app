@@ -22,7 +22,7 @@ It consolidates open work from:
 - [SECURITY_REVIEW.md](SECURITY_REVIEW.md)
 - [PHASE_9.md](PHASE_9.md)
 - [PHASE_10.md](PHASE_10.md)
-- In-app [aboutContent.ts](../frontend/src/aboutContent.ts) Future State
+- In-app **About the App** (Admin-editable Markdown; default copy in [aboutContent.ts](../frontend/src/aboutContent.ts))
 - Competitive framing from the theater market landscape research (Stage Write / prep tools vs ops tools)
 
 …and adds priorities shaped by Emmy’s email and STP reality.

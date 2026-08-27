@@ -1,4 +1,6 @@
-from sqlalchemy import Boolean, Integer
+from datetime import datetime
+
+from sqlalchemy import Boolean, DateTime, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -17,4 +19,9 @@ class AppSetting(Base):
         Integer,
         nullable=False,
         default=DEFAULT_MESSAGE_ROTATION_SECONDS,
+    )
+    about_markdown: Mapped[str | None] = mapped_column(Text, nullable=True)
+    about_markdown_updated_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )

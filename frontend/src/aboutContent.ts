@@ -1,8 +1,8 @@
 /**
- * About the App — editable content.
+ * About the App — default content fallback.
  *
- * Edit this file to update what users see on the About page.
- * Keep sections short and concrete so cast/crew can skim quickly.
+ * Admins edit the live About page in-app (Markdown). This file supplies the
+ * default body when nothing has been saved to the database yet.
  */
 
 export const ABOUT_FEEDBACK_EMAIL = "csharpmckinnis@gmail.com";
@@ -80,6 +80,54 @@ export const aboutContent = {
     ],
   },
 } as const;
+
+/** Default About page body as markdown (used when nothing is saved in the database). */
+export function defaultAboutMarkdown(): string {
+  const { appDetails, currentState, futureState } = aboutContent;
+  const stack = appDetails.stack.map((item) => `- ${item}`).join("\n");
+  const critical = appDetails.criticalSettings.map((item) => `- ${item}`).join("\n");
+  const whatWorks = currentState.whatWorks.map((item) => `- ${item}`).join("\n");
+  const howToUse = currentState.howToUse.map((item) => `- ${item}`).join("\n");
+  const futureSections = futureState.sections
+    .map((section) => `### ${section.heading}\n\n${section.body}`)
+    .join("\n\n");
+
+  return `## ${appDetails.title}
+
+| | |
+| --- | --- |
+| **Version** | ${appDetails.version} |
+| **Author** | ${appDetails.author} |
+
+${appDetails.purpose}
+
+### Stack
+
+${stack}
+
+### Critical settings
+
+${critical}
+
+## ${currentState.title}
+
+${currentState.intro}
+
+### What works
+
+${whatWorks}
+
+### How to use it
+
+${howToUse}
+
+## ${futureState.title}
+
+${futureState.intro}
+
+${futureSections}
+`;
+}
 
 export function feedbackMailtoHref(): string {
   const subject = encodeURIComponent(ABOUT_FEEDBACK_SUBJECT);

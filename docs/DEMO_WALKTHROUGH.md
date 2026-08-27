@@ -58,8 +58,9 @@ A short path through Theater App so someone can try it without a narrator. Assum
 
 ### 5. Close the loop
 
-1. Open **About the App** for current vs future state and the feedback email link.
-2. Say what felt confusing — that feedback drives the next polish pass more than the wish list.
+1. Open **About the App** for current vs future state. Admins can **Edit page** there to update copy in Markdown.
+2. Use **Send feedback** (user menu) or the About page email link for bugs and ideas.
+3. Say what felt confusing — that feedback drives the next polish pass more than the wish list.
 
 ---
 

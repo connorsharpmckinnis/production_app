@@ -6,6 +6,8 @@ import {
 import type {
   ActSummary,
   AppSettingsResponse,
+  AboutImageUploadResponse,
+  AboutPageResponse,
   AssetEventKind,
   BookmarkResponse,
   CastableUserResponse,
@@ -794,6 +796,26 @@ export const api = {
     return request<OverviewMessageDefaultResponse[]>("/settings/overview-message-defaults", {
       method: "PUT",
       body: JSON.stringify({ messages }),
+    });
+  },
+
+  getAboutPage() {
+    return request<AboutPageResponse>("/settings/about-page");
+  },
+
+  updateAboutPage(markdown: string) {
+    return request<AboutPageResponse>("/settings/about-page", {
+      method: "PUT",
+      body: JSON.stringify({ markdown }),
+    });
+  },
+
+  uploadAboutImage(file: File) {
+    const formData = new FormData();
+    formData.append("file", file);
+    return request<AboutImageUploadResponse>("/settings/about-images", {
+      method: "POST",
+      body: formData,
     });
   },
 
