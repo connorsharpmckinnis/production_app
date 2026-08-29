@@ -41,7 +41,7 @@ Public two-way communication (@-mentions, tasks, DMs) is a separate future featu
 | Area | Today |
 | ---- | ----- |
 | Overview spotlight | Production-scoped messages: `encouragement` / `scripture` / soft `announcement`; rotates on Overview; no CTAs, no inbox |
-| Announcements | Org-wide (Admin Settings) + production-scoped (Overview section); banners, Admin-only blocking modals, role targeting, CTAs |
+| Announcements | Org-wide (Admin Settings) + production-scoped (Overview section); banners, Admin-only blocking modals, role targeting, CTAs, and centered severity-accented modal presentation |
 | Notifications inbox | Header bell + unread badge; multi-kind feed (`announcement` now; mentions/tasks later) |
 | Toasts | Ephemeral success/error (`ToastContext`) |
 | Confirm / dialogs | User-initiated CRUD and destructive confirms |

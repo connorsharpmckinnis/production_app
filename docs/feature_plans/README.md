@@ -33,6 +33,12 @@ When implementing, agents should read the matching plan here for goals, non-goal
 
 ---
 
+## Current proposals
+
+| Plan | Status | One-liner |
+| ---- | ------ | --------- |
+| [production-membership-and-casting-workspace.md](production-membership-and-casting-workspace.md) | Proposal | Explicit production roster, production-scoped roles, pre-casting membership, and contact/casting workspace |
+
 ## Approved roadmap (near / mid)
 
 | Plan | Status | One-liner |
@@ -59,6 +65,7 @@ When implementing, agents should read the matching plan here for goals, non-goal
 | Plan | Status | One-liner |
 | ---- | ------ | --------- |
 | [character-nightly-packs.md](character-nightly-packs.md) | Far-future | Actor prep pack: character + scene(s) → lines, E/E, costumes/props/sets — revisit after real-show use |
+| [script-rights-and-reference-mode.md](script-rights-and-reference-mode.md) | Far-future | Rights metadata plus script-less reference-only productions |
 
 ## Curiosity / far-field
 

@@ -8,7 +8,13 @@ import {
   type ReactNode,
 } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { Bell } from "lucide-react";
+import {
+  Bell,
+  CheckCircle2Icon,
+  CircleAlertIcon,
+  InfoIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -32,6 +38,27 @@ type InboxState = {
   items: NotificationInboxItem[];
   active_banner: NotificationInboxItem | null;
   pending_modal: NotificationInboxItem | null;
+};
+
+const MODAL_ACCENT_CLASSES: Record<string, string> = {
+  info: "bg-info",
+  success: "bg-success",
+  warning: "bg-warning",
+  urgent: "bg-destructive",
+};
+
+const MODAL_SEVERITY_CLASSES: Record<string, string> = {
+  info: "border-info/40 bg-info/10 text-info",
+  success: "border-success/40 bg-success/10 text-success",
+  warning: "border-warning/40 bg-warning/10 text-warning",
+  urgent: "border-destructive/40 bg-destructive/10 text-destructive",
+};
+
+const MODAL_SEVERITY_ICONS = {
+  info: InfoIcon,
+  success: CheckCircle2Icon,
+  warning: TriangleAlertIcon,
+  urgent: CircleAlertIcon,
 };
 
 type NotificationContextValue = {
@@ -68,15 +95,17 @@ function formatPostedAt(iso: string): string {
 function CtaButtons({
   ctas,
   onNavigate,
+  className,
 }: {
   ctas: AnnouncementCtaResponse[];
   onNavigate?: () => void;
+  className?: string;
 }) {
   const navigate = useNavigate();
   if (ctas.length === 0) return null;
 
   return (
-    <div className="mt-2 flex flex-wrap gap-2">
+    <div className={cn("mt-2 flex flex-wrap gap-2", className)}>
       {ctas.map((cta) => {
         if (cta.kind === "external") {
           return (
@@ -349,6 +378,10 @@ export function NotificationBanner() {
 export function NotificationModal() {
   const { inbox, markRead } = useNotifications();
   const modal = inbox?.pending_modal ?? null;
+  const severity = modal?.severity ?? "info";
+  const SeverityIcon =
+    MODAL_SEVERITY_ICONS[severity as keyof typeof MODAL_SEVERITY_ICONS] ?? InfoIcon;
+  const severityLabel = `${severity[0]?.toUpperCase() ?? "I"}${severity.slice(1)}`;
 
   return (
     <Dialog
@@ -360,23 +393,48 @@ export function NotificationModal() {
       {modal && (
         <DialogContent
           showCloseButton
+          className="inset-auto left-1/2 top-1/2 m-0 max-h-[calc(100vh-2rem)] w-[calc(100%-2rem)] max-w-xl -translate-x-1/2 -translate-y-1/2 overflow-y-auto p-0"
           onPointerDownOutside={(event) => event.preventDefault()}
           onEscapeKeyDown={(event) => event.preventDefault()}
         >
-          <DialogHeader>
-            <DialogTitle>{modal.title}</DialogTitle>
-            {modal.body && (
-              <DialogDescription className="whitespace-pre-wrap text-foreground/80">
-                {modal.body}
-              </DialogDescription>
-            )}
-          </DialogHeader>
-          <CtaButtons ctas={modal.ctas} onNavigate={() => void markRead(modal.id)} />
-          <DialogFooter>
-            <Button type="button" onClick={() => void markRead(modal.id)}>
-              Got it
-            </Button>
-          </DialogFooter>
+          <div className="overflow-hidden rounded-lg">
+            <div
+              className={cn(
+                "h-2 w-full",
+                MODAL_ACCENT_CLASSES[severity] ?? MODAL_ACCENT_CLASSES.info,
+              )}
+              aria-hidden="true"
+            />
+            <div className="space-y-5 p-6">
+              <DialogHeader className="items-center text-center sm:text-center">
+                <div
+                  className={cn(
+                    "inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium",
+                    MODAL_SEVERITY_CLASSES[severity] ?? MODAL_SEVERITY_CLASSES.info,
+                  )}
+                >
+                  <SeverityIcon className="h-3.5 w-3.5" aria-hidden="true" />
+                  {severityLabel} announcement
+                </div>
+                <DialogTitle className="text-2xl leading-tight">{modal.title}</DialogTitle>
+                {modal.body && (
+                  <DialogDescription className="whitespace-pre-wrap text-center text-base leading-relaxed text-foreground/80">
+                    {modal.body}
+                  </DialogDescription>
+                )}
+              </DialogHeader>
+              <CtaButtons
+                ctas={modal.ctas}
+                onNavigate={() => void markRead(modal.id)}
+                className="justify-center"
+              />
+              <DialogFooter className="border-t border-border/60 pt-5 sm:justify-center">
+                <Button type="button" onClick={() => void markRead(modal.id)}>
+                  Got it
+                </Button>
+              </DialogFooter>
+            </div>
+          </div>
         </DialogContent>
       )}
     </Dialog>
