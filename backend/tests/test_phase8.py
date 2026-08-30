@@ -11,28 +11,28 @@ from app.db.encouragement_defaults import (
     ENCOURAGEMENT_BANDS,
     readiness_band,
 )
-from app.db.seed import seed_database
 from app.models import (
     Act,
-    AppRole,
     Character,
     Moment,
     MomentType,
     Production,
     Scene,
     User,
-    UserAppRole,
 )
 from app.services.importer import import_script
 from app.services.importer.builtins import BUILTIN_CHARACTER_NAMES
+from app.services.production_memberships import create_or_reactivate_membership
 from app.services.readiness import SOFT_COVERAGE_WEIGHT, SOFT_SEEDED_WEIGHT, compute_readiness
+from scoped_test_helpers import add_test_production_memberships, seed_database_with_test_users
 
 FIXTURE_PATH = Path(__file__).resolve().parents[2] / "fixtures" / "scripts" / "endurance-scene1.md"
 
 
 @pytest.fixture
 def seeded_client(client: TestClient, db_session: Session, test_settings) -> TestClient:
-    seed_database(db_session, test_settings)
+    seed_database_with_test_users(db_session, test_settings)
+    db_session.commit()
     return client
 
 
@@ -52,19 +52,22 @@ def _imported_production(client: TestClient, db_session: Session, title: str = "
     production_id = create.json()["id"]
     production = db_session.get(Production, production_id)
     assert production is not None
+    add_test_production_memberships(db_session, production)
     content = FIXTURE_PATH.read_text(encoding="utf-8")
     import_script(db_session, production, content)
     return production_id
 
 
-def _empty_production(client: TestClient) -> int:
+def _empty_production(client: TestClient, db_session: Session) -> int:
     headers = _login(client, "admin", "admin")
     create = client.post(
         "/api/productions",
         json={"title": "Empty Show", "season": "2026"},
         headers=headers,
     )
-    return create.json()["id"]
+    production_id = create.json()["id"]
+    add_test_production_memberships(db_session, production_id)
+    return production_id
 
 
 def _character_id_by_name(
@@ -85,8 +88,10 @@ def _dimension(overview: dict, key: str) -> dict:
     return next(item for item in overview["dimensions"] if item["key"] == key)
 
 
-def test_overview_empty_production_readiness_zero(seeded_client: TestClient) -> None:
-    production_id = _empty_production(seeded_client)
+def test_overview_empty_production_readiness_zero(
+    seeded_client: TestClient, db_session: Session
+) -> None:
+    production_id = _empty_production(seeded_client, db_session)
     director_headers = _login(seeded_client, "director", "director")
 
     overview = seeded_client.get(
@@ -177,8 +182,12 @@ def test_overview_hides_readiness_from_actor_only_but_not_staff_or_mixed_roles(
     assert isinstance(staff_data["readiness_percent"], int)
     assert staff_data["dimensions"]
 
-    director_role = db_session.query(AppRole).filter(AppRole.name == "Director").one()
-    db_session.add(UserAppRole(user_id=actor.id, app_role_id=director_role.id))
+    create_or_reactivate_membership(
+        db_session,
+        production_id,
+        actor.id,
+        ["actor", "director"],
+    )
     db_session.commit()
 
     mixed_role_data = seeded_client.get(
@@ -292,6 +301,7 @@ def test_costume_na_when_no_speaking_pairs(seeded_client: TestClient, db_session
     production_id = create.json()["id"]
     production = db_session.get(Production, production_id)
     assert production is not None
+    add_test_production_memberships(db_session, production)
 
     act = Act(production_id=production_id, number=1, title="Act 1", sort_order=1)
     db_session.add(act)
@@ -541,8 +551,10 @@ def test_global_defaults_replace_and_roles(seeded_client: TestClient) -> None:
     assert len(actor_read.json()) == 2
 
 
-def test_overview_falls_back_to_global_encouragement(seeded_client: TestClient) -> None:
-    production_id = _empty_production(seeded_client)
+def test_overview_falls_back_to_global_encouragement(
+    seeded_client: TestClient, db_session: Session
+) -> None:
+    production_id = _empty_production(seeded_client, db_session)
     admin_headers = _login(seeded_client, "admin", "admin")
     director_headers = _login(seeded_client, "director", "director")
 
@@ -570,9 +582,9 @@ def test_overview_falls_back_to_global_encouragement(seeded_client: TestClient) 
 
 
 def test_production_encouragement_overrides_global_for_band(
-    seeded_client: TestClient,
+    seeded_client: TestClient, db_session: Session
 ) -> None:
-    production_id = _empty_production(seeded_client)
+    production_id = _empty_production(seeded_client, db_session)
     director_headers = _login(seeded_client, "director", "director")
 
     replaced = seeded_client.put(
@@ -602,9 +614,9 @@ def test_production_encouragement_overrides_global_for_band(
 
 
 def test_spotlight_ordering_announcement_scripture_encouragement(
-    seeded_client: TestClient,
+    seeded_client: TestClient, db_session: Session
 ) -> None:
-    production_id = _empty_production(seeded_client)
+    production_id = _empty_production(seeded_client, db_session)
     director_headers = _login(seeded_client, "director", "director")
 
     seeded_client.put(
@@ -657,8 +669,10 @@ def test_spotlight_ordering_announcement_scripture_encouragement(
     assert "Inactive announcement" not in bodies
 
 
-def test_production_message_validation(seeded_client: TestClient) -> None:
-    production_id = _empty_production(seeded_client)
+def test_production_message_validation(
+    seeded_client: TestClient, db_session: Session
+) -> None:
+    production_id = _empty_production(seeded_client, db_session)
     director_headers = _login(seeded_client, "director", "director")
 
     # Encouragement no longer requires a readiness band.
@@ -730,8 +744,10 @@ def test_production_message_validation(seeded_client: TestClient) -> None:
     assert announcement_with_band.status_code == 422
 
 
-def test_production_message_roles(seeded_client: TestClient) -> None:
-    production_id = _empty_production(seeded_client)
+def test_production_message_roles(
+    seeded_client: TestClient, db_session: Session
+) -> None:
+    production_id = _empty_production(seeded_client, db_session)
     actor_headers = _login(seeded_client, "actor", "actor")
     director_headers = _login(seeded_client, "director", "director")
 
@@ -758,18 +774,18 @@ def test_production_message_roles(seeded_client: TestClient) -> None:
     )
     assert actor_settings.status_code == 403
 
-    # Uncast actors cannot read a production by ID (even empty ones).
+    # Active production members can read a production before casting.
     actor_read = seeded_client.get(
         f"/api/productions/{production_id}/overview",
         headers=actor_headers,
     )
-    assert actor_read.status_code == 404
+    assert actor_read.status_code == 200
 
     listed = seeded_client.get(
         f"/api/productions/{production_id}/overview-messages",
         headers=actor_headers,
     )
-    assert listed.status_code == 404
+    assert listed.status_code == 200
 
     director_write = seeded_client.put(
         f"/api/productions/{production_id}/overview-messages",
@@ -788,8 +804,10 @@ def test_production_message_roles(seeded_client: TestClient) -> None:
     assert director_write.status_code == 200
 
 
-def test_rotation_inheritance_and_off(seeded_client: TestClient) -> None:
-    production_id = _empty_production(seeded_client)
+def test_rotation_inheritance_and_off(
+    seeded_client: TestClient, db_session: Session
+) -> None:
+    production_id = _empty_production(seeded_client, db_session)
     admin_headers = _login(seeded_client, "admin", "admin")
     director_headers = _login(seeded_client, "director", "director")
 
@@ -870,8 +888,10 @@ def test_rotation_inheritance_and_off(seeded_client: TestClient) -> None:
     assert bad_global.status_code == 422
 
 
-def test_inactive_global_default_excluded(seeded_client: TestClient) -> None:
-    production_id = _empty_production(seeded_client)
+def test_inactive_global_default_excluded(
+    seeded_client: TestClient, db_session: Session
+) -> None:
+    production_id = _empty_production(seeded_client, db_session)
     admin_headers = _login(seeded_client, "admin", "admin")
     director_headers = _login(seeded_client, "director", "director")
 
@@ -905,10 +925,10 @@ def test_inactive_global_default_excluded(seeded_client: TestClient) -> None:
 
 
 def test_production_encouragement_replaces_global_pool(
-    seeded_client: TestClient,
+    seeded_client: TestClient, db_session: Session
 ) -> None:
     """Any production encouragement replaces the global rotating pool (bands ignored)."""
-    production_id = _empty_production(seeded_client)
+    production_id = _empty_production(seeded_client, db_session)
     director_headers = _login(seeded_client, "director", "director")
 
     seeded_client.put(

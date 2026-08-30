@@ -20,6 +20,12 @@ class ProductionResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class ProductionAccessResponse(BaseModel):
+    production_id: int
+    role_codes: list[str]
+    capabilities: list[str]
+
+
 class ReadinessDimension(BaseModel):
     key: str
     label: str

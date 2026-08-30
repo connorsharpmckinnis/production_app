@@ -1,6 +1,6 @@
 # Feature plan — Production membership & casting workspace
 
-**Status:** Proposal  
+**Status:** Active implementation — membership workspace and scoped authorization implemented; downstream hardening remains
 **Created:** 2026-08-28  
 **Updated:** 2026-08-29
 **Related:** [ROLES.md](../ROLES.md), [PROJECT.md](../PROJECT.md), [DATABASE.md](../DATABASE.md), [crew-roles.md](crew-roles.md), [understudies-and-cast-overrides.md](understudies-and-cast-overrides.md), [production-home-and-modes.md](production-home-and-modes.md)
@@ -279,6 +279,46 @@ contracts explicit before schema and API work begins:
    authorization check for all matching active memberships; do not copy permissions
    into each production.
 
+### WP0 implementation contract
+
+The owner approved the following implementation choices on 2026-08-29:
+
+- `Admin` remains the only organization-wide role. Existing global `Director` and
+  `Actor` roles and assignments are removed from the seeded authorization model.
+  Production `Director` and `Actor` capabilities come only from production
+  memberships. The configured Admin account remains available for login.
+- Production roles use an immutable, unique lowercase `code` plus editable `name`
+  and `description`. V1 seeds `member`, `director`, and `actor`.
+- Adding a user who already has an inactive membership reactivates that same row and
+  replaces its role assignments. Duplicate `(production_id, user_id)` memberships
+  are never created.
+- Deactivation preserves the membership, role rows, and character-assignment rows.
+  The inactive membership and its cast are treated as inactive by later access,
+  casting, readiness, and actor-specific workflows. Reactivation may make retained
+  casting effective again when the Actor role is restored.
+- Active membership creation requires an active user in the production's
+  organization. An active membership must always have at least one role; removing
+  the final role is rejected rather than silently deactivating the membership.
+- Admin-managed permissions are normalized rows for the following resource keys:
+  `production`, `overview`, `timeline`, `characters`, `casting`, `groups`, `songs`,
+  `props`, `costumes`, `set_pieces`, `lav_chart`, `cue_categories`, `cues`, `notes`,
+  `tasks`, `rehearse`, `rehearsals`, `reports`, `announcements`, `notifications`,
+  `people`, and `bookmarks`. Every role/resource pair receives one row for each
+  action: `read`, `create`, `update`, and `delete`.
+- Seed defaults are intentionally broad and editable: `Member` receives `read` on
+  every seeded production resource; `Actor` receives the same reads plus CRUD for
+  notes and bookmarks; `Director` receives read access everywhere, CRUD for
+  preparation, catalog, rehearsal, announcement, and membership resources, and
+  `production.update` for production-scoped settings. Admin access bypasses this
+  matrix. The matrix controls production capabilities, not organization-level
+  administration.
+
+The original WP1 build-out pause has been passed. The schema, seed path, lifecycle
+service, scoped authorization core, People APIs/UI, casting validation, and the
+highest-risk actor, rehearsal, notification, and group consumers are now
+implemented. Remaining work is test migration/cleanup and any additional
+downstream consumer verification.
+
 ---
 
 ## Proposed work packages
@@ -346,6 +386,48 @@ contracts explicit before schema and API work begins:
   Production C without changing the user's account record.
 - Existing character casts continue to resolve.
 - Removing a membership does not silently delete the cast record.
+
+**Earlier implementation pause:** WP1 schema, idempotent role/capability seed,
+membership lifecycle service, and focused invariant tests were implemented before
+the owner authorized continuation into the API, authorization, and frontend work.
+
+**Implementation update:** WP2 production access, WP3 People/permission APIs,
+production-scoped casting validation, and the WP4 People workspace are
+implemented. The frontend now loads production capabilities and the backend
+enforces them across production route families. WP5 has also been started for
+actor-specific timeline/rehearsal behavior, announcement audiences, and group
+membership validation.
+
+**Verification:** The focused membership, access, People, casting, scoped-role,
+notification, and group run reached 38 passing tests and one setup-related
+failure in `scoped_test_helpers.py`; the helper transaction boundary is a
+known hardening item below. Frontend build and utility tests pass (56 tests).
+The complete legacy backend suite remains red because approximately 145 tests
+still assume globally seeded `Director`/`Actor` users or pre-cutover cast-only
+access; migrating those fixtures and assertions is follow-up work.
+
+### Current outstanding hardening
+
+Before treating this slice as closed, WP5/WP6 must address:
+
+- Require active production membership, not only same-organization activity, for
+  optional person subjects in props, set pieces, and blocking.
+- Require active production membership for manually called rehearsal users.
+- Treat retained casts on inactive memberships as inactive in readiness, Overview
+  counts, character/casting responses, and lav-chart wearer derivation.
+- Apply production scoping to notification modals, matching the existing banner
+  behavior, and make announcement CTA route filters match real frontend routes.
+- Add Admin editing for an existing user's organization-level Admin assignment,
+  or explicitly document the creation-only limitation.
+- Fix the scoped test helper's SQLite transaction boundary, then migrate the
+  remaining legacy fixtures and assertions to production memberships.
+- Decide whether People should load the production role registry dynamically
+  instead of hard-coding the three seeded roles.
+
+The proposed next feature is documented separately in
+[casting-and-auditions.md](casting-and-auditions.md). It intentionally starts
+after this hardening pass and reserves the Casting nav for a future
+capability-gated workspace.
 
 ### WP2 — Replace global production access with centralized scoped authorization
 
@@ -636,7 +718,7 @@ engine before a real workflow needs them.
 
 ## Explicitly out of scope
 
-- Audition forms and conflict-calendar implementation.
+- Audition forms, casting notes, and conflict-calendar implementation.
 - Email/SMS invitations or outbound notification delivery.
 - Phone-number and full organization contact-directory work.
 - Creating organization accounts from inside a production workspace.

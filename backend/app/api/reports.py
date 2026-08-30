@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session, joinedload
 
-from app.api.deps import get_accessible_production, user_display_name
-from app.auth.dependencies import require_director_or_admin
+from app.api.deps import require_production_capability, user_display_name
 from app.db.session import get_db
 from app.models import (
     Act,
@@ -50,10 +49,9 @@ def _timeline_moment_order(db: Session, production_id: int) -> list[tuple[Moment
 @router.get("/{production_id}/reports/prop-sheet", response_model=list[PropSheetEntry])
 def prop_sheet(
     production_id: int,
-    user: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("reports", "read")),
     db: Session = Depends(get_db),
 ) -> list[PropSheetEntry]:
-    get_accessible_production(db, user, production_id)
     timeline = _timeline_moment_order(db, production_id)
     moment_context = {moment.id: (moment, act, scene) for moment, act, scene in timeline}
 
@@ -124,10 +122,9 @@ def prop_sheet(
 @router.get("/{production_id}/reports/cue-sheet", response_model=list[CueSheetCategory])
 def cue_sheet(
     production_id: int,
-    user: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("reports", "read")),
     db: Session = Depends(get_db),
 ) -> list[CueSheetCategory]:
-    get_accessible_production(db, user, production_id)
     timeline = _timeline_moment_order(db, production_id)
     moment_context = {moment.id: (moment, act, scene) for moment, act, scene in timeline}
 
@@ -190,10 +187,9 @@ def cue_sheet(
 )
 def costume_changes(
     production_id: int,
-    user: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("reports", "read")),
     db: Session = Depends(get_db),
 ) -> list[CostumeChangeEntry]:
-    get_accessible_production(db, user, production_id)
     timeline = _timeline_moment_order(db, production_id)
 
     events = (
@@ -240,11 +236,9 @@ def costume_changes(
 )
 def entrance_exit_sheet(
     production_id: int,
-    user: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("reports", "read")),
     db: Session = Depends(get_db),
 ) -> list[EntranceExitSheetGroup]:
-    get_accessible_production(db, user, production_id)
-
     scenes = (
         db.query(Scene)
         .join(Act)
@@ -331,10 +325,9 @@ def entrance_exit_sheet(
 )
 def blocking_sheet(
     production_id: int,
-    user: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("reports", "read")),
     db: Session = Depends(get_db),
 ) -> list[BlockingSheetEntry]:
-    get_accessible_production(db, user, production_id)
     timeline = _timeline_moment_order(db, production_id)
 
     blocking_rows = (
@@ -386,8 +379,7 @@ def blocking_sheet(
 )
 def on_stage_chart(
     production_id: int,
-    user: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("reports", "read")),
     db: Session = Depends(get_db),
 ) -> OnStageChartReport:
-    get_accessible_production(db, user, production_id)
     return build_on_stage_chart(db, production_id)

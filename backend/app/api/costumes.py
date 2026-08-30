@@ -6,8 +6,7 @@ from app.api.catalog_csv_routes import (
     catalog_template_response,
     read_catalog_upload,
 )
-from app.api.deps import get_accessible_production
-from app.auth.dependencies import require_authenticated, require_director_or_admin
+from app.api.deps import get_accessible_production, require_production_capability
 from app.db.session import get_db
 from app.models import Act, Character, Costume, Moment, MomentCostumeEvent, Scene, User
 from app.schemas.catalog_csv import CatalogImportResult
@@ -94,7 +93,7 @@ def _moment_costume_event_response(event: MomentCostumeEvent) -> MomentCostumeEv
 @router.get("/{production_id}/costumes", response_model=list[CostumeResponse])
 def list_costumes(
     production_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("costumes", "read")),
     db: Session = Depends(get_db),
 ) -> list[CostumeResponse]:
     get_accessible_production(db, user, production_id)
@@ -116,10 +115,10 @@ def list_costumes(
 def create_costume(
     production_id: int,
     body: CostumeCreate,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("costumes", "create")),
     db: Session = Depends(get_db),
 ) -> CostumeResponse:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     _validate_character_in_production(db, production_id, body.character_id)
 
     costume = Costume(
@@ -139,7 +138,7 @@ def update_costume(
     production_id: int,
     costume_id: int,
     body: CostumeUpdate,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("costumes", "update")),
     db: Session = Depends(get_db),
 ) -> CostumeResponse:
     costume = _get_costume_or_404(db, production_id, costume_id)
@@ -164,7 +163,7 @@ def update_costume(
 def delete_costume(
     production_id: int,
     costume_id: int,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("costumes", "delete")),
     db: Session = Depends(get_db),
 ) -> None:
     costume = _get_costume_or_404(db, production_id, costume_id)
@@ -175,10 +174,10 @@ def delete_costume(
 @router.get("/{production_id}/costumes/import/template")
 def download_costumes_csv_template(
     production_id: int,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("costumes", "read")),
     db: Session = Depends(get_db),
 ) -> Response:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     return catalog_template_response("costumes_template.csv", COSTUMES_COLUMNS)
 
 
@@ -189,10 +188,10 @@ def download_costumes_csv_template(
 async def import_costumes(
     production_id: int,
     file: UploadFile = File(...),
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("costumes", "create")),
     db: Session = Depends(get_db),
 ) -> CatalogImportResult:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     content = await read_catalog_upload(file)
     try:
         return import_costumes_csv(db, production_id, content)
@@ -207,7 +206,7 @@ async def import_costumes(
 def list_moment_costume_events(
     production_id: int,
     moment_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("costumes", "read")),
     db: Session = Depends(get_db),
 ) -> list[MomentCostumeEventResponse]:
     get_accessible_production(db, user, production_id)
@@ -234,7 +233,7 @@ def create_moment_costume_event(
     production_id: int,
     moment_id: int,
     body: MomentCostumeEventCreate,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("costumes", "create")),
     db: Session = Depends(get_db),
 ) -> MomentCostumeEventResponse:
     _get_moment_in_production_or_404(db, production_id, moment_id)
@@ -286,7 +285,7 @@ def update_moment_costume_event(
     moment_id: int,
     moment_costume_event_id: int,
     body: MomentCostumeEventUpdate,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("costumes", "update")),
     db: Session = Depends(get_db),
 ) -> MomentCostumeEventResponse:
     _get_moment_in_production_or_404(db, production_id, moment_id)
@@ -331,7 +330,7 @@ def delete_moment_costume_event(
     production_id: int,
     moment_id: int,
     moment_costume_event_id: int,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("costumes", "delete")),
     db: Session = Depends(get_db),
 ) -> None:
     _get_moment_in_production_or_404(db, production_id, moment_id)

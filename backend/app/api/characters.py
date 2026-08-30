@@ -7,8 +7,7 @@ from app.api.catalog_csv_routes import (
     catalog_template_response,
     read_catalog_upload,
 )
-from app.api.deps import get_accessible_production
-from app.auth.dependencies import require_authenticated, require_role, user_has_role
+from app.api.deps import get_production_or_404, require_production_capability
 from app.db.session import get_db
 from app.models import (
     Character,
@@ -36,10 +35,12 @@ from app.schemas.characters import (
     SongUpdate,
 )
 from app.services.catalog_csv import CatalogCsvError, SONGS_COLUMNS, import_songs_csv
+from app.services.production_memberships import (
+    get_active_production_user,
+    list_active_production_users,
+)
 
 router = APIRouter(prefix="/productions", tags=["characters"])
-
-require_director = require_role("Admin", "Director")
 
 
 def _get_character_or_404(db: Session, production_id: int, character_id: int) -> Character:
@@ -94,10 +95,9 @@ def _character_detail(
 @router.get("/{production_id}/characters", response_model=list[CharacterDetailResponse])
 def list_characters(
     production_id: int,
-    user: User = Depends(require_authenticated),
+    _user: User = Depends(require_production_capability("characters", "read")),
     db: Session = Depends(get_db),
 ) -> list[CharacterDetailResponse]:
-    get_accessible_production(db, user, production_id)
     characters = (
         db.query(Character)
         .options(
@@ -122,10 +122,9 @@ def list_characters(
 def create_character(
     production_id: int,
     body: CharacterCreate,
-    director: User = Depends(require_director),
+    _user: User = Depends(require_production_capability("characters", "create")),
     db: Session = Depends(get_db),
 ) -> CharacterDetailResponse:
-    get_accessible_production(db, director, production_id)
     character = Character(
         production_id=production_id,
         name=body.name.strip(),
@@ -142,7 +141,7 @@ def update_character(
     production_id: int,
     character_id: int,
     body: CharacterUpdate,
-    _director: User = Depends(require_director),
+    _user: User = Depends(require_production_capability("characters", "update")),
     db: Session = Depends(get_db),
 ) -> CharacterDetailResponse:
     character = (
@@ -169,7 +168,7 @@ def update_character(
 def delete_character(
     production_id: int,
     character_id: int,
-    _director: User = Depends(require_director),
+    _user: User = Depends(require_production_capability("characters", "delete")),
     db: Session = Depends(get_db),
 ) -> None:
     character = _get_character_or_404(db, production_id, character_id)
@@ -188,10 +187,9 @@ def delete_character(
 @router.get("/{production_id}/songs", response_model=list[SongDetailResponse])
 def list_songs(
     production_id: int,
-    user: User = Depends(require_authenticated),
+    _user: User = Depends(require_production_capability("songs", "read")),
     db: Session = Depends(get_db),
 ) -> list[SongDetailResponse]:
-    get_accessible_production(db, user, production_id)
     songs = (
         db.query(Song)
         .filter(Song.production_id == production_id)
@@ -218,10 +216,9 @@ def list_songs(
 def create_song(
     production_id: int,
     body: SongCreate,
-    director: User = Depends(require_director),
+    _user: User = Depends(require_production_capability("songs", "create")),
     db: Session = Depends(get_db),
 ) -> SongDetailResponse:
-    get_accessible_production(db, director, production_id)
     song = Song(
         production_id=production_id,
         title=body.title.strip(),
@@ -246,7 +243,7 @@ def update_song(
     production_id: int,
     song_id: int,
     body: SongUpdate,
-    _director: User = Depends(require_director),
+    _user: User = Depends(require_production_capability("songs", "update")),
     db: Session = Depends(get_db),
 ) -> SongDetailResponse:
     song = (
@@ -278,10 +275,9 @@ def update_song(
 @router.get("/{production_id}/songs/import/template")
 def download_songs_csv_template(
     production_id: int,
-    director: User = Depends(require_director),
+    _user: User = Depends(require_production_capability("songs", "read")),
     db: Session = Depends(get_db),
 ) -> Response:
-    get_accessible_production(db, director, production_id)
     return catalog_template_response("songs_template.csv", SONGS_COLUMNS)
 
 
@@ -292,10 +288,9 @@ def download_songs_csv_template(
 async def import_songs(
     production_id: int,
     file: UploadFile = File(...),
-    director: User = Depends(require_director),
+    _user: User = Depends(require_production_capability("songs", "create")),
     db: Session = Depends(get_db),
 ) -> CatalogImportResult:
-    get_accessible_production(db, director, production_id)
     content = await read_catalog_upload(file)
     try:
         return import_songs_csv(db, production_id, content)
@@ -306,10 +301,9 @@ async def import_songs(
 @router.get("/{production_id}/casting", response_model=list[CastAssignmentResponse])
 def list_casting(
     production_id: int,
-    user: User = Depends(require_authenticated),
+    _user: User = Depends(require_production_capability("casting", "read")),
     db: Session = Depends(get_db),
 ) -> list[CastAssignmentResponse]:
-    get_accessible_production(db, user, production_id)
     characters = (
         db.query(Character)
         .options(
@@ -342,7 +336,7 @@ def cast_character(
     production_id: int,
     character_id: int,
     body: CastCharacterRequest,
-    _director: User = Depends(require_director),
+    _user: User = Depends(require_production_capability("casting", "update")),
     db: Session = Depends(get_db),
 ) -> CastCharacterResponse:
     character = _get_character_or_404(db, production_id, character_id)
@@ -362,18 +356,21 @@ def cast_character(
             user_display_name=None,
         )
 
-    actor = (
-        db.query(User)
-        .options(joinedload(User.app_roles))
-        .filter(User.id == body.user_id, User.is_active.is_(True))
-        .first()
-    )
+    actor = db.query(User).filter(User.id == body.user_id, User.is_active.is_(True)).first()
     if actor is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
-    if not user_has_role(actor, "Actor"):
+    if (
+        get_active_production_user(
+            db,
+            production_id,
+            actor.id,
+            role_code="actor",
+        )
+        is None
+    ):
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail="Only users with the Actor role can be cast",
+            detail="Only active production members with the Actor role can be cast",
         )
 
     existing = (
@@ -397,41 +394,25 @@ def cast_character(
 @router.get("/{production_id}/castable-users", response_model=list[CastableUserResponse])
 def list_castable_users(
     production_id: int,
-    director: User = Depends(require_director),
+    _user: User = Depends(require_production_capability("casting", "read")),
     db: Session = Depends(get_db),
 ) -> list[CastableUserResponse]:
-    get_accessible_production(db, director, production_id)
-    users = (
-        db.query(User)
-        .options(joinedload(User.app_roles))
-        .filter(User.is_active.is_(True))
-        .order_by(User.last_name, User.first_name)
-        .all()
-    )
+    users = list_active_production_users(db, production_id, role_code="actor")
     return [
         CastableUserResponse(id=user.id, display_name=_user_display_name(user))
         for user in users
-        if user_has_role(user, "Actor")
     ]
 
 
 @router.get("/{production_id}/active-users", response_model=list[CastableUserResponse])
 def list_active_users(
     production_id: int,
-    director: User = Depends(require_director),
+    _user: User = Depends(require_production_capability("casting", "read")),
     db: Session = Depends(get_db),
 ) -> list[CastableUserResponse]:
-    """Active org users for optional person affiliation (props/sets), any role."""
-    production = get_accessible_production(db, director, production_id)
-    users = (
-        db.query(User)
-        .filter(
-            User.organization_id == production.organization_id,
-            User.is_active.is_(True),
-        )
-        .order_by(User.last_name, User.first_name)
-        .all()
-    )
+    """Active production members for optional person affiliation (props/sets)."""
+    get_production_or_404(db, production_id)
+    users = list_active_production_users(db, production_id)
     return [
         CastableUserResponse(id=user.id, display_name=_user_display_name(user))
         for user in users

@@ -2,7 +2,7 @@
 
 **Purpose:** Candidate polish before sharing the app with the theater group for real-world consideration. This is a working inventory — not committed scope. Items come from owner scratch notes, the product wish list, phase docs, UI standards, and a pass over the current frontend.
 
-**Last updated:** 2026-08-26
+**Last updated:** 2026-08-29
 
 **Related docs:** [SCRATCH_NOTES.md](SCRATCH_NOTES.md), [PROJECT.md](PROJECT.md) Wish List, [UI_STANDARDS.md](UI_STANDARDS.md), [PHASE_6.md](PHASE_6.md), [DEMO_WALKTHROUGH.md](DEMO_WALKTHROUGH.md)
 
@@ -32,6 +32,15 @@ Within each section, items are concrete enough to implement later without re-dis
 ---
 
 ## P0 — Before sharing (credibility & safety)
+
+### Roles / People branch hardening
+These are tracked in [production-membership-and-casting-workspace.md](feature_plans/production-membership-and-casting-workspace.md)
+WP0/WP6 before the branch is considered closed:
+- [ ] Require active production membership for optional person selectors and manual rehearsal calls.
+- [ ] Make inactive retained casts disappear from current readiness, counts, selectors, and actor-specific behavior.
+- [ ] Scope production notification modals and normalize announcement CTA route filters.
+- [ ] Support editing existing organization-level Admin assignments, or document the creation-only limitation.
+- [ ] Fix the scoped test helper transaction boundary and migrate legacy global-role fixtures.
 
 ### Confirmations, errors, and feedback
 - [x] Replace browser `confirm()` / `alert()` with proper **AlertDialog** (and toasts where useful) for deletes and failures — productions, catalog items, groups, users, structural timeline edits, settings save failures.
@@ -198,6 +207,7 @@ These are already captured in [PROJECT.md](PROJECT.md) and [SCRATCH_NOTES.md](SC
 
 ### Production & reports (post-MVP product)
 - Richer production home / readiness dashboard.
+- Casting workspace, private audition notes, per-person unavailable dates, and advisory rehearsal conflict warnings — see [casting-and-auditions.md](feature_plans/casting-and-auditions.md).
 - Production-level settings (vs global App Settings).
 - PDF export, print layouts, cross-production analytics, preparation progress dashboard.
 - Costume **pieces / outfits** over time (Phase 14 WP5 shipped thin whole-costume Wear/Clear on the Timeline; piece-level tracking still later).

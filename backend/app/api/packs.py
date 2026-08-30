@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_accessible_production
-from app.auth.dependencies import require_authenticated, require_director_or_admin
+from app.api.deps import get_accessible_production, require_production_capability
 from app.db.session import get_db
 from app.models import Pack, User
 from app.schemas.packs import PackCreate, PackResponse, PackUpdate
@@ -28,7 +27,7 @@ def _pack_response(pack: Pack) -> PackResponse:
 @router.get("/{production_id}/packs", response_model=list[PackResponse])
 def list_packs(
     production_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("lav_chart", "read")),
     db: Session = Depends(get_db),
 ) -> list[PackResponse]:
     get_accessible_production(db, user, production_id)
@@ -49,10 +48,10 @@ def list_packs(
 def create_pack(
     production_id: int,
     body: PackCreate,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("lav_chart", "create")),
     db: Session = Depends(get_db),
 ) -> PackResponse:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     pack = Pack(
         production_id=production_id,
         identifier=body.identifier.strip(),
@@ -69,10 +68,10 @@ def update_pack(
     production_id: int,
     pack_id: int,
     body: PackUpdate,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("lav_chart", "update")),
     db: Session = Depends(get_db),
 ) -> PackResponse:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     pack = _get_pack_or_404(db, production_id, pack_id)
     if body.identifier is not None:
         pack.identifier = body.identifier.strip()
@@ -87,10 +86,10 @@ def update_pack(
 def delete_pack(
     production_id: int,
     pack_id: int,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("lav_chart", "delete")),
     db: Session = Depends(get_db),
 ) -> None:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     pack = _get_pack_or_404(db, production_id, pack_id)
     db.delete(pack)
     db.commit()

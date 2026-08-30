@@ -4,6 +4,28 @@
 
 I'll be using this document to store temporary notes relating to the project. Stuff that I need to remember to ask/work on. 
 
+## Roles / People / Casting branch checkpoint — 2026-08-29
+
+The production membership and People workspace are substantially implemented on
+the `casting-and-roles` branch, but the branch is not closed yet. The durable
+plan and next steps are in
+[production-membership-and-casting-workspace.md](feature_plans/production-membership-and-casting-workspace.md)
+and the new
+[casting-and-auditions.md](feature_plans/casting-and-auditions.md).
+
+Before building Casting, fix and test: active-membership validation for optional
+person subjects and manual rehearsal calls; inactive retained-cast behavior;
+production-scoped notification modals and CTA routes; editing existing Admin
+assignments; and the scoped-test-helper transaction failure. The focused run
+currently has 38 passing tests and one setup-related failure, while the legacy
+suite still contains roughly 145 pre-membership assumptions. These are tracked
+hardening items, not completed work.
+
+The next planned product slice is capability-gated Casting navigation, a
+Casting-only author-attributed note feed, and per-person ISO date unavailable
+lists/CSV with advisory rehearsal conflict warnings. Digital intake forms,
+audition sessions, and final casting decisions come afterward.
+
 ## Little Things
 
 - The My Bookmarks experience is odd right now. It pops up a screen-wide banner-looking thing with the bookmarks listed there. Not a terrible instinct, but I think I'd like it to show in its own dedicated timeline-like view with '...'s between bookmarks to show it's not the whole timeline view. And then clicking on a bookmark will open it up in the 'main' timeline view. Or something like that. I'm not sure how I want bookmarks to work yet, so we'll leave it be for the time being and come back to it when I know how I want it to work. → **Wish list** (undecided)

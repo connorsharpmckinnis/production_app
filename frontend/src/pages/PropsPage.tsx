@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -25,7 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { useAuth } from "@/context/AuthContext";
+import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
@@ -34,7 +33,10 @@ import type { PropResponse } from "@/lib/types";
 export default function PropsPage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
-  const { canManagePreparation } = useAuth();
+  const { hasCapability } = useProductionAccess();
+  const canManagePreparation = ["create", "update", "delete"].some((action) =>
+    hasCapability("props", action),
+  );
   const confirm = useConfirm();
   const toast = useToast();
 
@@ -154,11 +156,6 @@ export default function PropsPage() {
           ← Overview
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Props</h1>
-        <p className="text-sm text-muted-foreground">
-          {canManagePreparation
-            ? "Manage the prop catalog and attach props to moments from the timeline."
-            : "Props in this production."}
-        </p>
       </div>
 
       {error && (
@@ -250,11 +247,6 @@ export default function PropsPage() {
           <form onSubmit={(e) => void handleSubmit(e)}>
             <DialogHeader>
               <DialogTitle>{editingProp ? "Edit prop" : "Add prop"}</DialogTitle>
-              <DialogDescription>
-                {editingProp
-                  ? "Update this prop in the catalog."
-                  : "Add a new prop to the catalog."}
-              </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-4">
               <div className="space-y-2">

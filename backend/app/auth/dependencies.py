@@ -67,7 +67,11 @@ def require_role(*role_names: str):
 
 
 require_admin = require_role("Admin")
-require_director_or_admin = require_role("Admin", "Director")
+
+# Production-scoped authorization is handled by app.api.deps. Keep this name
+# temporarily for route families that have not yet migrated; global Director
+# must never grant access now that production roles live on memberships.
+require_director_or_admin = require_admin
 
 
 def require_authenticated(user: User = Depends(get_current_user)) -> User:

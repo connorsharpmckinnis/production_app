@@ -31,6 +31,7 @@ import {
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
 import { useConfirm } from "@/context/ConfirmContext";
+import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
 import type {
@@ -197,6 +198,16 @@ export default function LavChartPage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
   const confirm = useConfirm();
+  const {
+    access,
+    loading: accessLoading,
+    error: accessError,
+    hasCapability,
+  } = useProductionAccess();
+  const canReadLavChart = hasCapability("lav_chart", "read");
+  const canEditLavChart = ["create", "update", "delete"].some((action) =>
+    hasCapability("lav_chart", action),
+  );
   const toast = useToast();
 
   const [chart, setChart] = useState<LavChartResponse | null>(null);
@@ -610,11 +621,21 @@ export default function LavChartPage() {
     }
   }
 
-  if (loading) {
+  if (accessLoading || loading) {
     return (
       <div className="space-y-4 p-6">
         <Skeleton className="h-8 w-48" />
         <Skeleton className="h-40 w-full" />
+      </div>
+    );
+  }
+
+  if (accessError || !access || !canReadLavChart) {
+    return (
+      <div className="p-6">
+        <p className="text-destructive">
+          {accessError ?? "You do not have access to the lav chart."}
+        </p>
       </div>
     );
   }
@@ -705,47 +726,49 @@ export default function LavChartPage() {
           </ul>
         </details>
 
-        <details
-          className="rounded-md border border-border bg-muted/30 px-3 py-2"
-          open={inventoryOpen}
-          onToggle={(e) => setInventoryOpen((e.target as HTMLDetailsElement).open)}
-        >
-          <summary className="cursor-pointer text-sm font-medium">
-            Manage wires &amp; packs ({chart.wires.length} wires, {chart.packs.length} packs)
-          </summary>
-          <div className="mt-3 grid gap-4 md:grid-cols-2">
-            <InventoryColumn
-              title="Wires"
-              emptyLabel="No wires yet."
-              items={chart.wires}
-              identifier={wireIdentifier}
-              notes={wireNotes}
-              identifierPlaceholder="Wire 1"
-              addLabel="Add wire"
-              busy={inventoryBusy}
-              onIdentifierChange={setWireIdentifier}
-              onNotesChange={setWireNotes}
-              onAdd={handleAddWire}
-              onEdit={(item) => openEditDialog("wire", item)}
-              onDelete={(item) => void handleDelete("wire", item)}
-            />
-            <InventoryColumn
-              title="Packs"
-              emptyLabel="No packs yet."
-              items={chart.packs}
-              identifier={packIdentifier}
-              notes={packNotes}
-              identifierPlaceholder="Pack 1"
-              addLabel="Add pack"
-              busy={inventoryBusy}
-              onIdentifierChange={setPackIdentifier}
-              onNotesChange={setPackNotes}
-              onAdd={handleAddPack}
-              onEdit={(item) => openEditDialog("pack", item)}
-              onDelete={(item) => void handleDelete("pack", item)}
-            />
-          </div>
-        </details>
+        {canEditLavChart && (
+          <details
+            className="rounded-md border border-border bg-muted/30 px-3 py-2"
+            open={inventoryOpen}
+            onToggle={(e) => setInventoryOpen((e.target as HTMLDetailsElement).open)}
+          >
+            <summary className="cursor-pointer text-sm font-medium">
+              Manage wires &amp; packs ({chart.wires.length} wires, {chart.packs.length} packs)
+            </summary>
+            <div className="mt-3 grid gap-4 md:grid-cols-2">
+              <InventoryColumn
+                title="Wires"
+                emptyLabel="No wires yet."
+                items={chart.wires}
+                identifier={wireIdentifier}
+                notes={wireNotes}
+                identifierPlaceholder="Wire 1"
+                addLabel="Add wire"
+                busy={inventoryBusy}
+                onIdentifierChange={setWireIdentifier}
+                onNotesChange={setWireNotes}
+                onAdd={handleAddWire}
+                onEdit={(item) => openEditDialog("wire", item)}
+                onDelete={(item) => void handleDelete("wire", item)}
+              />
+              <InventoryColumn
+                title="Packs"
+                emptyLabel="No packs yet."
+                items={chart.packs}
+                identifier={packIdentifier}
+                notes={packNotes}
+                identifierPlaceholder="Pack 1"
+                addLabel="Add pack"
+                busy={inventoryBusy}
+                onIdentifierChange={setPackIdentifier}
+                onNotesChange={setPackNotes}
+                onAdd={handleAddPack}
+                onEdit={(item) => openEditDialog("pack", item)}
+                onDelete={(item) => void handleDelete("pack", item)}
+              />
+            </div>
+          </details>
+        )}
       </div>
 
       <div>
@@ -787,26 +810,30 @@ export default function LavChartPage() {
               <Printer className="mr-2 size-4" />
               Print
             </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => void handlePropose()}
-              disabled={proposing || saving}
-            >
-              {proposing ? "Proposing…" : `Propose ${assetNoun}s`}
-            </Button>
-            <Button
-              size="sm"
-              onClick={() => void handleSave()}
-              disabled={saving || !dirty || errorIssues.length > 0}
-              title={
-                errorIssues.length > 0
-                  ? "Resolve wire/pack conflicts before saving"
-                  : undefined
-              }
-            >
-              {saving ? "Saving…" : dirty ? "Save" : "Saved"}
-            </Button>
+            {canEditLavChart && (
+              <>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => void handlePropose()}
+                  disabled={proposing || saving}
+                >
+                  {proposing ? "Proposing…" : `Propose ${assetNoun}s`}
+                </Button>
+                <Button
+                  size="sm"
+                  onClick={() => void handleSave()}
+                  disabled={saving || !dirty || errorIssues.length > 0}
+                  title={
+                    errorIssues.length > 0
+                      ? "Resolve wire/pack conflicts before saving"
+                      : undefined
+                  }
+                >
+                  {saving ? "Saving…" : dirty ? "Save" : "Saved"}
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
@@ -867,7 +894,7 @@ export default function LavChartPage() {
                     <TableRow key={row.row_key} className="align-middle">
                       <TableHead className="lav-chart-sticky sticky left-0 z-10 border-r border-border bg-background px-2 py-2 text-left font-normal">
                         <div className="flex min-w-[10rem] items-start gap-1">
-                          <Button
+                          {canEditLavChart && <Button
                             type="button"
                             variant="ghost"
                             size="icon-xs"
@@ -877,7 +904,7 @@ export default function LavChartPage() {
                             onClick={() => toggleRowLock(row.row_key)}
                           >
                             {locked ? <Lock className="size-3.5" /> : <LockOpen className="size-3.5" />}
-                          </Button>
+                          </Button>}
                           <div className="min-w-0 flex-1">
                             <span className="font-medium">
                               {row.label}
@@ -888,7 +915,7 @@ export default function LavChartPage() {
                               )}
                             </span>
                           </div>
-                          <div className="lav-print-hide" data-lav-row-menu>
+                          {canEditLavChart && <div className="lav-print-hide" data-lav-row-menu>
                             <Button
                               type="button"
                               variant="ghost"
@@ -908,7 +935,7 @@ export default function LavChartPage() {
                             >
                               <MoreHorizontal className="size-4" />
                             </Button>
-                          </div>
+                          </div>}
                         </div>
                       </TableHead>
                       {chart.scenes.map((scene) => {
@@ -943,7 +970,7 @@ export default function LavChartPage() {
                           >
                             <Select
                               value={value != null ? String(value) : NO_ASSET_VALUE}
-                              disabled={locked}
+                              disabled={locked || !canEditLavChart}
                               onValueChange={(raw) => {
                                 const next = raw === NO_ASSET_VALUE ? null : Number(raw);
                                 if (sheet === "wires") {

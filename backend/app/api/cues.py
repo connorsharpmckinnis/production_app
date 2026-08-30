@@ -6,8 +6,7 @@ from app.api.catalog_csv_routes import (
     catalog_template_response,
     read_catalog_upload,
 )
-from app.api.deps import get_accessible_production
-from app.auth.dependencies import require_authenticated, require_director_or_admin
+from app.api.deps import get_accessible_production, require_production_capability
 from app.db.session import get_db
 from app.models import Act, Cue, CueCategory, Moment, Scene, User
 from app.schemas.catalog_csv import CatalogImportResult
@@ -74,7 +73,7 @@ def _cue_response(cue: Cue) -> CueResponse:
 @router.get("/{production_id}/cue-categories", response_model=list[CueCategoryResponse])
 def list_cue_categories(
     production_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("cue_categories", "read")),
     db: Session = Depends(get_db),
 ) -> list[CueCategoryResponse]:
     get_accessible_production(db, user, production_id)
@@ -102,10 +101,10 @@ def list_cue_categories(
 def create_cue_category(
     production_id: int,
     body: CueCategoryCreate,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("cue_categories", "create")),
     db: Session = Depends(get_db),
 ) -> CueCategoryResponse:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     category = CueCategory(
         production_id=production_id,
         name=body.name.strip(),
@@ -129,7 +128,7 @@ def update_cue_category(
     production_id: int,
     cue_category_id: int,
     body: CueCategoryUpdate,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("cue_categories", "update")),
     db: Session = Depends(get_db),
 ) -> CueCategoryResponse:
     category = _get_cue_category_or_404(db, production_id, cue_category_id)
@@ -155,7 +154,7 @@ def update_cue_category(
 def delete_cue_category(
     production_id: int,
     cue_category_id: int,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("cue_categories", "delete")),
     db: Session = Depends(get_db),
 ) -> None:
     category = _get_cue_category_or_404(db, production_id, cue_category_id)
@@ -166,10 +165,10 @@ def delete_cue_category(
 @router.get("/{production_id}/cue-categories/import/template")
 def download_cue_categories_csv_template(
     production_id: int,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("cue_categories", "read")),
     db: Session = Depends(get_db),
 ) -> Response:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     return catalog_template_response(
         "cue_categories_template.csv",
         CUE_CATEGORIES_COLUMNS,
@@ -183,10 +182,10 @@ def download_cue_categories_csv_template(
 async def import_cue_categories(
     production_id: int,
     file: UploadFile = File(...),
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("cue_categories", "create")),
     db: Session = Depends(get_db),
 ) -> CatalogImportResult:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     content = await read_catalog_upload(file)
     try:
         return import_cue_categories_csv(db, production_id, content)
@@ -201,7 +200,7 @@ async def import_cue_categories(
 def list_moment_cues(
     production_id: int,
     moment_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("cues", "read")),
     db: Session = Depends(get_db),
 ) -> list[CueResponse]:
     get_accessible_production(db, user, production_id)
@@ -225,7 +224,7 @@ def create_moment_cue(
     production_id: int,
     moment_id: int,
     body: CueCreate,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("cues", "create")),
     db: Session = Depends(get_db),
 ) -> CueResponse:
     _get_moment_in_production_or_404(db, production_id, moment_id)
@@ -258,7 +257,7 @@ def update_moment_cue(
     moment_id: int,
     cue_id: int,
     body: CueUpdate,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("cues", "update")),
     db: Session = Depends(get_db),
 ) -> CueResponse:
     _get_moment_in_production_or_404(db, production_id, moment_id)
@@ -300,7 +299,7 @@ def delete_moment_cue(
     production_id: int,
     moment_id: int,
     cue_id: int,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("cues", "delete")),
     db: Session = Depends(get_db),
 ) -> None:
     _get_moment_in_production_or_404(db, production_id, moment_id)

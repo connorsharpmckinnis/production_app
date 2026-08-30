@@ -5,10 +5,19 @@ import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
 import {
@@ -16,7 +25,11 @@ import {
   ROTATION_MAX_SECONDS,
   ROTATION_MIN_SECONDS,
 } from "@/lib/overviewSpotlight";
-import type { AppSettingsResponse, OverviewMessageDefaultResponse } from "@/lib/types";
+import type {
+  AppSettingsResponse,
+  OverviewMessageDefaultResponse,
+  ProductionRolePermissionResponse,
+} from "@/lib/types";
 
 function linesFromDefaults(defaults: OverviewMessageDefaultResponse[]): string {
   return defaults
@@ -33,18 +46,22 @@ export default function SettingsPage() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [savingQuotes, setSavingQuotes] = useState(false);
+  const [permissions, setPermissions] = useState<ProductionRolePermissionResponse[]>([]);
+  const [savingPermissions, setSavingPermissions] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function loadSettings() {
     setError(null);
     try {
-      const [settingsData, defaultsData] = await Promise.all([
+      const [settingsData, defaultsData, permissionData] = await Promise.all([
         api.getAppSettings(),
         api.getOverviewMessageDefaults(),
+        api.getProductionRolePermissions(),
       ]);
       setSettings(settingsData);
       setRotationInput(String(settingsData.default_message_rotation_seconds));
       setQuotesText(linesFromDefaults(defaultsData));
+      setPermissions(permissionData);
     } catch (err) {
       setError(formatApiError(err, "Failed to load settings"));
     } finally {
@@ -127,6 +144,43 @@ export default function SettingsPage() {
       toast.error(formatApiError(err, "Failed to save rotating messages"));
     } finally {
       setSavingQuotes(false);
+    }
+  }
+
+  function togglePermission(
+    roleCode: string,
+    resource: string,
+    action: string,
+    enabled: boolean,
+  ) {
+    setPermissions((current) =>
+      current.map((permission) =>
+        permission.role_code === roleCode &&
+        permission.resource === resource &&
+        permission.action === action
+          ? { ...permission, enabled }
+          : permission,
+      ),
+    );
+  }
+
+  async function handleSavePermissions() {
+    setSavingPermissions(true);
+    try {
+      const saved = await api.updateProductionRolePermissions(
+        permissions.map(({ role_code, resource, action, enabled }) => ({
+          role_code,
+          resource,
+          action,
+          enabled,
+        })),
+      );
+      setPermissions(saved);
+      toast.success("Production permissions saved");
+    } catch (err) {
+      toast.error(formatApiError(err, "Failed to save production permissions"));
+    } finally {
+      setSavingPermissions(false);
     }
   }
 
@@ -243,6 +297,87 @@ export default function SettingsPage() {
           </Button>
         </section>
       )}
+
+      <section className="space-y-4 rounded-lg border border-border p-4">
+        <div>
+          <h2 className="text-sm font-medium">Production role permissions</h2>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Changes are global and take effect on the next authorization check for every
+            active production membership with the selected role.
+          </p>
+        </div>
+        {permissions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No permission rows available.</p>
+        ) : (
+          <>
+            <div className="rounded-md border border-border">
+              <Table storageKey="production-role-permissions">
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Role</TableHead>
+                    <TableHead>Resource</TableHead>
+                    <TableHead className="text-center">Read</TableHead>
+                    <TableHead className="text-center">Create</TableHead>
+                    <TableHead className="text-center">Update</TableHead>
+                    <TableHead className="text-center">Delete</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {Array.from(
+                    new Map(
+                      permissions.map((permission) => [
+                        `${permission.role_code}:${permission.resource}`,
+                        permission,
+                      ]),
+                    ).values(),
+                  ).map((row) => (
+                    <TableRow key={`${row.role_code}:${row.resource}`}>
+                      <TableCell className="font-medium">{row.role_name}</TableCell>
+                      <TableCell className="font-mono text-xs">{row.resource}</TableCell>
+                      {["read", "create", "update", "delete"].map((action) => {
+                        const permission = permissions.find(
+                          (item) =>
+                            item.role_code === row.role_code &&
+                            item.resource === row.resource &&
+                            item.action === action,
+                        );
+                        return (
+                          <TableCell key={action} className="text-center">
+                            {permission ? (
+                              <Checkbox
+                                checked={permission.enabled}
+                                disabled={savingPermissions}
+                                aria-label={`${row.role_name} ${row.resource} ${action}`}
+                                onCheckedChange={(checked) =>
+                                  togglePermission(
+                                    row.role_code,
+                                    row.resource,
+                                    action,
+                                    checked === true,
+                                  )
+                                }
+                              />
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                        );
+                      })}
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+            <Button
+              type="button"
+              disabled={savingPermissions}
+              onClick={() => void handleSavePermissions()}
+            >
+              {savingPermissions ? "Saving…" : "Save permissions"}
+            </Button>
+          </>
+        )}
+      </section>
 
       <AnnouncementManager productionId={null} />
 

@@ -3,7 +3,7 @@
 **Status:** Prototype shipped (Slices A–C) — 2026-07-29  
 **Created:** 2026-07-28  
 **Updated:** 2026-08-01 — hard-delete inactive announcements (#84)  
-**Related:** Overview spotlight messages ([PHASE_8.md](../PHASE_8.md), [PREP_READINESS.md](../PREP_READINESS.md)), [ROLES.md](../ROLES.md), [SCRATCH_NOTES.md](../SCRATCH_NOTES.md) (spotlight vs future notifications), [UX_UI_IMPROVEMENTS.md](../UX_UI_IMPROVEMENTS.md) (bookmarks panel as header-panel precedent), [tasks-and-mentions.md](../feature_plans/tasks-and-mentions.md), [email-notifications.md](../feature_plans/email-notifications.md)
+**Related:** Overview spotlight messages ([PHASE_8.md](../PHASE_8.md), [PREP_READINESS.md](../PREP_READINESS.md)), [ROLES.md](../ROLES.md), [SCRATCH_NOTES.md](../SCRATCH_NOTES.md) (spotlight vs future notifications), [UX_UI_IMPROVEMENTS.md](../UX_UI_IMPROVEMENTS.md) (bookmarks panel as header-panel precedent), [casting-and-auditions.md](../feature_plans/casting-and-auditions.md), [tasks-and-mentions.md](../feature_plans/tasks-and-mentions.md), [email-notifications.md](../feature_plans/email-notifications.md)
 
 ---
 
@@ -46,9 +46,14 @@ Public two-way communication (@-mentions, tasks, DMs) is a separate future featu
 | Toasts | Ephemeral success/error (`ToastContext`) |
 | Confirm / dialogs | User-initiated CRUD and destructive confirms |
 | Deep links | Timeline human `?act=&scene=&moment=` (+ legacy PK); costumes `?characterId=`; Rehearse is path-only |
-| Roles | `Admin`, `Director`, `Actor` (no Staff role yet; “staff” ≈ Admin/Director) |
-| Production visibility | Admin/Director: all org productions; Actor: cast productions only |
+| Roles | `Admin` globally; `Member`, `Director`, and `Actor` through active production memberships |
+| Production visibility | Admin: all productions in their organization; active production members: assigned productions |
 | Notification tables | `announcements`, `announcement_audiences`, `announcement_ctas`, `notifications` |
+
+External audition-availability forms remain a valid announcement CTA for now.
+An eventual in-app intake should reuse the Casting workspace's production
+membership and unavailable-date records; it is planned separately in
+[casting-and-auditions.md](../feature_plans/casting-and-auditions.md).
 
 Relevant code (approximate):
 
@@ -107,7 +112,9 @@ These are **presentation modes**, not mutually exclusive with the inbox. Every a
 | **Role** | Actors only; Directors+Admins only; everyone |
 | **Future:** Group / casting subset | “Principals only” via existing `groups` — defer unless needed for MVP |
 
-Actors should only receive production-scoped items for productions they can access (casting). Admins/Directors see all productions they manage.
+Production announcements are resolved against active production memberships and
+the selected production role. Membership access is independent of casting, so
+an uncast Member or Actor can receive announcements before character assignment.
 
 ### Call-to-action links
 
@@ -141,7 +148,7 @@ No email/push in v1 unless explicitly added (see slices). In-app only is enough 
 | Action | Who (MVP) |
 | ------ | --------- |
 | Create/edit org-wide / product announcements | Admin |
-| Create/edit production-scoped announcements | Admin or Director |
+| Create/edit production-scoped announcements | Admin or active production member with announcement capability |
 | View / dismiss / mark read | Any authenticated user in audience |
 | Actor creates announcements | **No** (unless later “cast captain” role) |
 

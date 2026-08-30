@@ -24,10 +24,16 @@ def _user_response(user: User) -> UserResponse:
 
 @router.get("", response_model=list[UserResponse])
 def list_users(
-    _admin: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> list[UserResponse]:
-    users = db.query(User).options(joinedload(User.app_roles)).order_by(User.username).all()
+    users = (
+        db.query(User)
+        .options(joinedload(User.app_roles))
+        .filter(User.organization_id == admin.organization_id)
+        .order_by(User.username)
+        .all()
+    )
     return [_user_response(user) for user in users]
 
 
@@ -41,9 +47,19 @@ def create_user(
     if existing is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Username already exists")
 
-    role = db.query(AppRole).filter(AppRole.name == body.role_name).first()
-    if role is None:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Invalid role")
+    role = None
+    if body.role_name is not None:
+        if body.role_name != "Admin":
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Only the Admin organization role is supported",
+            )
+        role = db.query(AppRole).filter(AppRole.name == body.role_name).first()
+        if role is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid role",
+            )
 
     user = User(
         organization_id=admin.organization_id,
@@ -56,7 +72,8 @@ def create_user(
     )
     db.add(user)
     db.flush()
-    db.add(UserAppRole(user_id=user.id, app_role_id=role.id))
+    if role is not None:
+        db.add(UserAppRole(user_id=user.id, app_role_id=role.id))
     db.commit()
     db.refresh(user)
     user = (
@@ -78,7 +95,10 @@ def reset_password(
     user = (
         db.query(User)
         .options(joinedload(User.app_roles))
-        .filter(User.id == user_id)
+        .filter(
+            User.id == user_id,
+            User.organization_id == _admin.organization_id,
+        )
         .first()
     )
     if user is None:
@@ -105,7 +125,10 @@ def deactivate_user(
     user = (
         db.query(User)
         .options(joinedload(User.app_roles))
-        .filter(User.id == user_id)
+        .filter(
+            User.id == user_id,
+            User.organization_id == admin.organization_id,
+        )
         .first()
     )
     if user is None:

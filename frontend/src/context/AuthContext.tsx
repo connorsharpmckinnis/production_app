@@ -8,7 +8,7 @@ import {
   type ReactNode,
 } from "react";
 import { api, clearToken, getToken, setToken } from "@/lib/api";
-import type { AppRole, ImpersonationInfo, UserResponse } from "@/lib/types";
+import type { GlobalRole, ImpersonationInfo, UserResponse } from "@/lib/types";
 
 interface AuthContextValue {
   user: UserResponse | null;
@@ -17,11 +17,8 @@ interface AuthContextValue {
   logout: () => void;
   actAs: (userId: number) => Promise<void>;
   stopActAs: () => Promise<void>;
-  hasRole: (role: AppRole) => boolean;
+  hasRole: (role: GlobalRole) => boolean;
   isAdmin: boolean;
-  isDirector: boolean;
-  isActorOnly: boolean;
-  canManagePreparation: boolean;
   isImpersonating: boolean;
   impersonation: ImpersonationInfo | null;
 }
@@ -82,7 +79,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const hasRole = useCallback(
-    (role: AppRole) => user?.roles.includes(role) ?? false,
+    (role: GlobalRole) => user?.roles.includes(role) ?? false,
     [user],
   );
 
@@ -99,10 +96,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       stopActAs,
       hasRole,
       isAdmin: hasRole("Admin"),
-      isDirector: hasRole("Director"),
-      isActorOnly:
-        hasRole("Actor") && !hasRole("Admin") && !hasRole("Director"),
-      canManagePreparation: hasRole("Admin") || hasRole("Director"),
       isImpersonating,
       impersonation,
     }),

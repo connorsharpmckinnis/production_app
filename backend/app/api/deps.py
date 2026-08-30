@@ -1,10 +1,12 @@
 """Shared API helpers for production-scoped routes."""
 
-from fastapi import HTTPException, status
+from fastapi import Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.auth.dependencies import user_has_role
-from app.models import Character, Group, Production, User, UserCharacterAssignment
+from app.auth.dependencies import get_current_user, user_has_role
+from app.db.session import get_db
+from app.models import Character, Group, Production, ProductionMembership, User
+from app.services.production_memberships import effective_permissions, get_membership
 
 
 def user_display_name(user: User) -> str:
@@ -92,27 +94,96 @@ def get_production_or_404(db: Session, production_id: int) -> Production:
     return production
 
 
-def user_can_access_production(db: Session, user: User, production: Production) -> bool:
-    """Admin/Director: any production. Actor-only: only if cast in that production."""
-    if user_has_role(user, "Admin") or user_has_role(user, "Director"):
-        return True
-    if not user_has_role(user, "Actor"):
-        return False
-    assignment = (
-        db.query(UserCharacterAssignment.id)
-        .join(Character, Character.id == UserCharacterAssignment.character_id)
+def get_active_production_membership(
+    db: Session,
+    user: User,
+    production_id: int,
+) -> ProductionMembership | None:
+    """Return an active, same-organization membership for this user."""
+    if not user.is_active:
+        return None
+
+    production = (
+        db.query(Production)
         .filter(
-            UserCharacterAssignment.user_id == user.id,
-            Character.production_id == production.id,
+            Production.id == production_id,
+            Production.organization_id == user.organization_id,
         )
         .first()
     )
-    return assignment is not None
+    if production is None:
+        return None
+
+    membership = get_membership(db, production_id, user.id)
+    if membership is None or not membership.is_active:
+        return None
+    return membership
+
+
+get_active_membership = get_active_production_membership
+
+
+def user_has_production_capability(
+    db: Session,
+    user: User,
+    production: Production,
+    resource: str,
+    action: str,
+) -> bool:
+    """Check one production capability without crossing organization boundaries."""
+    if production.organization_id != user.organization_id or not user.is_active:
+        return False
+    if user_has_role(user, "Admin"):
+        return True
+
+    membership = get_active_production_membership(db, user, production.id)
+    if membership is None:
+        return False
+    return (resource, action) in effective_permissions(db, membership)
+
+
+has_production_capability = user_has_production_capability
+
+
+def user_can_access_production(db: Session, user: User, production: Production) -> bool:
+    """Return whether the user can read this production."""
+    return user_has_production_capability(db, user, production, "production", "read")
 
 
 def get_accessible_production(db: Session, user: User, production_id: int) -> Production:
-    """Load a production the user may access, or 404 (no existence leak for actors)."""
+    """Load an accessible production, hiding inaccessible IDs with a 404."""
     production = get_production_or_404(db, production_id)
     if not user_can_access_production(db, user, production):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Production not found")
     return production
+
+
+def require_production_capability(resource: str, action: str):
+    """Build a dependency for a capability on the route's production_id."""
+
+    def _require_production_capability(
+        production_id: int,
+        user: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
+    ) -> User:
+        production = get_production_or_404(db, production_id)
+        if production.organization_id != user.organization_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Production not found",
+            )
+
+        membership = get_active_production_membership(db, user, production_id)
+        if membership is None and not user_has_role(user, "Admin"):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Production not found",
+            )
+        if not user_has_production_capability(db, user, production, resource, action):
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"{resource} {action} access required",
+            )
+        return user
+
+    return _require_production_capability

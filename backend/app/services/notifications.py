@@ -7,9 +7,10 @@ from datetime import datetime, timezone
 from urllib.parse import urlparse
 
 from fastapi import HTTPException, status
+from sqlalchemy import exists, false, or_
 from sqlalchemy.orm import Session, joinedload
 
-from app.api.deps import user_can_access_production, user_display_name
+from app.api.deps import user_display_name
 from app.auth.dependencies import user_has_role
 from app.models import (
     Announcement,
@@ -18,6 +19,7 @@ from app.models import (
     AppRole,
     Notification,
     Production,
+    ProductionMembership,
     User,
     UserAppRole,
 )
@@ -30,10 +32,17 @@ from app.schemas.notifications import (
     NotificationInboxItem,
     NotificationInboxResponse,
 )
+from app.services.production_memberships import list_active_production_users
 
 INBOX_RECENT_LIMIT = 100
 
-VALID_ROLES = frozenset({"Admin", "Director", "Actor"})
+VALID_ROLES = frozenset({"Admin", "Director", "Actor", "Member"})
+GLOBAL_AUDIENCE_ROLES = frozenset({"Admin"})
+PRODUCTION_AUDIENCE_ROLE_CODES = {
+    "Director": "director",
+    "Actor": "actor",
+    "Member": "member",
+}
 
 
 def _utcnow() -> datetime:
@@ -124,41 +133,65 @@ def resolve_audience_user_ids(
     role_names: list[str],
 ) -> list[int]:
     """Users who have any of the target roles and can see the announcement scope."""
-    roles = set(role_names) & VALID_ROLES
-    if not roles:
-        return []
-
-    role_rows = db.query(AppRole).filter(AppRole.name.in_(roles)).all()
-    role_ids = [r.id for r in role_rows]
-    if not role_ids:
-        return []
-
-    candidates = (
-        db.query(User)
-        .join(UserAppRole, UserAppRole.user_id == User.id)
-        .filter(
-            User.organization_id == organization_id,
-            User.is_active.is_(True),
-            UserAppRole.app_role_id.in_(role_ids),
-        )
-        .distinct()
-        .all()
-    )
-
     if production_id is None:
-        return sorted({u.id for u in candidates})
+        roles = set(role_names) & GLOBAL_AUDIENCE_ROLES
+        if not roles:
+            return []
+
+        role_rows = db.query(AppRole).filter(AppRole.name.in_(roles)).all()
+        role_ids = [role.id for role in role_rows]
+        if not role_ids:
+            return []
+
+        candidates = (
+            db.query(User)
+            .join(UserAppRole, UserAppRole.user_id == User.id)
+            .filter(
+                User.organization_id == organization_id,
+                User.is_active.is_(True),
+                UserAppRole.app_role_id.in_(role_ids),
+            )
+            .distinct()
+            .all()
+        )
+        return sorted({user.id for user in candidates})
 
     production = db.query(Production).filter(Production.id == production_id).first()
-    if production is None:
+    if production is None or production.organization_id != organization_id:
         return []
 
-    return sorted(
-        {
+    user_ids: set[int] = set()
+    requested_roles = set(role_names) & VALID_ROLES
+
+    # Admin remains an organization-wide bypass for production announcements.
+    if "Admin" in requested_roles:
+        admin_role = db.query(AppRole).filter(AppRole.name == "Admin").first()
+        if admin_role is not None:
+            admin_ids = (
+                db.query(User.id)
+                .join(UserAppRole, UserAppRole.user_id == User.id)
+                .filter(
+                    User.organization_id == production.organization_id,
+                    User.is_active.is_(True),
+                    UserAppRole.app_role_id == admin_role.id,
+                )
+                .all()
+            )
+            user_ids.update(user_id for (user_id,) in admin_ids)
+
+    for role_name, role_code in PRODUCTION_AUDIENCE_ROLE_CODES.items():
+        if role_name not in requested_roles:
+            continue
+        user_ids.update(
             user.id
-            for user in candidates
-            if user_can_access_production(db, user, production)
-        }
-    )
+            for user in list_active_production_users(
+                db,
+                production.id,
+                role_code=role_code,
+            )
+        )
+
+    return sorted(user_ids)
 
 
 def _build_ctas(announcement_id: int, ctas: list[AnnouncementCtaCreate]) -> list[AnnouncementCta]:
@@ -597,6 +630,28 @@ def _notification_to_item(
     )
 
 
+def _notification_scope_filter(user: User):
+    """Keep production notifications limited to currently eligible users."""
+    if not user.is_active:
+        return false()
+
+    production_exists = exists().where(
+        Production.id == Notification.production_id,
+        Production.organization_id == user.organization_id,
+    )
+    if user_has_role(user, "Admin"):
+        return or_(Notification.production_id.is_(None), production_exists)
+
+    active_membership_exists = exists().where(
+        Production.id == Notification.production_id,
+        Production.organization_id == user.organization_id,
+        ProductionMembership.production_id == Production.id,
+        ProductionMembership.user_id == user.id,
+        ProductionMembership.is_active.is_(True),
+    )
+    return or_(Notification.production_id.is_(None), active_membership_exists)
+
+
 def build_inbox(
     db: Session,
     user: User,
@@ -604,9 +659,14 @@ def build_inbox(
     current_production_id: int | None = None,
     current_route_key: str | None = None,
 ) -> NotificationInboxResponse:
+    notification_scope = _notification_scope_filter(user)
     unread_count = (
         db.query(Notification)
-        .filter(Notification.user_id == user.id, Notification.read_at.is_(None))
+        .filter(
+            Notification.user_id == user.id,
+            Notification.read_at.is_(None),
+            notification_scope,
+        )
         .count()
     )
 
@@ -617,7 +677,7 @@ def build_inbox(
             joinedload(Notification.actor),
             joinedload(Notification.production),
         )
-        .filter(Notification.user_id == user.id)
+        .filter(Notification.user_id == user.id, notification_scope)
         .order_by(Notification.created_at.desc())
         .limit(max(INBOX_RECENT_LIMIT * 2, 200))
         .all()
@@ -648,6 +708,7 @@ def build_inbox(
             Notification.dismissed_at.is_(None),
             Notification.kind == "announcement",
             Notification.announcement_id.isnot(None),
+            notification_scope,
         )
         .all()
     )

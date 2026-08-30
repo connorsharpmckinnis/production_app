@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -24,7 +23,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAuth } from "@/context/AuthContext";
+import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
@@ -35,7 +34,10 @@ const COMMON_CATEGORIES = ["Lighting", "Sound", "Music", "Projection", "FX"];
 export default function CueCategoriesPage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
-  const { canManagePreparation } = useAuth();
+  const { hasCapability } = useProductionAccess();
+  const canManagePreparation = ["create", "update", "delete"].some((action) =>
+    hasCapability("cue_categories", action),
+  );
   const confirm = useConfirm();
   const toast = useToast();
 
@@ -176,11 +178,6 @@ export default function CueCategoriesPage() {
           ← Overview
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Cue Categories</h1>
-        <p className="text-sm text-muted-foreground">
-          {canManagePreparation
-            ? "Organize technical cues by category (Lighting, Sound, etc.)."
-            : "Cue categories in this production."}
-        </p>
       </div>
 
       {error && (
@@ -280,11 +277,6 @@ export default function CueCategoriesPage() {
           <form onSubmit={(e) => void handleSubmit(e)}>
             <DialogHeader>
               <DialogTitle>{editingCategory ? "Edit category" : "Add category"}</DialogTitle>
-              <DialogDescription>
-                {editingCategory
-                  ? "Update this cue category."
-                  : "Add a new cue category (e.g. Lighting, Sound)."}
-              </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-4">
               <div className="space-y-2">

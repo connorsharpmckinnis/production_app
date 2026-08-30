@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -25,7 +24,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { useAuth } from "@/context/AuthContext";
+import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
 import type { SongDetailResponse } from "@/lib/types";
@@ -33,7 +32,10 @@ import type { SongDetailResponse } from "@/lib/types";
 export default function SongsPage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
-  const { canManagePreparation } = useAuth();
+  const { hasCapability } = useProductionAccess();
+  const canManagePreparation = ["create", "update", "delete"].some((action) =>
+    hasCapability("songs", action),
+  );
   const toast = useToast();
 
   const [songs, setSongs] = useState<SongDetailResponse[]>([]);
@@ -135,11 +137,6 @@ export default function SongsPage() {
           ← Overview
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Songs</h1>
-        <p className="text-sm text-muted-foreground">
-          {canManagePreparation
-            ? "Manage songs and link them to timeline moments."
-            : "Songs in this production."}
-        </p>
       </div>
 
       {error && (
@@ -217,11 +214,6 @@ export default function SongsPage() {
           <form onSubmit={(e) => void handleSubmit(e)}>
             <DialogHeader>
               <DialogTitle>{editingSong ? "Edit song" : "Add song"}</DialogTitle>
-              <DialogDescription>
-                {editingSong
-                  ? `Update details for "${editingSong.title}".`
-                  : "Add a new song to the catalog."}
-              </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-4">
               {!editingSong && (

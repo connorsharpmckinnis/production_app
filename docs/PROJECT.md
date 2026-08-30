@@ -240,7 +240,8 @@ Authentication
 Initial MVP:
 
 - Local username/password authentication only
-- Role-based permissions: Admin, Director, Actor (see [ROLES.md](ROLES.md))
+- Role-based permissions: global Admin plus production-scoped Member, Director,
+  and Actor roles (see [ROLES.md](ROLES.md))
 - Admins create user accounts and manage passwords (including resets) for easy dev and testing
 
 Future:
@@ -280,6 +281,7 @@ Belongs to:
 Relationships:
 
 - App Roles (permissions)
+- Production memberships and production-scoped roles
 - Characters
 - Groups
 - Notes
@@ -292,11 +294,12 @@ Relationships:
 
 ## App Role
 
-Application permission level.
+Organization-level application permission. The MVP has one global role: Admin.
+Production Director and Actor capabilities are assigned through production
+memberships and are not organization-wide.
 
-MVP roles: Admin, Director, Actor.
-
-Many-to-many with Users. See [DATABASE.md](DATABASE.md) for the full role list and future additions.
+Many-to-many with Users. See [DATABASE.md](DATABASE.md) and [ROLES.md](ROLES.md)
+for the production role and permission model.
 
 ---
 
@@ -307,6 +310,7 @@ Many-to-many with Users. See [DATABASE.md](DATABASE.md) for the full role list a
 Owns:
 
 - Performances
+- Production memberships
 - Acts
 - Characters
 - Groups
@@ -569,9 +573,15 @@ Points to:
 
 
 
-## Rehearsal (Future)
+# Rehearsal
 
-Planned for post-MVP.
+Rehearsal management is now shipped through Phases 15–18. See
+[feature_plans/rehearsal-management.md](feature_plans/rehearsal-management.md).
+
+The current workflow owns production rehearsal slots, call-planning blocks,
+soft-published call sheets, rehearsal notes, and scene rehearsal counts. Actor
+availability/conflict collection remains deferred and is planned separately in
+[feature_plans/casting-and-auditions.md](feature_plans/casting-and-auditions.md).
 
 ---
 
@@ -620,12 +630,15 @@ Original text should never be discarded.
 4. Verify Acts and Scenes
 5. Verify Characters
 6. Verify Songs
-7. Assign Actors to Characters
-8. Configure Groups
-9. Add Entrances and Exits
-10. Add Blocking
-11. Add Props
-12. Add Notes
+7. Add production members and assign production roles
+8. Assign Actors to Characters
+9. Configure Groups
+10. Add Entrances and Exits
+11. Add Blocking
+12. Add Props
+13. Add Notes
+14. Plan rehearsals and publish calls
+15. Use the future Casting workspace for audition notes and availability
 
 ---
 
@@ -679,6 +692,8 @@ Timeline
 Preparation
 
 - Characters
+- People
+- Casting (planned; see [feature_plans/casting-and-auditions.md](feature_plans/casting-and-auditions.md))
 - Groups
 - Songs
 - Props
@@ -805,6 +820,11 @@ Summary:
 
 Import review (marking characters/songs as "verified") is **deferred** — directors will comb through imported timeline data directly once editing ships.
 
+**Current-state note:** the original Phase 2 casting and production-list behavior
+was later superseded by explicit production membership and production-scoped
+roles. See [feature_plans/production-membership-and-casting-workspace.md](feature_plans/production-membership-and-casting-workspace.md)
+and [ROLES.md](ROLES.md) for the current authorization model.
+
 ---
 
 
@@ -852,7 +872,14 @@ Summary:
 - Extended minimal reports (entrance/exit sheet, blocking sheet)
 - Demo package (multi-scene script validation, staff/director walkthrough doc)
 
-**Explicitly deferred past MVP:** attendance, tasks, performances, re-import, production status, actor availability/conflict forms, outbound email for calls. **Rehearsal management** (slots, planner, soft-publish call sheets, notes, times rehearsed) shipped in Phases 15–18 — see [feature_plans/rehearsal-management.md](feature_plans/rehearsal-management.md).
+**Explicitly deferred past MVP:** attendance, tasks, performances, re-import,
+production status, actor availability/conflict forms, outbound email for calls.
+**Rehearsal management** (slots, planner, soft-publish call sheets, notes, times
+rehearsed) shipped in Phases 15–18 — see
+[feature_plans/rehearsal-management.md](feature_plans/rehearsal-management.md).
+Availability dates, casting notes, and audition workflows are shaped in
+[feature_plans/casting-and-auditions.md](feature_plans/casting-and-auditions.md)
+but are not yet scheduled.
 
 ---
 

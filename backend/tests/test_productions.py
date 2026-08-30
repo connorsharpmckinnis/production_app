@@ -6,7 +6,6 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.db.seed import seed_database
 from app.models import (
     Act,
     Announcement,
@@ -23,13 +22,15 @@ from app.models import (
     UserCharacterAssignment,
 )
 from app.services.importer import import_script
+from scoped_test_helpers import add_test_production_memberships, seed_database_with_test_users
 
 FIXTURE_PATH = Path(__file__).resolve().parents[2] / "fixtures" / "scripts" / "endurance-scene1.md"
 
 
 @pytest.fixture
 def seeded_client(client: TestClient, db_session: Session, test_settings) -> TestClient:
-    seed_database(db_session, test_settings)
+    seed_database_with_test_users(db_session, test_settings)
+    db_session.commit()
     return client
 
 
@@ -50,6 +51,7 @@ def test_delete_empty_production(seeded_client: TestClient, db_session: Session)
         headers=headers,
     )
     production_id = create.json()["id"]
+    add_test_production_memberships(db_session, production_id)
 
     # Create always fans out admin inbox rows keyed to the production.
     assert (
@@ -81,6 +83,7 @@ def test_delete_production_cascades_announcements(
         headers=headers,
     )
     production_id = create.json()["id"]
+    add_test_production_memberships(db_session, production_id)
 
     announce = seeded_client.post(
         f"/api/productions/{production_id}/announcements",
@@ -117,6 +120,7 @@ def test_delete_imported_production_cascades(
         headers=headers,
     )
     production_id = create.json()["id"]
+    add_test_production_memberships(db_session, production_id)
     production = db_session.get(Production, production_id)
     assert production is not None
 
@@ -154,6 +158,7 @@ def test_delete_production_with_cast_notes_and_bookmarks(
         headers=headers,
     )
     production_id = create.json()["id"]
+    add_test_production_memberships(db_session, production_id)
     production = db_session.get(Production, production_id)
     assert production is not None
 
@@ -224,7 +229,9 @@ def test_delete_production_with_cast_notes_and_bookmarks(
     assert db_session.query(Bookmark).count() == 0
 
 
-def test_non_admin_cannot_delete_production(seeded_client: TestClient) -> None:
+def test_non_admin_cannot_delete_production(
+    seeded_client: TestClient, db_session: Session
+) -> None:
     admin_headers = _admin_headers(seeded_client)
     create = seeded_client.post(
         "/api/productions",
@@ -232,6 +239,7 @@ def test_non_admin_cannot_delete_production(seeded_client: TestClient) -> None:
         headers=admin_headers,
     )
     production_id = create.json()["id"]
+    add_test_production_memberships(db_session, production_id)
 
     director_login = seeded_client.post(
         "/api/auth/login",

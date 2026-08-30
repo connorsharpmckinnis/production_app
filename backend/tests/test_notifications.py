@@ -4,13 +4,14 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.db.seed import seed_database
 from app.models import Character, Notification, Production, User, UserCharacterAssignment
+from scoped_test_helpers import add_test_production_memberships, seed_database_with_test_users
 
 
 @pytest.fixture
 def seeded_client(client: TestClient, db_session: Session, test_settings) -> TestClient:
-    seed_database(db_session, test_settings)
+    seed_database_with_test_users(db_session, test_settings)
+    db_session.commit()
     return client
 
 
@@ -50,6 +51,7 @@ def test_create_production_notifies_admins(
 ) -> None:
     admin_headers = _login(seeded_client, "admin", "admin")
     production_id = _create_production(seeded_client, admin_headers, "Brand New")
+    add_test_production_memberships(db_session, production_id)
 
     admin = db_session.query(User).filter(User.username == "admin").one()
     notes = (
@@ -81,7 +83,9 @@ def test_production_announcement_actor_isolation(
     actor_headers = _login(seeded_client, "actor", "actor")
 
     production_a = _create_production(seeded_client, admin_headers, "Prod A")
+    add_test_production_memberships(db_session, production_a)
     production_b = _create_production(seeded_client, admin_headers, "Prod B")
+    add_test_production_memberships(db_session, production_b, include_actor=False)
     _cast_actor(db_session, production_a)
 
     create = seeded_client.post(
@@ -127,10 +131,13 @@ def test_production_announcement_actor_isolation(
     assert not any(item["title"] == "Other show note" for item in actor_inbox2["items"])
 
 
-def test_director_cannot_create_modal_or_org_wide(seeded_client: TestClient) -> None:
+def test_director_cannot_create_modal_or_org_wide(
+    seeded_client: TestClient, db_session: Session
+) -> None:
     director_headers = _login(seeded_client, "director", "director")
     admin_headers = _login(seeded_client, "admin", "admin")
     production_id = _create_production(seeded_client, admin_headers)
+    add_test_production_memberships(db_session, production_id, include_actor=False)
 
     denied_org = seeded_client.post(
         "/api/announcements",
@@ -158,10 +165,8 @@ def test_director_cannot_create_modal_or_org_wide(seeded_client: TestClient) -> 
 
 def test_org_modal_and_mark_read(
     seeded_client: TestClient,
-    db_session: Session,
 ) -> None:
     admin_headers = _login(seeded_client, "admin", "admin")
-    director_headers = _login(seeded_client, "director", "director")
 
     create = seeded_client.post(
         "/api/announcements",
@@ -171,7 +176,7 @@ def test_org_modal_and_mark_read(
             "body": "Release notes go here.",
             "severity": "info",
             "show_as_modal": True,
-            "audience_roles": ["Admin", "Director", "Actor"],
+            "audience_roles": ["Admin"],
             "ctas": [
                 {
                     "label": "Feedback",
@@ -184,7 +189,7 @@ def test_org_modal_and_mark_read(
     )
     assert create.status_code == 201, create.text
 
-    inbox = seeded_client.get("/api/notifications/inbox", headers=director_headers)
+    inbox = seeded_client.get("/api/notifications/inbox", headers=admin_headers)
     assert inbox.status_code == 200
     payload = inbox.json()
     assert payload["pending_modal"] is not None
@@ -193,11 +198,11 @@ def test_org_modal_and_mark_read(
 
     read = seeded_client.post(
         f"/api/notifications/{notification_id}/read",
-        headers=director_headers,
+        headers=admin_headers,
     )
     assert read.status_code == 204
 
-    inbox2 = seeded_client.get("/api/notifications/inbox", headers=director_headers).json()
+    inbox2 = seeded_client.get("/api/notifications/inbox", headers=admin_headers).json()
     assert inbox2["pending_modal"] is None
     matched = next(item for item in inbox2["items"] if item["id"] == notification_id)
     assert matched["read_at"] is not None
@@ -207,6 +212,7 @@ def test_banner_surface_and_dismiss(seeded_client: TestClient, db_session: Sessi
     admin_headers = _login(seeded_client, "admin", "admin")
     actor_headers = _login(seeded_client, "actor", "actor")
     production_id = _create_production(seeded_client, admin_headers)
+    add_test_production_memberships(db_session, production_id, include_director=False)
     _cast_actor(db_session, production_id)
 
     create = seeded_client.post(
@@ -249,9 +255,12 @@ def test_banner_surface_and_dismiss(seeded_client: TestClient, db_session: Sessi
     assert after["active_banner"] is None
 
 
-def test_announcement_deactivate_then_hard_delete(seeded_client: TestClient) -> None:
+def test_announcement_deactivate_then_hard_delete(
+    seeded_client: TestClient, db_session: Session
+) -> None:
     admin_headers = _login(seeded_client, "admin", "admin")
     production_id = _create_production(seeded_client, admin_headers)
+    add_test_production_memberships(db_session, production_id)
 
     create = seeded_client.post(
         f"/api/productions/{production_id}/announcements",
@@ -291,9 +300,12 @@ def test_announcement_deactivate_then_hard_delete(seeded_client: TestClient) -> 
     assert all(item["id"] != announcement_id for item in listed_after)
 
 
-def test_timeline_human_deep_link_cta_allowed(seeded_client: TestClient) -> None:
+def test_timeline_human_deep_link_cta_allowed(
+    seeded_client: TestClient, db_session: Session
+) -> None:
     admin_headers = _login(seeded_client, "admin", "admin")
     production_id = _create_production(seeded_client, admin_headers)
+    add_test_production_memberships(db_session, production_id)
 
     create = seeded_client.post(
         f"/api/productions/{production_id}/announcements",

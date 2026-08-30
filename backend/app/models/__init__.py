@@ -33,7 +33,12 @@ from app.models.notification import Notification
 from app.models.organization import Organization
 from app.models.pack import Pack
 from app.models.production import Production
+from app.models.production_membership import (
+    ProductionMembership,
+    ProductionMembershipRole,
+)
 from app.models.production_overview_message import ProductionOverviewMessage
+from app.models.production_role import ProductionRole, ProductionRolePermission
 from app.models.prop import Prop
 from app.models.rehearsal import (
     Rehearsal,
@@ -86,7 +91,11 @@ __all__ = [
     "Organization",
     "Pack",
     "Production",
+    "ProductionMembership",
+    "ProductionMembershipRole",
     "ProductionOverviewMessage",
+    "ProductionRole",
+    "ProductionRolePermission",
     "Prop",
     "Rehearsal",
     "RehearsalBlock",

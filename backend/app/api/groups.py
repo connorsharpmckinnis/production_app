@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
-from app.api.deps import get_accessible_production
-from app.auth.dependencies import require_role
+from app.api.deps import require_production_capability
 from app.db.session import get_db
 from app.models import Character, Group, User
 from app.schemas.characters import (
@@ -11,10 +10,9 @@ from app.schemas.characters import (
     GroupResponse,
     GroupUpdate,
 )
+from app.services.production_memberships import list_active_production_users
 
 router = APIRouter(prefix="/productions", tags=["groups"])
-
-require_director = require_role("Admin", "Director")
 
 
 def _group_response(group: Group) -> GroupResponse:
@@ -30,10 +28,9 @@ def _group_response(group: Group) -> GroupResponse:
 @router.get("/{production_id}/groups", response_model=list[GroupResponse])
 def list_groups(
     production_id: int,
-    director: User = Depends(require_director),
+    _user: User = Depends(require_production_capability("groups", "read")),
     db: Session = Depends(get_db),
 ) -> list[GroupResponse]:
-    get_accessible_production(db, director, production_id)
     groups = (
         db.query(Group)
         .options(joinedload(Group.characters), joinedload(Group.users))
@@ -52,10 +49,9 @@ def list_groups(
 def create_group(
     production_id: int,
     body: GroupCreate,
-    director: User = Depends(require_director),
+    _user: User = Depends(require_production_capability("groups", "create")),
     db: Session = Depends(get_db),
 ) -> GroupResponse:
-    get_accessible_production(db, director, production_id)
     group = Group(
         production_id=production_id,
         name=body.name.strip(),
@@ -72,10 +68,9 @@ def update_group(
     production_id: int,
     group_id: int,
     body: GroupUpdate,
-    director: User = Depends(require_director),
+    _user: User = Depends(require_production_capability("groups", "update")),
     db: Session = Depends(get_db),
 ) -> GroupResponse:
-    get_accessible_production(db, director, production_id)
     group = (
         db.query(Group)
         .options(joinedload(Group.characters), joinedload(Group.users))
@@ -105,10 +100,9 @@ def update_group(
 def delete_group(
     production_id: int,
     group_id: int,
-    director: User = Depends(require_director),
+    _user: User = Depends(require_production_capability("groups", "delete")),
     db: Session = Depends(get_db),
 ) -> None:
-    get_accessible_production(db, director, production_id)
     group = (
         db.query(Group)
         .filter(Group.id == group_id, Group.production_id == production_id)
@@ -125,10 +119,9 @@ def update_group_members(
     production_id: int,
     group_id: int,
     body: GroupMembershipUpdate,
-    director: User = Depends(require_director),
+    _user: User = Depends(require_production_capability("groups", "update")),
     db: Session = Depends(get_db),
 ) -> GroupResponse:
-    get_accessible_production(db, director, production_id)
     group = (
         db.query(Group)
         .options(joinedload(Group.characters), joinedload(Group.users))
@@ -155,7 +148,15 @@ def update_group_members(
         group.characters = characters
 
     if body.user_ids is not None:
-        users = db.query(User).filter(User.id.in_(body.user_ids), User.is_active.is_(True)).all()
+        active_members = {
+            user.id: user
+            for user in list_active_production_users(db, production_id)
+        }
+        users = [
+            active_members[user_id]
+            for user_id in body.user_ids
+            if user_id in active_members
+        ]
         if len(users) != len(set(body.user_ids)):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,

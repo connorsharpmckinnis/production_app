@@ -34,9 +34,10 @@ import { useAuth } from "@/context/AuthContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
-import type { AppRole, UserResponse } from "@/lib/types";
+import type { GlobalRole, UserResponse } from "@/lib/types";
 
-const ROLES: AppRole[] = ["Admin", "Director", "Actor"];
+const ROLES: GlobalRole[] = ["Admin"];
+const NO_GLOBAL_ROLE = "__none__";
 
 const EMPTY_CREATE_FORM = {
   username: "",
@@ -44,7 +45,7 @@ const EMPTY_CREATE_FORM = {
   first_name: "",
   last_name: "",
   email: "",
-  role_name: "Actor" as AppRole,
+  role_name: null as GlobalRole | null,
 };
 
 export default function UsersPage() {
@@ -91,14 +92,15 @@ export default function UsersPage() {
     setError(null);
 
     try {
-      await api.createUser({
+      const request = {
         username: createForm.username.trim(),
         password: createForm.password,
         first_name: createForm.first_name.trim(),
         last_name: createForm.last_name.trim(),
         email: createForm.email.trim() || null,
-        role_name: createForm.role_name,
-      });
+        ...(createForm.role_name ? { role_name: createForm.role_name } : {}),
+      };
+      await api.createUser(request);
       closeCreateDialog();
       toast.success("User created");
       loadUsers();
@@ -149,7 +151,6 @@ export default function UsersPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">User Management</h1>
-          <p className="text-sm text-muted-foreground">Create and manage user accounts</p>
         </div>
         <Button type="button" onClick={() => setCreateDialogOpen(true)}>
           Create User
@@ -166,7 +167,6 @@ export default function UsersPage() {
         <DialogContent className="sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>Create User</DialogTitle>
-            <DialogDescription>Add a new user account to the system.</DialogDescription>
           </DialogHeader>
           <form id="create-user-form" onSubmit={handleCreate} className="grid gap-4 sm:grid-cols-2">
             <div className="space-y-2">
@@ -213,15 +213,19 @@ export default function UsersPage() {
             <div className="space-y-2">
               <Label>Role</Label>
               <Select
-                value={createForm.role_name}
+                value={createForm.role_name ?? NO_GLOBAL_ROLE}
                 onValueChange={(value) =>
-                  setCreateForm({ ...createForm, role_name: value as AppRole })
+                  setCreateForm({
+                    ...createForm,
+                    role_name: value === NO_GLOBAL_ROLE ? null : (value as GlobalRole),
+                  })
                 }
               >
                 <SelectTrigger className="w-full">
                   <SelectValue placeholder="Role" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value={NO_GLOBAL_ROLE}>No global role</SelectItem>
                   {ROLES.map((role) => (
                     <SelectItem key={role} value={role}>
                       {role}

@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
+import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
@@ -147,7 +148,11 @@ export default function RehearsalDetailPage() {
   }>();
   const productionId = Number(id);
   const rehearsalId = Number(rehearsalIdParam);
-  const { user, canManagePreparation } = useAuth();
+  const { user } = useAuth();
+  const { hasCapability } = useProductionAccess();
+  const canManagePreparation = ["create", "update", "delete"].some((action) =>
+    hasCapability("rehearsals", action),
+  );
   const confirm = useConfirm();
   const toast = useToast();
 

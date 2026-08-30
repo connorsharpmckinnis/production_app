@@ -6,8 +6,12 @@ from app.api.catalog_csv_routes import (
     catalog_template_response,
     read_catalog_upload,
 )
-from app.api.deps import get_accessible_production, user_display_name, validate_optional_person
-from app.auth.dependencies import require_authenticated, require_director_or_admin
+from app.api.deps import (
+    get_accessible_production,
+    require_production_capability,
+    user_display_name,
+    validate_optional_person,
+)
 from app.db.session import get_db
 from app.models import Act, Moment, MomentSetPieceEvent, Scene, SetPiece, User
 from app.schemas.catalog_csv import CatalogImportResult
@@ -69,7 +73,7 @@ def _moment_set_piece_event_response(event: MomentSetPieceEvent) -> MomentSetPie
 @router.get("/{production_id}/set-pieces", response_model=list[SetPieceResponse])
 def list_set_pieces(
     production_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("set_pieces", "read")),
     db: Session = Depends(get_db),
 ) -> list[SetPieceResponse]:
     get_accessible_production(db, user, production_id)
@@ -98,10 +102,10 @@ def list_set_pieces(
 def create_set_piece(
     production_id: int,
     body: SetPieceCreate,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("set_pieces", "create")),
     db: Session = Depends(get_db),
 ) -> SetPieceResponse:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     set_piece = SetPiece(
         production_id=production_id,
         name=body.name.strip(),
@@ -127,7 +131,7 @@ def update_set_piece(
     production_id: int,
     set_piece_id: int,
     body: SetPieceUpdate,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("set_pieces", "update")),
     db: Session = Depends(get_db),
 ) -> SetPieceResponse:
     set_piece = _get_set_piece_or_404(db, production_id, set_piece_id)
@@ -154,7 +158,7 @@ def update_set_piece(
 def delete_set_piece(
     production_id: int,
     set_piece_id: int,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("set_pieces", "delete")),
     db: Session = Depends(get_db),
 ) -> None:
     set_piece = _get_set_piece_or_404(db, production_id, set_piece_id)
@@ -165,10 +169,10 @@ def delete_set_piece(
 @router.get("/{production_id}/set-pieces/import/template")
 def download_set_pieces_csv_template(
     production_id: int,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("set_pieces", "read")),
     db: Session = Depends(get_db),
 ) -> Response:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     return catalog_template_response("set_pieces_template.csv", SET_PIECES_COLUMNS)
 
 
@@ -179,10 +183,10 @@ def download_set_pieces_csv_template(
 async def import_set_pieces(
     production_id: int,
     file: UploadFile = File(...),
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("set_pieces", "create")),
     db: Session = Depends(get_db),
 ) -> CatalogImportResult:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     content = await read_catalog_upload(file)
     try:
         return import_set_pieces_csv(db, production_id, content)
@@ -197,7 +201,7 @@ async def import_set_pieces(
 def list_moment_set_piece_events(
     production_id: int,
     moment_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("set_pieces", "read")),
     db: Session = Depends(get_db),
 ) -> list[MomentSetPieceEventResponse]:
     get_accessible_production(db, user, production_id)
@@ -225,7 +229,7 @@ def create_moment_set_piece_event(
     production_id: int,
     moment_id: int,
     body: MomentSetPieceEventCreate,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("set_pieces", "create")),
     db: Session = Depends(get_db),
 ) -> MomentSetPieceEventResponse:
     _get_moment_in_production_or_404(db, production_id, moment_id)
@@ -278,7 +282,7 @@ def update_moment_set_piece_event(
     moment_id: int,
     moment_set_piece_event_id: int,
     body: MomentSetPieceEventUpdate,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("set_pieces", "update")),
     db: Session = Depends(get_db),
 ) -> MomentSetPieceEventResponse:
     _get_moment_in_production_or_404(db, production_id, moment_id)
@@ -324,7 +328,7 @@ def delete_moment_set_piece_event(
     production_id: int,
     moment_id: int,
     moment_set_piece_event_id: int,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("set_pieces", "delete")),
     db: Session = Depends(get_db),
 ) -> None:
     _get_moment_in_production_or_404(db, production_id, moment_id)

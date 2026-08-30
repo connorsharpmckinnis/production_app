@@ -3,10 +3,10 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import (
     get_accessible_production,
+    require_production_capability,
     user_display_name,
     validate_blocking_subject,
 )
-from app.auth.dependencies import require_authenticated, require_director_or_admin
 from app.db.session import get_db
 from app.models import (
     Act,
@@ -112,7 +112,7 @@ def _blocking_response(blocking: MomentBlocking) -> MomentBlockingResponse:
 def list_moment_entrances(
     production_id: int,
     moment_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("timeline", "read")),
     db: Session = Depends(get_db),
 ) -> list[MomentEntranceResponse]:
     get_accessible_production(db, user, production_id)
@@ -136,10 +136,10 @@ def attach_moment_entrance(
     production_id: int,
     moment_id: int,
     body: MomentEntranceCreate,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("timeline", "create")),
     db: Session = Depends(get_db),
 ) -> MomentEntranceResponse:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     _validate_character_in_production(db, production_id, body.character_id)
 
@@ -181,10 +181,10 @@ def detach_moment_entrance(
     production_id: int,
     moment_id: int,
     entrance_id: int,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("timeline", "delete")),
     db: Session = Depends(get_db),
 ) -> None:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     entrance = (
         db.query(MomentEntrance)
@@ -207,7 +207,7 @@ def detach_moment_entrance(
 def list_moment_exits(
     production_id: int,
     moment_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("timeline", "read")),
     db: Session = Depends(get_db),
 ) -> list[MomentExitResponse]:
     get_accessible_production(db, user, production_id)
@@ -231,10 +231,10 @@ def attach_moment_exit(
     production_id: int,
     moment_id: int,
     body: MomentExitCreate,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("timeline", "create")),
     db: Session = Depends(get_db),
 ) -> MomentExitResponse:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     _validate_character_in_production(db, production_id, body.character_id)
 
@@ -276,10 +276,10 @@ def detach_moment_exit(
     production_id: int,
     moment_id: int,
     exit_id: int,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("timeline", "delete")),
     db: Session = Depends(get_db),
 ) -> None:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     exit_row = (
         db.query(MomentExit)
@@ -302,7 +302,7 @@ def detach_moment_exit(
 def list_moment_blocking(
     production_id: int,
     moment_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("timeline", "read")),
     db: Session = Depends(get_db),
 ) -> list[MomentBlockingResponse]:
     get_accessible_production(db, user, production_id)
@@ -326,10 +326,10 @@ def attach_moment_blocking(
     production_id: int,
     moment_id: int,
     body: MomentBlockingCreate,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("timeline", "create")),
     db: Session = Depends(get_db),
 ) -> MomentBlockingResponse:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     validate_blocking_subject(
         db,
@@ -385,10 +385,10 @@ def update_moment_blocking(
     moment_id: int,
     blocking_id: int,
     body: MomentBlockingUpdate,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("timeline", "update")),
     db: Session = Depends(get_db),
 ) -> MomentBlockingResponse:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     blocking = (
         db.query(MomentBlocking)
@@ -420,10 +420,10 @@ def detach_moment_blocking(
     production_id: int,
     moment_id: int,
     blocking_id: int,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("timeline", "delete")),
     db: Session = Depends(get_db),
 ) -> None:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     blocking = (
         db.query(MomentBlocking)

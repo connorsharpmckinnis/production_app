@@ -8,10 +8,12 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/AuthContext";
+import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { api, formatApiError } from "@/lib/api";
 import { dimensionHref } from "@/lib/overviewSpotlight";
 import type {
   CharacterDetailResponse,
+  ProductionMemberResponse,
   ProductionOverviewResponse,
   ReadinessDimension,
 } from "@/lib/types";
@@ -22,13 +24,26 @@ const GAP_PREVIEW_LIMIT = 3;
 export default function ProductionOverviewPage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
-  const { user, canManagePreparation, isAdmin, isActorOnly } = useAuth();
+  const { user, isAdmin } = useAuth();
+  const { access, hasCapability } = useProductionAccess();
+  const canReadPeople = hasCapability("people", "read");
+  const canManagePreparation =
+    hasCapability("overview", "update") ||
+    hasCapability("announcements", "create") ||
+    hasCapability("announcements", "update");
+  const isActorOnly =
+    Boolean(access?.role_codes.includes("actor")) &&
+    !access?.role_codes.includes("director") &&
+    !isAdmin;
 
   const [overview, setOverview] = useState<ProductionOverviewResponse | null>(null);
   const [myRoles, setMyRoles] = useState<CharacterDetailResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [rolesLoading, setRolesLoading] = useState(false);
   const [rolesError, setRolesError] = useState<string | null>(null);
+  const [people, setPeople] = useState<ProductionMemberResponse[]>([]);
+  const [peopleLoading, setPeopleLoading] = useState(false);
+  const [peopleError, setPeopleError] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loadOverview = useCallback(async () => {
@@ -84,6 +99,36 @@ export default function ProductionOverviewPage() {
     };
   }, [isActorOnly, overview, productionId, user]);
 
+  useEffect(() => {
+    if (!canReadPeople) {
+      setPeople([]);
+      setPeopleError(null);
+      setPeopleLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+    setPeopleLoading(true);
+    setPeopleError(null);
+    void api
+      .listProductionPeople(productionId)
+      .then((members) => {
+        if (!cancelled) setPeople(members);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setPeopleError(formatApiError(err, "Could not load the people roster."));
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setPeopleLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [canReadPeople, productionId]);
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -116,6 +161,9 @@ export default function ProductionOverviewPage() {
         myRoles={myRoles}
         rolesLoading={rolesLoading}
         rolesError={rolesError}
+        people={people}
+        peopleLoading={peopleLoading}
+        peopleError={peopleError}
       />
     );
   }
@@ -127,6 +175,9 @@ export default function ProductionOverviewPage() {
       canManagePreparation={canManagePreparation}
       isAdmin={isAdmin}
       onMessagesSaved={() => void loadOverview()}
+      people={people}
+      peopleLoading={peopleLoading}
+      peopleError={peopleError}
     />
   );
 }
@@ -137,12 +188,18 @@ function StaffOverview({
   canManagePreparation,
   isAdmin,
   onMessagesSaved,
+  people,
+  peopleLoading,
+  peopleError,
 }: {
   productionId: number;
   overview: ProductionOverviewResponse;
   canManagePreparation: boolean;
   isAdmin: boolean;
   onMessagesSaved: () => void;
+  people: ProductionMemberResponse[];
+  peopleLoading: boolean;
+  peopleError: string | null;
 }) {
   const needsImport = overview.act_count === 0;
   const readinessLabel =
@@ -172,6 +229,13 @@ function StaffOverview({
         productionId={productionId}
         messages={overview.spotlight}
         rotationSeconds={overview.rotation_seconds}
+      />
+
+      <PeopleRosterSection
+        productionId={productionId}
+        people={people}
+        loading={peopleLoading}
+        error={peopleError}
       />
 
       {needsImport && (
@@ -250,12 +314,18 @@ function ActorOverview({
   myRoles,
   rolesLoading,
   rolesError,
+  people,
+  peopleLoading,
+  peopleError,
 }: {
   productionId: number;
   overview: ProductionOverviewResponse;
   myRoles: CharacterDetailResponse[];
   rolesLoading: boolean;
   rolesError: string | null;
+  people: ProductionMemberResponse[];
+  peopleLoading: boolean;
+  peopleError: string | null;
 }) {
   return (
     <div className="space-y-8 pb-10">
@@ -276,6 +346,13 @@ function ActorOverview({
         productionId={productionId}
         messages={overview.spotlight}
         rotationSeconds={overview.rotation_seconds}
+      />
+
+      <PeopleRosterSection
+        productionId={productionId}
+        people={people}
+        loading={peopleLoading}
+        error={peopleError}
       />
 
       <section className="space-y-3">
@@ -369,6 +446,54 @@ function DimensionCard({
         <Link to={href}>Open {dimension.label.toLowerCase()}</Link>
       </Button>
     </article>
+  );
+}
+
+function PeopleRosterSection({
+  productionId,
+  people,
+  loading,
+  error,
+}: {
+  productionId: number;
+  people: ProductionMemberResponse[];
+  loading: boolean;
+  error: string | null;
+}) {
+  return (
+    <section className="space-y-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="text-sm font-medium">Production people</h2>
+          <p className="text-sm text-muted-foreground">
+            Active members and contact details for this production.
+          </p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link to={`/productions/${productionId}/people`}>Open People</Link>
+        </Button>
+      </div>
+      {error ? (
+        <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm">
+          The roster could not be loaded: {error}
+        </p>
+      ) : loading ? (
+        <p className="text-sm text-muted-foreground">Loading production people…</p>
+      ) : people.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No active production members yet.</p>
+      ) : (
+        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          {people.map((person) => (
+            <div key={person.user_id} className="rounded-md border border-border bg-card px-3 py-2">
+              <p className="text-sm font-medium">{person.display_name}</p>
+              {person.email && (
+                <p className="truncate text-xs text-muted-foreground">{person.email}</p>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
   );
 }
 

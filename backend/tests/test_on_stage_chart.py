@@ -6,17 +6,18 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.db.seed import seed_database
 from app.models import Production
 from app.services.importer import import_script
 from app.services.on_stage_chart import ChartMoment, assemble_on_stage_chart
+from scoped_test_helpers import add_test_production_memberships, seed_database_with_test_users
 
 FIXTURE_PATH = Path(__file__).resolve().parents[2] / "fixtures" / "scripts" / "endurance-scene1.md"
 
 
 @pytest.fixture
 def seeded_client(client: TestClient, db_session: Session, test_settings) -> TestClient:
-    seed_database(db_session, test_settings)
+    seed_database_with_test_users(db_session, test_settings)
+    db_session.commit()
     return client
 
 
@@ -201,6 +202,7 @@ def _imported_production(client: TestClient, db_session: Session) -> int:
     production_id = create.json()["id"]
     production = db_session.get(Production, production_id)
     assert production is not None
+    add_test_production_memberships(db_session, production)
     import_script(db_session, production, FIXTURE_PATH.read_text(encoding="utf-8"))
     return production_id
 
@@ -265,8 +267,8 @@ def test_on_stage_chart_endpoint_matches_posted_entrance_and_exit(
     assert interval["end_index"] > interval["start_index"]
 
     actor = _login(seeded_client, "actor", "actor")
-    forbidden = seeded_client.get(
+    allowed = seeded_client.get(
         f"/api/productions/{production_id}/reports/on-stage-chart",
         headers=actor,
     )
-    assert forbidden.status_code == 403
+    assert allowed.status_code == 200

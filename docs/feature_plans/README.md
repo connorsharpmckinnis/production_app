@@ -20,6 +20,7 @@ Use this folder when:
 | Status | Meaning |
 | ------ | ------- |
 | **Proposal** | Shaped idea; not yet treated as committed roadmap |
+| **Active implementation** | Authorized work is in progress; hardening or closeout remains |
 | **Roadmap (approved intent)** | Owner intends to build eventually; not scheduled/phased yet |
 | **Roadmap (curiosity / far-field)** | Captured for thoughtful prioritization; shape may change; still stronger than a random Enhancement |
 | **Far-future (v2+)** | Valid idea; explicitly deferred past first real show/season (or equivalent). Do not phase or prioritize against near work |
@@ -37,7 +38,8 @@ When implementing, agents should read the matching plan here for goals, non-goal
 
 | Plan | Status | One-liner |
 | ---- | ------ | --------- |
-| [production-membership-and-casting-workspace.md](production-membership-and-casting-workspace.md) | Proposal | Explicit production roster, production-scoped roles, pre-casting membership, and contact/casting workspace |
+| [production-membership-and-casting-workspace.md](production-membership-and-casting-workspace.md) | Active implementation | Explicit production roster, production-scoped roles, pre-casting membership, and contact/casting workspace; downstream hardening remains |
+| [casting-and-auditions.md](casting-and-auditions.md) | Proposal | Casting workspace, private audition notes, per-person unavailable dates, and rehearsal conflict awareness |
 
 ## Approved roadmap (near / mid)
 

@@ -32,7 +32,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { useAuth } from "@/context/AuthContext";
+import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
@@ -43,7 +43,10 @@ export default function CostumesPage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
   const [searchParams] = useSearchParams();
-  const { canManagePreparation } = useAuth();
+  const { hasCapability } = useProductionAccess();
+  const canManagePreparation = ["create", "update", "delete"].some((action) =>
+    hasCapability("costumes", action),
+  );
   const confirm = useConfirm();
   const toast = useToast();
 
@@ -178,11 +181,6 @@ export default function CostumesPage() {
           ← Overview
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Costumes</h1>
-        <p className="text-sm text-muted-foreground">
-          {canManagePreparation
-            ? "Manage the costume/look catalog, then record wear/clear changes on the timeline."
-            : "Costumes in this production."}
-        </p>
       </div>
 
       {error && (
@@ -276,11 +274,11 @@ export default function CostumesPage() {
           <form onSubmit={(e) => void handleSubmit(e)}>
             <DialogHeader>
               <DialogTitle>{editingCostume ? "Edit costume" : "Add costume"}</DialogTitle>
-              <DialogDescription>
-                {editingCostume
-                  ? "Update this costume in the catalog."
-                  : "Add a look to the catalog. Record when it's worn from the timeline."}
-              </DialogDescription>
+              {!editingCostume && (
+                <DialogDescription>
+                  Add a look to the catalog. Record when it's worn from the timeline.
+                </DialogDescription>
+              )}
             </DialogHeader>
             <div className="space-y-3 py-4">
               <div className="space-y-2">

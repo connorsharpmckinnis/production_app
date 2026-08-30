@@ -10,6 +10,7 @@ from app.api import (
     lav_chart,
     notes,
     notifications,
+    people,
     packs,
     productions,
     props,
@@ -35,6 +36,7 @@ api_router.include_router(timeline.lookup_router)
 api_router.include_router(characters.router)
 api_router.include_router(groups.router)
 api_router.include_router(notes.router)
+api_router.include_router(people.router)
 api_router.include_router(props.router)
 api_router.include_router(cues.router)
 api_router.include_router(costumes.router)
