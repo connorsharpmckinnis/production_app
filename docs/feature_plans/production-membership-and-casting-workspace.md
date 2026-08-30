@@ -2,6 +2,7 @@
 
 **Status:** Proposal  
 **Created:** 2026-08-28  
+**Updated:** 2026-08-29
 **Related:** [ROLES.md](../ROLES.md), [PROJECT.md](../PROJECT.md), [DATABASE.md](../DATABASE.md), [crew-roles.md](crew-roles.md), [understudies-and-cast-overrides.md](understudies-and-cast-overrides.md), [production-home-and-modes.md](production-home-and-modes.md)
 
 ---
@@ -16,10 +17,11 @@ The feature should let an Admin or an authorized production lead:
 - Assign one or more production roles to that person.
 - Assign actors to characters independently of production membership.
 - Assign one person different roles in different productions.
-- Show the people responsible for a production on its Overview page.
+- Show the active production roster and contact information to production members.
+- Let Admins configure the permission matrix for production roles in App Settings.
 
 The data model should support future roles such as Stage Manager without making every
-organization-wide Director or Actor account automatically part of every production.
+organization user automatically part of every production.
 
 This is an authorization and domain-model change, not only a new casting page.
 
@@ -64,6 +66,11 @@ accounts, reset passwords, and deactivate accounts at the organization level.
 
 An organization user may exist without belonging to any production.
 
+`Admin` is the only organization-wide role for now. `Director` and `Actor` are
+production-scoped roles and do not grant access to every production in the organization.
+Future organization-wide staff roles such as Production Manager or Marketing Manager
+are deferred.
+
 ### Production membership
 
 A membership answers:
@@ -85,12 +92,60 @@ A production role answers:
 
 The first role set should be deliberately small:
 
+- `Member`
 - `Director`
 - `Actor`
 
 The role registry should make later additions such as `Stage Manager` possible without
-reintroducing organization-wide access. Role-specific permission flags and a large
-crew-role taxonomy remain later work.
+reintroducing organization-wide access. A person may hold multiple roles in one
+production; roles are additive rather than mutually exclusive.
+
+`production_roles` stores reusable role definitions such as `Director`, `Actor`, and
+future `Stage Manager`. `production_membership_roles` is the join table that assigns
+one or more of those role definitions to one user's membership in one production. The
+role definition is not the assignment: the definition describes what a role means, and
+the join row says that this particular person has that role here.
+
+### Production-role permission matrix
+
+App Settings should expose an Admin-only matrix of production role permissions. The
+matrix is global to the app and applies to every production, so an Admin can change
+what a role may do without editing each production separately. A change applies to all
+active memberships carrying that role.
+
+The implementation should store the matrix as normalized role/resource/action rows
+rather than hard-coding a checkbox table into the frontend. The initial resource list
+should cover every user-facing production object and workflow, not every internal
+database table. At minimum this includes production/Overview, Script/Timeline
+structure, Characters/casting, Groups, Songs, Props, Costumes, Set Pieces, the lav
+chart (Wires/Packs), Cue Categories/Cues, Notes, Tasks, Rehearse, Rehearsals/Calls,
+Reports, Announcements/Notifications, and People/membership. The matrix should use
+explicit CRUD-style capabilities (`read`, `create`, `update`, `delete`) rather than
+treating “write” as an ambiguous catch-all; individual resources may leave actions
+disabled by default.
+
+For a membership with multiple roles, effective role permissions are the union of the
+permissions granted by its active roles. V1 has no per-user deny or allow overrides.
+
+`Member` is the baseline production role for an active participant who needs general
+production access but no preparation-management permissions. It should receive the
+minimum general-read capabilities, including People roster visibility, while Director
+and Actor receive the additional defaults documented in WP0. An active membership must
+have at least one production role.
+
+### Future per-member permission overrides
+
+Later, an Admin should be able to grant or restrict a specific member's permission
+without inventing a new production role. For example, Greg could be an Actor and
+Costume Staff member while also receiving Set `read` and `update` access but not
+`delete` access.
+
+The likely shape is a membership-scoped override table keyed by
+`production_membership_id`, resource, and action, with an explicit allow/deny value.
+Effective access would start with the union of role permissions and then apply the
+member-specific override. This needs a defined deny-precedence rule, Admin-only
+management, and at least a basic last-modified timestamp when it is scheduled. It is
+intentionally deferred until the role matrix has been exercised in real workflows.
 
 ### Character casting
 
@@ -137,6 +192,13 @@ Suggested tables:
 - `production_membership_roles`
   - `membership_id`
   - `production_role_id`
+  - `created_at`
+  - `updated_at`
+- `production_role_permissions`
+  - `production_role_id`
+  - resource key
+  - action/capability
+  - enabled
 
 Constraints and invariants:
 
@@ -145,69 +207,77 @@ Constraints and invariants:
 - Foreign keys with production/member deletion behavior documented.
 - Only active organization users can receive a new active membership.
 - A membership and its user must belong to the production's organization.
+- Every active membership must have at least one active production role; enforce this
+  in membership/role service operations and API validation.
 - A cast user must be an active member with the `Actor` production role.
 - Existing one-actor-per-character uniqueness remains in place.
+- Only Admins may change `production_role_permissions`.
+- Multiple active roles grant the union of their enabled permissions.
+- Role permission changes apply to all matching memberships without per-production
+  permission copies.
 
-The separate membership row is intentional. It allows a future access-only or
-administrative production participant without forcing every person into a role, while
-the role join allows one person to hold multiple capacities in the same production.
+The separate membership row is intentional. It keeps participation independent from
+casting, while the role join allows one person to hold multiple capacities in the same
+production. In V1, every active membership has at least one role, normally `Member`,
+`Director`, `Actor`, or a combination.
 
 ---
 
-## Open questions
+## Resolved decisions
 
-These decisions should be resolved before implementation is authorized.
+1. `Admin` remains the only organization-wide role. Global `Director` and `Actor`
+   roles are not part of the target authorization model; production assignments use
+   production roles instead. Future organization-wide staff roles are deferred.
+2. Do not backfill existing users or casts. The schema and seeded role definitions may
+   be added, but an Admin will manually add users to productions and assign `Member`,
+   `Director`, `Actor`, and other roles. This is acceptable because the data is still
+   test data.
+3. Admins and active production Directors may add existing organization users, assign
+   or remove production roles, and deactivate production memberships. Account
+   creation, password resets, organization-level deactivation, and role-permission
+   changes remain Admin-only.
+4. An active uncast Actor can see general production content, including the Script,
+   Timeline, production notifications, and the other normal production views. Anything
+   that depends on a character or group assignment remains unavailable or inactive
+   until the relevant assignment exists. This includes My Lines, actor-filtered
+   views, character-specific Rehearse behavior, and scene-derived cast suggestions.
+5. Any active member can see the name and optional email address of other members in
+   that production. Do not add phone numbers or a separate contact-directory system.
+6. Every active membership has at least one production role. `Member` is the default
+   baseline role for participants who need general production access but no
+   preparation-management permissions.
+7. A person may hold multiple production roles in the same production. The effective
+   permission set is the union of those roles; there is no role precedence in V1.
+8. Store basic membership and role-assignment timestamps, such as `created_at` and
+   `updated_at` / last modified. Do not build full assignment history, actor-attribution
+   logs, effective dates, or audit trails now.
+9. `People` is the production roster and membership/role-management surface.
+   `Characters` remains the character catalog and current character-centric casting
+   editor. Reserve a future `Casting` tab for auditions, casting forms, notes, and
+   related workflows; it is not part of this slice.
 
-1. **Which organization-wide roles remain after the migration?**  
-   **Recommendation:** retain `Admin` as the organization-level administrative role;
-   move the operational meaning of `Director` and `Actor` to production roles. Keep
-   legacy role data readable during migration, but stop using a global Director role as
-   an automatic production-access bypass.
+## Implementation attention before WP1
 
-2. **How should existing Directors be migrated?**  
-   **Recommendation:** backfill each current Director as a Director member of every
-   existing production, preserving today's access while making the relationship
-   explicit and removable. Backfill Actor membership from existing character casts.
-   Actors with no cast remain organization users with no production membership.
+The owner decisions above are complete. WP0 should still make these implementation
+contracts explicit before schema and API work begins:
 
-   Alternative: require Admins to assign every Director manually. This produces the
-   cleanest end state but risks unexpectedly locking out existing production leads.
-
-3. **Who may manage a production roster?**  
-   **Recommendation:** Admins and active production Directors may add or remove
-   existing organization users and assign production roles. Account creation,
-   password resets, and organization-level deactivation remain Admin-only.
-
-4. **What may an uncast Actor member see?**  
-   **Recommendation:** membership grants access to production-level member workflows,
-   but not automatically to the script, Timeline, or other cast-specific content until
-   the user has a character assignment. This matches the stated need to prepare users
-   for future audition/conflict workflows while avoiding accidental script exposure.
-
-   Simpler alternative: any active Actor member receives the same read access as a cast
-   Actor. This is easier but should be chosen deliberately because it broadens current
-   actor data access.
-
-5. **Who can see production contacts and which fields are public?**  
-   **Recommendation:** all active production members can see assigned Directors'
-   display names and optional email addresses on Overview. Do not add phone numbers or
-   a full contact-directory feature in this slice; the current User model has no phone
-   field.
-
-6. **Can a person hold multiple roles in one production?**  
-   **Recommendation:** yes. The membership-role join supports combinations such as
-   Director + Actor and avoids encoding role precedence into the schema. The first UI
-   should allow multiple roles even if the common workflow only uses one.
-
-7. **Should production role assignment carry dates or history now?**  
-   **Recommendation:** start with active/inactive membership and timestamps. Defer
-   effective dates, assignment history, invitations, and audit logs until a real
-   scheduling or archival workflow requires them.
-
-8. **What should the durable UI name and route be?**  
-   **Recommendation:** use a production-scoped `People` or `People & casting` workspace,
-   with a route such as `/productions/:id/people`. Keep `Characters` as the
-   character-catalog/editor surface and link both from Overview and the production nav.
+1. **Permission UI and defaults:** Use `read`, `create`, `update`, and `delete`
+   checkbox columns. Seed rows for every user-facing production object/workflow listed
+   above, with defaults derived from the current authorization behavior:
+   `Member` gets minimum general read access, `Actor` gets broad production read plus
+   actor-appropriate actions, and `Director` gets the current preparation capabilities.
+2. **Admin behavior:** Keep Admin as an organization-wide bypass for production access
+   and production actions in V1. The matrix controls production roles, not whether an
+   Admin can administer the app or recover from a bad role configuration.
+3. **Legacy test data:** Do not run a backfill. Existing global Director/Actor
+   assignments can be manually removed or left inert, but they must not authorize
+   production access after the cutover.
+4. **Active-only People view:** People lists active members only. Deactivation keeps
+   membership and role rows for data integrity, but inactive memberships are not shown
+   to ordinary production members.
+5. **Immediate enforcement:** Permission changes should take effect on the next
+   authorization check for all matching active memberships; do not copy permissions
+   into each production.
 
 ---
 
@@ -217,15 +287,21 @@ These decisions should be resolved before implementation is authorized.
 
 **Scope**
 
-- Resolve the open questions above.
-- Write the initial production-role permission matrix.
+- Confirm the permission, role, roster, and authorization implementation contracts
+  documented above.
+- Write the initial production-role permission matrix, including defaults for
+  `read`, `create`, `update`, and `delete`.
+- Define the App Settings behavior for editing the matrix:
+  Admin-only access, global app scope, immediate application to matching active
+  memberships, and no per-production copies in V1.
 - Define the difference between:
   - organization Admin access,
   - active production membership,
   - production Director capability,
   - production Actor access,
   - character casting.
-- Decide whether an uncast member can view script/Timeline data.
+- Define broad general production visibility for uncast Actors versus assignment-based
+  character features.
 
 **Files / systems touched**
 
@@ -238,7 +314,8 @@ These decisions should be resolved before implementation is authorized.
 
 - The role and access matrix is explicit enough to implement without inferring
   permissions from UI labels.
-- Migration behavior for existing users is approved.
+- The manual assignment cutover and inert legacy-role behavior are documented.
+- The Settings matrix has an explicit first set of rows and default values.
 
 ### WP1 — Add production membership and role data
 
@@ -246,11 +323,13 @@ These decisions should be resolved before implementation is authorized.
 
 - Add SQLAlchemy models and relationships for memberships, production roles, and the
   membership-role join.
+- Add normalized production-role permission rows and the Admin-managed seed defaults.
 - Add an Alembic migration with indexes and uniqueness constraints.
-- Seed `Director` and `Actor` production roles.
+- Seed `Member`, `Director`, and `Actor` production roles.
 - Add service functions for creating, updating, deactivating, and loading memberships.
 - Validate organization boundaries and active-user requirements.
-- Backfill existing data according to the approved migration policy.
+- Do not backfill existing users, global roles, or character casts. Existing test data
+  is updated manually by an Admin.
 
 **Files / systems touched**
 
@@ -275,15 +354,19 @@ These decisions should be resolved before implementation is authorized.
 - Extend `backend/app/api/deps.py` with explicit production membership and capability
   helpers.
 - Keep Admin's organization-wide bypass where appropriate.
-- Remove the global Director automatic-access bypass after the migration compatibility
-  window.
+- After the manual cutover, remove global Director/Actor role checks as a production
+  access source; active membership and its role permissions are authoritative.
 - Make production listing return productions the user can actually access:
   - Admin: all organization productions.
-  - Active production member: assigned productions according to the approved
-    pre-cast visibility policy.
+  - Active production member: assigned productions, including an uncast Actor.
   - Other organization user: no production access.
-- Separate “can view production” from “can edit preparation” and “can manage members”
-  so future roles do not require scattered role-name checks.
+- Evaluate production actions through centralized capability checks backed by the
+  Admin-configured role matrix. Keep “can view production,” “can edit preparation,”
+  and “can manage members” separate.
+- Ensure default Director permissions include roster management, role assignment, and
+  the current Director preparation workflow, while default Actor permissions include
+  broad production read access and only the actor-specific actions allowed by the
+  matrix.
 - Audit every production-scoped API route for the new helper, including productions,
   characters/casting, Timeline, groups, reports, lav chart, announcements,
   rehearsals, notes, and catalog routes.
@@ -314,9 +397,10 @@ contract should cover:
 - List eligible active organization users who are not active members.
 - Add an existing user to a production with one or more production roles.
 - Update roles or deactivate a membership.
-- Return the production's Director contacts for Overview.
-- Return actor-centric casting rows while preserving the existing character-centric
-  cast endpoint during transition.
+- Return the active production roster for People and Overview, with every member's
+  display name and optional email visible to other active members.
+- Add Admin-only endpoints for reading and updating the global production-role
+  permission matrix.
 
 Responses should include only useful contact and identity fields, such as:
 
@@ -330,8 +414,9 @@ Responses should include only useful contact and identity fields, such as:
 Do not expose password, password hash, or unrelated organization data.
 
 Casting validation should change from “any active org Actor” to “active production
-member with the Actor production role.” `listCastableUsers` should use the same rule or
-be retired in favor of the workspace response.
+member with the Actor production role.” `listCastableUsers` should use the same rule.
+The existing character-centric casting contract remains the source of truth for this
+slice; a separate actor-centric casting API is deferred to the future Casting tab.
 
 **Files / systems touched**
 
@@ -345,14 +430,16 @@ be retired in favor of the workspace response.
 
 - Admin/authorized Director can add an existing account without selecting a character.
 - The same user can be assigned multiple production roles.
+- Admins can read and update the global role permission matrix.
 - Cast, uncast, replace, and remove operations have clear API responses and errors.
 
-### WP4 — Build the People & casting workspace
+### WP4 — Build the People roster and connect Characters
 
 **Scope**
 
-Add a production-scoped workspace, recommended as `/productions/:id/people`, with
-separate but connected sections:
+Add a production-scoped People workspace at `/productions/:id/people`. Keep the
+existing Characters page as the character catalog and character-centric casting editor.
+The two surfaces should link to each other without duplicating assignment logic:
 
 1. **Production people**
    - active members
@@ -362,32 +449,33 @@ separate but connected sections:
    - add existing organization user
    - assign/remove production roles
    - deactivate production membership
-2. **Casting**
-   - actor-centric roster, including Actors with no character
-   - character assignments, including unassigned characters
-   - support one actor on multiple characters
-   - preserve the current one-actor-per-character rule
-3. **Contacts**
-   - Director(s) shown as the initial production contact list
-   - link or copy the existing optional email field without inventing a new contact
-     system
+   - show every active member's name and optional email to other active members
+2. **Characters link**
+   - navigate to the character catalog/editor for character assignments
+   - show whether a member has character assignments, without replacing the
+     character-centric editor
+3. **Future Casting reservation**
+   - reserve a production navigation slot for auditions, forms, casting notes, and
+     related workflows
+   - do not implement the Casting tab in this slice
 
 Reuse existing table, select, dialog, loading, error, toast, and empty-state patterns.
-Keep `CharactersPage` useful as the character-centric preparation editor; share
-casting components or data contracts rather than duplicating assignment logic.
+Keep `CharactersPage` useful as the character-centric preparation editor and share
+data contracts rather than duplicating assignment logic.
 
 Update:
 
 - production navigation
 - Overview quick links
-- Overview contact section
-- readiness casting link if the new workspace becomes the canonical casting entry
+- Overview roster/contact section
+- readiness casting link to Characters, while People becomes the canonical membership
+  entry
 
 **Files / systems touched**
 
 - `frontend/src/App.tsx`
 - `frontend/src/components/AppShell.tsx`
-- new people/casting page and focused components
+- new People page and focused roster components
 - `frontend/src/pages/CharactersPage.tsx`
 - `frontend/src/pages/ProductionOverviewPage.tsx`
 - `frontend/src/lib/overviewSpotlight.ts`
@@ -397,6 +485,9 @@ Update:
 - A Director can add an Actor before choosing a character.
 - A Director can assign a Director to the production and see that person on Overview.
 - A user can be a Director in one production and an Actor in another.
+- An uncast Actor can open the general Script, Timeline, notifications, and other
+  permitted production views, while character-specific controls remain unavailable
+  until assignment.
 - Actor/member views do not expose controls they cannot use, while the API remains the
   final enforcement point.
 
@@ -407,7 +498,9 @@ Update:
 Update consumers so they use the right relationship for the job:
 
 - **Timeline and Rehearse:** use character casting for “my lines” and actor-specific
-  filters; use the approved membership policy for general production access.
+  filters; use active membership and role permissions for general production access.
+  An uncast Actor can read the general Script and Timeline but has no character-specific
+  “my lines” or actor-filtered result until cast.
 - **Rehearsal calls:** derive scene suggestions from cast characters, while allowing
   active production members to be called manually where the existing workflow supports
   it. An uncast Actor should not appear in scene-derived suggestions solely because they
@@ -418,9 +511,9 @@ Update consumers so they use the right relationship for the job:
 - **Blocking and asset person selectors:** use active production members where the
   current feature allows user subjects.
 - **Reports:** continue resolving names from the canonical user/character records.
-- **Announcements and notifications:** production-targeted audiences should eventually
-  resolve from active membership rather than global role. Make this a required audit
-  point; implement only the parts needed for the first vertical slice.
+- **Announcements and notifications:** production-targeted audiences should resolve
+  from active membership and role permissions rather than global role. An uncast Actor
+  remains eligible for normal production notifications.
 - **Overview/readiness:** keep cast completeness based on character assignments, not
   membership count.
 
@@ -439,6 +532,8 @@ Update consumers so they use the right relationship for the job:
 
 - Pre-casting a user does not falsely mark a character cast.
 - Pre-casting a user does not cause them to appear in scene-derived call suggestions.
+- An uncast Actor can see general production content but not assignment-dependent
+  character features.
 - Removing production membership revokes access consistently across all production
   routes.
 
@@ -450,9 +545,12 @@ Add backend-first coverage for:
 
 - Admin access to all organization productions.
 - Assigned Director access only to assigned productions.
-- Assigned Actor access according to the approved pre-cast visibility policy.
+- Assigned Actor access to general production content before casting, with
+  assignment-dependent character features withheld.
 - A user with different roles in different productions.
 - Multiple roles on one membership.
+- Union behavior when multiple roles grant different capabilities.
+- Admin-only permission-matrix edits and immediate effect on matching memberships.
 - Actor membership with no character.
 - Character cast, reassign, uncast, and retained membership.
 - Deactivated membership losing access immediately.
@@ -468,7 +566,8 @@ Add at least one end-to-end workflow:
 2. Admin or authorized Director assigns one as Director in Production A and Actor in
    Production B.
 3. Actor is added to Production B without a character.
-4. Actor receives the approved pre-cast view.
+4. Actor can read the general Script, Timeline, and production notifications but has
+   no character-specific experience.
 5. Director later assigns a character.
 6. Actor sees the expected cast-specific experience.
 7. Membership removal revokes access while preserving historical assignment data.
@@ -484,7 +583,8 @@ Add at least one end-to-end workflow:
 **Done when**
 
 - The authorization matrix is covered by API tests, not only hidden frontend controls.
-- Migration behavior is tested against representative existing users and casts.
+- The no-backfill/manual-assignment behavior is tested against representative existing
+  users and casts.
 - PostgreSQL migration/constraint behavior is checked before production rollout.
 
 ### WP7 — Documentation and closeout
@@ -495,7 +595,8 @@ After the first vertical slice ships:
 
 - Update `PROJECT.md` core domain model and production preparation workflow.
 - Update `DATABASE.md` with the final tables, constraints, and deletion semantics.
-- Update `ROLES.md` with organization vs production permissions.
+- Update `ROLES.md` with organization vs production permissions and the Admin-managed
+  role permission matrix.
 - Update the feature-plan index and move this plan to shipped/promoted status according
   to the feature-plan lifecycle.
 - Add a short operator walkthrough for:
@@ -517,18 +618,19 @@ After the first vertical slice ships:
 
 The smallest complete slice should be:
 
-1. Production membership and production roles for `Director` and `Actor`.
-2. Migration/backfill of current Directors and cast Actors.
+1. Production membership and production roles for `Member`, `Director`, and `Actor`.
+2. Membership/role schema and seeded defaults, with no automatic backfill.
 3. Centralized production access based on Admin or active membership.
 4. Add existing Actor to a production without a character.
 5. Assign a Director to a production.
 6. Character casting constrained to production Actor members.
-7. People/casting page plus Director contact section on Overview.
-8. Backend authorization and migration tests.
+7. People roster plus all-member contact visibility on Overview.
+8. Admin-only App Settings editor for the global role permission matrix.
+9. Backend authorization and schema/manual-assignment tests.
 
-Do not begin with a generic permissions engine. The role registry and centralized
-capability checks should leave room for one later Stage Manager role without building
-fine-grained ACL infrastructure before a real workflow needs it.
+Build the smallest centralized role-capability layer needed for the matrix. Do not build
+per-user ACLs, per-production permission copies, or a generic permission inheritance
+engine before a real workflow needs them.
 
 ---
 
@@ -540,10 +642,13 @@ fine-grained ACL infrastructure before a real workflow needs it.
 - Creating organization accounts from inside a production workspace.
 - Understudies, temporary cast overrides, and effective-date casting.
 - Attendance, scheduling policy, and HR/absence management.
-- Fine-grained per-domain or per-moment permissions.
-- Full Stage Manager implementation and permission matrix.
+- Per-user permission overrides (for example, granting Greg Set read/update but not
+  delete outside his assigned roles).
+- Per-production permission overrides and per-moment permissions.
+- Full Stage Manager implementation and role-specific workflow.
 - Organization switching and full multi-tenant isolation.
 - Assignment history, audit logs, effective dates, or approval workflows.
+- Casting tab, audition forms, casting notes, and related workflows.
 - Replacing the existing character catalog or one-actor-per-character MVP rule.
 
 These are compatible follow-ons, but including them in the first slice would make it
@@ -555,17 +660,20 @@ harder to validate the core membership/access model.
 
 - **Authorization blast radius:** changing `get_accessible_production` affects nearly
   every production route. Centralize the decision and test it before changing UI.
-- **Migration surprise:** backfilling Directors to every current production preserves
-  access but requires cleanup. Manual reassignment is cleaner but risks lockout.
+- **Manual cutover:** no automatic backfill keeps the data simple but means existing
+  Directors and cast Actors must be assigned by an Admin before they regain
+  production-scoped access.
 - **Membership vs casting confusion:** the UI must make “in the production” and “cast
   as a character” visibly different states.
-- **Pre-cast privacy:** membership is useful before casting, but it must not silently
-  grant script or cast data. Resolve this before implementing actor visibility.
+- **Broad pre-cast visibility:** uncast Actors intentionally receive general Script,
+  Timeline, and notification access. Character-dependent endpoints must still require
+  the relevant casting or group relationship.
 - **Role vocabulary drift:** `Director` and `Actor` currently mean both account role and
   production capability. Documentation, API fields, and frontend guards need a
   deliberate transition.
-- **Future role explosion:** a normalized role join is useful; a large collection of
-  role-specific permissions is intentionally deferred.
+- **Permission matrix complexity:** the matrix gives useful Admin control now, but
+  resource/action naming can become difficult to maintain. Keep the first row set small
+  and document each capability; defer per-user exceptions to a later phase.
 - **Existing downstream assumptions:** rehearsal, lav, groups, notifications, and
   user selectors currently use organization users or cast inference in different ways.
   Each needs an explicit membership policy rather than a blanket query replacement.
@@ -574,11 +682,12 @@ harder to validate the core membership/access model.
 
 ## Suggested sequence
 
-1. Resolve WP0 decisions, especially migration and uncast-member visibility.
-2. Implement WP1 schema, seeds, backfill, and service invariants.
+1. Resolve WP0 decisions, especially permission vocabulary/defaults, legacy role
+   handling, roleless memberships, and inactive-roster visibility.
+2. Implement WP1 schema, seeds, and service invariants without backfilling data.
 3. Implement WP2 centralized access and update production listing.
-4. Implement WP3 people/membership and casting API contracts.
-5. Build WP4 People & casting workspace and Overview contacts.
+4. Implement WP3 people/membership, permission-matrix, and casting API contracts.
+5. Build WP4 People roster and Overview contacts.
 6. Reconcile the highest-risk consumers in WP5, starting with Timeline, rehearsals,
    groups, lav chart, and notifications.
 7. Run WP6 security and workflow verification.
