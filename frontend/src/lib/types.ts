@@ -793,6 +793,10 @@ export interface CreateUserRequest {
   role_name?: GlobalRole | null;
 }
 
+export interface UpdateAdminRoleRequest {
+  is_admin: boolean;
+}
+
 export interface ResetPasswordRequest {
   password: string;
 }

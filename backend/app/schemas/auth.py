@@ -55,3 +55,9 @@ class CreateUserRequest(BaseModel):
 
 class ResetPasswordRequest(BaseModel):
     password: str = Field(min_length=8)
+
+
+class UpdateAdminRoleRequest(BaseModel):
+    is_admin: bool
+
+    model_config = {"extra": "forbid"}

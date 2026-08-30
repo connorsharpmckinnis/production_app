@@ -6,7 +6,11 @@ from sqlalchemy.orm import Session
 from app.auth.dependencies import get_current_user, user_has_role
 from app.db.session import get_db
 from app.models import Character, Group, Production, ProductionMembership, User
-from app.services.production_memberships import effective_permissions, get_membership
+from app.services.production_memberships import (
+    effective_permissions,
+    get_active_production_user,
+    get_membership,
+)
 
 
 def user_display_name(user: User) -> str:
@@ -22,9 +26,9 @@ def validate_optional_person(
     """Confirm an optional character/user "who did this" reference is usable.
 
     character_id must belong to this production; user_id must be an active
-    user in the same organization as this production. Used anywhere a
-    Moment attachment records a character-or-user person (Phase 14 prop and
-    set piece events today; the lav chart has its own equivalent checks).
+    member of this production. Used anywhere a Moment attachment records a
+    character-or-user person (Phase 14 prop and set piece events today; the lav
+    chart has its own equivalent checks).
     """
     if character_id is not None:
         character = (
@@ -38,20 +42,11 @@ def validate_optional_person(
                 detail="Character is not in this production",
             )
     if user_id is not None:
-        user = (
-            db.query(User)
-            .join(Production, Production.organization_id == User.organization_id)
-            .filter(
-                User.id == user_id,
-                User.is_active.is_(True),
-                Production.id == production_id,
-            )
-            .first()
-        )
+        user = get_active_production_user(db, production_id, user_id)
         if user is None:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="User is not available in this organization",
+                detail="User is not an active member of this production",
             )
 
 

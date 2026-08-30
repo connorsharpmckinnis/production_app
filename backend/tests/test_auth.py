@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.auth.dependencies import require_role
-from app.models import User
+from app.models import Organization, User
 from scoped_test_helpers import seed_database_with_test_users
 
 
@@ -51,6 +51,74 @@ def test_me_returns_user(seeded_client: TestClient) -> None:
     assert response.status_code == 200
     assert response.json()["username"] == "admin"
     assert "Admin" in response.json()["roles"]
+
+
+def test_admin_can_grant_and_revoke_existing_admin_role(
+    seeded_client: TestClient,
+    db_session,
+) -> None:
+    target = db_session.query(User).filter(User.username == "actor").one()
+    headers = {"Authorization": f"Bearer {_login(seeded_client, 'admin', 'admin')}"}
+
+    granted = seeded_client.patch(
+        f"/api/users/{target.id}/admin",
+        headers=headers,
+        json={"is_admin": True},
+    )
+    assert granted.status_code == 200
+    assert granted.json()["roles"] == ["Admin"]
+
+    revoked = seeded_client.patch(
+        f"/api/users/{target.id}/admin",
+        headers=headers,
+        json={"is_admin": False},
+    )
+    assert revoked.status_code == 200
+    assert revoked.json()["roles"] == []
+
+
+def test_admin_role_endpoint_blocks_self_demotion(
+    seeded_client: TestClient,
+    db_session,
+) -> None:
+    admin = db_session.query(User).filter(User.username == "admin").one()
+    headers = {"Authorization": f"Bearer {_login(seeded_client, 'admin', 'admin')}"}
+
+    response = seeded_client.patch(
+        f"/api/users/{admin.id}/admin",
+        headers=headers,
+        json={"is_admin": False},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Cannot remove Admin from your own account"
+
+
+def test_admin_role_endpoint_is_organization_scoped(
+    seeded_client: TestClient,
+    db_session,
+) -> None:
+    other_org = Organization(name="Other Organization")
+    db_session.add(other_org)
+    db_session.flush()
+    foreign_user = User(
+        organization_id=other_org.id,
+        username="foreign-admin-target",
+        password_hash="not-used",
+        first_name="Foreign",
+        last_name="User",
+        is_active=True,
+    )
+    db_session.add(foreign_user)
+    db_session.commit()
+
+    response = seeded_client.patch(
+        f"/api/users/{foreign_user.id}/admin",
+        headers={"Authorization": f"Bearer {_login(seeded_client, 'admin', 'admin')}"},
+        json={"is_admin": True},
+    )
+
+    assert response.status_code == 404
 
 
 def test_require_role_allows_global_admin(db_session, test_settings) -> None:

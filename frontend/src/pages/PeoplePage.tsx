@@ -28,27 +28,32 @@ import { api, formatApiError } from "@/lib/api";
 import type {
   ProductionMemberCandidateResponse,
   ProductionMemberResponse,
+  ProductionRoleSummary,
 } from "@/lib/types";
 
-const ROLE_OPTIONS = [
-  { code: "member", name: "Member" },
-  { code: "director", name: "Director" },
-  { code: "actor", name: "Actor" },
-];
-
-function sortedRoles(codes: string[]): string[] {
-  return ROLE_OPTIONS.map((role) => role.code).filter((code) =>
-    codes.includes(code),
+function sortedRoles(codes: string[], roles: ProductionRoleSummary[]): string[] {
+  const order = new Map(
+    roles.map((role, index) => [role.code, index]),
   );
+  return [...new Set(codes)].sort((a, b) => {
+    const orderA = order.get(a);
+    const orderB = order.get(b);
+    if (orderA != null && orderB != null) return orderA - orderB;
+    if (orderA != null) return -1;
+    if (orderB != null) return 1;
+    return a.localeCompare(b, undefined, { sensitivity: "base" });
+  });
 }
 
 function RoleCheckboxes({
   selected,
+  roles,
   onChange,
   disabled = false,
   idPrefix,
 }: {
   selected: string[];
+  roles: ProductionRoleSummary[];
   onChange: (next: string[]) => void;
   disabled?: boolean;
   idPrefix: string;
@@ -57,12 +62,12 @@ function RoleCheckboxes({
     const next = checked === true
       ? [...new Set([...selected, code])]
       : selected.filter((current) => current !== code);
-    onChange(sortedRoles(next));
+    onChange(sortedRoles(next, roles));
   }
 
   return (
     <div className="flex flex-wrap gap-x-4 gap-y-2">
-      {ROLE_OPTIONS.map((role) => {
+      {roles.map((role) => {
         const checkboxId = `${idPrefix}-${role.code}`;
         return (
           <label key={role.code} htmlFor={checkboxId} className="flex items-center gap-2 text-sm">
@@ -94,6 +99,7 @@ export default function PeoplePage() {
 
   const [people, setPeople] = useState<ProductionMemberResponse[]>([]);
   const [candidates, setCandidates] = useState<ProductionMemberCandidateResponse[]>([]);
+  const [roleRegistry, setRoleRegistry] = useState<ProductionRoleSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [selectedCandidate, setSelectedCandidate] = useState("");
@@ -110,8 +116,22 @@ export default function PeoplePage() {
 
     setError(null);
     try {
-      const roster = await api.listProductionPeople(productionId);
+      const [roster, roles] = await Promise.all([
+        api.listProductionPeople(productionId),
+        api.listProductionRoles(productionId),
+      ]);
       setPeople(roster);
+      setRoleRegistry(roles);
+      const defaultRole = roles.find((role) => role.code === "member") ?? roles[0];
+      if (defaultRole) {
+        setNewRoles((current) =>
+          current.length > 0 && current.every((code) =>
+            roles.some((role) => role.code === code)
+          )
+            ? current
+            : [defaultRole.code],
+        );
+      }
       if (canCreate) {
         setCandidates(await api.listProductionPeopleCandidates(productionId));
       } else {
@@ -155,7 +175,13 @@ export default function PeoplePage() {
 
   function startEditing(person: ProductionMemberResponse) {
     setEditingUserId(person.user_id);
-    setEditingRoles(sortedRoles(person.roles.map((role) => role.code)));
+    const roles = [...roleRegistry];
+    for (const assignedRole of person.roles) {
+      if (!roles.some((role) => role.code === assignedRole.code)) {
+        roles.push(assignedRole);
+      }
+    }
+    setEditingRoles(sortedRoles(person.roles.map((role) => role.code), roles));
   }
 
   async function saveRoles(userId: number) {
@@ -260,6 +286,7 @@ export default function PeoplePage() {
               <span className="text-sm font-medium">Production roles</span>
               <RoleCheckboxes
                 selected={newRoles}
+                roles={roleRegistry}
                 onChange={setNewRoles}
                 disabled={savingKey != null}
                 idPrefix="new-role"
@@ -312,6 +339,15 @@ export default function PeoplePage() {
                       {editing ? (
                         <RoleCheckboxes
                           selected={editingRoles}
+                          roles={[
+                            ...roleRegistry,
+                            ...person.roles.filter(
+                              (assignedRole) =>
+                                !roleRegistry.some(
+                                  (role) => role.code === assignedRole.code,
+                                ),
+                            ),
+                          ]}
                           onChange={setEditingRoles}
                           disabled={busy}
                           idPrefix={`edit-role-${person.user_id}`}

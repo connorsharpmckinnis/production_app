@@ -36,6 +36,7 @@ from app.schemas.characters import (
 )
 from app.services.catalog_csv import CatalogCsvError, SONGS_COLUMNS, import_songs_csv
 from app.services.production_memberships import (
+    effective_cast_character_ids,
     get_active_production_user,
     list_active_production_users,
 )
@@ -75,9 +76,17 @@ def _scene_counts_by_character(db: Session, production_id: int) -> dict[int, int
 def _character_detail(
     character: Character,
     scene_count: int,
+    effective_cast_ids: set[int] | None = None,
 ) -> CharacterDetailResponse:
     assigned_actor = None
-    if character.actor_assignment and character.actor_assignment.user:
+    if (
+        character.actor_assignment
+        and character.actor_assignment.user
+        and (
+            effective_cast_ids is None
+            or character.id in effective_cast_ids
+        )
+    ):
         user = character.actor_assignment.user
         assigned_actor = AssignedActorResponse(
             user_id=user.id,
@@ -108,8 +117,9 @@ def list_characters(
         .all()
     )
     scene_counts = _scene_counts_by_character(db, production_id)
+    effective_cast_ids = effective_cast_character_ids(db, production_id)
     return [
-        _character_detail(character, scene_counts.get(character.id, 0))
+        _character_detail(character, scene_counts.get(character.id, 0), effective_cast_ids)
         for character in characters
     ]
 
@@ -133,7 +143,7 @@ def create_character(
     db.add(character)
     db.commit()
     db.refresh(character)
-    return _character_detail(character, 0)
+    return _character_detail(character, 0, set())
 
 
 @router.patch("/{production_id}/characters/{character_id}", response_model=CharacterDetailResponse)
@@ -161,7 +171,11 @@ def update_character(
     db.commit()
     db.refresh(character)
     scene_counts = _scene_counts_by_character(db, production_id)
-    return _character_detail(character, scene_counts.get(character.id, 0))
+    return _character_detail(
+        character,
+        scene_counts.get(character.id, 0),
+        effective_cast_character_ids(db, production_id),
+    )
 
 
 @router.delete("/{production_id}/characters/{character_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -314,10 +328,15 @@ def list_casting(
         .all()
     )
     results: list[CastAssignmentResponse] = []
+    effective_cast_ids = effective_cast_character_ids(db, production_id)
     for character in characters:
         user_id = None
         display_name = None
-        if character.actor_assignment and character.actor_assignment.user:
+        if (
+            character.id in effective_cast_ids
+            and character.actor_assignment
+            and character.actor_assignment.user
+        ):
             user_id = character.actor_assignment.user.id
             display_name = _user_display_name(character.actor_assignment.user)
         results.append(

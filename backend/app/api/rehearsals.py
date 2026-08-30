@@ -45,7 +45,11 @@ from app.schemas.rehearsals import (
     SceneRecommendationResponse,
     SuggestedCallResponse,
 )
-from app.services.production_memberships import active_role_codes, get_membership
+from app.services.production_memberships import (
+    active_role_codes,
+    get_membership,
+    list_active_production_users,
+)
 from app.services.rehearsal_cast import (
     scene_recommendations,
     suggested_users_for_scenes,
@@ -120,14 +124,25 @@ def _ensure_writable(rehearsal: Rehearsal) -> None:
         )
 
 
-def _overlapping_user_ids(blocks: list[RehearsalBlock]) -> dict[int, set[int]]:
+def _overlapping_user_ids(
+    blocks: list[RehearsalBlock],
+    visible_user_ids: set[int] | None = None,
+) -> dict[int, set[int]]:
     """Map block_id -> user_ids also called on an overlapping other block."""
     result: dict[int, set[int]] = {b.id: set() for b in blocks}
     for i, a in enumerate(blocks):
-        a_users = {c.user_id for c in a.calls}
+        a_users = {
+            c.user_id
+            for c in a.calls
+            if visible_user_ids is None or c.user_id in visible_user_ids
+        }
         for b in blocks[i + 1 :]:
             if a.starts_at < b.ends_at and b.starts_at < a.ends_at:
-                overlap = a_users & {c.user_id for c in b.calls}
+                overlap = a_users & {
+                    c.user_id
+                    for c in b.calls
+                    if visible_user_ids is None or c.user_id in visible_user_ids
+                }
                 if overlap:
                     result[a.id] |= overlap
                     result[b.id] |= overlap
@@ -148,6 +163,7 @@ def _block_scene_response(scene: Scene) -> RehearsalBlockSceneResponse:
 def _block_response(
     block: RehearsalBlock,
     double_book: set[int] | None = None,
+    visible_user_ids: set[int] | None = None,
 ) -> RehearsalBlockResponse:
     return RehearsalBlockResponse(
         id=block.id,
@@ -165,6 +181,7 @@ def _block_response(
                 available=True,
             )
             for c in block.calls
+            if visible_user_ids is None or c.user_id in visible_user_ids
         ],
         double_book_user_ids=sorted(double_book or ()),
     )
@@ -192,9 +209,13 @@ def _detail_response(
     overlaps: dict[int, set[int]] = {}
     blocks: list[RehearsalBlockResponse] = []
     if actor_may_see_plan:
-        overlaps = _overlapping_user_ids(list(rehearsal.blocks))
+        visible_user_ids = {
+            member.id
+            for member in list_active_production_users(db, rehearsal.production_id)
+        }
+        overlaps = _overlapping_user_ids(list(rehearsal.blocks), visible_user_ids)
         blocks = [
-            _block_response(b, overlaps.get(b.id))
+            _block_response(b, overlaps.get(b.id), visible_user_ids)
             for b in sorted(rehearsal.blocks, key=lambda x: (x.sort_order, x.starts_at))
         ]
 
@@ -586,21 +607,17 @@ def replace_rehearsal_plan(
         ) from exc
 
     if all_user_ids:
-        users = (
-            db.query(User)
-            .filter(
-                User.id.in_(all_user_ids),
-                User.organization_id == production.organization_id,
-                User.is_active.is_(True),
-            )
-            .all()
-        )
+        users = [
+            member
+            for member in list_active_production_users(db, production_id)
+            if member.id in all_user_ids
+        ]
         found = {u.id for u in users}
         missing = all_user_ids - found
         if missing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Users not in organization: {sorted(missing)}",
+                detail=f"Users are not active members of this production: {sorted(missing)}",
             )
 
     # Replace blocks

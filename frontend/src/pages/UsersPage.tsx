@@ -127,6 +127,34 @@ export default function UsersPage() {
     }
   }
 
+  async function handleAdminRoleChange(user: UserResponse) {
+    const currentlyAdmin = user.roles.includes("Admin");
+    const granting = !currentlyAdmin;
+    if (!granting && user.id === currentUser?.id) {
+      toast.error("You cannot remove Admin from your own account.");
+      return;
+    }
+
+    const confirmed = await confirm({
+      title: granting ? "Grant Admin access?" : "Remove Admin access?",
+      description: granting
+        ? `${user.first_name} ${user.last_name} will be able to manage organization users and settings.`
+        : `${user.first_name} ${user.last_name} will no longer be able to manage organization users and settings.`,
+      confirmLabel: granting ? "Grant Admin" : "Remove Admin",
+      destructive: !granting,
+    });
+    if (!confirmed) return;
+
+    setError(null);
+    try {
+      await api.updateAdminRole(user.id, { is_admin: granting });
+      toast.success(granting ? "Admin access granted" : "Admin access removed");
+      loadUsers();
+    } catch (err) {
+      toast.error(formatApiError(err, "Failed to update Admin access"));
+    }
+  }
+
   async function handleDeactivate(userId: number) {
     const ok = await confirm({
       title: "Deactivate this user?",
@@ -333,6 +361,27 @@ export default function UsersPage() {
                         title="Reset password"
                       >
                         <KeyRound />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        disabled={user.id === currentUser?.id && user.roles.includes("Admin")}
+                        onClick={() => void handleAdminRoleChange(user)}
+                        aria-label={
+                          user.roles.includes("Admin")
+                            ? `Remove Admin access from ${user.username}`
+                            : `Grant Admin access to ${user.username}`
+                        }
+                        title={
+                          user.roles.includes("Admin")
+                            ? user.id === currentUser?.id
+                              ? "You cannot remove Admin from your own account"
+                              : "Remove Admin access"
+                            : "Grant Admin access"
+                        }
+                      >
+                        {user.roles.includes("Admin") ? "Remove Admin" : "Grant Admin"}
                       </Button>
                       {user.is_active && user.id !== currentUser?.id && (
                         <Button

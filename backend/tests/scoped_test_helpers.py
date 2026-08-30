@@ -29,7 +29,7 @@ def seed_database_with_test_users(db: Session, settings) -> None:
                 is_active=True,
             )
         )
-    db.flush()
+    db.commit()
 
 
 def add_test_production_memberships(
@@ -49,4 +49,6 @@ def add_test_production_memberships(
     for username, role_codes in role_by_username.items():
         user = db.query(User).filter(User.username == username).one()
         create_or_reactivate_membership(db, production_id, user.id, role_codes)
-    db.flush()
+    # Client requests use a separate Session. Commit here so SQLite's
+    # StaticPool exposes these memberships across the session boundary.
+    db.commit()

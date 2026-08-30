@@ -112,11 +112,6 @@ membership and permissions allow it.
 
 ## Current implementation gaps
 
-- Editing an existing user's organization-level Admin assignment is not yet
-  available in the current Users API/UI; assignment is supported during account
-  creation. This is tracked in
-  [production-membership-and-casting-workspace.md](feature_plans/production-membership-and-casting-workspace.md)
-  WP0.
 - The future Casting workspace, casting notes, and availability records are
   planned in [casting-and-auditions.md](feature_plans/casting-and-auditions.md);
   they are not current permissions-backed features.

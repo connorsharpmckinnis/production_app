@@ -1,8 +1,15 @@
 /** Derive the announcements route_filter key from the current path. */
-export function routeKeyFromPath(pathname: string): string | null {
+export function routeKeyFromPath(pathname: string, search = ""): string | null {
   const match = pathname.match(/^\/productions\/\d+(?:\/([^/?#]+))?/);
   if (!match) return null;
-  return match[1] ?? "overview";
+  const route = match[1] ?? "overview";
+  if (route === "rehearse") return "rehearse";
+  if (route === "timeline") {
+    const params = new URLSearchParams(search);
+    return params.get("rehearse") === "1" ? "rehearse" : "timeline";
+  }
+  // Rehearsal detail and call-sheet are nested under the same route family.
+  return route === "rehearsals" ? "rehearsals" : route;
 }
 
 export function productionIdFromPath(pathname: string): number | null {
@@ -24,8 +31,15 @@ export const ROUTE_FILTER_OPTIONS = [
   { value: "overview", label: "Overview" },
   { value: "rehearse", label: "Rehearse" },
   { value: "timeline", label: "Timeline" },
+  { value: "rehearsals", label: "Rehearsals (including call sheets)" },
   { value: "characters", label: "Characters" },
+  { value: "songs", label: "Songs" },
   { value: "props", label: "Props" },
   { value: "costumes", label: "Costumes" },
+  { value: "set-pieces", label: "Set Pieces" },
+  { value: "cue-categories", label: "Cue Categories" },
+  { value: "people", label: "People" },
+  { value: "groups", label: "Groups" },
+  { value: "lav-chart", label: "Lav Chart" },
   { value: "reports", label: "Reports" },
 ] as const;

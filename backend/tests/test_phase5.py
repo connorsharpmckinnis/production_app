@@ -313,3 +313,54 @@ def test_blocking_user_and_group_subjects(
     }
     assert (actor.id, None, None) in subjects
     assert (None, group_id, None) in subjects
+
+
+def test_optional_person_requires_active_production_membership(
+    seeded_client: TestClient,
+    db_session: Session,
+) -> None:
+    production_id = _imported_production(seeded_client, db_session)
+    director_headers = _login(seeded_client, "director", "director")
+    scene_id = _first_scene_id(seeded_client, production_id, director_headers)
+    moment_id = _scene_moments(
+        seeded_client,
+        production_id,
+        scene_id,
+        director_headers,
+    )[0]["id"]
+
+    director_user = db_session.query(User).filter(User.username == "director").one()
+    nonmember = User(
+        organization_id=director_user.organization_id,
+        username="not-a-member",
+        password_hash="not-used",
+        first_name="Not",
+        last_name="Member",
+        is_active=True,
+    )
+    db_session.add(nonmember)
+    db_session.commit()
+
+    prop = seeded_client.post(
+        f"/api/productions/{production_id}/props",
+        json={"name": "Unassigned prop"},
+        headers=director_headers,
+    )
+    assert prop.status_code == 201
+    rejected_prop = seeded_client.post(
+        f"/api/productions/{production_id}/moments/{moment_id}/props",
+        json={
+            "prop_id": prop.json()["id"],
+            "kind": "on",
+            "user_id": nonmember.id,
+        },
+        headers=director_headers,
+    )
+    assert rejected_prop.status_code == 400
+
+    rejected_blocking = seeded_client.post(
+        f"/api/productions/{production_id}/moments/{moment_id}/blocking",
+        json={"user_id": nonmember.id, "notes": "Should be rejected"},
+        headers=director_headers,
+    )
+    assert rejected_blocking.status_code == 400

@@ -4,7 +4,15 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.models import Character, Notification, Production, User, UserCharacterAssignment
+from app.models import (
+    Character,
+    Notification,
+    Production,
+    ProductionRole,
+    ProductionRolePermission,
+    User,
+    UserCharacterAssignment,
+)
 from scoped_test_helpers import add_test_production_memberships, seed_database_with_test_users
 
 
@@ -255,6 +263,44 @@ def test_banner_surface_and_dismiss(seeded_client: TestClient, db_session: Sessi
     assert after["active_banner"] is None
 
 
+def test_production_modal_is_scoped_to_current_production(
+    seeded_client: TestClient,
+    db_session: Session,
+) -> None:
+    admin_headers = _login(seeded_client, "admin", "admin")
+    actor_headers = _login(seeded_client, "actor", "actor")
+    production_a = _create_production(seeded_client, admin_headers, "Modal A")
+    production_b = _create_production(seeded_client, admin_headers, "Modal B")
+    add_test_production_memberships(db_session, production_a)
+    add_test_production_memberships(db_session, production_b)
+
+    create = seeded_client.post(
+        f"/api/productions/{production_b}/announcements",
+        headers=admin_headers,
+        json={
+            "title": "Production B modal",
+            "body": "Only show this in B.",
+            "show_as_modal": True,
+            "audience_roles": ["Actor"],
+        },
+    )
+    assert create.status_code == 201, create.text
+
+    in_a = seeded_client.get(
+        f"/api/notifications/inbox?production_id={production_a}",
+        headers=actor_headers,
+    )
+    assert in_a.status_code == 200
+    assert in_a.json()["pending_modal"] is None
+
+    in_b = seeded_client.get(
+        f"/api/notifications/inbox?production_id={production_b}",
+        headers=actor_headers,
+    )
+    assert in_b.status_code == 200
+    assert in_b.json()["pending_modal"]["title"] == "Production B modal"
+
+
 def test_announcement_deactivate_then_hard_delete(
     seeded_client: TestClient, db_session: Session
 ) -> None:
@@ -328,3 +374,165 @@ def test_timeline_human_deep_link_cta_allowed(
     ctas = create.json()["ctas"]
     assert len(ctas) == 1
     assert ctas[0]["target"].endswith("timeline?act=1&scene=2&moment=10")
+
+
+def test_notification_capabilities_and_audience_narrowing(
+    seeded_client: TestClient,
+    db_session: Session,
+) -> None:
+    admin_headers = _login(seeded_client, "admin", "admin")
+    actor_headers = _login(seeded_client, "actor", "actor")
+    production_id = _create_production(seeded_client, admin_headers, "Capability Show")
+    add_test_production_memberships(db_session, production_id, include_director=False)
+
+    created = seeded_client.post(
+        f"/api/productions/{production_id}/announcements",
+        headers=admin_headers,
+        json={
+            "title": "Actor update",
+            "body": "Please read this.",
+            "audience_roles": ["Actor"],
+        },
+    )
+    assert created.status_code == 201, created.text
+    announcement_id = created.json()["id"]
+
+    initial = seeded_client.get("/api/notifications/inbox", headers=actor_headers)
+    assert any(item["title"] == "Actor update" for item in initial.json()["items"])
+
+    narrowed = seeded_client.patch(
+        f"/api/announcements/{announcement_id}",
+        headers=admin_headers,
+        json={"audience_roles": ["Director"]},
+    )
+    assert narrowed.status_code == 200, narrowed.text
+    assert not any(
+        item["title"] == "Actor update"
+        for item in seeded_client.get(
+            "/api/notifications/inbox",
+            headers=actor_headers,
+        ).json()["items"]
+    )
+    assert (
+        db_session.query(Notification)
+        .filter(Notification.announcement_id == announcement_id)
+        .count()
+        == 1
+    )
+
+    actor_role = db_session.query(ProductionRole).filter_by(code="actor").one()
+    announcement_read = (
+        db_session.query(ProductionRolePermission)
+        .filter_by(
+            production_role_id=actor_role.id,
+            resource="announcements",
+            action="read",
+        )
+        .one()
+    )
+    announcement_read.enabled = False
+    db_session.commit()
+    restored = seeded_client.patch(
+        f"/api/announcements/{announcement_id}",
+        headers=admin_headers,
+        json={"audience_roles": ["Actor"]},
+    )
+    assert restored.status_code == 200, restored.text
+    assert not any(
+        item["title"] == "Actor update"
+        for item in seeded_client.get(
+            "/api/notifications/inbox",
+            headers=actor_headers,
+        ).json()["items"]
+    )
+
+    notification_read = (
+        db_session.query(ProductionRolePermission)
+        .filter_by(
+            production_role_id=actor_role.id,
+            resource="notifications",
+            action="read",
+        )
+        .one()
+    )
+    notification_read.enabled = False
+    db_session.commit()
+    denied = seeded_client.get(
+        f"/api/notifications/inbox?production_id={production_id}",
+        headers=actor_headers,
+    )
+    assert denied.status_code == 403
+
+
+def test_cta_route_canonicalization_and_privileged_audience_validation(
+    seeded_client: TestClient,
+    db_session: Session,
+) -> None:
+    admin_headers = _login(seeded_client, "admin", "admin")
+    production_id = _create_production(seeded_client, admin_headers, "CTA Show")
+    add_test_production_memberships(db_session, production_id)
+
+    rehearse = seeded_client.post(
+        f"/api/productions/{production_id}/announcements",
+        headers=admin_headers,
+        json={
+            "title": "Practice",
+            "body": "Open rehearsal tools.",
+            "audience_roles": ["Actor"],
+            "ctas": [
+                {
+                    "label": "Rehearse",
+                    "kind": "internal",
+                    "target": f"/productions/{production_id}/rehearse",
+                }
+            ],
+        },
+    )
+    assert rehearse.status_code == 201, rehearse.text
+    assert (
+        rehearse.json()["ctas"][0]["target"]
+        == f"/productions/{production_id}/timeline?rehearse=1"
+    )
+
+    privileged = seeded_client.post(
+        f"/api/productions/{production_id}/announcements",
+        headers=admin_headers,
+        json={
+            "title": "Admin task",
+            "body": "Only an admin can use this.",
+            "audience_roles": ["Actor"],
+            "ctas": [
+                {
+                    "label": "Import",
+                    "kind": "internal",
+                    "target": f"/productions/{production_id}/import",
+                }
+            ],
+        },
+    )
+    assert privileged.status_code == 400
+
+    admin_only = seeded_client.post(
+        f"/api/productions/{production_id}/announcements",
+        headers=admin_headers,
+        json={
+            "title": "Admin shortcut",
+            "body": "Admin-only destination.",
+            "audience_roles": ["Admin"],
+            "ctas": [
+                {
+                    "label": "Settings",
+                    "kind": "internal",
+                    "target": "/settings",
+                }
+            ],
+        },
+    )
+    assert admin_only.status_code == 201, admin_only.text
+
+    narrowed_admin_only = seeded_client.patch(
+        f"/api/announcements/{admin_only.json()['id']}",
+        headers=admin_headers,
+        json={"audience_roles": ["Actor"]},
+    )
+    assert narrowed_admin_only.status_code == 400

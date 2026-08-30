@@ -8,6 +8,7 @@ from app.models import (
     Organization,
     Production,
     ProductionMembership,
+    ProductionRole,
     User,
     UserCharacterAssignment,
 )
@@ -80,7 +81,7 @@ def test_roster_and_candidates_are_scoped_to_active_members(
         db_session,
         production.id,
         member.id,
-        ["member"],
+        ["actor"],
     )
     character = Character(production_id=production.id, name="Lead")
     db_session.add(character)
@@ -97,7 +98,7 @@ def test_roster_and_candidates_are_scoped_to_active_members(
             "display_name": "Member Person",
             "email": "member@example.test",
             "is_active": True,
-            "roles": [{"code": "member", "name": "Member"}],
+            "roles": [{"code": "actor", "name": "Actor"}],
             "assigned_characters": [{"id": character.id, "name": "Lead"}],
         },
     ]
@@ -131,6 +132,42 @@ def test_member_can_read_people_roster(
     )
 
     assert response.status_code == 200
+
+
+def test_role_registry_is_dynamic_and_requires_people_access(
+    client: TestClient,
+    db_session: Session,
+    test_settings,
+) -> None:
+    admin, production = _fixture(db_session, test_settings)
+    member = _user(db_session, admin.organization_id, "role-reader")
+    create_or_reactivate_membership(db_session, production.id, member.id, ["member"])
+    db_session.add(
+        ProductionRole(
+            code="stage_manager",
+            name="Stage Manager",
+            description="Production floor lead",
+        )
+    )
+    db_session.commit()
+
+    response = client.get(
+        f"/api/productions/{production.id}/people/roles",
+        headers=_login(client, "role-reader"),
+    )
+
+    assert response.status_code == 200
+    roles = response.json()
+    assert roles == sorted(roles, key=lambda role: (role["name"], role["code"]))
+    assert {"code": "stage_manager", "name": "Stage Manager"} in roles
+
+    outsider = _user(db_session, admin.organization_id, "role-outsider")
+    db_session.commit()
+    denied = client.get(
+        f"/api/productions/{production.id}/people/roles",
+        headers=_login(client, "role-outsider"),
+    )
+    assert denied.status_code == 404
 
 
 def test_create_multiple_roles_and_reactivate_without_duplicate(

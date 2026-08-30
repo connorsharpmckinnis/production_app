@@ -1,8 +1,8 @@
 # Feature plan — Production membership & casting workspace
 
-**Status:** Active implementation — membership workspace and scoped authorization implemented; downstream hardening remains
+**Status:** Ready for manual validation — membership workspace, scoped authorization, and downstream hardening implemented
 **Created:** 2026-08-28  
-**Updated:** 2026-08-29
+**Updated:** 2026-08-30
 **Related:** [ROLES.md](../ROLES.md), [PROJECT.md](../PROJECT.md), [DATABASE.md](../DATABASE.md), [crew-roles.md](crew-roles.md), [understudies-and-cast-overrides.md](understudies-and-cast-overrides.md), [production-home-and-modes.md](production-home-and-modes.md)
 
 ---
@@ -406,23 +406,30 @@ The complete legacy backend suite remains red because approximately 145 tests
 still assume globally seeded `Director`/`Actor` users or pre-cutover cast-only
 access; migrating those fixtures and assertions is follow-up work.
 
-### Current outstanding hardening
+### Hardening completion and manual validation
 
-Before treating this slice as closed, WP5/WP6 must address:
+The WP5/WP6 hardening pass is implemented:
 
-- Require active production membership, not only same-organization activity, for
-  optional person subjects in props, set pieces, and blocking.
-- Require active production membership for manually called rehearsal users.
-- Treat retained casts on inactive memberships as inactive in readiness, Overview
-  counts, character/casting responses, and lav-chart wearer derivation.
-- Apply production scoping to notification modals, matching the existing banner
-  behavior, and make announcement CTA route filters match real frontend routes.
-- Add Admin editing for an existing user's organization-level Admin assignment,
-  or explicitly document the creation-only limitation.
-- Fix the scoped test helper's SQLite transaction boundary, then migrate the
-  remaining legacy fixtures and assertions to production memberships.
-- Decide whether People should load the production role registry dynamically
-  instead of hard-coding the three seeded roles.
+- Optional person subjects in props, set pieces, and blocking require active
+  production membership.
+- Manually called rehearsal users require active production membership, and
+  retained calls for inactive members are hidden from current call responses.
+- Retained casts on inactive memberships are inactive in readiness, Overview
+  counts, character/casting responses, and lav-chart rows/cells without deleting
+  historical assignment data.
+- Notification modals are production-scoped; announcement and notification
+  surfaces honor effective read permissions; CTA targets are canonicalized and
+  checked against real route families and target-role capabilities.
+- Admins can grant/revoke existing users' Admin role, with self-demotion and
+  last-active-Admin safeguards.
+- The scoped SQLite test helper now commits membership setup across test-client
+  session boundaries, and the People page loads the production role registry
+  dynamically while preserving unknown assigned roles.
+
+Automated verification is complete: backend `300 passed, 1 skipped`; frontend
+`60 passed`; frontend production build succeeds. Remaining work is the owner's
+manual two-production workflow walkthrough and any issues it uncovers before
+promoting this plan to shipped status.
 
 The proposed next feature is documented separately in
 [casting-and-auditions.md](casting-and-auditions.md). It intentionally starts

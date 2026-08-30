@@ -5,12 +5,14 @@ from collections.abc import Iterable
 from sqlalchemy.orm import Session
 
 from app.models import (
+    Character,
     ProductionMembership,
     ProductionMembershipRole,
     Production,
     ProductionRole,
     ProductionRolePermission,
     User,
+    UserCharacterAssignment,
 )
 
 
@@ -128,6 +130,55 @@ def list_active_production_users(
         .order_by(User.last_name, User.first_name, User.id)
         .all()
     )
+
+
+def list_effective_cast_assignments(
+    db: Session,
+    production_id: int,
+) -> list[UserCharacterAssignment]:
+    """Return cast rows whose user is an active Actor member of this production.
+
+    Cast rows are deliberately retained when membership changes. Callers that
+    show current cast should use this filtered view instead of treating the
+    assignment table as current state by itself.
+    """
+    return (
+        db.query(UserCharacterAssignment)
+        .join(Character, Character.id == UserCharacterAssignment.character_id)
+        .join(User, User.id == UserCharacterAssignment.user_id)
+        .join(
+            ProductionMembership,
+            ProductionMembership.user_id == UserCharacterAssignment.user_id,
+        )
+        .join(Production, Production.id == ProductionMembership.production_id)
+        .join(
+            ProductionMembershipRole,
+            ProductionMembershipRole.membership_id == ProductionMembership.id,
+        )
+        .join(
+            ProductionRole,
+            ProductionRole.id == ProductionMembershipRole.production_role_id,
+        )
+        .filter(
+            Character.production_id == production_id,
+            ProductionMembership.production_id == production_id,
+            Production.id == production_id,
+            Production.organization_id == User.organization_id,
+            User.is_active.is_(True),
+            ProductionMembership.is_active.is_(True),
+            ProductionRole.code == "actor",
+        )
+        .distinct()
+        .all()
+    )
+
+
+def effective_cast_character_ids(db: Session, production_id: int) -> set[int]:
+    """Return character IDs with an effective current cast assignment."""
+    return {
+        assignment.character_id
+        for assignment in list_effective_cast_assignments(db, production_id)
+    }
 
 
 def validate_active_same_org_user(

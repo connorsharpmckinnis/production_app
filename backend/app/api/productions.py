@@ -21,7 +21,6 @@ from app.models import (
     Production,
     Scene,
     User,
-    UserCharacterAssignment,
 )
 from app.schemas.overview_messages import (
     ProductionOverviewMessageResponse,
@@ -40,7 +39,11 @@ from app.schemas.production import (
 )
 from app.services.importer import ImportLineError, import_script
 from app.services.notifications import notify_admins_production_created
-from app.services.production_memberships import active_role_codes, effective_permissions
+from app.services.production_memberships import (
+    active_role_codes,
+    effective_cast_character_ids,
+    effective_permissions,
+)
 from app.services.overview_messages import (
     build_spotlight_queue,
     effective_rotation_seconds,
@@ -158,13 +161,7 @@ def get_production_overview(
         .scalar()
         or 0
     )
-    cast_count = (
-        db.query(func.count(UserCharacterAssignment.id))
-        .join(Character, Character.id == UserCharacterAssignment.character_id)
-        .filter(Character.production_id == production_id)
-        .scalar()
-        or 0
-    )
+    cast_count = len(effective_cast_character_ids(db, production_id))
 
     # Import state is based on timeline structure (acts), not author metadata.
     imported_at = None

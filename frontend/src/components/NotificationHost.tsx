@@ -147,7 +147,7 @@ export function NotificationProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const productionId = productionIdFromPath(location.pathname);
-  const routeKey = routeKeyFromPath(location.pathname);
+  const routeKey = routeKeyFromPath(location.pathname, location.search);
 
   const refresh = useCallback(async () => {
     try {

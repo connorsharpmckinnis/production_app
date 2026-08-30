@@ -7,6 +7,7 @@ from app.models import (
     Character,
     ProductionMembership,
     ProductionMembershipRole,
+    ProductionRole,
     User,
     UserCharacterAssignment,
 )
@@ -26,6 +27,7 @@ from app.services.production_memberships import (
     UserNotEligibleError,
     create_or_reactivate_membership,
     deactivate_membership,
+    effective_cast_character_ids,
     get_membership,
     replace_membership_roles,
 )
@@ -58,7 +60,10 @@ def _member_query(db: Session, production_id: int):
     )
 
 
-def _member_response(membership: ProductionMembership) -> ProductionMemberResponse:
+def _member_response(
+    membership: ProductionMembership,
+    effective_cast_ids: set[int] | None = None,
+) -> ProductionMemberResponse:
     user = membership.user
     roles = sorted(
         (
@@ -74,7 +79,13 @@ def _member_response(membership: ProductionMembership) -> ProductionMemberRespon
         (
             AssignedCharacterResponse(id=assignment.character.id, name=assignment.character.name)
             for assignment in user.character_assignments
-            if assignment.character.production_id == membership.production_id
+            if (
+                assignment.character.production_id == membership.production_id
+                and (
+                    effective_cast_ids is None
+                    or assignment.character.id in effective_cast_ids
+                )
+            )
         ),
         key=lambda character: (character.name.lower(), character.id),
     )
@@ -115,6 +126,26 @@ def _membership_error_http(exc: ProductionMembershipError) -> HTTPException:
 
 
 @router.get(
+    "/{production_id}/people/roles",
+    response_model=list[ProductionRoleResponse],
+)
+def list_production_roles(
+    production_id: int,
+    _user: User = Depends(require_production_capability("people", "read")),
+    db: Session = Depends(get_db),
+) -> list[ProductionRoleResponse]:
+    roles = (
+        db.query(ProductionRole)
+        .order_by(ProductionRole.name, ProductionRole.code)
+        .all()
+    )
+    return [
+        ProductionRoleResponse(code=role.code, name=role.name)
+        for role in roles
+    ]
+
+
+@router.get(
     "/{production_id}/people",
     response_model=list[ProductionMemberResponse],
 )
@@ -128,7 +159,8 @@ def list_people(
         .order_by(User.last_name, User.first_name, User.id)
         .all()
     )
-    return [_member_response(membership) for membership in memberships]
+    effective_cast_ids = effective_cast_character_ids(db, production_id)
+    return [_member_response(membership, effective_cast_ids) for membership in memberships]
 
 
 @router.get(
@@ -199,7 +231,7 @@ def add_person(
         db.rollback()
         raise _membership_error_http(exc) from exc
     membership = _active_membership_or_404(db, production_id, body.user_id)
-    return _member_response(membership)
+    return _member_response(membership, effective_cast_character_ids(db, production_id))
 
 
 @router.patch(
@@ -221,7 +253,7 @@ def update_person_roles(
         db.rollback()
         raise _membership_error_http(exc) from exc
     membership = _active_membership_or_404(db, production_id, user_id)
-    return _member_response(membership)
+    return _member_response(membership, effective_cast_character_ids(db, production_id))
 
 
 @router.post(
@@ -246,6 +278,7 @@ def deactivate_person(
     except ProductionMembershipError as exc:
         db.rollback()
         raise _membership_error_http(exc) from exc
+    effective_cast_ids = effective_cast_character_ids(db, production_id)
     return ProductionMemberResponse(
         user_id=membership.user.id,
         display_name=_display_name(membership.user),
@@ -268,7 +301,10 @@ def deactivate_person(
                     name=assignment.character.name,
                 )
                 for assignment in membership.user.character_assignments
-                if assignment.character.production_id == production_id
+                if (
+                    assignment.character.production_id == production_id
+                    and assignment.character.id in effective_cast_ids
+                )
             ),
             key=lambda character: (character.name.lower(), character.id),
         ),

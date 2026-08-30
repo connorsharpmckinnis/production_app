@@ -23,8 +23,11 @@ ALLOWED_ROUTE_FILTERS = {
     "props",
     "costumes",
     "set-pieces",
+    "cue-categories",
     "groups",
+    "people",
     "lav-chart",
+    "rehearsals",
     "reports",
 }
 

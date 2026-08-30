@@ -272,5 +272,32 @@ def test_cast_removal_preserves_membership_and_deactivation_preserves_assignment
         f"/api/productions/{production.id}",
         headers=actor_headers,
     ).status_code == 404
+    characters = client.get(
+        f"/api/productions/{production.id}/characters",
+        headers=headers,
+    )
+    assert characters.status_code == 200
+    retained_character = next(
+        item for item in characters.json() if item["id"] == character.id
+    )
+    assert retained_character["assigned_actor"] is None
+
+    casting = client.get(
+        f"/api/productions/{production.id}/casting",
+        headers=headers,
+    )
+    assert casting.status_code == 200
+    retained_cast = next(
+        item for item in casting.json() if item["character_id"] == character.id
+    )
+    assert retained_cast["user_id"] is None
+
+    overview = client.get(
+        f"/api/productions/{production.id}/overview",
+        headers=headers,
+    )
+    assert overview.status_code == 200
+    assert overview.json()["cast_count"] == 0
+
     db_session.expire_all()
     assert db_session.query(UserCharacterAssignment).count() == 1

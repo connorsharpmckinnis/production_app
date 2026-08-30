@@ -71,6 +71,7 @@ import type {
   ProductionAccessResponse,
   ProductionMemberCandidateResponse,
   ProductionMemberResponse,
+  ProductionRoleSummary,
   ProductionRolePermissionResponse,
   ProductionRolePermissionUpdate,
   ProductionResponse,
@@ -81,6 +82,7 @@ import type {
   SongDetailResponse,
   TokenResponse,
   UserResponse,
+  UpdateAdminRoleRequest,
   WireResponse,
 } from "./types";
 
@@ -402,6 +404,12 @@ export const api = {
     );
   },
 
+  listProductionRoles(productionId: number) {
+    return request<ProductionRoleSummary[]>(
+      `/productions/${productionId}/people/roles`,
+    );
+  },
+
   listProductionPeopleCandidates(productionId: number) {
     return request<ProductionMemberCandidateResponse[]>(
       `/productions/${productionId}/people/candidates`,
@@ -524,6 +532,13 @@ export const api = {
   resetPassword(userId: number, body: ResetPasswordRequest) {
     return request<UserResponse>(`/users/${userId}/reset-password`, {
       method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  updateAdminRole(userId: number, body: UpdateAdminRoleRequest) {
+    return request<UserResponse>(`/users/${userId}/admin`, {
+      method: "PATCH",
       body: JSON.stringify(body),
     });
   },
