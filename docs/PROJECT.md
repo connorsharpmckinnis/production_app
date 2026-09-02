@@ -1163,7 +1163,7 @@ See [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](../.agents/skills/DEVELOPMENT_GU
 These bullets remain for lighter capture so good ideas are not lost:
 
 - **Saved views** — save a timeline filter/search combination (character selection, search terms, Rehearse preset) as a named view for quick recall. May evolve into role-specific modes (rehearsal mode, tech night mode).
-- **Scene summary drill-down** — clickable chips on the scene summary strip open a modal with per-character detail: entrance moment, exit moment, costume, props carried, set pieces, blocking notes. Costume/props/set pieces would read from the Phase 14 event-derived state (`asset_state.py`); rest derived from timeline data (see [SCRATCH_NOTES.md](SCRATCH_NOTES.md)). Phase 6 ships read-only chips only.
+- **Scene summary drill-down** — clickable chips → richer per-character/scene detail. **Partial 2026-09-02:** character chips open [object detail](shipped_features/object-detail-pages.md) with scene-filtered E/E + end-of-scene holdings; see [scene-summary-drill-down.md](feature_plans/scene-summary-drill-down.md). Named prop chips / further type filters still open.
 - **Rehearse line blur** — in Rehearse mode, actor's own lines stay in the list but text is blurred until click or hover reveal, so they can practice against visible context lines without seeing their line prematurely. Phase 6 P2; presets alone are sufficient for P0.
 - **Production home page** — a dedicated landing page per production instead of opening straight into the timeline hub.
 - **Bookmarks timeline view** — a dedicated timeline-like view for bookmarks with gaps (`…`) between non-adjacent moments; click through to the main timeline. Owner undecided on interaction design — leave as-is until settled.

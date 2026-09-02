@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import SearchableSelect from "@/components/SearchableSelect";
 import type { SearchableSelectOption } from "@/components/SearchableSelect";
+import ObjectLink from "@/components/object-detail/ObjectLink";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +36,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { api, ApiError, formatApiError } from "@/lib/api";
+import type { ObjectDetailType } from "@/lib/objectDetail";
 import { formatMomentCode, humanTimelinePath } from "@/lib/timelineDeepLinks";
 import type {
   AppSettingsResponse,
@@ -178,6 +180,33 @@ function blockingSubjectLabel(row: {
   group_name: string | null;
 }): string {
   return row.character_name ?? row.user_display_name ?? row.group_name ?? "Unknown";
+}
+
+function DetailObjectLabel({
+  label,
+  objectType,
+  objectId,
+  momentId,
+  className,
+}: {
+  label: string;
+  objectType?: ObjectDetailType;
+  objectId?: number | null;
+  momentId?: number;
+  className?: string;
+}) {
+  if (objectType != null && objectId != null) {
+    return (
+      <ObjectLink
+        objectType={objectType}
+        objectId={objectId}
+        momentId={momentId}
+        label={label}
+        className={className}
+      />
+    );
+  }
+  return <span className={cn("font-medium", className)}>{label}</span>;
 }
 
 function KindToggle({
@@ -1130,8 +1159,12 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                     </div>
                   ) : (
                     <>
-                      <span className="font-medium">{line.character_name}:</span>{" "}
-                      {line.dialogue_text}
+                      <DetailObjectLabel
+                        label={line.character_name}
+                        objectType="character"
+                        objectId={line.character_id}
+                      />
+                      : {line.dialogue_text}
                     </>
                   )}
                 </li>
@@ -1148,8 +1181,12 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             <ul className="mt-2 space-y-2">
               {detail.lyrics.map((line) => (
                 <li key={line.id} className="text-base leading-relaxed">
-                  <span className="font-medium">{line.character_name}:</span>{" "}
-                  {line.lyric_text}
+                  <DetailObjectLabel
+                    label={line.character_name}
+                    objectType="character"
+                    objectId={line.character_id}
+                  />
+                  : {line.lyric_text}
                 </li>
               ))}
             </ul>
@@ -1275,10 +1312,16 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           </div>
         )}
 
-        {detail.song_title && !canEdit && isSongRelated && (
+        {detail.song_title && !canEdit && isSongRelated && detail.song_id != null && (
           <div>
             <h3 className="text-sm font-medium">Song</h3>
-            <p className="mt-1 text-sm">{detail.song_title}</p>
+            <p className="mt-1 text-sm">
+              <ObjectLink
+                objectType="song"
+                objectId={detail.song_id}
+                label={detail.song_title}
+              />
+            </p>
           </div>
         )}
 
@@ -1631,6 +1674,8 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           events={detail.props.map((prop) => ({
             id: prop.id,
             assetName: prop.prop_name,
+            assetObjectType: "prop" as const,
+            assetObjectId: prop.prop_id,
             kind: prop.kind as AssetEventKind,
             character_id: prop.character_id,
             character_name: prop.character_name,
@@ -1651,7 +1696,11 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             .map((item) => ({
               key: `prop-in-play-${item.prop_id}`,
               label: item.prop_name,
+              labelObjectType: "prop" as const,
+              labelObjectId: item.prop_id,
               personLabel: item.character_name ?? item.user_display_name,
+              personObjectType: item.character_id != null ? ("character" as const) : undefined,
+              personObjectId: item.character_id,
               sourceActNumber: item.source_act_number,
               sourceSceneNumber: item.source_scene_number,
               sourceSequenceNumber: item.source_sequence_number,
@@ -1672,6 +1721,8 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           events={detail.set_pieces.map((piece) => ({
             id: piece.id,
             assetName: piece.set_piece_name,
+            assetObjectType: "set_piece" as const,
+            assetObjectId: piece.set_piece_id,
             kind: piece.kind as AssetEventKind,
             character_id: piece.character_id,
             character_name: piece.character_name,
@@ -1692,7 +1743,11 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             .map((item) => ({
               key: `set-piece-in-play-${item.set_piece_id}`,
               label: item.set_piece_name,
+              labelObjectType: "set_piece" as const,
+              labelObjectId: item.set_piece_id,
               personLabel: item.character_name ?? item.user_display_name,
+              personObjectType: item.character_id != null ? ("character" as const) : undefined,
+              personObjectId: item.character_id,
               sourceActNumber: item.source_act_number,
               sourceSceneNumber: item.source_scene_number,
               sourceSequenceNumber: item.source_sequence_number,
@@ -1725,6 +1780,8 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           items={detail.entrances.map((entrance) => ({
             id: entrance.id,
             label: entrance.character_name,
+            objectType: "character" as const,
+            objectId: entrance.character_id,
             notes: entrance.notes ?? undefined,
           }))}
           onDetach={handleDetachEntrance}
@@ -1740,6 +1797,8 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           items={detail.exits.map((exitRow) => ({
             id: exitRow.id,
             label: exitRow.character_name,
+            objectType: "character" as const,
+            objectId: exitRow.character_id,
             notes: exitRow.notes ?? undefined,
           }))}
           onDetach={handleDetachExit}
@@ -1755,6 +1814,13 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           items={detail.blocking.map((row) => ({
             id: row.id,
             label: blockingSubjectLabel(row),
+            objectType:
+              row.character_id != null
+                ? ("character" as const)
+                : row.group_id != null
+                  ? ("group" as const)
+                  : undefined,
+            objectId: row.character_id ?? row.group_id,
             notes: row.notes ?? undefined,
             editableNotes: canEdit,
             onNotesBlur: (notes: string) => {
@@ -1776,6 +1842,9 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           items={detail.cues.map((cue) => ({
             id: cue.id,
             label: cue.title,
+            objectType: "cue" as const,
+            objectId: cue.id,
+            momentId: detail.id,
             sublabel: cue.cue_category_name,
             notes: cue.notes ?? undefined,
           }))}
@@ -1868,6 +1937,9 @@ function AttachmentSection({
   items: {
     id: number;
     label: string;
+    objectType?: ObjectDetailType;
+    objectId?: number | null;
+    momentId?: number;
     sublabel?: string;
     notes?: string;
     editableNotes?: boolean;
@@ -1906,7 +1978,12 @@ function AttachmentSection({
                 <li key={item.id} className="rounded-md border border-border p-2 text-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <span className="font-medium">{item.label}</span>
+                      <DetailObjectLabel
+                        label={item.label}
+                        objectType={item.objectType}
+                        objectId={item.objectId}
+                        momentId={item.momentId}
+                      />
                       {item.sublabel && (
                         <span className="text-muted-foreground"> — {item.sublabel}</span>
                       )}
@@ -1956,6 +2033,8 @@ function AttachmentSection({
 interface AssetEventItem {
   id: number;
   assetName: string;
+  assetObjectType?: ObjectDetailType;
+  assetObjectId?: number | null;
   kind: AssetEventKind;
   character_id: number | null;
   character_name: string | null;
@@ -1970,7 +2049,11 @@ interface AssetEventItem {
 interface AssetInPlayItem {
   key: string;
   label: string;
+  labelObjectType?: ObjectDetailType;
+  labelObjectId?: number | null;
   personLabel: string | null;
+  personObjectType?: ObjectDetailType;
+  personObjectId?: number | null;
   sourceActNumber: number;
   sourceSceneNumber: number;
   sourceSequenceNumber: number;
@@ -2065,9 +2148,23 @@ function AssetEventSection({
 
               return (
                 <li key={item.key} className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                  <span>
-                    <span className="font-medium text-foreground">{item.label}</span>
-                    {item.personLabel ? ` — ${item.personLabel}` : ""}
+                  <span className="inline-flex flex-wrap items-baseline gap-x-1">
+                    <DetailObjectLabel
+                      label={item.label}
+                      objectType={item.labelObjectType}
+                      objectId={item.labelObjectId}
+                      className="text-foreground"
+                    />
+                    {item.personLabel ? (
+                      <>
+                        <span>—</span>
+                        <DetailObjectLabel
+                          label={item.personLabel}
+                          objectType={item.personObjectType}
+                          objectId={item.personObjectId}
+                        />
+                      </>
+                    ) : null}
                   </span>
                   <span className="inline-flex flex-wrap items-center gap-x-1.5">
                     <Link
@@ -2232,7 +2329,11 @@ function AssetEventRow({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-medium">{event.assetName}</span>
+            <DetailObjectLabel
+              label={event.assetName}
+              objectType={event.assetObjectType}
+              objectId={event.assetObjectId}
+            />
             <Badge
               variant={event.kind === "on" ? "default" : "secondary"}
               className="uppercase"
@@ -2240,7 +2341,15 @@ function AssetEventRow({
               {event.kind === "on" ? "On" : "Off"}
             </Badge>
           </div>
-          {personLabel && <p className="text-muted-foreground">{personLabel}</p>}
+          {personLabel && (
+            <p className="mt-1">
+              <DetailObjectLabel
+                label={personLabel}
+                objectType={event.character_id != null ? "character" : undefined}
+                objectId={event.character_id}
+              />
+            </p>
+          )}
           {!editing && event.notes && (
             <p className="mt-1 text-muted-foreground">{event.notes}</p>
           )}
@@ -2407,11 +2516,19 @@ function CostumeEventSection({
                   key={`wearing-${item.character_id}`}
                   className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5"
                 >
-                  <span>
-                    <span className="font-medium text-foreground">
-                      {item.character_name}
-                    </span>
-                    {` — ${item.costume_name}`}
+                  <span className="inline-flex flex-wrap items-baseline gap-x-1">
+                    <DetailObjectLabel
+                      label={item.character_name}
+                      objectType="character"
+                      objectId={item.character_id}
+                      className="text-foreground"
+                    />
+                    <span>—</span>
+                    <DetailObjectLabel
+                      label={item.costume_name}
+                      objectType="costume"
+                      objectId={item.costume_id}
+                    />
                   </span>
                   <span className="inline-flex flex-wrap items-center gap-x-1.5">
                     <Link
@@ -2557,12 +2674,26 @@ function CostumeEventRow({
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <span className="font-medium">{event.character_name}</span>
+            <DetailObjectLabel
+              label={event.character_name}
+              objectType="character"
+              objectId={event.character_id}
+            />
             <Badge variant={event.kind === "on" ? "default" : "secondary"}>
               {event.kind === "on" ? "Wear" : "Clear"}
             </Badge>
           </div>
-          {event.costume_name && <p className="text-muted-foreground">{event.costume_name}</p>}
+          {event.costume_name && event.costume_id != null ? (
+            <p className="mt-1">
+              <DetailObjectLabel
+                label={event.costume_name}
+                objectType="costume"
+                objectId={event.costume_id}
+              />
+            </p>
+          ) : event.costume_name ? (
+            <p className="text-muted-foreground">{event.costume_name}</p>
+          ) : null}
           {!editing && event.notes && (
             <p className="mt-1 text-muted-foreground">{event.notes}</p>
           )}

@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import CatalogCsvImport from "@/components/CatalogCsvImport";
+import ObjectLink from "@/components/object-detail/ObjectLink";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -199,7 +200,13 @@ export default function SetPiecesPage() {
             <TableBody>
               {setPieces.map((piece) => (
                 <TableRow key={piece.id}>
-                  <TableCell className="font-medium">{piece.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <ObjectLink
+                      objectType="set_piece"
+                      objectId={piece.id}
+                      label={piece.name}
+                    />
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
                     {piece.mobile ? "Yes" : "No"}
                   </TableCell>

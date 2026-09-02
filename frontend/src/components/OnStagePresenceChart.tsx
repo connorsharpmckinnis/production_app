@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
+import ObjectLink from "@/components/object-detail/ObjectLink";
 import {
   chartMinWidthPx,
   intervalWidthPercent,
@@ -168,7 +169,12 @@ export function OnStagePresenceChart({
                   )}
                   title={row.character_name}
                 >
-                  {row.character_name}
+                  <ObjectLink
+                    objectType="character"
+                    objectId={row.character_id}
+                    label={row.character_name}
+                    className="max-w-full px-1 py-0 text-xs"
+                  />
                 </div>
                 <div className="relative h-5 min-w-0 flex-1">
                   {report.scenes.map((scene) => (

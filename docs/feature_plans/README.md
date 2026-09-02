@@ -74,7 +74,7 @@ When implementing, agents should read the matching plan here for goals, non-goal
 | Plan | Status | One-liner |
 | ---- | ------ | --------- |
 | [script-revision-reimport.md](script-revision-reimport.md) | Curiosity | Writer revision merge / re-import without wiping prep |
-| [scene-summary-drill-down.md](scene-summary-drill-down.md) | Curiosity | Scene chips → per-character/asset modal detail |
+| [scene-summary-drill-down.md](scene-summary-drill-down.md) | Curiosity | Scene chips → further scene filters / named prop chips (Character scene context shipped in object detail) |
 | [lav-follow-ons.md](lav-follow-ons.md) | Curiosity | Lav Timeline events, change-list, handhelds, CSV |
 | [understudies-and-cast-overrides.md](understudies-and-cast-overrides.md) | Curiosity | Understudies + effective cast for packs/Rehearse |
 | [costume-pieces-and-outfits.md](costume-pieces-and-outfits.md) | Curiosity | Piece-level wardrobe beyond whole-costume on/off |
@@ -88,7 +88,7 @@ When implementing, agents should read the matching plan here for goals, non-goal
 
 ## Already shipped
 
-See [shipped_features/](../shipped_features/README.md): in-play deep links (including costumes), lav assignment UX, announcements prototype.
+See [shipped_features/](../shipped_features/README.md): in-play deep links (including costumes), lav assignment UX, announcements prototype, [object detail pages](../shipped_features/object-detail-pages.md) (2026-09-02).
 
 Also shipped in place under this folder (same pattern as rehearsal-management): [production-membership-and-casting-workspace.md](production-membership-and-casting-workspace.md) (2026-09-02).
 

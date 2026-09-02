@@ -4,6 +4,7 @@ import { Pencil } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import CatalogCsvImport from "@/components/CatalogCsvImport";
+import ObjectLink from "@/components/object-detail/ObjectLink";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -179,7 +180,9 @@ export default function SongsPage() {
             <TableBody>
               {songs.map((song) => (
                 <TableRow key={song.id}>
-                  <TableCell className="font-medium">{song.title}</TableCell>
+                  <TableCell className="font-medium">
+                    <ObjectLink objectType="song" objectId={song.id} label={song.title} />
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{song.composer ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{song.lyricist ?? "—"}</TableCell>
                   {canManagePreparation && (

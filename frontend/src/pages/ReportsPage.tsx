@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import ObjectLink from "@/components/object-detail/ObjectLink";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -173,7 +174,13 @@ export default function ReportsPage() {
           <div className="space-y-4">
             {propSheet.map((entry) => (
               <div key={entry.prop_id} className="rounded-lg border border-border p-4">
-                <h3 className="font-medium">{entry.prop_name}</h3>
+                <h3 className="font-medium">
+                  <ObjectLink
+                    objectType="prop"
+                    objectId={entry.prop_id}
+                    label={entry.prop_name}
+                  />
+                </h3>
                 {entry.description && (
                   <p className="text-sm text-muted-foreground">{entry.description}</p>
                 )}
@@ -265,9 +272,26 @@ export default function ReportsPage() {
                     {entry.kind === "on" ? "Wear" : "Clear"}
                   </Badge>
                   <span>
-                    <span className="font-medium">{entry.character_name}</span>
-                    {entry.costume_name ? ` — ${entry.costume_name}` : ""} — Act{" "}
-                    {entry.act_number}, Scene {entry.scene_number}
+                    <ObjectLink
+                      objectType="character"
+                      objectId={entry.character_id}
+                      label={entry.character_name}
+                    />
+                    {entry.costume_name ? (
+                      <>
+                        {" — "}
+                        {entry.costume_id != null ? (
+                          <ObjectLink
+                            objectType="costume"
+                            objectId={entry.costume_id}
+                            label={entry.costume_name}
+                          />
+                        ) : (
+                          entry.costume_name
+                        )}
+                      </>
+                    ) : null}{" "}
+                    — Act {entry.act_number}, Scene {entry.scene_number}
                     {entry.scene_title ? ` (${entry.scene_title})` : ""} —{" "}
                     <MomentLink
                       actNumber={entry.act_number}
@@ -307,7 +331,12 @@ export default function ReportsPage() {
                       >
                         Moment {row.sequence_number}
                       </MomentLink>{" "}
-                      — {row.movement_type}: {row.character_name}
+                      — {row.movement_type}:{" "}
+                      <ObjectLink
+                        objectType="character"
+                        objectId={row.character_id}
+                        label={row.character_name}
+                      />
                       {row.notes ? ` (${row.notes})` : ""}
                     </li>
                   ))}
@@ -340,9 +369,23 @@ export default function ReportsPage() {
                     Moment {entry.sequence_number}
                   </MomentLink>{" "}
                   —{" "}
-                  {entry.character_name ??
-                    entry.user_display_name ??
-                    entry.group_name}
+                  {entry.character_id != null && entry.character_name ? (
+                    <ObjectLink
+                      objectType="character"
+                      objectId={entry.character_id}
+                      label={entry.character_name}
+                    />
+                  ) : entry.group_id != null && entry.group_name ? (
+                    <ObjectLink
+                      objectType="group"
+                      objectId={entry.group_id}
+                      label={entry.group_name}
+                    />
+                  ) : (
+                    (entry.character_name ??
+                      entry.user_display_name ??
+                      entry.group_name)
+                  )}
                   : {entry.notes}
                 </li>
               );

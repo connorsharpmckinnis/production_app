@@ -9,10 +9,12 @@ import {
   NotificationModal,
   NotificationProvider,
 } from "@/components/NotificationHost";
+import ObjectDetailHost from "@/components/object-detail/ObjectDetailHost";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { ObjectDetailProvider } from "@/context/ObjectDetailContext";
 import {
   ProductionAccessProvider,
   useProductionAccess,
@@ -39,7 +41,9 @@ export default function AppShell() {
   return (
     <NotificationProvider>
       <ProductionAccessProvider>
-        <AppShellInner />
+        <ObjectDetailProvider>
+          <AppShellInner />
+        </ObjectDetailProvider>
       </ProductionAccessProvider>
     </NotificationProvider>
   );
@@ -607,6 +611,7 @@ function AppShellInner() {
       <FeedbackDialog open={feedbackOpen} onOpenChange={setFeedbackOpen} />
       <ActAsDialog open={actAsOpen} onOpenChange={setActAsOpen} />
       <NotificationModal />
+      <ObjectDetailHost />
     </div>
   );
 }

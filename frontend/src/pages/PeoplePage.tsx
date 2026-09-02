@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
+import ObjectLink from "@/components/object-detail/ObjectLink";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -330,7 +331,13 @@ export default function PeoplePage() {
                 return (
                   <TableRow key={person.user_id}>
                     <TableCell>
-                      <p className="font-medium">{person.display_name}</p>
+                      <p className="font-medium">
+                        <ObjectLink
+                          objectType="person"
+                          objectId={person.user_id}
+                          label={person.display_name}
+                        />
+                      </p>
                       {person.email && (
                         <p className="text-xs text-muted-foreground">{person.email}</p>
                       )}
@@ -364,9 +371,13 @@ export default function PeoplePage() {
                       {person.assigned_characters.length > 0 ? (
                         <div className="flex flex-wrap gap-1">
                           {person.assigned_characters.map((character) => (
-                            <Badge key={character.id} variant="outline">
-                              {character.name} · Cast
-                            </Badge>
+                            <ObjectLink
+                              key={character.id}
+                              objectType="character"
+                              objectId={character.id}
+                              label={`${character.name} · Cast`}
+                              className="text-xs"
+                            />
                           ))}
                         </div>
                       ) : (

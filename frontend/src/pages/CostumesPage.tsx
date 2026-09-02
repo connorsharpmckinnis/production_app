@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import CatalogCsvImport from "@/components/CatalogCsvImport";
+import ObjectLink from "@/components/object-detail/ObjectLink";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -223,8 +224,20 @@ export default function CostumesPage() {
             <TableBody>
               {costumes.map((costume) => (
                 <TableRow key={costume.id}>
-                  <TableCell className="font-medium">{costume.character_name}</TableCell>
-                  <TableCell className="font-medium">{costume.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <ObjectLink
+                      objectType="character"
+                      objectId={costume.character_id}
+                      label={costume.character_name}
+                    />
+                  </TableCell>
+                  <TableCell className="font-medium">
+                    <ObjectLink
+                      objectType="costume"
+                      objectId={costume.id}
+                      label={costume.name}
+                    />
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
                     {costume.description ?? "—"}
                   </TableCell>

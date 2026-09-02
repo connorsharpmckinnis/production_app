@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
+import ObjectLink from "@/components/object-detail/ObjectLink";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -171,7 +172,13 @@ export default function CharactersPage() {
             <TableBody>
               {characters.map((character) => (
                 <TableRow key={character.id}>
-                  <TableCell className="font-medium">{character.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <ObjectLink
+                      objectType="character"
+                      objectId={character.id}
+                      label={character.name}
+                    />
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{character.scene_count}</TableCell>
                   {canCast ? (
                     <TableCell>

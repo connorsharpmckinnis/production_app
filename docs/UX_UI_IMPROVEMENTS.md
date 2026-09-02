@@ -190,9 +190,8 @@ These are already captured in [PROJECT.md](PROJECT.md) and [SCRATCH_NOTES.md](SC
 - Current banner-in-header approach is interim.
 
 ### Scene summary drill-down
-- Scene summary chips are read-only today.
-- Make chips clickable → modal with per-character detail: entrance, exit, costume, props, set pieces, blocking (derived from timeline; costume/props/set pieces now readable from Phase 14 event-derived state — `asset_state.py`).
-- Named **prop chips** on the strip (not only “Props used (N moments)”).
+- **Partial 2026-09-02:** character chips open [object detail](shipped_features/object-detail-pages.md) with **scene-filtered** E/E + end-of-scene holdings. Song chips link. Props strip is still a count.
+- Still open: named **prop chips**; further scene filters for other types — [scene-summary-drill-down.md](feature_plans/scene-summary-drill-down.md).
 
 ### Moment detail evolution
 - Further declutter beyond the Add menu — stronger “what do you want to add?” selection layer / shorter flows (owner still wants this panel to feel better under heavy use).

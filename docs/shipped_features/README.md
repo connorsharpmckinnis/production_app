@@ -6,6 +6,7 @@ Keep these for history, follow-ons, and “don’t rebuild this” context. Rema
 
 | Plan | Shipped | One-liner |
 | ---- | ------- | --------- |
+| [object-detail-pages.md](object-detail-pages.md) | 2026-09-02 | Ephemeral object detail Sheet + ObjectLink; Character scene filter from summary chips |
 | [in-play-moment-deep-links.md](in-play-moment-deep-links.md) | 2026-07-30 (A+B); costumes 2026-08-13 | In-play source + next-change + OFF prior-on (props, set pieces, costumes). Sticky Timeline URL deferred. |
 | [lav-assignment-ux.md](lav-assignment-ux.md) | 2026-08-02 | Excel-competitive lav matrix: chrome, fill-row, taken filtering, locks |
 | [app-announcements.md](app-announcements.md) | Prototype 2026-07-29 | In-app announcements, banners/modals, bell inbox |

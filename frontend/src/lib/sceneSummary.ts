@@ -1,8 +1,18 @@
 import type { CharacterDetailResponse, MomentSummary, SongDetailResponse } from "@/lib/types";
 
+export interface SceneSummaryCharacter {
+  id: number;
+  name: string;
+}
+
+export interface SceneSummarySong {
+  id: number;
+  title: string;
+}
+
 export interface SceneSummaryData {
-  characterNames: string[];
-  songTitles: string[];
+  characters: SceneSummaryCharacter[];
+  songs: SceneSummarySong[];
   propMomentCount: number;
 }
 
@@ -28,15 +38,19 @@ export function deriveSceneSummary(
     }
   }
 
-  const characterNames = characters
+  const summaryCharacters = characters
     .filter((character) => characterIds.has(character.id))
-    .map((character) => character.name)
-    .sort((a, b) => a.localeCompare(b));
+    .map((character) => ({ id: character.id, name: character.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
-  const songTitles = songs
+  const summarySongs = songs
     .filter((song) => songIds.has(song.id))
-    .map((song) => song.title)
-    .sort((a, b) => a.localeCompare(b));
+    .map((song) => ({ id: song.id, title: song.title }))
+    .sort((a, b) => a.title.localeCompare(b.title));
 
-  return { characterNames, songTitles, propMomentCount };
+  return {
+    characters: summaryCharacters,
+    songs: summarySongs,
+    propMomentCount,
+  };
 }

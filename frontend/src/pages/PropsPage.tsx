@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import CatalogCsvImport from "@/components/CatalogCsvImport";
+import ObjectLink from "@/components/object-detail/ObjectLink";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -198,7 +199,9 @@ export default function PropsPage() {
             <TableBody>
               {props.map((prop) => (
                 <TableRow key={prop.id}>
-                  <TableCell className="font-medium">{prop.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <ObjectLink objectType="prop" objectId={prop.id} label={prop.name} />
+                  </TableCell>
                   <TableCell className="text-muted-foreground">{prop.description ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{prop.notes ?? "—"}</TableCell>
                   {canManagePreparation && (

@@ -49,6 +49,7 @@ Organization accounts are separate from production access. Seeded Admin can see 
 3. Try:
    - Under **Characters**, cast the `actor` user to a character (only active members with the Actor production role appear)
    - Attach a prop / cue / entrance / exit / blocking note on a moment (create catalog items first if the Add menu is empty)
+   - Click a **character chip** on the scene summary strip — object detail sheet should open (with scene-specific info when available); Esc closes it
    - Bookmark a moment; reopen it from **My bookmarks** in the user menu
 4. Use filters (character, search, advanced). Chips show what is active; filters combine with **AND**.
 

@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { Pencil, Trash2 } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
+import ObjectLink from "@/components/object-detail/ObjectLink";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -199,7 +200,13 @@ export default function GroupsPage() {
             <div key={group.id} className="rounded-lg border border-border p-4">
               <div className="flex items-start justify-between gap-4">
                 <div>
-                  <h2 className="font-medium">{group.name}</h2>
+                  <h2 className="font-medium">
+                    <ObjectLink
+                      objectType="group"
+                      objectId={group.id}
+                      label={group.name}
+                    />
+                  </h2>
                   {group.description && (
                     <p className="mt-1 text-sm text-muted-foreground">{group.description}</p>
                   )}

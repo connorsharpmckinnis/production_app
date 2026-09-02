@@ -108,12 +108,20 @@ Moments listed in sequence order; click row → read-only detail in a `Sheet`.
 * Optional **Prop** / **Cue** outline badges when attachments exist.
 * Highlighted rows (blue left border) for filtered character dialogue and referenced stage directions.
 * Click row → moment detail sheet.
+* Scene summary strip: character/song names use **ObjectLink** chips (secondary + arrow icon) → object detail sheet. Dialogue speaker column stays plain text.
 
 **Moment detail sheet:**
 
 * Full **original text** (always read-only — sacred script).
 * **Bookmark** icon button (lucide `Bookmark`; filled when active).
 * **Notes** list + add form; Director/Admin can choose public/private visibility.
+* Catalog object names (entrances, props, etc.) use **ObjectLink** where the user has `read` — opens the shared object detail Sheet (not a new nav route).
+
+**Object detail sheet (catalog / domain objects):**
+
+* Ephemeral right/bottom `Sheet` (same family as Moment Detail); one at a time; replace on another open after dirty guard.
+* Explicit Save / Discard when `update` is allowed.
+* See [object-detail-pages.md](shipped_features/object-detail-pages.md).
 
 **Bookmarks (user menu):**
 
@@ -182,6 +190,7 @@ Use shadcn/ui throughout ([DEVELOPMENT_GUIDE](../.agents/skills/DEVELOPMENT_GUID
 | Moment type badge | `Badge` |
 | Prop/Cue/Mic/Set/Costume indicator | `Badge variant="outline"` |
 | Side panel | `Sheet` |
+| Catalog object reference | `ObjectLink` (secondary chip + arrow) → object detail `Sheet` |
 | Bookmark toggle | `Button` (icon-sm) + lucide icon |
 | Navigation | sidebar `nav` links |
 | Toasts | `ToastProvider` / `useToast` |

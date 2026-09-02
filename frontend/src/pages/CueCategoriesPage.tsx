@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import CatalogCsvImport from "@/components/CatalogCsvImport";
+import ObjectLink from "@/components/object-detail/ObjectLink";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import {
@@ -227,7 +228,13 @@ export default function CueCategoriesPage() {
             <TableBody>
               {categories.map((category) => (
                 <TableRow key={category.id}>
-                  <TableCell className="font-medium">{category.name}</TableCell>
+                  <TableCell className="font-medium">
+                    <ObjectLink
+                      objectType="cue_category"
+                      objectId={category.id}
+                      label={category.name}
+                    />
+                  </TableCell>
                   <TableCell className="text-muted-foreground">
                     {category.description ?? "—"}
                   </TableCell>

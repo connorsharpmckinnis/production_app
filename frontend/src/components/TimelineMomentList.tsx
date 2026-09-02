@@ -19,8 +19,8 @@ export interface TimelineSection {
 function sectionHasSummary(summary?: SceneSummaryData): boolean {
   if (!summary) return false;
   return (
-    summary.characterNames.length > 0 ||
-    summary.songTitles.length > 0 ||
+    summary.characters.length > 0 ||
+    summary.songs.length > 0 ||
     summary.propMomentCount > 0
   );
 }
@@ -359,7 +359,16 @@ export default function TimelineMomentList({
           ) : null}
           {sectionHasSummary(section.summary) ? (
             <li className="list-none border-b border-border bg-background px-3 py-2">
-              <SceneSummaryStrip summary={section.summary!} />
+              <SceneSummaryStrip
+                summary={section.summary!}
+                sceneId={section.sceneId}
+                sceneLabel={section.label}
+                sceneEndMomentId={
+                  section.moments.length > 0
+                    ? section.moments[section.moments.length - 1]?.id
+                    : undefined
+                }
+              />
             </li>
           ) : null}
           {section.moments
