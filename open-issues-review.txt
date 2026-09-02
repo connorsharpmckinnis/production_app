@@ -1,0 +1,613 @@
+Open GitHub Issues Review
+Repo: connorsharpmckinnis/production_app
+Total open: 74  |  bugs: 18  |  enhancements: 56  |  other: 0
+Contents: title + type + top template section (Idea / Describe the bug). GitHub thread comments included when present.
+========================================================================
+
+BUGS
+========================================================================
+
+#114  [bug]  Entrances/Exits and Blocking
+https://github.com/connorsharpmckinnis/production_app/issues/114
+----------------------------------------
+Both of these open the timeline from the overview page. That is OKAY but it is confusing as all the other ones take me to a specific space. I feel like if anything it should take me to timeline and a list of just entrances and exits so I can go through them and make sure I have everything I need there if that makes sense?
+
+========================================================================
+
+#113  [bug]  Can't scroll up
+https://github.com/connorsharpmckinnis/production_app/issues/113
+----------------------------------------
+once I entered user management I cannot go home
+
+========================================================================
+
+#112  [bug]  Moments
+https://github.com/connorsharpmckinnis/production_app/issues/112
+----------------------------------------
+I want moments to be bigger OR maybe more expandable on the page, maybe like half of the page?
+
+========================================================================
+
+#111  [bug]  Set Pieces
+https://github.com/connorsharpmckinnis/production_app/issues/111
+----------------------------------------
+check boxes for scenes needed will be helpful, possible option to add an image or location it is stored OR where it ends up on stage (like a diagram?)
+
+========================================================================
+
+#110  [bug]  text on lav chart
+https://github.com/connorsharpmckinnis/production_app/issues/110
+----------------------------------------
+If inventory cannot cover need scenes without mid-act changes, the chart is flagged for manual mid-act work.
+
+Written weird please fix
+
+========================================================================
+
+#109  [bug]  propose
+https://github.com/connorsharpmckinnis/production_app/issues/109
+----------------------------------------
+change wording on lav chart rules "Propose never inserts mid-act wearer swaps between people." I think maybe "propose wires" action will not insert a mid act wire swap?
+
+========================================================================
+
+#107  [bug]  Props
+https://github.com/connorsharpmckinnis/production_app/issues/107
+----------------------------------------
+include when prop is on stage option and who is in charge of it (in the description of the prop, maybe as a check box like check off scene 1.1 for stick and check off Shackleton as character but I'm not sure how well that would work for if the prop changes hands)
+
+========================================================================
+
+#106  [bug]  Songs
+https://github.com/connorsharpmckinnis/production_app/issues/106
+----------------------------------------
+on song list: I should be able to see the descriptions with a drop down. Should also include 1. Characters in song 2. link to music/lyrics 3. maybe where it is in the show
+
+========================================================================
+
+#104  [bug]  characters
+https://github.com/connorsharpmckinnis/production_app/issues/104
+----------------------------------------
+currently has "all" as a character, I am assuming this is an issue with the upload but not sure what to do about it
+
+========================================================================
+
+#102  [bug]  Rehearse/timeline
+https://github.com/connorsharpmckinnis/production_app/issues/102
+----------------------------------------
+They link to the same thing so delete one unless there is a clear reason you need two
+
+========================================================================
+
+#101  [bug]  Order
+https://github.com/connorsharpmckinnis/production_app/issues/101
+----------------------------------------
+Small thing but keep your quick links in the same order as they are on the left side menu (currently goes timeline, rehearse on the left but quick links at the bottom are different; maintain consistency for easier navigation)
+
+========================================================================
+
+#100  [bug]  Headers/categories
+https://github.com/connorsharpmckinnis/production_app/issues/100
+----------------------------------------
+overview page, categories are a little weird. Production people should be just staff and then an option to see more people (so director, ad, ttas etc) and then options for cast contact costume contact any other people who might need to be there as an expandable thing. Prep readiness is a bad heading. I don't understand what I am looking at exactly and the heading doesn't help
+
+========================================================================
+
+#98  [bug]  Text in yellow-box highlight in warm mode basically invisible
+https://github.com/connorsharpmckinnis/production_app/issues/98
+----------------------------------------
+the text in the Lav chart page in Warm color mode is completely unreadable, looks like a sort of dark red on yellowish black background
+
+========================================================================
+
+#95  [bug]  App Settings page has too much padding in content area
+https://github.com/connorsharpmckinnis/production_app/issues/95
+----------------------------------------
+the Settings page's main content area sits like twice as far away from the sidebar as the other pages.
+
+========================================================================
+
+#42  [bug]  Taller mobile moment sheet
+https://github.com/connorsharpmckinnis/production_app/issues/42
+----------------------------------------
+max-h-[70vh] may be short for director editing.
+
+========================================================================
+
+#21  [bug]  Cue 'payload' JSON is unbounded
+https://github.com/connorsharpmckinnis/production_app/issues/21
+----------------------------------------
+Should probably cap the size on cue payloads. idk how much to cap though, but Bee Movie script is too big imo.
+
+========================================================================
+
+#20  [bug]  Username create race -> IntegrityError
+https://github.com/connorsharpmckinnis/production_app/issues/20
+----------------------------------------
+From the AI that flagged it (I don't understand the issue myself tbh): Check-then-insert races; should catch and return 409.
+
+========================================================================
+
+#19  [bug]  Concurrent moment reorder can corrupt sequence
+https://github.com/connorsharpmckinnis/production_app/issues/19
+----------------------------------------
+No unique (scene_id, sequence_number); two directors reordering can create duplicates/gaps.
+Sources: SECURITY_REVIEW St1
+
+========================================================================
+
+ENHANCEMENTS
+========================================================================
+
+#115  [enhancement]  navigation
+https://github.com/connorsharpmckinnis/production_app/issues/115
+----------------------------------------
+my brain wants a clearer/more obvious home or back button
+
+========================================================================
+
+#108  [enhancement]  Costumes
+https://github.com/connorsharpmckinnis/production_app/issues/108
+----------------------------------------
+I want options for type of items needed in costumes for each person. I also want an actor option, not only character since some actors will be ensemble at certain parts and I need to be able to track if there are many ensemble people (like ensemble is not just one person so I would need to be able to track five different ensemble costumes)
+
+========================================================================
+
+#105  [enhancement]  Character descriptions
+https://github.com/connorsharpmckinnis/production_app/issues/105
+----------------------------------------
+Character descriptions and any notes (such as vocal part or costume color) should be easily accessible and editable from the character page
+
+========================================================================
+
+#103  [enhancement]  emails/contact
+https://github.com/connorsharpmckinnis/production_app/issues/103
+----------------------------------------
+from the people bar I should be able to see basic contact info AND send an email to everyone or to specific roles
+
+========================================================================
+
+#99  [enhancement]  Announcements
+https://github.com/connorsharpmckinnis/production_app/issues/99
+----------------------------------------
+Should go up top, right under the scripture but ahead of production people. You only need to show like two at a time BUT they should be one of the first things I see
+
+========================================================================
+
+#97  [enhancement]  New Setting: Create a Role
+https://github.com/connorsharpmckinnis/production_app/issues/97
+----------------------------------------
+Admins should be able to easily create a new role in the App Settings page, setting the name and whatnot and then checking the permissions they want
+
+========================================================================
+
+#96  [enhancement]  Table for app permissions per-role should be filterable
+https://github.com/connorsharpmckinnis/production_app/issues/96
+----------------------------------------
+I want to be able to see only one role at a time, not the whole table of all resources repeated n times
+
+========================================================================
+
+#94  [enhancement]  Only Admins should be able to delete productions. All others can only Archive
+https://github.com/connorsharpmckinnis/production_app/issues/94
+----------------------------------------
+maybe even only Admins can archive (once we're in Prod. I still need to delete my old stuff while developing)
+
+========================================================================
+
+#82  [enhancement]  Migrate bookmarks to use the new act/scene/moment link system
+https://github.com/connorsharpmckinnis/production_app/issues/82
+----------------------------------------
+## Summary
+
+Timeline deep links are moving to human show-position params:
+
+- `/productions/:id/timeline?act=1&scene=2` ΓåÆ scene start (first moment for now)
+- `/productions/:id/timeline?act=1&scene=2&moment=115` ΓåÆ that moment within the scene
+
+Old PK-based links (`?scene=<sceneId>&moment=<momentId>`) remain supported for compatibility.
+
+Bookmarks still store `moment_id` (PK) and emit PK-based URLs. Migrate them to the same improved link shape so share/CTA/bookmark navigation feels consistent.
+
+## Current behavior
+
+- `bookmarks` table: `user_id` + `moment_id` (+ optional label)
+- Sidebar / menu links: `/productions/{production_id}/timeline?scene={scene_id}&moment={moment_id}`
+- Storage by PK is fine for ΓÇ£this exact momentΓÇ¥; the **emitted URL** is what should align with the new contract
+
+## Proposal
+
+1. Keep storing `moment_id` as the bookmark identity (stable under soft position drift for the userΓÇÖs own pin).
+2. When rendering bookmark hrefs, resolve the momentΓÇÖs current `act.number`, `scene.number`, and `sequence_number` and link as:
+   `/productions/{id}/timeline?act={n}&scene={n}&moment={seq}`
+3. Optionally accept/paste human links when creating bookmarks later (picker / ΓÇ£copy linkΓÇ¥ on Moment Detail).
+4. Leave PK URL consume path until a later cleanup pass removes it.
+
+## Why not change storage yet
+
+Soft links mean `act/scene/moment` numbers can drift after structural edits. Bookmarks are personal pins to a specific moment row ΓÇö PK storage remains the right durable identity. The enhancement is mainly **URL shape / UX consistency**, not replacing the FK.
+
+## Acceptance criteria (rough)
+
+- [ ] Bookmark click opens Timeline via `act`/`scene`/`moment` query params
+- [ ] Still works after moment sequence renumber (bookmark follows the row via `moment_id`)
+- [ ] Copy-link / share from Moment Detail uses the same human URL shape
+- [ ] Old PK bookmark links (if any were shared externally) still resolve until explicitly deprecated
+
+## Related
+
+- Human Timeline deep-link work (announcement CTAs / Timeline consume)
+- Future: destination picker for announcement CTAs
+- Future: pre-scene overview chip as scene-start target when `moment` is omitted
+
+========================================================================
+
+#81  [enhancement]  CTA enhancement picker system to generate the link to teh exact moment desired
+https://github.com/connorsharpmckinnis/production_app/issues/81
+----------------------------------------
+## Summary
+
+Announcement CTAs currently require authors to type an internal app path by hand (e.g. `/productions/18/timeline?scene=45&moment=891`). That works, but itΓÇÖs hard to discover and easy to get wrong ΓÇö especially for deep links to a specific Timeline moment.
+
+## Problem
+
+- Authors must know route conventions and numeric production / scene / moment IDs.
+- Moment IDs arenΓÇÖt surfaced in the composer UI; you have to scrape them from bookmarks, reports, or the API.
+- Easy to use invalid paths (e.g. `/productions/18/overview`, which isnΓÇÖt a real route) or miss query params.
+
+## Proposal
+
+Add a destination picker in the announcement composer (org-wide and production-scoped) that lets the author choose a target without memorizing URLs, for example:
+
+1. **Page** ΓÇö Overview, Timeline, Rehearse, Characters, Props, Costumes, Reports, Settings, etc.
+2. **Timeline scene** (optional) ΓÇö when Timeline is selected.
+3. **Moment** (optional) ΓÇö searchable/selectable within the chosen scene (or production-wide search).
+
+The picker would write the correct internal path into the CTA target (same allowlisted format we already validate), e.g.:
+
+- `/productions/18`
+- `/productions/18/timeline`
+- `/productions/18/timeline?scene=45&moment=891`
+
+## Out of scope (for now)
+
+- Rehearse moment deep-links (not supported yet)
+- Line-number / dialogue-text deep-links
+- External URL picker beyond a normal URL field
+
+## Acceptance criteria (rough)
+
+- [ ] Composer offers browse/select instead of (or in addition to) free-text internal path
+- [ ] Production announcements default the production id from context
+- [ ] Org-wide announcements prompt for production when a show-scoped page is chosen
+- [ ] Selected moment CTAs open Timeline Moment Detail via existing `?scene=&moment=` deep-link
+- [ ] Free-text path remains available as an advanced escape hatch
+
+========================================================================
+
+#75  [enhancement]  Don't need to display the moment notes for all future derived 'who has X' thing in Moment Details
+https://github.com/connorsharpmckinnis/production_app/issues/75
+----------------------------------------
+I probably don't need to see the notes field for moment attachments after the initial on and before the off. For moments in between the two main ones (the core on/off), I only need (at most) 'Costumes: Shackleton (Blue Thing), Props: Shackleton (Ice Axe), Crean (Hat)' etc, not the whole notes and stuff about who brings it on and where it goes.
+
+========================================================================
+
+#72  [enhancement]  Derive Timeline lav wire/pack change Moments from lav chart.
+https://github.com/connorsharpmckinnis/production_app/issues/72
+----------------------------------------
+didn't have the lav chart automatically set/update(?) pack/wire changes in the Timeline, but I think it'd be nice. Updating the Timeline moments would be tough since you have to 1) find the old ones, 2) remove them, and 3) replace with new timeline moments. But it seems possible, and may just barely be worth doing. Or just lav sheet is good, and maybe per-scene awareness of what pack/wire each person has (not necessary down to the Moment if that's tough)
+
+========================================================================
+
+#69  [enhancement]  For non-STP future orgs: Steal/replicate PlanningCenter volunteer management functionality
+https://github.com/connorsharpmckinnis/production_app/issues/69
+----------------------------------------
+STP doesn't need it, but other orgs could use this for everything.
+
+========================================================================
+
+#68  [enhancement]  'Next best action' engine
+https://github.com/connorsharpmckinnis/production_app/issues/68
+----------------------------------------
+The app could notice operational gaps and suggest work:
+ΓÇ£The performance is in 10 days and no house manager is assigned.ΓÇ¥
+ΓÇ£Three borrowed props have no return date.ΓÇ¥
+ΓÇ£The venue checklist has not been completed.ΓÇ¥
+ΓÇ£Two volunteers are assigned to roles requiring orientation.ΓÇ¥
+ΓÇ£The production closes tomorrow but inventory has not been reconciled.ΓÇ¥
+
+========================================================================
+
+#67  [enhancement]  Expense Tracking: Per-Production budget data
+https://github.com/connorsharpmckinnis/production_app/issues/67
+----------------------------------------
+If expenses and sales are tracked per-production, we can get easier structured data for budget purposes.
+
+========================================================================
+
+#66  [enhancement]  Idea: (if we have in-app asset catalog) digital prop check-out sheet
+https://github.com/connorsharpmckinnis/production_app/issues/66
+----------------------------------------
+Users can borrow assets and easily track when they took it, what it's being used for, and when it's returned.
+
+========================================================================
+
+#65  [enhancement]  Idea: some way to detect/flag/suggest stuff like fight calls
+https://github.com/connorsharpmckinnis/production_app/issues/65
+----------------------------------------
+Something that can flag or recommend fight-call and other stunt-related stuff (or even just actors touching each other to ensure consent) Very important to make sure we're not just blindly doing stuff, especially for newer directors.
+
+========================================================================
+
+#64  [enhancement]  Director/Staff Operations tools in-app
+https://github.com/connorsharpmckinnis/production_app/issues/64
+----------------------------------------
+Stuff like incident reports, reimbursements, building close-out tasks, chores, policies, can all be included or linked in the app. Bonus points for an easy search/retrieval tool to find the exact thing you need or to answer a question (AI?)
+
+========================================================================
+
+#63  [enhancement]  Idea: automatic/AI driven suggested cues/notes/additions
+https://github.com/connorsharpmckinnis/production_app/issues/63
+----------------------------------------
+Have a small model suggest a cue or note to add to a Moment based on what the scene covers and what's already on the Moment. Would be especially good if the import process doesn't cover everything and if we have a theater-level asset catalog to let the AI choose assets from.
+
+========================================================================
+
+#62  [enhancement]  Idea: Casting Workspace
+https://github.com/connorsharpmckinnis/production_app/issues/62
+----------------------------------------
+For a production, make a staff-only section for handling notes and decisions relating to casting. Download a template audition sheet, save recorded auditions for each actor, each staffer adds notes in structured forms for each actor, and all notes are in the same place for review without having to collect sheets afterward. Theater-wide data could also include past notes from directors on other productions ('this guy never shows up on time') and headshots.
+
+========================================================================
+
+#61  [enhancement]  Future-Proofing: Full multi-tenant org isolation
+https://github.com/connorsharpmckinnis/production_app/issues/61
+----------------------------------------
+In order to (someday) sell licenses SaaS-style, we'd (probably) be best-served by hosting all orgs myself and then licensing access (instead of asking them to host/manage). That would require taking the whole app as-is right now and making it just one part of the whole system of multiple orgs. Meta.
+
+========================================================================
+
+#60  [enhancement]  Security idea: Non-root container images
+https://github.com/connorsharpmckinnis/production_app/issues/60
+----------------------------------------
+Recommended by the AI, don't understand fully atm
+
+========================================================================
+
+#59  [enhancement]  Handle parenthetical directions (in-dialogue) while importing
+https://github.com/connorsharpmckinnis/production_app/issues/59
+----------------------------------------
+Right now it sees stage directions (separate line, italicized) but the standard also allows for parenthetical directions in-line with dialogue ('CREAN: I wish (to Shackleton) that I could help you'). Being able to detect and extract that as a way to highlight in-app (and/or maybe even break that into multiple moments?) could be nice. Just to make clear in-app that those aren't spoken and that they're worth paying attention to
+
+========================================================================
+
+#58  [enhancement]  Archive productions for review of notes/actions/assets long after the fact
+https://github.com/connorsharpmckinnis/production_app/issues/58
+----------------------------------------
+Make sure we don't delete all the useful notes and work that people made in-app once the show is over. Probably group and activate/archive on a seasonal level/folder.
+
+========================================================================
+
+#56  [enhancement]  Idea: Assign tasks and @-mention in notes
+https://github.com/connorsharpmckinnis/production_app/issues/56
+----------------------------------------
+will this make things too complex? Very possible. But could be worth it ('@Trey please get and add a gun to this scene')
+
+========================================================================
+
+#54  [enhancement]  Director-friendly notetaking system to prevent mid-scene holds
+https://github.com/connorsharpmckinnis/production_app/issues/54
+----------------------------------------
+A feature to let the director easily add notes (dictate or type on mobile/tablet) while watching a scene. Somehow relate the notes to moments (or at least in the general vicinity of the right moment). Just something to avoid a Scratch Notes document that disappears after every rehearsal
+
+========================================================================
+
+#53  [enhancement]  Big idea: Visual Stage Design
+https://github.com/connorsharpmckinnis/production_app/issues/53
+----------------------------------------
+STP's stage is a standard layout, but we add set pieces to it to change the available space horizontally and vertically. I'd love to be able to visually map out blocking, set placement, entrances, etc on the actual design of the stage. A few ways it could be handled: Quadrants (downstage left -> upstage right), including or excluding levels (level 2 = platform, people underneath on level 1), or full mapping (drag the Actor chip to exactly their spot on the top-down view)
+
+========================================================================
+
+#52  [enhancement]  Theater-Wide Reusable Asset Catalog
+https://github.com/connorsharpmckinnis/production_app/issues/52
+----------------------------------------
+Store costumes, props, reusable set pieces, etc in an in-app catalog (or stored elsewhere and data-integrated) so that you don't have to recreate the list of props for every show and directors can 'shop' through available costumes, props, and other assets. Especially good for hardware like set pieces that don't get torn down (platforms), equipment (lavs and wires of various lengths), and props.
+
+========================================================================
+
+#50  [enhancement]  Idea: ability to split and merge moments
+https://github.com/connorsharpmckinnis/production_app/issues/50
+----------------------------------------
+Especially helpful for Moments that aren't from the script (added by Directors). idk when you might need to do this, but someone will need to eventually especially if I don't build it
+
+========================================================================
+
+#49  [enhancement]  Color-codeable characters app-wide
+https://github.com/connorsharpmckinnis/production_app/issues/49
+----------------------------------------
+Each user can set a color for a character and have their Moments be highlighted across teh whole app, Rehearse/Timeline and other future stuff.
+
+========================================================================
+
+#48  [enhancement]  Idea: 'Saved Views' for each user to make on their own
+https://github.com/connorsharpmckinnis/production_app/issues/48
+----------------------------------------
+Set specific filters, colors, etc, and then save the view for quick switching. Do we really need this? How many different ways does someone want to look at a script?
+
+========================================================================
+
+#47  [enhancement]  Maybe? Redesign My Bookmarks as dedicated timeline-like view
+https://github.com/connorsharpmckinnis/production_app/issues/47
+----------------------------------------
+Don't know if I like the idea of Bookmarks as-is right now, or even if I like Bookmarks in general. Gotta figure out a better way to use them atm
+
+========================================================================
+
+#46  [enhancement]  Report idea: pretty-looking reports
+https://github.com/connorsharpmckinnis/production_app/issues/46
+----------------------------------------
+Rich reports suite (PDF, analytics, progress dashboards)
+
+========================================================================
+
+#45  [enhancement]  Report idea: semi-visual set change chart
+https://github.com/connorsharpmckinnis/production_app/issues/45
+----------------------------------------
+at least in terms of listing out when pieces are on and off stage, but IDEALLY it'd be semi-visual. Maybe even to the point where you draw out the stage with sized components like blocks and staircases, and then you can add your own mobile pieces and set where they are at various moments in the timeline. Then you can see a map of where things move and when.
+
+========================================================================
+
+#43  [enhancement]  Make the Rehearse mode more mobile-pleasant (hideable filters/toggles)
+https://github.com/connorsharpmckinnis/production_app/issues/43
+----------------------------------------
+Compact Rehearse toggles on narrow viewports
+
+========================================================================
+
+#41  [enhancement]  Table horizontal scroll on wide tables
+https://github.com/connorsharpmckinnis/production_app/issues/41
+----------------------------------------
+when the table is wide (and/or the page is smallish) I need to be able to scroll both horizontally and vertically.
+
+========================================================================
+
+#40  [enhancement]  Sheet resize keyboard alt
+https://github.com/connorsharpmckinnis/production_app/issues/40
+----------------------------------------
+Moment-sheet resize needs a keyboard path (not sure what this means but the AI said so)
+
+========================================================================
+
+#39  [enhancement]  Mobile sidebar focus trap + Escape
+https://github.com/connorsharpmckinnis/production_app/issues/39
+----------------------------------------
+From the AI (whatever it means): 'Beyond overlay click.'
+
+========================================================================
+
+#38  [enhancement]  Need a policy for song/character deletion and renaming
+https://github.com/connorsharpmckinnis/production_app/issues/38
+----------------------------------------
+Currently there's a gap vs missing UI
+
+========================================================================
+
+#37  [enhancement]  Unify Groups vs catalog create UX
+https://github.com/connorsharpmckinnis/production_app/issues/37
+----------------------------------------
+Groups are inline-created while catalogs use a Dialog
+
+========================================================================
+
+#35  [enhancement]  I want to be able to import CSVs of costumes and props and stuff without assigning them to actors/characters yet
+https://github.com/connorsharpmckinnis/production_app/issues/35
+----------------------------------------
+like the title says
+
+========================================================================
+
+#34  [enhancement]  Theater-wide Asset Catalogs with In-Show Reservation
+https://github.com/connorsharpmckinnis/production_app/issues/34
+----------------------------------------
+Store the available props, set pieces, and costume pieces once in a master theater-wide catalog, then handle 'reservations' of assets for each production. Directors can shop through the list, make purchase requests, and see asset availability.
+
+========================================================================
+
+#33  [enhancement]  Figure out what the current prop/costume catalog(s) look like to make demo-able integrations with CSV importing
+https://github.com/connorsharpmckinnis/production_app/issues/33
+----------------------------------------
+Don't have to make a real-time integration yet, or an in-app replacement. But I do want to find out the data structure so I can mimic it with synthetic data in CSV imports
+
+========================================================================
+
+#32  [enhancement]  Catalog usage counts before deletion
+https://github.com/connorsharpmckinnis/production_app/issues/32
+----------------------------------------
+'Are you sure you want to delete this set piece? It's used in 16 scenes'
+
+========================================================================
+
+#31  [enhancement]  In-app changelogs
+https://github.com/connorsharpmckinnis/production_app/issues/31
+----------------------------------------
+This would also need some sort of change/deployment management process. Probably best for real-show demo or production phases
+
+========================================================================
+
+#30  [enhancement]  Expand the scene-start summaries to include details on each thing
+https://github.com/connorsharpmckinnis/production_app/issues/30
+----------------------------------------
+If you click on the character name in the Scene Summary section, I'd love for it to show what they're wearing, what props they have, and their cues for entrances, exits, etc. Same for songs ('what line does X song start on?'), and other stuff ('when does the chair come on?')
+
+========================================================================
+
+#29  [enhancement]  Declutter the Moment detail panel
+https://github.com/connorsharpmckinnis/production_app/issues/29
+----------------------------------------
+Make it a little more focused, while keeping the options available to get into the rest of the gritty mess.
+
+========================================================================
+
+#28  [enhancement]  Shared act/scene/search toolbar for Rehearse Mode and Timeline
+https://github.com/connorsharpmckinnis/production_app/issues/28
+----------------------------------------
+to keep things easy to maintain and experientially consistent
+
+========================================================================
+
+#27  [enhancement]  Multi-select scenes, characters, cue types, etc
+https://github.com/connorsharpmckinnis/production_app/issues/27
+----------------------------------------
+Select all the different characters whose lines you want to see in the Timeline. Would enable the same sort of stuff I did with the Sheets-based digital script
+
+========================================================================
+
+#25  [enhancement]  Set piece or song sheet reports
+https://github.com/connorsharpmckinnis/production_app/issues/25
+----------------------------------------
+could be good reports to add to the system?
+
+========================================================================
+
+#24  [enhancement]  Make teh reports look nice(r)
+https://github.com/connorsharpmckinnis/production_app/issues/24
+----------------------------------------
+all the report sheets should be looking nicer, charts where possible, and all able to be printed/saved as a separate sheet that looks good and can be printed/marked up
+
+========================================================================
+
+#17  [enhancement]  User-configurable import settings
+https://github.com/connorsharpmckinnis/production_app/issues/17
+----------------------------------------
+Like when doing stuff with many CSV import systems, it lets you see a sample of the end-result, and even tweak the settings and classifications that put each thing into each bucket. I'd like to be able to do that too, so that we don't have to perfectly enforce a single script standard
+
+========================================================================
+
+#12  [enhancement]  Character Highlighting as a saved user setting
+https://github.com/connorsharpmckinnis/production_app/issues/12
+----------------------------------------
+You can set your lines to be highlighted in Rehearse mode, but it might be a good thing to make app-wide for each user. I could go in as an actor and set my character(s) as #123456 and my scene partner's as #654321 and then across the Timeline and Rehearse mode those highlights persist. We may have to de-build some of Rehearse Mode's highlighting but it'd be an improvement overall. Directors and other staff should be able to do that too, so anyone should be able to set highlighting rules for their own view of the app independent of role or other stuff. Really allows people to use highlights however they see fit.
+
+========================================================================
+
+#9  [enhancement]  Not every page needs a title AND a subtitle
+https://github.com/connorsharpmckinnis/production_app/issues/9
+----------------------------------------
+'Productions' and 'Manage productions' feels unnecessarily duplicative. And gives off the overly-structured overly-explained AI vibe
+
+========================================================================
+
+#6  [enhancement]  User stats report
+https://github.com/connorsharpmckinnis/production_app/issues/6
+----------------------------------------
+Track logins and make report(s) on user activity, features used, pages visited, etc. Whatever we can collect/look at without being tedious or overbearing would be good to learn what's actually useful
+
+========================================================================
+
+#5  [enhancement]  Make the 'About the App' page editable in-app by an admin?
+https://github.com/connorsharpmckinnis/production_app/issues/5
+----------------------------------------
+Make my own sections? Add images? idk what the page will be for in production but at least to make it easier for me to manage in dev mode it'd be handy.
+
+========================================================================
