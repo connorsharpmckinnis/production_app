@@ -4,6 +4,17 @@
 
 I'll be using this document to store temporary notes relating to the project. Stuff that I need to remember to ask/work on. 
 
+## Roles / People / Casting — closeout — 2026-09-02
+
+~~The production membership and People workspace are substantially implemented on
+the `casting-and-roles` branch, but the branch is not closed yet…~~ — **Shipped
+2026-09-02.** See
+[production-membership-and-casting-workspace.md](feature_plans/production-membership-and-casting-workspace.md).
+Owner walkthrough and WP7 doc closeout are done. Next product slice:
+[casting-and-auditions.md](feature_plans/casting-and-auditions.md) (Casting nav,
+private notes, conflict calendars). Small UI polish leftovers are listed in the
+shipped membership plan under deferred leftovers.
+
 ## Little Things
 
 - The My Bookmarks experience is odd right now. It pops up a screen-wide banner-looking thing with the bookmarks listed there. Not a terrible instinct, but I think I'd like it to show in its own dedicated timeline-like view with '...'s between bookmarks to show it's not the whole timeline view. And then clicking on a bookmark will open it up in the 'main' timeline view. Or something like that. I'm not sure how I want bookmarks to work yet, so we'll leave it be for the time being and come back to it when I know how I want it to work. → **Wish list** (undecided)

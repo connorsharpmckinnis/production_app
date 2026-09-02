@@ -115,7 +115,7 @@ class AnnouncementAudienceRole(Base):
             name="uq_announcement_audience_roles_announcement_role",
         ),
         CheckConstraint(
-            "role_name IN ('Admin', 'Director', 'Actor')",
+            "role_name IN ('Admin', 'Director', 'Actor', 'Member')",
             name="ck_announcement_audience_roles_role_name",
         ),
     )

@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_accessible_production
-from app.auth.dependencies import require_authenticated, require_director_or_admin
+from app.api.deps import get_accessible_production, require_production_capability
 from app.db.session import get_db
 from app.models import User, Wire
 from app.schemas.wires import WireCreate, WireResponse, WireUpdate
@@ -28,7 +27,7 @@ def _wire_response(wire: Wire) -> WireResponse:
 @router.get("/{production_id}/wires", response_model=list[WireResponse])
 def list_wires(
     production_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("lav_chart", "read")),
     db: Session = Depends(get_db),
 ) -> list[WireResponse]:
     get_accessible_production(db, user, production_id)
@@ -49,10 +48,10 @@ def list_wires(
 def create_wire(
     production_id: int,
     body: WireCreate,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("lav_chart", "create")),
     db: Session = Depends(get_db),
 ) -> WireResponse:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     wire = Wire(
         production_id=production_id,
         identifier=body.identifier.strip(),
@@ -69,10 +68,10 @@ def update_wire(
     production_id: int,
     wire_id: int,
     body: WireUpdate,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("lav_chart", "update")),
     db: Session = Depends(get_db),
 ) -> WireResponse:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     wire = _get_wire_or_404(db, production_id, wire_id)
     if body.identifier is not None:
         wire.identifier = body.identifier.strip()
@@ -87,10 +86,10 @@ def update_wire(
 def delete_wire(
     production_id: int,
     wire_id: int,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("lav_chart", "delete")),
     db: Session = Depends(get_db),
 ) -> None:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     wire = _get_wire_or_404(db, production_id, wire_id)
     db.delete(wire)
     db.commit()

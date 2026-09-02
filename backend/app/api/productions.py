@@ -2,15 +2,26 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_accessible_production
+from app.api.deps import (
+    get_accessible_production,
+    get_active_production_membership,
+    require_production_capability,
+    user_can_access_production,
+)
 from app.auth.dependencies import (
     require_admin,
     require_authenticated,
-    require_director_or_admin,
     user_has_role,
 )
 from app.db.session import get_db
-from app.models import Act, Character, Moment, Production, Scene, User, UserCharacterAssignment
+from app.models import (
+    Act,
+    Character,
+    Moment,
+    Production,
+    Scene,
+    User,
+)
 from app.schemas.overview_messages import (
     ProductionOverviewMessageResponse,
     ProductionOverviewMessagesReplace,
@@ -20,6 +31,7 @@ from app.schemas.overview_messages import (
 from app.schemas.production import (
     ImportErrorResponse,
     ImportSuccessResponse,
+    ProductionAccessResponse,
     ProductionCreate,
     ProductionOverviewResponse,
     ProductionResponse,
@@ -27,6 +39,11 @@ from app.schemas.production import (
 )
 from app.services.importer import ImportLineError, import_script
 from app.services.notifications import notify_admins_production_created
+from app.services.production_memberships import (
+    active_role_codes,
+    effective_cast_character_ids,
+    effective_permissions,
+)
 from app.services.overview_messages import (
     build_spotlight_queue,
     effective_rotation_seconds,
@@ -44,21 +61,19 @@ def list_productions(
     user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> list[Production]:
-    query = db.query(Production).order_by(Production.created_at.desc())
-
-    # Actors only see productions where they have at least one casting assignment.
-    if user_has_role(user, "Actor") and not user_has_role(user, "Admin") and not user_has_role(user, "Director"):
-        query = (
-            query.join(Character, Character.production_id == Production.id)
-            .join(
-                UserCharacterAssignment,
-                UserCharacterAssignment.character_id == Character.id,
-            )
-            .filter(UserCharacterAssignment.user_id == user.id)
-            .distinct()
-        )
-
-    return query.all()
+    productions = (
+        db.query(Production)
+        .filter(Production.organization_id == user.organization_id)
+        .order_by(Production.created_at.desc())
+        .all()
+    )
+    if user_has_role(user, "Admin"):
+        return productions
+    return [
+        production
+        for production in productions
+        if user_can_access_production(db, user, production)
+    ]
 
 
 @router.post("", response_model=ProductionResponse, status_code=status.HTTP_201_CREATED)
@@ -83,16 +98,41 @@ def create_production(
 @router.get("/{production_id}", response_model=ProductionResponse)
 def get_production(
     production_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("production", "read")),
     db: Session = Depends(get_db),
 ) -> Production:
     return get_accessible_production(db, user, production_id)
 
 
+@router.get("/{production_id}/access", response_model=ProductionAccessResponse)
+def get_production_access(
+    production_id: int,
+    user: User = Depends(require_production_capability("production", "read")),
+    db: Session = Depends(get_db),
+) -> ProductionAccessResponse:
+    """Return the caller's production roles and effective CRUD capabilities."""
+    production = get_accessible_production(db, user, production_id)
+    membership = get_active_production_membership(db, user, production.id)
+    if membership is None:
+        return ProductionAccessResponse(
+            production_id=production.id,
+            role_codes=["admin"],
+            capabilities=[],
+        )
+
+    permissions = effective_permissions(db, membership)
+    capabilities = sorted(f"{resource}:{action}" for resource, action in permissions)
+    return ProductionAccessResponse(
+        production_id=production.id,
+        role_codes=sorted(active_role_codes(db, membership)),
+        capabilities=capabilities,
+    )
+
+
 @router.get("/{production_id}/overview", response_model=ProductionOverviewResponse)
 def get_production_overview(
     production_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("production", "read")),
     db: Session = Depends(get_db),
 ) -> ProductionOverviewResponse:
     production = get_accessible_production(db, user, production_id)
@@ -121,13 +161,7 @@ def get_production_overview(
         .scalar()
         or 0
     )
-    cast_count = (
-        db.query(func.count(UserCharacterAssignment.id))
-        .join(Character, Character.id == UserCharacterAssignment.character_id)
-        .filter(Character.production_id == production_id)
-        .scalar()
-        or 0
-    )
+    cast_count = len(effective_cast_character_ids(db, production_id))
 
     # Import state is based on timeline structure (acts), not author metadata.
     imported_at = None
@@ -142,11 +176,9 @@ def get_production_overview(
 
     readiness = compute_readiness(db, production_id)
     spotlight = build_spotlight_queue(db, production, readiness.readiness_percent)
-    is_actor_only = (
-        user_has_role(user, "Actor")
-        and not user_has_role(user, "Admin")
-        and not user_has_role(user, "Director")
-    )
+    membership = get_active_production_membership(db, user, production_id)
+    role_codes = active_role_codes(db, membership) if membership is not None else set()
+    is_actor_only = "actor" in role_codes and "director" not in role_codes
 
     return ProductionOverviewResponse(
         id=production.id,
@@ -186,7 +218,7 @@ def get_production_overview(
 )
 def get_production_overview_messages(
     production_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("overview", "read")),
     db: Session = Depends(get_db),
 ) -> list[ProductionOverviewMessageResponse]:
     get_accessible_production(db, user, production_id)
@@ -200,7 +232,7 @@ def get_production_overview_messages(
 def replace_production_overview_messages(
     production_id: int,
     body: ProductionOverviewMessagesReplace,
-    user: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("announcements", "update")),
     db: Session = Depends(get_db),
 ) -> list[ProductionOverviewMessageResponse]:
     get_accessible_production(db, user, production_id)
@@ -213,7 +245,7 @@ def replace_production_overview_messages(
 )
 def get_production_overview_settings(
     production_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("overview", "read")),
     db: Session = Depends(get_db),
 ) -> ProductionOverviewSettingsResponse:
     production = get_accessible_production(db, user, production_id)
@@ -231,7 +263,7 @@ def get_production_overview_settings(
 def update_production_overview_settings(
     production_id: int,
     body: ProductionOverviewSettingsUpdate,
-    user: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("production", "update")),
     db: Session = Depends(get_db),
 ) -> ProductionOverviewSettingsResponse:
     production = get_accessible_production(db, user, production_id)

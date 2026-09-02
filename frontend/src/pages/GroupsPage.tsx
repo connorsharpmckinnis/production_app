@@ -9,7 +9,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -17,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useConfirm } from "@/context/ConfirmContext";
+import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
 import type {
@@ -28,6 +28,16 @@ import type {
 export default function GroupsPage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
+  const {
+    access,
+    loading: accessLoading,
+    error: accessError,
+    hasCapability,
+  } = useProductionAccess();
+  const canReadGroups = hasCapability("groups", "read");
+  const canManageGroups = ["create", "update", "delete"].some((action) =>
+    hasCapability("groups", action),
+  );
   const confirm = useConfirm();
   const toast = useToast();
 
@@ -52,6 +62,10 @@ export default function GroupsPage() {
     : castableUsers;
 
   async function loadData() {
+    if (!canReadGroups) {
+      setLoading(false);
+      return;
+    }
     setError(null);
     try {
       const [groupData, characterData, userData] = await Promise.all([
@@ -71,7 +85,7 @@ export default function GroupsPage() {
 
   useEffect(() => {
     void loadData();
-  }, [productionId]);
+  }, [canReadGroups, productionId]);
 
   async function handleCreateGroup(event: React.FormEvent) {
     event.preventDefault();
@@ -130,8 +144,18 @@ export default function GroupsPage() {
     }
   }
 
-  if (loading) {
+  if (accessLoading || loading) {
     return <CatalogPageSkeleton />;
+  }
+
+  if (accessError || !access || !canReadGroups) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>
+          {accessError ?? "You do not have access to production groups."}
+        </AlertDescription>
+      </Alert>
+    );
   }
 
   return (
@@ -144,9 +168,6 @@ export default function GroupsPage() {
           ← Overview
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Groups</h1>
-        <p className="text-sm text-muted-foreground">
-          Organize characters and actors into ensembles, crews, and other collections.
-        </p>
       </div>
 
       {error && (
@@ -155,15 +176,17 @@ export default function GroupsPage() {
         </Alert>
       )}
 
-      <form onSubmit={(e) => void handleCreateGroup(e)} className="flex flex-wrap gap-2">
-        <Input
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          placeholder="Group name (e.g. Ensemble)"
-          className="w-64"
-        />
-        <Button type="submit">Create group</Button>
-      </form>
+      {canManageGroups && (
+        <form onSubmit={(e) => void handleCreateGroup(e)} className="flex flex-wrap gap-2">
+          <Input
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+            placeholder="Group name (e.g. Ensemble)"
+            className="w-64"
+          />
+          <Button type="submit">Create group</Button>
+        </form>
+      )}
 
       {groups.length === 0 ? (
         <EmptyState
@@ -188,7 +211,7 @@ export default function GroupsPage() {
                     {group.user_ids.length === 1 ? "" : "s"}
                   </p>
                 </div>
-                <div className="flex gap-1">
+                {canManageGroups && <div className="flex gap-1">
                   <Button
                     type="button"
                     variant="ghost"
@@ -210,22 +233,20 @@ export default function GroupsPage() {
                   >
                     <Trash2 />
                   </Button>
-                </div>
+                </div>}
               </div>
             </div>
           ))}
         </div>
       )}
 
+      {canManageGroups && (
       <Dialog open={editingGroupId !== null} onOpenChange={(open) => !open && closeMemberDialog()}>
         <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
           <DialogHeader>
             <DialogTitle>
               {editingGroup ? `Edit members — ${editingGroup.name}` : "Edit members"}
             </DialogTitle>
-            <DialogDescription>
-              Select characters and actors to include in this group.
-            </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -307,6 +328,7 @@ export default function GroupsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      )}
     </div>
   );
 }

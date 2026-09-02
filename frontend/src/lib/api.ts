@@ -68,6 +68,12 @@ import type {
   ProductionOverviewMessageResponse,
   ProductionOverviewResponse,
   ProductionOverviewSettingsResponse,
+  ProductionAccessResponse,
+  ProductionMemberCandidateResponse,
+  ProductionMemberResponse,
+  ProductionRoleSummary,
+  ProductionRolePermissionResponse,
+  ProductionRolePermissionUpdate,
   ProductionResponse,
   PropResponse,
   PropSheetEntry,
@@ -76,6 +82,7 @@ import type {
   SongDetailResponse,
   TokenResponse,
   UserResponse,
+  UpdateAdminRoleRequest,
   WireResponse,
 } from "./types";
 
@@ -301,6 +308,10 @@ export const api = {
     return request<ProductionResponse>(`/productions/${id}`);
   },
 
+  getProductionAccess(id: number) {
+    return request<ProductionAccessResponse>(`/productions/${id}/access`);
+  },
+
   getProductionOverview(id: number) {
     return request<ProductionOverviewResponse>(`/productions/${id}/overview`);
   },
@@ -384,6 +395,52 @@ export const api = {
   listActiveUsers(productionId: number) {
     return request<CastableUserResponse[]>(
       `/productions/${productionId}/active-users`,
+    );
+  },
+
+  listProductionPeople(productionId: number) {
+    return request<ProductionMemberResponse[]>(
+      `/productions/${productionId}/people`,
+    );
+  },
+
+  listProductionRoles(productionId: number) {
+    return request<ProductionRoleSummary[]>(
+      `/productions/${productionId}/people/roles`,
+    );
+  },
+
+  listProductionPeopleCandidates(productionId: number) {
+    return request<ProductionMemberCandidateResponse[]>(
+      `/productions/${productionId}/people/candidates`,
+    );
+  },
+
+  addProductionPerson(
+    productionId: number,
+    body: { user_id: number; role_codes: string[] },
+  ) {
+    return request<ProductionMemberResponse>(
+      `/productions/${productionId}/people`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
+  },
+
+  updateProductionPerson(
+    productionId: number,
+    userId: number,
+    body: { role_codes: string[] },
+  ) {
+    return request<ProductionMemberResponse>(
+      `/productions/${productionId}/people/${userId}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    );
+  },
+
+  deactivateProductionPerson(productionId: number, userId: number) {
+    return request<ProductionMemberResponse>(
+      `/productions/${productionId}/people/${userId}/deactivate`,
+      { method: "POST" },
     );
   },
 
@@ -475,6 +532,13 @@ export const api = {
   resetPassword(userId: number, body: ResetPasswordRequest) {
     return request<UserResponse>(`/users/${userId}/reset-password`, {
       method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  updateAdminRole(userId: number, body: UpdateAdminRoleRequest) {
+    return request<UserResponse>(`/users/${userId}/admin`, {
+      method: "PATCH",
       body: JSON.stringify(body),
     });
   },
@@ -797,6 +861,24 @@ export const api = {
       method: "PUT",
       body: JSON.stringify({ messages }),
     });
+  },
+
+  getProductionRolePermissions() {
+    return request<ProductionRolePermissionResponse[]>(
+      "/settings/production-role-permissions",
+    );
+  },
+
+  updateProductionRolePermissions(
+    permissions: ProductionRolePermissionUpdate[],
+  ) {
+    return request<ProductionRolePermissionResponse[]>(
+      "/settings/production-role-permissions",
+      {
+        method: "PUT",
+        body: JSON.stringify({ permissions }),
+      },
+    );
   },
 
   getAboutPage() {

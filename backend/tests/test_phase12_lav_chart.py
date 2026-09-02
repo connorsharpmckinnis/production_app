@@ -6,16 +6,18 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.db.seed import seed_database
-from app.models import Production
+from app.models import LavWireAssignment, Production, User, UserCharacterAssignment
 from app.services.importer.importer import import_script
+from app.services.production_memberships import deactivate_membership, get_membership
+from scoped_test_helpers import add_test_production_memberships, seed_database_with_test_users
 
 FIXTURE_PATH = Path(__file__).resolve().parents[2] / "fixtures" / "scripts" / "endurance-scene1.md"
 
 
 @pytest.fixture
 def seeded_client(client: TestClient, db_session: Session, test_settings) -> TestClient:
-    seed_database(db_session, test_settings)
+    seed_database_with_test_users(db_session, test_settings)
+    db_session.commit()
     return client
 
 
@@ -25,14 +27,17 @@ def _login(client: TestClient, username: str, password: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def _empty_production(client: TestClient) -> int:
+def _empty_production(client: TestClient, db_session: Session) -> int:
     headers = _login(client, "admin", "admin")
     create = client.post(
         "/api/productions",
         json={"title": "Lav Empty", "season": "2026"},
         headers=headers,
     )
-    return create.json()["id"]
+    production_id = create.json()["id"]
+    add_test_production_memberships(db_session, production_id)
+    db_session.commit()
+    return production_id
 
 
 def _imported_production(client: TestClient, db_session: Session, title: str = "Lav Chart Show") -> int:
@@ -45,13 +50,17 @@ def _imported_production(client: TestClient, db_session: Session, title: str = "
     production_id = create.json()["id"]
     production = db_session.get(Production, production_id)
     assert production is not None
+    add_test_production_memberships(db_session, production)
+    db_session.commit()
     content = FIXTURE_PATH.read_text(encoding="utf-8")
     import_script(db_session, production, content)
     return production_id
 
 
-def test_wires_and_packs_catalog_crud(seeded_client: TestClient) -> None:
-    production_id = _empty_production(seeded_client)
+def test_wires_and_packs_catalog_crud(
+    seeded_client: TestClient, db_session: Session
+) -> None:
+    production_id = _empty_production(seeded_client, db_session)
     headers = _login(seeded_client, "director", "director")
 
     wire = seeded_client.post(
@@ -148,13 +157,13 @@ def test_lav_chart_propose_and_save(seeded_client: TestClient, db_session: Sessi
     assert len(saved.json()["wire_cells"]) == 1
     assert saved.json()["wire_cells"][0]["wire_id"] == wire_id
 
-    # Actor cannot access lav chart.
+    # Actors can read the lav chart but cannot write production data.
     actor_headers = _login(seeded_client, "actor", "actor")
     denied = seeded_client.get(
         f"/api/productions/{production_id}/lav-chart",
         headers=actor_headers,
     )
-    assert denied.status_code == 403
+    assert denied.status_code == 200
 
     # Admin can still read.
     admin_chart = seeded_client.get(
@@ -232,3 +241,77 @@ def test_lav_chart_propose_covers_when_inventory_enough(
     assert missing == []
     assert body["wire_cells"]
     assert body["pack_cells"]
+
+
+def test_lav_chart_hides_inactive_cast_rows_without_converting_to_characters(
+    seeded_client: TestClient,
+    db_session: Session,
+) -> None:
+    production_id = _imported_production(seeded_client, db_session, title="Lav Inactive Cast")
+    director = _login(seeded_client, "director", "director")
+    actor = db_session.query(User).filter(User.username == "actor").one()
+    character = next(
+        item
+        for item in seeded_client.get(
+            f"/api/productions/{production_id}/characters",
+            headers=director,
+        ).json()
+        if item["name"] == "CREAN"
+    )
+    cast = seeded_client.put(
+        f"/api/productions/{production_id}/characters/{character['id']}/cast",
+        json={"user_id": actor.id},
+        headers=director,
+    )
+    assert cast.status_code == 200
+
+    wire = seeded_client.post(
+        f"/api/productions/{production_id}/wires",
+        json={"identifier": "W-inactive"},
+        headers=director,
+    )
+    assert wire.status_code == 201
+    chart = seeded_client.get(
+        f"/api/productions/{production_id}/lav-chart",
+        headers=director,
+    ).json()
+    actor_row = next(row for row in chart["rows"] if row["user_id"] == actor.id)
+    saved = seeded_client.put(
+        f"/api/productions/{production_id}/lav-chart",
+        json={
+            "wire_cells": [
+                {
+                    "row_key": actor_row["row_key"],
+                    "scene_id": chart["scenes"][0]["id"],
+                    "wire_id": wire.json()["id"],
+                }
+            ],
+            "pack_cells": [],
+        },
+        headers=director,
+    )
+    assert saved.status_code == 200
+
+    membership = get_membership(db_session, production_id, actor.id)
+    assert membership is not None
+    deactivate_membership(db_session, membership)
+    db_session.commit()
+
+    after = seeded_client.get(
+        f"/api/productions/{production_id}/lav-chart",
+        headers=director,
+    )
+    assert after.status_code == 200
+    body = after.json()
+    assert all(row["user_id"] != actor.id for row in body["rows"])
+    assert all(cell["row_key"] != actor_row["row_key"] for cell in body["wire_cells"])
+    assert any(row["character_id"] is not None for row in body["rows"])
+
+    db_session.expire_all()
+    assert db_session.query(UserCharacterAssignment).count() == 1
+    assert (
+        db_session.query(LavWireAssignment)
+        .filter(LavWireAssignment.production_id == production_id)
+        .count()
+        == 1
+    )

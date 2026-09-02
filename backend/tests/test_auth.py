@@ -5,13 +5,14 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.auth.dependencies import require_role
-from app.db.seed import seed_database
-from app.models import User
+from app.models import Organization, User
+from scoped_test_helpers import seed_database_with_test_users
 
 
 @pytest.fixture
 def seeded_client(client: TestClient, db_session, test_settings) -> TestClient:
-    seed_database(db_session, test_settings)
+    seed_database_with_test_users(db_session, test_settings)
+    db_session.commit()
     return client
 
 
@@ -52,28 +53,98 @@ def test_me_returns_user(seeded_client: TestClient) -> None:
     assert "Admin" in response.json()["roles"]
 
 
-def test_require_role_allows_matching_user(db_session, test_settings) -> None:
-    seed_database(db_session, test_settings)
-    director = db_session.query(User).filter(User.username == "director").first()
-    checker = require_role("Director")
-    assert checker(user=director) is director
+def test_admin_can_grant_and_revoke_existing_admin_role(
+    seeded_client: TestClient,
+    db_session,
+) -> None:
+    target = db_session.query(User).filter(User.username == "actor").one()
+    headers = {"Authorization": f"Bearer {_login(seeded_client, 'admin', 'admin')}"}
+
+    granted = seeded_client.patch(
+        f"/api/users/{target.id}/admin",
+        headers=headers,
+        json={"is_admin": True},
+    )
+    assert granted.status_code == 200
+    assert granted.json()["roles"] == ["Admin"]
+
+    revoked = seeded_client.patch(
+        f"/api/users/{target.id}/admin",
+        headers=headers,
+        json={"is_admin": False},
+    )
+    assert revoked.status_code == 200
+    assert revoked.json()["roles"] == []
+
+
+def test_admin_role_endpoint_blocks_self_demotion(
+    seeded_client: TestClient,
+    db_session,
+) -> None:
+    admin = db_session.query(User).filter(User.username == "admin").one()
+    headers = {"Authorization": f"Bearer {_login(seeded_client, 'admin', 'admin')}"}
+
+    response = seeded_client.patch(
+        f"/api/users/{admin.id}/admin",
+        headers=headers,
+        json={"is_admin": False},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["detail"] == "Cannot remove Admin from your own account"
+
+
+def test_admin_role_endpoint_is_organization_scoped(
+    seeded_client: TestClient,
+    db_session,
+) -> None:
+    other_org = Organization(name="Other Organization")
+    db_session.add(other_org)
+    db_session.flush()
+    foreign_user = User(
+        organization_id=other_org.id,
+        username="foreign-admin-target",
+        password_hash="not-used",
+        first_name="Foreign",
+        last_name="User",
+        is_active=True,
+    )
+    db_session.add(foreign_user)
+    db_session.commit()
+
+    response = seeded_client.patch(
+        f"/api/users/{foreign_user.id}/admin",
+        headers={"Authorization": f"Bearer {_login(seeded_client, 'admin', 'admin')}"},
+        json={"is_admin": True},
+    )
+
+    assert response.status_code == 404
+
+
+def test_require_role_allows_global_admin(db_session, test_settings) -> None:
+    seed_database_with_test_users(db_session, test_settings)
+    admin = db_session.query(User).filter(User.username == "admin").one()
+    checker = require_role("Admin")
+    assert checker(user=admin) is admin
 
 
 def test_require_role_allows_any_of_multiple_roles(db_session, test_settings) -> None:
-    seed_database(db_session, test_settings)
+    seed_database_with_test_users(db_session, test_settings)
     admin = db_session.query(User).filter(User.username == "admin").first()
-    checker = require_role("Admin", "Director")
+    checker = require_role("Admin", "Other")
     assert checker(user=admin) is admin
 
 
 def test_require_role_denies_missing_role(db_session, test_settings) -> None:
-    seed_database(db_session, test_settings)
+    seed_database_with_test_users(db_session, test_settings)
     actor = db_session.query(User).filter(User.username == "actor").first()
-    checker = require_role("Director")
+    assert actor is not None
+    assert actor.app_roles == []
+    checker = require_role("Admin")
     with pytest.raises(HTTPException) as exc_info:
         checker(user=actor)
     assert exc_info.value.status_code == 403
-    assert exc_info.value.detail == "Director access required"
+    assert exc_info.value.detail == "Admin access required"
 
 
 def test_non_admin_cannot_create_production(seeded_client: TestClient) -> None:
@@ -102,12 +173,12 @@ def _login(client: TestClient, username: str, password: str) -> str:
 def test_act_as_requires_admin(seeded_client: TestClient, db_session) -> None:
     from app.models import User
 
-    actor = db_session.query(User).filter(User.username == "actor").one()
+    ordinary_user = db_session.query(User).filter(User.username == "actor").one()
     token = _login(seeded_client, "director", "director")
     response = seeded_client.post(
         "/api/auth/act-as",
         headers={"Authorization": f"Bearer {token}"},
-        json={"user_id": actor.id},
+        json={"user_id": ordinary_user.id},
     )
     assert response.status_code == 403
 
@@ -115,13 +186,13 @@ def test_act_as_requires_admin(seeded_client: TestClient, db_session) -> None:
 def test_act_as_and_stop_act_as(seeded_client: TestClient, db_session) -> None:
     from app.models import User
 
-    actor = db_session.query(User).filter(User.username == "actor").one()
+    ordinary_user = db_session.query(User).filter(User.username == "actor").one()
     admin_token = _login(seeded_client, "admin", "admin")
 
     act = seeded_client.post(
         "/api/auth/act-as",
         headers={"Authorization": f"Bearer {admin_token}"},
-        json={"user_id": actor.id},
+        json={"user_id": ordinary_user.id},
     )
     assert act.status_code == 200
     act_token = act.json()["access_token"]
@@ -133,14 +204,14 @@ def test_act_as_and_stop_act_as(seeded_client: TestClient, db_session) -> None:
     assert me.status_code == 200
     body = me.json()
     assert body["username"] == "actor"
-    assert "Actor" in body["roles"]
+    assert body["roles"] == []
     assert body["impersonation"]["original_username"] == "admin"
 
     # Nested act-as must be blocked while impersonating.
     nested = seeded_client.post(
         "/api/auth/act-as",
         headers={"Authorization": f"Bearer {act_token}"},
-        json={"user_id": actor.id},
+        json={"user_id": ordinary_user.id},
     )
     assert nested.status_code == 403
 

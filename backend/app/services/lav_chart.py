@@ -30,6 +30,7 @@ from app.schemas.lav_chart import (
     LavWireCell,
 )
 from app.services.importer.builtins import BUILTIN_CHARACTER_NAMES
+from app.services.production_memberships import effective_cast_character_ids
 
 LAV_CHART_RULES: list[str] = [
     "Anyone with dialogue or lyrics needs a lav when they speak or sing (ALL / ENSEMBLE excluded).",
@@ -221,6 +222,7 @@ def _build_wearers(db: Session, production_id: int) -> list[_Wearer]:
         .all()
     )
     by_id = {c.id: c for c in characters}
+    effective_cast_ids = effective_cast_character_ids(db, production_id)
 
     actor_groups: dict[int, list[Character]] = {}
     uncast: list[Character] = []
@@ -229,10 +231,12 @@ def _build_wearers(db: Session, production_id: int) -> list[_Wearer]:
         if character is None:
             continue
         assignment = character.actor_assignment
-        if assignment is not None and assignment.user is not None:
-            actor_groups.setdefault(assignment.user_id, []).append(character)
-        else:
+        if assignment is None:
             uncast.append(character)
+        elif character.id in effective_cast_ids and assignment.user is not None:
+            actor_groups.setdefault(assignment.user_id, []).append(character)
+        # Retained assignments for inactive/non-Actor members stay hidden
+        # instead of becoming active uncast character rows.
 
     wearers: list[_Wearer] = []
     for user_id, chars in actor_groups.items():
@@ -602,24 +606,53 @@ def propose_lav_chart(
     return result
 
 
-def _load_locked_row_keys(db: Session, production_id: int) -> list[str]:
+def _load_locked_row_keys(
+    db: Session,
+    production_id: int,
+    row_keys: set[str] | None = None,
+) -> list[str]:
     rows = (
         db.query(LavRowLock)
         .filter(LavRowLock.production_id == production_id)
+        .filter(LavRowLock.row_key.in_(row_keys) if row_keys is not None else True)
         .order_by(LavRowLock.row_key)
         .all()
     )
     return [row.row_key for row in rows]
 
 
-def replace_row_locks(db: Session, production_id: int, row_keys: list[str]) -> None:
+def _active_row_keys(db: Session, production_id: int) -> set[str]:
+    return {wearer.row_key for wearer in _build_wearers(db, production_id)}
+
+
+def replace_row_locks(
+    db: Session,
+    production_id: int,
+    row_keys: list[str],
+    visible_row_keys: set[str] | None = None,
+) -> None:
     validate_row_keys(row_keys)
-    db.query(LavRowLock).filter(LavRowLock.production_id == production_id).delete()
+    visible = visible_row_keys if visible_row_keys is not None else _active_row_keys(
+        db,
+        production_id,
+    )
+    for lock in (
+        db.query(LavRowLock)
+        .filter(LavRowLock.production_id == production_id)
+        .all()
+    ):
+        if lock.row_key in visible:
+            db.delete(lock)
     for row_key in row_keys:
-        db.add(LavRowLock(production_id=production_id, row_key=row_key))
+        if row_key in visible:
+            db.add(LavRowLock(production_id=production_id, row_key=row_key))
 
 
-def _load_wire_cells(db: Session, production_id: int) -> list[LavWireCell]:
+def _load_wire_cells(
+    db: Session,
+    production_id: int,
+    row_keys: set[str] | None = None,
+) -> list[LavWireCell]:
     rows = db.query(LavWireAssignment).filter(LavWireAssignment.production_id == production_id).all()
     cells: list[LavWireCell] = []
     for row in rows:
@@ -629,11 +662,17 @@ def _load_wire_cells(db: Session, production_id: int) -> list[LavWireCell]:
             key = row_key_for_character(row.character_id)
         else:
             continue
+        if row_keys is not None and key not in row_keys:
+            continue
         cells.append(LavWireCell(row_key=key, scene_id=row.scene_id, wire_id=row.wire_id))
     return cells
 
 
-def _load_pack_cells(db: Session, production_id: int) -> list[LavPackCell]:
+def _load_pack_cells(
+    db: Session,
+    production_id: int,
+    row_keys: set[str] | None = None,
+) -> list[LavPackCell]:
     rows = db.query(LavPackAssignment).filter(LavPackAssignment.production_id == production_id).all()
     cells: list[LavPackCell] = []
     for row in rows:
@@ -642,6 +681,8 @@ def _load_pack_cells(db: Session, production_id: int) -> list[LavPackCell]:
         elif row.character_id is not None:
             key = row_key_for_character(row.character_id)
         else:
+            continue
+        if row_keys is not None and key not in row_keys:
             continue
         cells.append(LavPackCell(row_key=key, scene_id=row.scene_id, pack_id=row.pack_id))
     return cells
@@ -668,10 +709,30 @@ def replace_wire_assignments(
     db: Session,
     production_id: int,
     cells: list[LavWireCell],
+    visible_row_keys: set[str] | None = None,
 ) -> None:
-    db.query(LavWireAssignment).filter(LavWireAssignment.production_id == production_id).delete()
+    visible = visible_row_keys if visible_row_keys is not None else _active_row_keys(
+        db,
+        production_id,
+    )
+    existing = (
+        db.query(LavWireAssignment)
+        .filter(LavWireAssignment.production_id == production_id)
+        .all()
+    )
+    for row in existing:
+        row_key = (
+            row_key_for_user(row.user_id)
+            if row.user_id is not None
+            else row_key_for_character(row.character_id)
+            if row.character_id is not None
+            else None
+        )
+        if row_key in visible:
+            db.delete(row)
+    db.flush()
     for cell in cells:
-        if cell.wire_id is None:
+        if cell.wire_id is None or cell.row_key not in visible:
             continue
         user_id, character_id = parse_row_key(cell.row_key)
         db.add(
@@ -689,10 +750,30 @@ def replace_pack_assignments(
     db: Session,
     production_id: int,
     cells: list[LavPackCell],
+    visible_row_keys: set[str] | None = None,
 ) -> None:
-    db.query(LavPackAssignment).filter(LavPackAssignment.production_id == production_id).delete()
+    visible = visible_row_keys if visible_row_keys is not None else _active_row_keys(
+        db,
+        production_id,
+    )
+    existing = (
+        db.query(LavPackAssignment)
+        .filter(LavPackAssignment.production_id == production_id)
+        .all()
+    )
+    for row in existing:
+        row_key = (
+            row_key_for_user(row.user_id)
+            if row.user_id is not None
+            else row_key_for_character(row.character_id)
+            if row.character_id is not None
+            else None
+        )
+        if row_key in visible:
+            db.delete(row)
+    db.flush()
     for cell in cells:
-        if cell.pack_id is None:
+        if cell.pack_id is None or cell.row_key not in visible:
             continue
         user_id, character_id = parse_row_key(cell.row_key)
         db.add(
@@ -709,6 +790,7 @@ def replace_pack_assignments(
 def build_lav_chart_response(db: Session, production_id: int) -> LavChartResponse:
     scenes = _ordered_scenes(db, production_id)
     wearers = _build_wearers(db, production_id)
+    visible_row_keys = {wearer.row_key for wearer in wearers}
     wires = (
         db.query(Wire)
         .filter(Wire.production_id == production_id)
@@ -721,9 +803,9 @@ def build_lav_chart_response(db: Session, production_id: int) -> LavChartRespons
         .order_by(Pack.identifier)
         .all()
     )
-    wire_cells = _load_wire_cells(db, production_id)
-    pack_cells = _load_pack_cells(db, production_id)
-    locked_row_keys = _load_locked_row_keys(db, production_id)
+    wire_cells = _load_wire_cells(db, production_id, visible_row_keys)
+    pack_cells = _load_pack_cells(db, production_id, visible_row_keys)
+    locked_row_keys = _load_locked_row_keys(db, production_id, visible_row_keys)
     issues = _validate_chart(wearers, scenes, wire_cells, pack_cells)
 
     return LavChartResponse(

@@ -9,16 +9,17 @@ from sqlalchemy.orm import Session
 
 from app.auth.rate_limit import MAX_ATTEMPTS, clear_login_rate_limits
 from app.config import Settings
-from app.db.seed import seed_database
 from app.models import Production, User
 from app.services.importer import import_script
+from scoped_test_helpers import add_test_production_memberships, seed_database_with_test_users
 
 FIXTURE_PATH = Path(__file__).resolve().parents[2] / "fixtures" / "scripts" / "endurance-scene1.md"
 
 
 @pytest.fixture
 def seeded_client(client: TestClient, db_session: Session, test_settings) -> TestClient:
-    seed_database(db_session, test_settings)
+    seed_database_with_test_users(db_session, test_settings)
+    db_session.commit()
     return client
 
 
@@ -39,18 +40,20 @@ def _imported_production(client: TestClient, db_session: Session) -> int:
     production_id = create.json()["id"]
     production = db_session.get(Production, production_id)
     assert production is not None
+    add_test_production_memberships(db_session, production)
+    db_session.commit()
     import_script(db_session, production, FIXTURE_PATH.read_text(encoding="utf-8"))
     return production_id
 
 
-def test_uncast_actor_cannot_get_production_by_id(
+def test_uncast_actor_can_get_production_by_id(
     seeded_client: TestClient, db_session: Session
 ) -> None:
     production_id = _imported_production(seeded_client, db_session)
     actor_headers = _login(seeded_client, "actor", "actor")
 
     response = seeded_client.get(f"/api/productions/{production_id}", headers=actor_headers)
-    assert response.status_code == 404
+    assert response.status_code == 200
 
 
 def test_cast_actor_can_get_production(seeded_client: TestClient, db_session: Session) -> None:
@@ -75,33 +78,20 @@ def test_cast_actor_can_get_production(seeded_client: TestClient, db_session: Se
     assert response.json()["id"] == production_id
 
 
-def test_actor_cannot_read_reports(seeded_client: TestClient, db_session: Session) -> None:
+def test_actor_can_read_reports(seeded_client: TestClient, db_session: Session) -> None:
     production_id = _imported_production(seeded_client, db_session)
-    director_headers = _login(seeded_client, "director", "director")
-    characters = seeded_client.get(
-        f"/api/productions/{production_id}/characters",
-        headers=director_headers,
-    ).json()
-    crean_id = next(c["id"] for c in characters if c["name"] == "CREAN")
-    actor = db_session.query(User).filter(User.username == "actor").one()
-    seeded_client.put(
-        f"/api/productions/{production_id}/characters/{crean_id}/cast",
-        json={"user_id": actor.id},
-        headers=director_headers,
-    )
-
     actor_headers = _login(seeded_client, "actor", "actor")
     response = seeded_client.get(
         f"/api/productions/{production_id}/reports/prop-sheet",
         headers=actor_headers,
     )
-    assert response.status_code == 403
+    assert response.status_code == 200
 
 
-def test_uncast_actor_cannot_list_moment_satellites(
+def test_actor_can_list_moment_satellites(
     seeded_client: TestClient, db_session: Session
 ) -> None:
-    """Auth alone must not grant moment attachment reads (IDOR)."""
+    """An active actor member can read moment attachments without casting."""
     production_id = _imported_production(seeded_client, db_session)
     director_headers = _login(seeded_client, "director", "director")
     acts = seeded_client.get(f"/api/productions/{production_id}/acts", headers=director_headers).json()
@@ -122,7 +112,7 @@ def test_uncast_actor_cannot_list_moment_satellites(
         f"/api/productions/{production_id}/moments/{moment_id}/set-pieces",
     ):
         response = seeded_client.get(path, headers=actor_headers)
-        assert response.status_code == 404, path
+        assert response.status_code == 200, path
 
 
 def test_prod_settings_reject_default_secret() -> None:

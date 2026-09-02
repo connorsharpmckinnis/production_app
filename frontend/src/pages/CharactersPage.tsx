@@ -20,7 +20,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAuth } from "@/context/AuthContext";
+import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
 import type { CastableUserResponse, CharacterDetailResponse } from "@/lib/types";
@@ -31,7 +31,9 @@ const UNASSIGNED = "__unassigned__";
 export default function CharactersPage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
-  const { canManagePreparation } = useAuth();
+  const { hasCapability } = useProductionAccess();
+  const canCreateCharacters = hasCapability("characters", "create");
+  const canCast = hasCapability("casting", "update");
   const toast = useToast();
 
   const [characters, setCharacters] = useState<CharacterDetailResponse[]>([]);
@@ -47,7 +49,7 @@ export default function CharactersPage() {
     try {
       const characterData = await api.listCharacters(productionId);
       setCharacters(sortByName(characterData));
-      if (canManagePreparation) {
+      if (canCast) {
         const users = await api.listCastableUsers(productionId);
         setCastableUsers(
           [...users].sort((a, b) =>
@@ -64,7 +66,7 @@ export default function CharactersPage() {
 
   useEffect(() => {
     void loadData();
-  }, [productionId, canManagePreparation]);
+  }, [productionId, canCast]);
 
   async function handleCastChange(characterId: number, userId: string) {
     setSavingId(characterId);
@@ -112,11 +114,6 @@ export default function CharactersPage() {
           ← Overview
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Characters</h1>
-        <p className="text-sm text-muted-foreground">
-          {canManagePreparation
-            ? "Review imported characters and assign actors."
-            : "Characters in this production."}
-        </p>
       </div>
 
       {error && (
@@ -125,7 +122,7 @@ export default function CharactersPage() {
         </Alert>
       )}
 
-      {canManagePreparation && (
+      {canCreateCharacters && (
         <div>
           {showAddForm ? (
             <form onSubmit={(e) => void handleAddCharacter(e)} className="flex flex-wrap gap-2">
@@ -154,8 +151,8 @@ export default function CharactersPage() {
         <EmptyState
           title="No characters yet"
           description="Import a script first, or add a character manually."
-          actionLabel={canManagePreparation ? "Add character" : undefined}
-          onAction={canManagePreparation ? () => setShowAddForm(true) : undefined}
+          actionLabel={canCreateCharacters ? "Add character" : undefined}
+          onAction={canCreateCharacters ? () => setShowAddForm(true) : undefined}
         />
       ) : (
         <div className="rounded-lg border border-border">
@@ -164,7 +161,7 @@ export default function CharactersPage() {
               <TableRow>
                 <TableHead>Name</TableHead>
                 <TableHead>Scenes</TableHead>
-                {canManagePreparation ? (
+                {canCast ? (
                   <TableHead>Assigned actor</TableHead>
                 ) : (
                   <TableHead>Actor</TableHead>
@@ -176,7 +173,7 @@ export default function CharactersPage() {
                 <TableRow key={character.id}>
                   <TableCell className="font-medium">{character.name}</TableCell>
                   <TableCell className="text-muted-foreground">{character.scene_count}</TableCell>
-                  {canManagePreparation ? (
+                  {canCast ? (
                     <TableCell>
                       <Select
                         value={String(character.assigned_actor?.user_id ?? UNASSIGNED)}

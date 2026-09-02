@@ -104,6 +104,10 @@ Organization
 
     │     └── RehearsalNote
 
+    ├── ProductionMembership
+
+    │     └── ProductionMembershipRole → ProductionRole
+
     ├── Task
 
     └── Note
@@ -169,26 +173,20 @@ One → Many Tasks
 
 One → Many Bookmarks
 
+One → Many ProductionMemberships
+
 ---
 
 # APP_ROLES
 
 Purpose
 
-Application permissions.
+Organization-wide application permissions.
 
-MVP roles (seed data):
-
-* Admin
-* Director
-* Actor
-
-Future roles (not seeded for MVP):
-
-* Production Manager
-* Stage Manager
-* Lighting
-* Sound
+The only organization-wide role in the membership model is `Admin`. Production
+capabilities such as `Director` and `Actor` are stored in `production_roles` and
+assigned through `production_memberships`. Legacy global Director/Actor rows are
+removed from the seeded model and do not authorize production access.
 
 Fields
 
@@ -200,7 +198,113 @@ Relationship
 
 Many ↔ Many Users
 
-**Decision:** Store fine-grained permissions separately in a future release.
+**Decision:** Store production-scoped fine-grained permissions in
+`production_role_permissions`. Admin access bypasses those rows.
+
+---
+
+# PRODUCTION_MEMBERSHIPS
+
+Purpose
+
+Explicitly records that an organization user participates in a production.
+Membership is independent of character casting.
+
+Fields
+
+* id
+* production_id
+* user_id
+* is_active
+* created_at
+* updated_at
+
+Constraints and deletion behavior
+
+* Unique `(production_id, user_id)`.
+* `production_id` and `user_id` are required foreign keys.
+* Deleting a production or user cascades membership and membership-role rows.
+* New active memberships require an active user in the production's organization.
+* Every active membership must have at least one production role.
+* Deactivation preserves the membership, roles, and cast rows; inactive membership
+  is excluded from effective access.
+
+---
+
+# PRODUCTION_ROLES
+
+Purpose
+
+Reusable production-scoped role definitions.
+
+Seeded roles:
+
+* `member` — Member
+* `director` — Director
+* `actor` — Actor
+
+Fields
+
+* id
+* code (immutable, unique, lowercase)
+* name
+* description
+* created_at
+* updated_at
+
+`code` is the stable identifier used by application logic and permission rows.
+`name` and `description` may be edited without changing assignments.
+
+---
+
+# PRODUCTION_MEMBERSHIP_ROLES
+
+Purpose
+
+Assigns one or more reusable production roles to a user's membership.
+
+Fields
+
+* membership_id
+* production_role_id
+* created_at
+* updated_at
+
+Constraints
+
+* Unique primary key `(membership_id, production_role_id)`.
+* Deleting a membership cascades its assignments.
+* Role definitions are restricted from deletion while assigned or referenced by
+  permission rows.
+
+---
+
+# PRODUCTION_ROLE_PERMISSIONS
+
+Purpose
+
+Normalized Admin-managed permission matrix shared by every production.
+
+Fields
+
+* id
+* production_role_id
+* resource
+* action (`read` | `create` | `update` | `delete`)
+* enabled
+* created_at
+* updated_at
+
+Constraints and behavior
+
+* Unique `(production_role_id, resource, action)`.
+* Every seeded role/resource pair has all four action rows, including disabled
+  rows.
+* The initial resource keys are documented in [ROLES.md](ROLES.md).
+* Effective permissions are the union of enabled rows for all active roles on a
+  membership.
+* Admin changes apply on the next authorization check; permissions are not copied
+  into productions.
 
 ---
 
@@ -226,6 +330,8 @@ Relationships
 One → Many Performances
 
 One → Many Acts
+
+One → Many ProductionMemberships
 
 One → Many Characters
 
@@ -1002,31 +1108,27 @@ The human-readable `title` and `notes` fields are for display. The `payload` fie
 
 Purpose
 
-Universal annotation system.
+Moment or character annotations. Casting-specific notes are intentionally a
+separate future workflow; see [feature_plans/casting-and-auditions.md](feature_plans/casting-and-auditions.md).
 
 Fields
 
 * id
 * user_id
 * visibility
-
-Reference Fields (nullable)
-
-* production_id
-* performance_id
-* act_id
-* scene_id
 * moment_id
 * character_id
-* song_id
-* prop_id
-* costume_id
-* cue_id
-* task_id
 * content
 * created_at
 
-**Decision (MVP):** Use nullable foreign keys (not a polymorphic association). Revisit after MVP if the reference list becomes unwieldy.
+**Current implementation:** exactly one of `moment_id` or `character_id` is
+required on create and is validated in the service/API layer. The current model
+does not yet include the broader nullable reference list shown in older schema
+drafts, nor a `production_id` column or `updated_at`.
+
+**Visibility:** existing values are `public` and `private`; production-scoped
+casting notes are not represented by this table. Do not use a public/private
+Moment Note as a substitute for a casting evaluation record.
 
 ---
 
@@ -1088,7 +1190,7 @@ Fields
 Related
 
 * `announcement_ctas` — label, kind (`internal` | `external`), target, style, sort_order
-* `announcement_audience_roles` — role_name (`Admin` | `Director` | `Actor`)
+* `announcement_audience_roles` — role_name (`Admin` | `Director` | `Actor` | `Member`)
 
 ---
 
@@ -1121,6 +1223,11 @@ UI shows unread + recent (~100); rows are retained indefinitely.
 Preparation progress (derived checklist per moment/production)
 
 Attendance
+
+Casting notes, audition sessions/submissions, and per-production unavailable
+dates — proposed in [feature_plans/casting-and-auditions.md](feature_plans/casting-and-auditions.md).
+The initial unavailable-date CSV is an import/export format for normalized date
+rows, not a replacement for the relational model.
 
 AI Conversations
 

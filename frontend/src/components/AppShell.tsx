@@ -13,6 +13,10 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import {
+  ProductionAccessProvider,
+  useProductionAccess,
+} from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
 import { getLastProduction, rememberLastProduction } from "@/lib/lastProduction";
@@ -34,7 +38,9 @@ const sectionSummaryClass =
 export default function AppShell() {
   return (
     <NotificationProvider>
-      <AppShellInner />
+      <ProductionAccessProvider>
+        <AppShellInner />
+      </ProductionAccessProvider>
     </NotificationProvider>
   );
 }
@@ -79,12 +85,11 @@ function AppShellInner() {
     user,
     logout,
     isAdmin,
-    canManagePreparation,
-    isActorOnly,
     isImpersonating,
     impersonation,
     stopActAs,
   } = useAuth();
+  const { access, hasCapability } = useProductionAccess();
   const toast = useToast();
   const { id: productionId } = useParams();
   const location = useLocation();
@@ -107,6 +112,11 @@ function AppShellInner() {
     (location.pathname === "/users" || location.pathname === "/settings");
 
   const displayProductionTitle = productionTitle ?? (productionId ? `Production #${productionId}` : null);
+  const canRead = (resource: string) => hasCapability(resource, "read");
+  const isScopedActorOnly =
+    Boolean(access?.role_codes.includes("actor")) &&
+    !access?.role_codes.includes("director") &&
+    !isAdmin;
 
   useEffect(() => {
     if (!productionId) {
@@ -147,35 +157,52 @@ function AppShellInner() {
 
   const preparationLinks = productionId ? (
     <>
-      <NavLink
-        to={`/productions/${productionId}/characters`}
-        className={navLinkClass}
-        onClick={() => setSidebarOpen(false)}
-      >
-        Characters
-      </NavLink>
-      <NavLink
-        to={`/productions/${productionId}/songs`}
-        className={navLinkClass}
-        onClick={() => setSidebarOpen(false)}
-      >
-        Songs
-      </NavLink>
-      <NavLink
-        to={`/productions/${productionId}/props`}
-        className={navLinkClass}
-        onClick={() => setSidebarOpen(false)}
-      >
-        Props
-      </NavLink>
-      <NavLink
-        to={`/productions/${productionId}/costumes`}
-        className={navLinkClass}
-        onClick={() => setSidebarOpen(false)}
-      >
-        Costumes
-      </NavLink>
-      {canManagePreparation && (
+      {canRead("people") && (
+        <NavLink
+          to={`/productions/${productionId}/people`}
+          className={navLinkClass}
+          onClick={() => setSidebarOpen(false)}
+        >
+          People
+        </NavLink>
+      )}
+      {canRead("characters") && (
+        <NavLink
+          to={`/productions/${productionId}/characters`}
+          className={navLinkClass}
+          onClick={() => setSidebarOpen(false)}
+        >
+          Characters
+        </NavLink>
+      )}
+      {canRead("songs") && (
+        <NavLink
+          to={`/productions/${productionId}/songs`}
+          className={navLinkClass}
+          onClick={() => setSidebarOpen(false)}
+        >
+          Songs
+        </NavLink>
+      )}
+      {canRead("props") && (
+        <NavLink
+          to={`/productions/${productionId}/props`}
+          className={navLinkClass}
+          onClick={() => setSidebarOpen(false)}
+        >
+          Props
+        </NavLink>
+      )}
+      {canRead("costumes") && (
+        <NavLink
+          to={`/productions/${productionId}/costumes`}
+          className={navLinkClass}
+          onClick={() => setSidebarOpen(false)}
+        >
+          Costumes
+        </NavLink>
+      )}
+      {canRead("lav_chart") && (
         <NavLink
           to={`/productions/${productionId}/lav-chart`}
           className={navLinkClass}
@@ -184,29 +211,35 @@ function AppShellInner() {
           Lav chart
         </NavLink>
       )}
-      <NavLink
-        to={`/productions/${productionId}/set-pieces`}
-        className={navLinkClass}
-        onClick={() => setSidebarOpen(false)}
-      >
-        Set Pieces
-      </NavLink>
-      {canManagePreparation && (
+      {canRead("set_pieces") && (
+        <NavLink
+          to={`/productions/${productionId}/set-pieces`}
+          className={navLinkClass}
+          onClick={() => setSidebarOpen(false)}
+        >
+          Set Pieces
+        </NavLink>
+      )}
+      {(canRead("groups") || canRead("cue_categories")) && (
         <>
-          <NavLink
-            to={`/productions/${productionId}/groups`}
-            className={navLinkClass}
-            onClick={() => setSidebarOpen(false)}
-          >
-            Groups
-          </NavLink>
-          <NavLink
-            to={`/productions/${productionId}/cue-categories`}
-            className={navLinkClass}
-            onClick={() => setSidebarOpen(false)}
-          >
-            Cue Categories
-          </NavLink>
+          {canRead("groups") && (
+            <NavLink
+              to={`/productions/${productionId}/groups`}
+              className={navLinkClass}
+              onClick={() => setSidebarOpen(false)}
+            >
+              Groups
+            </NavLink>
+          )}
+          {canRead("cue_categories") && (
+            <NavLink
+              to={`/productions/${productionId}/cue-categories`}
+              className={navLinkClass}
+              onClick={() => setSidebarOpen(false)}
+            >
+              Cue Categories
+            </NavLink>
+          )}
         </>
       )}
     </>
@@ -468,28 +501,34 @@ function AppShellInner() {
                 <div className="pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                   Production
                 </div>
-                <NavLink
-                  to={`/productions/${productionId}`}
-                  end
-                  className={navLinkClass}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  Overview
-                </NavLink>
-                <NavLink
-                  to={`/productions/${productionId}/timeline`}
-                  className={navLinkClass}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  Timeline
-                </NavLink>
-                <NavLink
-                  to={`/productions/${productionId}/rehearsals`}
-                  className={navLinkClass}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  Rehearsals
-                </NavLink>
+                {canRead("overview") && (
+                  <NavLink
+                    to={`/productions/${productionId}`}
+                    end
+                    className={navLinkClass}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    Overview
+                  </NavLink>
+                )}
+                {canRead("timeline") && (
+                  <NavLink
+                    to={`/productions/${productionId}/timeline`}
+                    className={navLinkClass}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    Timeline
+                  </NavLink>
+                )}
+                {canRead("rehearsals") && (
+                  <NavLink
+                    to={`/productions/${productionId}/rehearsals`}
+                    className={navLinkClass}
+                    onClick={() => setSidebarOpen(false)}
+                  >
+                    Rehearsals
+                  </NavLink>
+                )}
                 {isAdmin && !productionHasScript && (
                   <NavLink
                     to={`/productions/${productionId}/import`}
@@ -502,13 +541,13 @@ function AppShellInner() {
 
                 <CollapsibleNavSection
                   storageKey="nav.preparation.open"
-                  defaultOpen={!isActorOnly}
+                  defaultOpen={!isScopedActorOnly}
                   title="Preparation"
                 >
                   {preparationLinks}
                 </CollapsibleNavSection>
 
-                {canManagePreparation && (
+                {canRead("reports") && (
                   <CollapsibleNavSection
                     storageKey="nav.reports.open"
                     defaultOpen

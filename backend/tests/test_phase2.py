@@ -6,16 +6,17 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.db.seed import seed_database
 from app.models import Character, Production, User
 from app.services.importer import import_script
+from scoped_test_helpers import add_test_production_memberships, seed_database_with_test_users
 
 FIXTURE_PATH = Path(__file__).resolve().parents[2] / "fixtures" / "scripts" / "endurance-scene1.md"
 
 
 @pytest.fixture
 def seeded_client(client: TestClient, db_session: Session, test_settings) -> TestClient:
-    seed_database(db_session, test_settings)
+    seed_database_with_test_users(db_session, test_settings)
+    db_session.commit()
     return client
 
 
@@ -35,6 +36,8 @@ def _imported_production(client: TestClient, db_session: Session) -> int:
     production_id = create.json()["id"]
     production = db_session.get(Production, production_id)
     assert production is not None
+    add_test_production_memberships(db_session, production)
+    db_session.commit()
     content = FIXTURE_PATH.read_text(encoding="utf-8")
     import_script(db_session, production, content)
     return production_id
@@ -64,12 +67,15 @@ def _cast_dev_actor(client: TestClient, db_session: Session, production_id: int)
     assert cast.status_code == 200
 
 
-def test_actor_production_list_empty_before_casting(seeded_client: TestClient, db_session: Session) -> None:
+def test_actor_production_list_includes_uncast_member(
+    seeded_client: TestClient, db_session: Session
+) -> None:
     production_id = _imported_production(seeded_client, db_session)
     actor_headers = _login(seeded_client, "actor", "actor")
 
     productions = seeded_client.get("/api/productions", headers=actor_headers).json()
-    assert productions == []
+    assert len(productions) == 1
+    assert productions[0]["id"] == production_id
 
     # Director still sees everything.
     director_headers = _login(seeded_client, "director", "director")

@@ -10,7 +10,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -26,7 +25,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { useAuth } from "@/context/AuthContext";
+import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
@@ -35,7 +34,10 @@ import type { SetPieceResponse } from "@/lib/types";
 export default function SetPiecesPage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
-  const { canManagePreparation } = useAuth();
+  const { hasCapability } = useProductionAccess();
+  const canManagePreparation = ["create", "update", "delete"].some((action) =>
+    hasCapability("set_pieces", action),
+  );
   const confirm = useConfirm();
   const toast = useToast();
 
@@ -155,11 +157,6 @@ export default function SetPiecesPage() {
           ← Overview
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Set Pieces</h1>
-        <p className="text-sm text-muted-foreground">
-          {canManagePreparation
-            ? "Manage the set piece catalog and attach pieces to moments from the timeline."
-            : "Set pieces in this production."}
-        </p>
       </div>
 
       {error && (
@@ -255,11 +252,6 @@ export default function SetPiecesPage() {
           <form onSubmit={(e) => void handleSubmit(e)}>
             <DialogHeader>
               <DialogTitle>{editingPiece ? "Edit set piece" : "Add set piece"}</DialogTitle>
-              <DialogDescription>
-                {editingPiece
-                  ? "Update this set piece in the catalog."
-                  : "Add a new set piece to the catalog."}
-              </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-4">
               <div className="space-y-2">

@@ -2,7 +2,7 @@
 
 **Status:** Shipped (Phases 15–18)  
 **Created:** 2026-08-21  
-**Related:** [PHASE_15.md](../PHASE_15.md)–[PHASE_18.md](../PHASE_18.md), [print-and-call-sheets.md](print-and-call-sheets.md), [scheduling-and-attendance.md](scheduling-and-attendance.md) (superseded), [email-notifications.md](email-notifications.md)
+**Related:** [PHASE_15.md](../PHASE_15.md)–[PHASE_18.md](../PHASE_18.md), [print-and-call-sheets.md](print-and-call-sheets.md), [casting-and-auditions.md](casting-and-auditions.md), [scheduling-and-attendance.md](scheduling-and-attendance.md) (superseded), [email-notifications.md](email-notifications.md)
 
 ---
 
@@ -40,6 +40,16 @@ Pam walkthrough target: “this replaces the week-before call email and sticky-n
 
 ---
 
+## Current boundary
+
+The shipped planner does not yet store actor availability. Rehearsal responses
+currently default availability to `True`, and overlapping calls are advisory
+within a rehearsal. Per-production unavailable dates and Casting-only conflict
+review are planned in [casting-and-auditions.md](casting-and-auditions.md);
+date-only conflicts should remain warnings until a later intake model supports
+time ranges.
+
+
 ## Data model
 
 - `locations` — organization_id, name, sort_order
@@ -66,7 +76,7 @@ Pam walkthrough target: “this replaces the week-before call email and sticky-n
 ## Non-goals
 
 - Planning Center / Google Calendar sync
-- Actor conflict forms / audition flows
+- Actor conflict forms / audition flows (see [casting-and-auditions.md](casting-and-auditions.md))
 - Outbound email/SMS (follow-on via email-notifications)
 - Attendance check-in
 - Equity formal call sheet fields

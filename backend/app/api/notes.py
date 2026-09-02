@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
 
-from app.api.deps import get_accessible_production
+from app.api.deps import require_production_capability
 from app.auth.dependencies import require_authenticated
 from app.db.session import get_db
 from app.models import Act, Bookmark, Character, Moment, Note, Scene, User
@@ -81,10 +81,9 @@ def list_production_notes(
     production_id: int,
     moment_id: int | None = Query(default=None),
     character_id: int | None = Query(default=None),
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("notes", "read")),
     db: Session = Depends(get_db),
 ) -> list[NoteResponse]:
-    get_accessible_production(db, user, production_id)
     query = db.query(Note).options(joinedload(Note.user))
 
     if moment_id is not None:
@@ -118,11 +117,9 @@ def list_production_notes(
 def create_note(
     production_id: int,
     body: NoteCreate,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("notes", "create")),
     db: Session = Depends(get_db),
 ) -> NoteResponse:
-    get_accessible_production(db, user, production_id)
-
     if body.moment_id is not None:
         _get_moment_in_production_or_404(db, production_id, body.moment_id)
     else:
@@ -153,10 +150,9 @@ def update_note(
     production_id: int,
     note_id: int,
     body: NoteUpdate,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("notes", "update")),
     db: Session = Depends(get_db),
 ) -> NoteResponse:
-    get_accessible_production(db, user, production_id)
     note = (
         db.query(Note)
         .options(joinedload(Note.user))
@@ -183,10 +179,9 @@ def update_note(
 def delete_note(
     production_id: int,
     note_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("notes", "delete")),
     db: Session = Depends(get_db),
 ) -> None:
-    get_accessible_production(db, user, production_id)
     note = db.query(Note).filter(Note.id == note_id).first()
     if note is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
@@ -213,7 +208,11 @@ def create_bookmark(
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Moment not found")
 
     production = moment.scene.act.production
-    get_accessible_production(db, user, production.id)
+    require_production_capability("bookmarks", "create")(
+        production_id=production.id,
+        user=user,
+        db=db,
+    )
 
     existing = (
         db.query(Bookmark)
@@ -252,11 +251,26 @@ def delete_bookmark(
     user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> None:
-    bookmark = db.query(Bookmark).filter(Bookmark.id == bookmark_id).first()
+    bookmark = (
+        db.query(Bookmark)
+        .options(
+            joinedload(Bookmark.moment)
+            .joinedload(Moment.scene)
+            .joinedload(Scene.act)
+            .joinedload(Act.production),
+        )
+        .filter(Bookmark.id == bookmark_id)
+        .first()
+    )
     if bookmark is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bookmark not found")
     if bookmark.user_id != user.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Cannot delete another user's bookmark")
+    require_production_capability("bookmarks", "delete")(
+        production_id=bookmark.moment.scene.act.production.id,
+        user=user,
+        db=db,
+    )
     db.delete(bookmark)
     db.commit()
 
@@ -267,6 +281,12 @@ def list_my_bookmarks(
     user: User = Depends(require_authenticated),
     db: Session = Depends(get_db),
 ) -> list[BookmarkResponse]:
+    if production_id is not None:
+        require_production_capability("bookmarks", "read")(
+            production_id=production_id,
+            user=user,
+            db=db,
+        )
     query = (
         db.query(Bookmark)
         .options(

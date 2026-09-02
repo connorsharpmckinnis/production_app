@@ -7,16 +7,18 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.db.seed import seed_database
 from app.models import Location, Production, Scene, User
 from app.services.importer import import_script
+from app.services.production_memberships import deactivate_membership
+from scoped_test_helpers import add_test_production_memberships, seed_database_with_test_users
 
 FIXTURE_PATH = Path(__file__).resolve().parents[2] / "fixtures" / "scripts" / "endurance-scene1.md"
 
 
 @pytest.fixture
 def seeded_client(client: TestClient, db_session: Session, test_settings) -> TestClient:
-    seed_database(db_session, test_settings)
+    seed_database_with_test_users(db_session, test_settings)
+    db_session.commit()
     return client
 
 
@@ -36,6 +38,7 @@ def _imported_production(client: TestClient, db_session: Session) -> int:
     production_id = create.json()["id"]
     production = db_session.get(Production, production_id)
     assert production is not None
+    add_test_production_memberships(db_session, production)
     content = FIXTURE_PATH.read_text(encoding="utf-8")
     import_script(db_session, production, content)
     return production_id
@@ -320,3 +323,75 @@ def test_actor_list_hides_plan_details_until_published(
     assert len(listed) == 1
     assert listed[0]["title"] == "Secret plan"
     assert listed[0]["block_count"] == 0
+
+
+def test_rehearsal_calls_require_active_members_and_hide_retained_calls(
+    seeded_client: TestClient,
+    db_session: Session,
+) -> None:
+    production_id = _imported_production(seeded_client, db_session)
+    actor_id = _cast_actor(seeded_client, db_session, production_id)
+    director = _login(seeded_client, "director", "director")
+    starts, ends = _window()
+    scene_id = seeded_client.get(
+        f"/api/productions/{production_id}/acts",
+        headers=director,
+    ).json()[0]["scenes"][0]["id"]
+    rehearsal = seeded_client.post(
+        f"/api/productions/{production_id}/rehearsals",
+        json={"starts_at": starts, "ends_at": ends, "kind": "called"},
+        headers=director,
+    )
+    assert rehearsal.status_code == 201
+    rehearsal_id = rehearsal.json()["id"]
+
+    planned = seeded_client.put(
+        f"/api/productions/{production_id}/rehearsals/{rehearsal_id}/plan",
+        json={
+            "blocks": [
+                {
+                    "starts_at": starts,
+                    "ends_at": (
+                        datetime.fromisoformat(starts.replace("Z", "+00:00"))
+                        + timedelta(hours=1)
+                    ).isoformat(),
+                    "scene_ids": [scene_id],
+                    "user_ids": [actor_id],
+                }
+            ],
+            "mark_planned": True,
+        },
+        headers=director,
+    )
+    assert planned.status_code == 200
+
+    actor = db_session.query(User).filter(User.id == actor_id).one()
+    membership = actor.production_memberships[0]
+    deactivate_membership(db_session, membership)
+    db_session.commit()
+
+    hidden = seeded_client.get(
+        f"/api/productions/{production_id}/rehearsals/{rehearsal_id}",
+        headers=director,
+    )
+    assert hidden.status_code == 200
+    assert hidden.json()["blocks"][0]["calls"] == []
+
+    rejected = seeded_client.put(
+        f"/api/productions/{production_id}/rehearsals/{rehearsal_id}/plan",
+        json={
+            "blocks": [
+                {
+                    "starts_at": starts,
+                    "ends_at": (
+                        datetime.fromisoformat(starts.replace("Z", "+00:00"))
+                        + timedelta(hours=1)
+                    ).isoformat(),
+                    "scene_ids": [scene_id],
+                    "user_ids": [actor_id],
+                }
+            ]
+        },
+        headers=director,
+    )
+    assert rejected.status_code == 400

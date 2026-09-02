@@ -5,12 +5,12 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload, selectinload
 
-from app.api.deps import get_accessible_production, user_display_name
-from app.auth.dependencies import (
-    require_authenticated,
-    require_director_or_admin,
-    user_has_role,
+from app.api.deps import (
+    get_production_or_404,
+    require_production_capability,
+    user_display_name,
 )
+from app.auth.dependencies import user_has_role
 from app.db.session import get_db
 from app.models import Location, Scene, User
 from app.models.rehearsal import (
@@ -45,6 +45,11 @@ from app.schemas.rehearsals import (
     SceneRecommendationResponse,
     SuggestedCallResponse,
 )
+from app.services.production_memberships import (
+    active_role_codes,
+    get_membership,
+    list_active_production_users,
+)
 from app.services.rehearsal_cast import (
     scene_recommendations,
     suggested_users_for_scenes,
@@ -54,8 +59,14 @@ from app.services.rehearsal_cast import (
 router = APIRouter(prefix="/productions", tags=["rehearsals"])
 
 
-def _is_director_or_admin(user: User) -> bool:
-    return user_has_role(user, "Admin") or user_has_role(user, "Director")
+def _is_director_or_admin(db: Session, user: User, production_id: int) -> bool:
+    """Return whether the user has director-level rehearsal visibility."""
+    if not user.is_active:
+        return False
+    if user_has_role(user, "Admin"):
+        return True
+    membership = get_membership(db, production_id, user.id)
+    return membership is not None and "director" in active_role_codes(db, membership)
 
 
 def _get_location_for_org_or_404(
@@ -113,14 +124,25 @@ def _ensure_writable(rehearsal: Rehearsal) -> None:
         )
 
 
-def _overlapping_user_ids(blocks: list[RehearsalBlock]) -> dict[int, set[int]]:
+def _overlapping_user_ids(
+    blocks: list[RehearsalBlock],
+    visible_user_ids: set[int] | None = None,
+) -> dict[int, set[int]]:
     """Map block_id -> user_ids also called on an overlapping other block."""
     result: dict[int, set[int]] = {b.id: set() for b in blocks}
     for i, a in enumerate(blocks):
-        a_users = {c.user_id for c in a.calls}
+        a_users = {
+            c.user_id
+            for c in a.calls
+            if visible_user_ids is None or c.user_id in visible_user_ids
+        }
         for b in blocks[i + 1 :]:
             if a.starts_at < b.ends_at and b.starts_at < a.ends_at:
-                overlap = a_users & {c.user_id for c in b.calls}
+                overlap = a_users & {
+                    c.user_id
+                    for c in b.calls
+                    if visible_user_ids is None or c.user_id in visible_user_ids
+                }
                 if overlap:
                     result[a.id] |= overlap
                     result[b.id] |= overlap
@@ -141,6 +163,7 @@ def _block_scene_response(scene: Scene) -> RehearsalBlockSceneResponse:
 def _block_response(
     block: RehearsalBlock,
     double_book: set[int] | None = None,
+    visible_user_ids: set[int] | None = None,
 ) -> RehearsalBlockResponse:
     return RehearsalBlockResponse(
         id=block.id,
@@ -158,6 +181,7 @@ def _block_response(
                 available=True,
             )
             for c in block.calls
+            if visible_user_ids is None or c.user_id in visible_user_ids
         ],
         double_book_user_ids=sorted(double_book or ()),
     )
@@ -174,16 +198,24 @@ def _note_response(note: RehearsalNote) -> RehearsalNoteResponse:
     )
 
 
-def _detail_response(rehearsal: Rehearsal, user: User) -> RehearsalDetailResponse:
-    is_mgr = _is_director_or_admin(user)
+def _detail_response(
+    db: Session,
+    rehearsal: Rehearsal,
+    user: User,
+) -> RehearsalDetailResponse:
+    is_mgr = _is_director_or_admin(db, user, rehearsal.production_id)
     actor_may_see_plan = is_mgr or rehearsal.status in ACTOR_VISIBLE_STATUSES
 
     overlaps: dict[int, set[int]] = {}
     blocks: list[RehearsalBlockResponse] = []
     if actor_may_see_plan:
-        overlaps = _overlapping_user_ids(list(rehearsal.blocks))
+        visible_user_ids = {
+            member.id
+            for member in list_active_production_users(db, rehearsal.production_id)
+        }
+        overlaps = _overlapping_user_ids(list(rehearsal.blocks), visible_user_ids)
         blocks = [
-            _block_response(b, overlaps.get(b.id))
+            _block_response(b, overlaps.get(b.id), visible_user_ids)
             for b in sorted(rehearsal.blocks, key=lambda x: (x.sort_order, x.starts_at))
         ]
 
@@ -219,10 +251,10 @@ def _actor_may_view_detail(rehearsal: Rehearsal) -> bool:
 @router.get("/{production_id}/locations", response_model=list[LocationResponse])
 def list_locations(
     production_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("rehearsals", "read")),
     db: Session = Depends(get_db),
 ) -> list[LocationResponse]:
-    production = get_accessible_production(db, user, production_id)
+    production = get_production_or_404(db, production_id)
     locations = (
         db.query(Location)
         .filter(Location.organization_id == production.organization_id)
@@ -240,10 +272,10 @@ def list_locations(
 def create_location(
     production_id: int,
     body: LocationCreate,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("rehearsals", "create")),
     db: Session = Depends(get_db),
 ) -> LocationResponse:
-    production = get_accessible_production(db, director, production_id)
+    production = get_production_or_404(db, production_id)
     location = Location(
         organization_id=production.organization_id,
         name=body.name.strip(),
@@ -271,10 +303,10 @@ def create_location(
 )
 def list_rehearsals(
     production_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("rehearsals", "read")),
     db: Session = Depends(get_db),
 ) -> list[RehearsalSummaryResponse]:
-    get_accessible_production(db, user, production_id)
+    production = get_production_or_404(db, production_id)
     rehearsals = (
         db.query(Rehearsal)
         .options(joinedload(Rehearsal.location), selectinload(Rehearsal.blocks))
@@ -282,7 +314,7 @@ def list_rehearsals(
         .order_by(Rehearsal.starts_at.asc())
         .all()
     )
-    is_mgr = _is_director_or_admin(user)
+    is_mgr = _is_director_or_admin(db, user, production.id)
     result: list[RehearsalSummaryResponse] = []
     for r in rehearsals:
         if not is_mgr and r.status not in ACTOR_VISIBLE_STATUSES:
@@ -325,10 +357,10 @@ def list_rehearsals(
 def create_rehearsal(
     production_id: int,
     body: RehearsalCreate,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("rehearsals", "create")),
     db: Session = Depends(get_db),
 ) -> RehearsalDetailResponse:
-    production = get_accessible_production(db, director, production_id)
+    production = get_production_or_404(db, production_id)
     if body.location_id is not None:
         _get_location_for_org_or_404(db, production.organization_id, body.location_id)
     rehearsal = Rehearsal(
@@ -343,8 +375,9 @@ def create_rehearsal(
     db.add(rehearsal)
     db.commit()
     return _detail_response(
+        db,
         _get_rehearsal_or_404(db, production_id, rehearsal.id),
-        director,
+        user,
     )
 
 
@@ -358,10 +391,10 @@ def create_rehearsal(
 def suggest_calls(
     production_id: int,
     scene_ids: list[int] = Query(default=[]),
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("rehearsals", "read")),
     db: Session = Depends(get_db),
 ) -> list[SuggestedCallResponse]:
-    get_accessible_production(db, director, production_id)
+    get_production_or_404(db, production_id)
     suggestions = suggested_users_for_scenes(db, production_id, scene_ids)
     return [
         SuggestedCallResponse(
@@ -380,10 +413,10 @@ def suggest_calls(
 )
 def list_scene_recommendations(
     production_id: int,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("rehearsals", "read")),
     db: Session = Depends(get_db),
 ) -> list[SceneRecommendationResponse]:
-    get_accessible_production(db, director, production_id)
+    get_production_or_404(db, production_id)
     scenes = scene_recommendations(db, production_id)
     return [
         SceneRecommendationResponse(
@@ -404,10 +437,10 @@ def list_scene_recommendations(
 )
 def list_my_calls(
     production_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("rehearsals", "read")),
     db: Session = Depends(get_db),
 ) -> list[MyCallResponse]:
-    get_accessible_production(db, user, production_id)
+    get_production_or_404(db, production_id)
     rehearsals = (
         db.query(Rehearsal)
         .options(
@@ -475,12 +508,11 @@ def list_my_calls(
 def get_rehearsal(
     production_id: int,
     rehearsal_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("rehearsals", "read")),
     db: Session = Depends(get_db),
 ) -> RehearsalDetailResponse:
-    get_accessible_production(db, user, production_id)
     rehearsal = _get_rehearsal_or_404(db, production_id, rehearsal_id)
-    return _detail_response(rehearsal, user)
+    return _detail_response(db, rehearsal, user)
 
 
 @router.patch(
@@ -491,10 +523,10 @@ def update_rehearsal(
     production_id: int,
     rehearsal_id: int,
     body: RehearsalUpdate,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("rehearsals", "update")),
     db: Session = Depends(get_db),
 ) -> RehearsalDetailResponse:
-    production = get_accessible_production(db, director, production_id)
+    production = get_production_or_404(db, production_id)
     rehearsal = _get_rehearsal_or_404(db, production_id, rehearsal_id)
     _ensure_writable(rehearsal)
 
@@ -517,8 +549,9 @@ def update_rehearsal(
         )
     db.commit()
     return _detail_response(
+        db,
         _get_rehearsal_or_404(db, production_id, rehearsal_id),
-        director,
+        user,
     )
 
 
@@ -529,10 +562,9 @@ def update_rehearsal(
 def delete_rehearsal(
     production_id: int,
     rehearsal_id: int,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("rehearsals", "delete")),
     db: Session = Depends(get_db),
 ) -> None:
-    get_accessible_production(db, director, production_id)
     rehearsal = _get_rehearsal_or_404(db, production_id, rehearsal_id)
     db.delete(rehearsal)
     db.commit()
@@ -549,10 +581,10 @@ def replace_rehearsal_plan(
     production_id: int,
     rehearsal_id: int,
     body: RehearsalPlanReplace,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("rehearsals", "update")),
     db: Session = Depends(get_db),
 ) -> RehearsalDetailResponse:
-    production = get_accessible_production(db, director, production_id)
+    production = get_production_or_404(db, production_id)
     rehearsal = _get_rehearsal_or_404(db, production_id, rehearsal_id)
     _ensure_writable(rehearsal)
 
@@ -575,21 +607,17 @@ def replace_rehearsal_plan(
         ) from exc
 
     if all_user_ids:
-        users = (
-            db.query(User)
-            .filter(
-                User.id.in_(all_user_ids),
-                User.organization_id == production.organization_id,
-                User.is_active.is_(True),
-            )
-            .all()
-        )
+        users = [
+            member
+            for member in list_active_production_users(db, production_id)
+            if member.id in all_user_ids
+        ]
         found = {u.id for u in users}
         missing = all_user_ids - found
         if missing:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail=f"Users not in organization: {sorted(missing)}",
+                detail=f"Users are not active members of this production: {sorted(missing)}",
             )
 
     # Replace blocks
@@ -624,8 +652,9 @@ def replace_rehearsal_plan(
 
     db.commit()
     return _detail_response(
+        db,
         _get_rehearsal_or_404(db, production_id, rehearsal_id),
-        director,
+        user,
     )
 
 
@@ -639,10 +668,9 @@ def replace_rehearsal_plan(
 def publish_rehearsal(
     production_id: int,
     rehearsal_id: int,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("rehearsals", "update")),
     db: Session = Depends(get_db),
 ) -> RehearsalDetailResponse:
-    get_accessible_production(db, director, production_id)
     rehearsal = _get_rehearsal_or_404(db, production_id, rehearsal_id)
     _ensure_writable(rehearsal)
     if rehearsal.status not in (
@@ -657,8 +685,9 @@ def publish_rehearsal(
     rehearsal.status = REHEARSAL_STATUS_PUBLISHED
     db.commit()
     return _detail_response(
+        db,
         _get_rehearsal_or_404(db, production_id, rehearsal_id),
-        director,
+        user,
     )
 
 
@@ -669,10 +698,9 @@ def publish_rehearsal(
 def open_rehearsal(
     production_id: int,
     rehearsal_id: int,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("rehearsals", "update")),
     db: Session = Depends(get_db),
 ) -> RehearsalDetailResponse:
-    get_accessible_production(db, director, production_id)
     rehearsal = _get_rehearsal_or_404(db, production_id, rehearsal_id)
     _ensure_writable(rehearsal)
     if rehearsal.status not in (
@@ -687,8 +715,9 @@ def open_rehearsal(
     rehearsal.status = REHEARSAL_STATUS_IN_PROGRESS
     db.commit()
     return _detail_response(
+        db,
         _get_rehearsal_or_404(db, production_id, rehearsal_id),
-        director,
+        user,
     )
 
 
@@ -699,13 +728,12 @@ def open_rehearsal(
 def complete_rehearsal(
     production_id: int,
     rehearsal_id: int,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("rehearsals", "update")),
     db: Session = Depends(get_db),
 ) -> RehearsalDetailResponse:
-    get_accessible_production(db, director, production_id)
     rehearsal = _get_rehearsal_or_404(db, production_id, rehearsal_id)
     if rehearsal.status == REHEARSAL_STATUS_COMPLETED:
-        return _detail_response(rehearsal, director)
+        return _detail_response(db, rehearsal, user)
     if rehearsal.status not in (
         REHEARSAL_STATUS_IN_PROGRESS,
         REHEARSAL_STATUS_PUBLISHED,
@@ -731,8 +759,9 @@ def complete_rehearsal(
     rehearsal.status = REHEARSAL_STATUS_COMPLETED
     db.commit()
     return _detail_response(
+        db,
         _get_rehearsal_or_404(db, production_id, rehearsal_id),
-        director,
+        user,
     )
 
 
@@ -744,17 +773,17 @@ def set_rehearsal_status(
     production_id: int,
     rehearsal_id: int,
     body: RehearsalStatusUpdate,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("rehearsals", "update")),
     db: Session = Depends(get_db),
 ) -> RehearsalDetailResponse:
     """Admin/director escape hatch (e.g. reopen completed → planned)."""
-    get_accessible_production(db, director, production_id)
     rehearsal = _get_rehearsal_or_404(db, production_id, rehearsal_id)
     rehearsal.status = body.status
     db.commit()
     return _detail_response(
+        db,
         _get_rehearsal_or_404(db, production_id, rehearsal_id),
-        director,
+        user,
     )
 
 
@@ -770,14 +799,13 @@ def create_rehearsal_note(
     production_id: int,
     rehearsal_id: int,
     body: RehearsalNoteCreate,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("rehearsals", "create")),
     db: Session = Depends(get_db),
 ) -> RehearsalNoteResponse:
-    get_accessible_production(db, director, production_id)
     rehearsal = _get_rehearsal_or_404(db, production_id, rehearsal_id)
     note = RehearsalNote(
         rehearsal_id=rehearsal.id,
-        author_user_id=director.id,
+        author_user_id=user.id,
         content=body.content.strip(),
     )
     db.add(note)
@@ -801,10 +829,9 @@ def update_rehearsal_note(
     rehearsal_id: int,
     note_id: int,
     body: RehearsalNoteUpdate,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("rehearsals", "update")),
     db: Session = Depends(get_db),
 ) -> RehearsalNoteResponse:
-    get_accessible_production(db, director, production_id)
     _get_rehearsal_or_404(db, production_id, rehearsal_id)
     note = (
         db.query(RehearsalNote)
@@ -817,7 +844,7 @@ def update_rehearsal_note(
     )
     if note is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
-    if note.author_user_id != director.id and not user_has_role(director, "Admin"):
+    if note.author_user_id != user.id and not user_has_role(user, "Admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Can only edit your own notes",
@@ -836,10 +863,9 @@ def delete_rehearsal_note(
     production_id: int,
     rehearsal_id: int,
     note_id: int,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("rehearsals", "delete")),
     db: Session = Depends(get_db),
 ) -> None:
-    get_accessible_production(db, director, production_id)
     _get_rehearsal_or_404(db, production_id, rehearsal_id)
     note = (
         db.query(RehearsalNote)
@@ -851,7 +877,7 @@ def delete_rehearsal_note(
     )
     if note is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
-    if note.author_user_id != director.id and not user_has_role(director, "Admin"):
+    if note.author_user_id != user.id and not user_has_role(user, "Admin"):
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Can only delete your own notes",
@@ -867,7 +893,7 @@ def delete_rehearsal_note(
 def get_call_sheet(
     production_id: int,
     rehearsal_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("rehearsals", "read")),
     db: Session = Depends(get_db),
 ) -> RehearsalDetailResponse:
     """Same payload as detail; directors always; actors only when published+."""

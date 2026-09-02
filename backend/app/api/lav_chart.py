@@ -1,8 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_accessible_production
-from app.auth.dependencies import require_director_or_admin
+from app.api.deps import get_accessible_production, require_production_capability
 from app.db.session import get_db
 from app.models import User
 from app.schemas.lav_chart import (
@@ -25,7 +24,7 @@ router = APIRouter(prefix="/productions", tags=["lav-chart"])
 @router.get("/{production_id}/lav-chart", response_model=LavChartResponse)
 def get_lav_chart(
     production_id: int,
-    user: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("lav_chart", "read")),
     db: Session = Depends(get_db),
 ) -> LavChartResponse:
     get_accessible_production(db, user, production_id)
@@ -36,7 +35,7 @@ def get_lav_chart(
 def save_lav_chart(
     production_id: int,
     body: LavChartSaveRequest,
-    user: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("lav_chart", "update")),
     db: Session = Depends(get_db),
 ) -> LavChartResponse:
     get_accessible_production(db, user, production_id)
@@ -58,7 +57,7 @@ def save_lav_chart(
 def propose_lav_chart_endpoint(
     production_id: int,
     body: LavChartProposeRequest,
-    user: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("lav_chart", "update")),
     db: Session = Depends(get_db),
 ) -> LavChartResponse:
     get_accessible_production(db, user, production_id)

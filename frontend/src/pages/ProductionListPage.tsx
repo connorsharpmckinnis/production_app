@@ -22,7 +22,7 @@ import { useAuth } from "@/context/AuthContext";
 import { cn, formatDate } from "@/lib/utils";
 
 export default function ProductionListPage() {
-  const { isAdmin, isActorOnly } = useAuth();
+  const { isAdmin } = useAuth();
   const confirm = useConfirm();
   const toast = useToast();
   const navigate = useNavigate();
@@ -78,7 +78,6 @@ export default function ProductionListPage() {
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Productions</h1>
-          <p className="text-sm text-muted-foreground">Manage productions</p>
         </div>
         {isAdmin && (
           <Button asChild>
@@ -95,17 +94,11 @@ export default function ProductionListPage() {
 
       {productions.length === 0 ? (
         <EmptyState
-          title={
-            isActorOnly
-              ? "No productions yet"
-              : "No productions yet"
-          }
+          title="No productions yet"
           description={
-            isActorOnly
-              ? "Ask your director to cast you in a production."
-              : isAdmin
-                ? "Create a production to get started."
-                : "Ask an admin to create a production."
+            isAdmin
+              ? "Create a production to get started."
+              : "Ask an admin to add you to a production."
           }
           actionLabel={isAdmin ? "New production" : undefined}
           actionTo={isAdmin ? "/productions/new" : undefined}

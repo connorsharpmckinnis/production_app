@@ -4,11 +4,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from pydantic import BaseModel, ConfigDict
 from sqlalchemy.orm import Session
 
-from app.api.deps import get_accessible_production
+from app.api.deps import require_production_capability
 from app.auth.dependencies import (
     require_admin,
     require_authenticated,
-    require_director_or_admin,
     user_has_role,
 )
 from app.db.session import get_db
@@ -30,11 +29,56 @@ class MarkAllReadResponse(BaseModel):
     updated: int
 
 
+def _require_notification_inbox_access(
+    production_id: int | None = Query(default=None),
+    user: User = Depends(require_authenticated),
+    db: Session = Depends(get_db),
+) -> User:
+    if production_id is not None:
+        require_production_capability("notifications", "read")(
+            production_id=production_id,
+            user=user,
+            db=db,
+        )
+    return user
+
+
+def _require_announcement_capability(resource: str, action: str):
+    capability_check = require_production_capability(resource, action)
+    global_scope_details = {
+        "read": "Only Admins can view org-wide announcements",
+        "update": "Only Admins can edit org-wide announcements",
+        "delete": "Only Admins can delete org-wide announcements",
+    }
+
+    def _dependency(
+        announcement_id: int,
+        user: User = Depends(require_authenticated),
+        db: Session = Depends(get_db),
+    ) -> User:
+        announcement = notif_service.get_announcement_or_404(db, announcement_id)
+        if announcement.production_id is None:
+            if not user_has_role(user, "Admin"):
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail=global_scope_details[action],
+                )
+        else:
+            capability_check(
+                production_id=announcement.production_id,
+                user=user,
+                db=db,
+            )
+        return user
+
+    return _dependency
+
+
 @router.get("/notifications/inbox", response_model=NotificationInboxResponse)
 def get_notification_inbox(
     production_id: int | None = Query(default=None),
     route_key: str | None = Query(default=None),
-    user: User = Depends(require_authenticated),
+    user: User = Depends(_require_notification_inbox_access),
     db: Session = Depends(get_db),
 ) -> NotificationInboxResponse:
     return notif_service.build_inbox(
@@ -102,10 +146,9 @@ def create_org_announcement(
 def list_production_announcements(
     production_id: int,
     include_inactive: bool = Query(default=True),
-    user: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("announcements", "read")),
     db: Session = Depends(get_db),
 ) -> list[AnnouncementResponse]:
-    get_accessible_production(db, user, production_id)
     rows = notif_service.list_announcements(
         db, production_id=production_id, include_inactive=include_inactive
     )
@@ -120,10 +163,9 @@ def list_production_announcements(
 def create_production_announcement(
     production_id: int,
     body: AnnouncementCreate,
-    user: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("announcements", "create")),
     db: Session = Depends(get_db),
 ) -> AnnouncementResponse:
-    get_accessible_production(db, user, production_id)
     announcement = notif_service.create_announcement(
         db,
         author=user,
@@ -137,17 +179,10 @@ def create_production_announcement(
 @router.get("/announcements/{announcement_id}", response_model=AnnouncementResponse)
 def get_announcement(
     announcement_id: int,
-    user: User = Depends(require_director_or_admin),
+    user: User = Depends(_require_announcement_capability("announcements", "read")),
     db: Session = Depends(get_db),
 ) -> AnnouncementResponse:
     announcement = notif_service.get_announcement_or_404(db, announcement_id)
-    if announcement.production_id is None and not user_has_role(user, "Admin"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only Admins can view org-wide announcements",
-        )
-    if announcement.production_id is not None:
-        get_accessible_production(db, user, announcement.production_id)
     return notif_service.serialize_announcement(announcement)
 
 
@@ -155,19 +190,10 @@ def get_announcement(
 def patch_announcement(
     announcement_id: int,
     body: AnnouncementUpdate,
-    user: User = Depends(require_director_or_admin),
+    user: User = Depends(_require_announcement_capability("announcements", "update")),
     db: Session = Depends(get_db),
 ) -> AnnouncementResponse:
     announcement = notif_service.get_announcement_or_404(db, announcement_id)
-    if announcement.production_id is None:
-        if not user_has_role(user, "Admin"):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only Admins can edit org-wide announcements",
-            )
-    else:
-        get_accessible_production(db, user, announcement.production_id)
-
     updated = notif_service.update_announcement(
         db,
         announcement=announcement,
@@ -184,20 +210,11 @@ def patch_announcement(
 )
 def delete_announcement(
     announcement_id: int,
-    user: User = Depends(require_director_or_admin),
+    user: User = Depends(_require_announcement_capability("announcements", "delete")),
     db: Session = Depends(get_db),
 ) -> AnnouncementResponse | Response:
     """Deactivate an active announcement; permanently delete an inactive one."""
     announcement = notif_service.get_announcement_or_404(db, announcement_id)
-    if announcement.production_id is None:
-        if not user_has_role(user, "Admin"):
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Only Admins can delete org-wide announcements",
-            )
-    else:
-        get_accessible_production(db, user, announcement.production_id)
-
     if announcement.active:
         deactivated = notif_service.deactivate_announcement(db, announcement)
         deactivated = notif_service.get_announcement_or_404(db, deactivated.id)

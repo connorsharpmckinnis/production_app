@@ -49,11 +49,11 @@ The Theater Thing aims to be **one source of truth for production prep**, withou
 
 | Role in the app | Who that usually is | What they can do |
 | --------------- | ------------------- | ---------------- |
-| **Admin** | Production or organizational managers | Create productions, import scripts, manage user accounts, full system access |
-| **Director** | Directors, assistant directors, and people doing show-specific prep | Cast the show, edit the Timeline, manage props/cues/costumes/etc., run reports, use Rehearse Mode |
-| **Actor** | Cast members | See productions they're cast in; use the Timeline (read-only) and Rehearse Mode; leave notes and bookmarks |
+| **Admin** (organization) | Production or organizational managers | Create productions, import scripts, manage user accounts, edit the global production-role permission matrix, full system bypass |
+| **Director** (per production) | Directors, assistant directors, and people doing show-specific prep | Assigned on **People**; cast the show, edit the Timeline, manage props/cues/costumes/etc., run reports, use Rehearse Mode (subject to the Admin-editable matrix) |
+| **Actor** / **Member** (per production) | Cast and other participants | See productions they're **members** of (including before casting); use Timeline (read-only by default) and Rehearse; leave notes and bookmarks when permitted |
 
-More specialized crew roles (stage manager, lighting, sound, and so on) are on the roadmap. For now, directors cover most prep, and the Timeline is the shared hub.
+More specialized crew roles (stage manager, lighting, sound, and so on) are on the roadmap and should become additional **production** roles. For now, directors cover most prep, and the Timeline is the shared hub. See [docs/ROLES.md](docs/ROLES.md).
 
 ---
 
@@ -82,7 +82,7 @@ Eventually the **Overview** page can include information about upcoming schedule
 
 ### 4. Preparation pages
 
-Separate pages hold the asset catalogs that Directors build once and reuse across the show: **Characters**, **Props**, **Costumes**, **Set pieces**, **Songs**, **Groups**, **Cue Categories**. Lav **wires** and **packs** are planned on the **Lav chart** (Director/Admin).
+Separate pages hold the asset catalogs and roster tools that Directors build once and reuse across the show: **People**, **Characters**, **Props**, **Costumes**, **Set pieces**, **Songs**, **Groups**, **Cue Categories**. Lav **wires** and **packs** are planned on the **Lav chart** (when permitted).
 Some assets can be re-used between completely different productions (props, costume pieces, lavs, etc). Integration with existing digital asset catalogs will allow directors to import or 'order' already-documented assets for use in their production. 
 
 ![Manage Props](docs/screenshots/prop-page.png?raw=true)
@@ -140,17 +140,17 @@ Click a moment reference in a report and jump straight back to that spot on the 
 
 ### 8. Admin tools
 
-Admins can manage **Users** (accounts and roles) and **Settings**. Anyone can open **About the App** for a plain-language summary of what works today and what's planned. Admins can edit that page in-app with Markdown (including image uploads) — no code changes required for copy updates.
+Admins can manage **Users** (accounts and organization Admin assignment) and **Settings** (including the global production-role permission matrix). Anyone can open **About the App** for a plain-language summary of what works today and what's planned. Admins can edit that page in-app with Markdown (including image uploads) — no code changes required for copy updates.
 
 ---
 
 ## How to actually use it
 
-**Admin path:** create production → import script → invite or create users → hand off to director
+**Admin path:** create production → import script → create users → add them on **People** with production roles → hand off to director
 
-**Director path:** live in Timeline for prep → use Overview to see casting gaps and next steps → check Rehearse occasionally so you know what actors see → print reports when tech needs a sheet
+**Director path:** People (roster/roles) → Characters (cast) → live in Timeline for prep → use Overview to see casting gaps and next steps → check Rehearse occasionally so you know what actors see → print reports when tech needs a sheet
 
-**Actor path:** open the show → go to Rehearse (or Timeline) → practice → leave a note or bookmark on a moment when something's unclear
+**Actor path:** after being added to the production (and cast, for character-specific tools) → open the show → go to Rehearse (or Timeline) → practice → leave a note or bookmark on a moment when something's unclear
 
 For actors, the app keeps Rehearse and Timeline front and center so they aren't bombarded with tools they can't use.
 

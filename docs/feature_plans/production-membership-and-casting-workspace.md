@@ -1,9 +1,10 @@
 # Feature plan — Production membership & casting workspace
 
-**Status:** Proposal  
+**Status:** Shipped (2026-09-02) — kept in `feature_plans/` like rehearsal-management; may move to `shipped_features/` later  
 **Created:** 2026-08-28  
-**Updated:** 2026-08-29
-**Related:** [ROLES.md](../ROLES.md), [PROJECT.md](../PROJECT.md), [DATABASE.md](../DATABASE.md), [crew-roles.md](crew-roles.md), [understudies-and-cast-overrides.md](understudies-and-cast-overrides.md), [production-home-and-modes.md](production-home-and-modes.md)
+**Updated:** 2026-09-02  
+**Shipped:** 2026-09-02 (owner manual two-production walkthrough complete; WP7 doc closeout)  
+**Related:** [ROLES.md](../ROLES.md), [PROJECT.md](../PROJECT.md), [DATABASE.md](../DATABASE.md), [crew-roles.md](crew-roles.md), [casting-and-auditions.md](casting-and-auditions.md), [understudies-and-cast-overrides.md](understudies-and-cast-overrides.md), [production-home-and-modes.md](production-home-and-modes.md)
 
 ---
 
@@ -27,9 +28,9 @@ This is an authorization and domain-model change, not only a new casting page.
 
 ---
 
-## Current baseline
+## Previous baseline (pre-membership)
 
-The current system has three separate limitations:
+Before this slice shipped, the system had three separate limitations:
 
 1. `User.app_roles` is organization-wide. Admin, Director, and Actor are stored through
    `user_app_roles`.
@@ -49,9 +50,9 @@ Relevant current surfaces include:
 - `frontend/src/pages/ProductionOverviewPage.tsx` — current Overview and quick links
 - `frontend/src/pages/UsersPage.tsx` — organization-wide account administration
 
-No standalone plan currently covers explicit production membership or production-scoped
-role assignments. `crew-roles.md` identifies the need, but leaves the migration from
-global roles unresolved.
+This plan was the first standalone coverage of explicit production membership and
+production-scoped role assignments. Crew-shaped roles beyond Director/Actor remain
+in [crew-roles.md](crew-roles.md).
 
 ---
 
@@ -279,6 +280,45 @@ contracts explicit before schema and API work begins:
    authorization check for all matching active memberships; do not copy permissions
    into each production.
 
+### WP0 implementation contract
+
+The owner approved the following implementation choices on 2026-08-29:
+
+- `Admin` remains the only organization-wide role. Existing global `Director` and
+  `Actor` roles and assignments are removed from the seeded authorization model.
+  Production `Director` and `Actor` capabilities come only from production
+  memberships. The configured Admin account remains available for login.
+- Production roles use an immutable, unique lowercase `code` plus editable `name`
+  and `description`. V1 seeds `member`, `director`, and `actor`.
+- Adding a user who already has an inactive membership reactivates that same row and
+  replaces its role assignments. Duplicate `(production_id, user_id)` memberships
+  are never created.
+- Deactivation preserves the membership, role rows, and character-assignment rows.
+  The inactive membership and its cast are treated as inactive by later access,
+  casting, readiness, and actor-specific workflows. Reactivation may make retained
+  casting effective again when the Actor role is restored.
+- Active membership creation requires an active user in the production's
+  organization. An active membership must always have at least one role; removing
+  the final role is rejected rather than silently deactivating the membership.
+- Admin-managed permissions are normalized rows for the following resource keys:
+  `production`, `overview`, `timeline`, `characters`, `casting`, `groups`, `songs`,
+  `props`, `costumes`, `set_pieces`, `lav_chart`, `cue_categories`, `cues`, `notes`,
+  `tasks`, `rehearse`, `rehearsals`, `reports`, `announcements`, `notifications`,
+  `people`, and `bookmarks`. Every role/resource pair receives one row for each
+  action: `read`, `create`, `update`, and `delete`.
+- Seed defaults are intentionally broad and editable: `Member` receives `read` on
+  every seeded production resource; `Actor` receives the same reads plus CRUD for
+  notes and bookmarks; `Director` receives read access everywhere, CRUD for
+  preparation, catalog, rehearsal, announcement, and membership resources, and
+  `production.update` for production-scoped settings. Admin access bypasses this
+  matrix. The matrix controls production capabilities, not organization-level
+  administration.
+
+The original WP1 build-out pause has been passed. The schema, seed path, lifecycle
+service, scoped authorization core, People APIs/UI, casting validation, downstream
+consumers, hardening, automated tests, owner walkthrough, and WP7 documentation
+closeout are complete as of 2026-09-02.
+
 ---
 
 ## Proposed work packages
@@ -346,6 +386,59 @@ contracts explicit before schema and API work begins:
   Production C without changing the user's account record.
 - Existing character casts continue to resolve.
 - Removing a membership does not silently delete the cast record.
+
+**Earlier implementation pause:** WP1 schema, idempotent role/capability seed,
+membership lifecycle service, and focused invariant tests were implemented before
+the owner authorized continuation into the API, authorization, and frontend work.
+
+**Implementation update:** WP2 production access, WP3 People/permission APIs,
+production-scoped casting validation, and the WP4 People workspace are
+implemented. The frontend now loads production capabilities and the backend
+enforces them across production route families. WP5 has also been started for
+actor-specific timeline/rehearsal behavior, announcement audiences, and group
+membership validation.
+
+**Verification (at hardening close):** Backend suite green after fixture migration
+(`300 passed, 1 skipped` at the time); frontend tests and production build green.
+Scoped test helper commits membership setup across test-client session boundaries.
+
+### Hardening completion and ship
+
+The WP5/WP6 hardening pass shipped:
+
+- Optional person subjects in props, set pieces, and blocking require active
+  production membership.
+- Manually called rehearsal users require active production membership, and
+  retained calls for inactive members are hidden from current call responses.
+- Retained casts on inactive memberships are inactive in readiness, Overview
+  counts, character/casting responses, and lav-chart rows/cells without deleting
+  historical assignment data.
+- Notification modals are production-scoped; announcement and notification
+  surfaces honor effective read permissions; CTA targets are canonicalized and
+  checked against real route families and target-role capabilities.
+- Admins can grant/revoke existing users' Admin role, with self-demotion and
+  last-active-Admin safeguards.
+- People loads the production role registry dynamically while preserving unknown
+  assigned roles.
+
+Owner manual two-production walkthrough completed 2026-09-02. WP7 documentation
+closeout completed the same day. This plan is **Shipped**.
+
+The next product slice is [casting-and-auditions.md](casting-and-auditions.md)
+(Casting workspace, private audition notes, conflict calendars / unavailable
+dates). Membership WP0 in that plan is satisfied by this ship.
+
+### Deferred leftovers (not blocking ship)
+
+Small polish that can land in a follow-up or with Casting:
+
+- Overview quick links omit People (roster section already links).
+- People page does not deep-link into Characters for assignment editing.
+- Groups and Rehearsal manual-call UIs still load castable Actor users only;
+  backend accepts any active member.
+- No reserved Casting nav stub yet (intentionally deferred to Casting plan).
+- Frontend production routes rely on nav hiding + API enforcement rather than
+  capability-aware route wrappers.
 
 ### WP2 — Replace global production access with centralized scoped authorization
 
@@ -597,8 +690,8 @@ After the first vertical slice ships:
 - Update `DATABASE.md` with the final tables, constraints, and deletion semantics.
 - Update `ROLES.md` with organization vs production permissions and the Admin-managed
   role permission matrix.
-- Update the feature-plan index and move this plan to shipped/promoted status according
-  to the feature-plan lifecycle.
+- Update the feature-plan index and mark this plan shipped according to the
+  feature-plan lifecycle.
 - Add a short operator walkthrough for:
   - creating an account,
   - adding a production member,
@@ -611,6 +704,10 @@ After the first vertical slice ships:
 - A future implementer can find the source of truth for both data shape and access
   decisions.
 - The docs no longer describe global Director access as the intended long-term model.
+
+**Shipped 2026-09-02:** WP7 complete. Authoritative docs and [DEMO_WALKTHROUGH.md](../DEMO_WALKTHROUGH.md)
+include the People / roles / cast / deactivate path. Index status is **Shipped**.
+Small deferred polish is listed above under Hardening completion and ship.
 
 ---
 
@@ -636,7 +733,7 @@ engine before a real workflow needs them.
 
 ## Explicitly out of scope
 
-- Audition forms and conflict-calendar implementation.
+- Audition forms, casting notes, and conflict-calendar implementation.
 - Email/SMS invitations or outbound notification delivery.
 - Phone-number and full organization contact-directory work.
 - Creating organization accounts from inside a production workspace.

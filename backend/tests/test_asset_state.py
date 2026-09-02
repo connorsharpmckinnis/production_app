@@ -16,7 +16,6 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.db.seed import seed_database
 from app.models import Production
 from app.services.asset_state import (
     compute_costume_state_by_moment,
@@ -26,6 +25,10 @@ from app.services.asset_state import (
     find_prior_on_refs,
 )
 from app.services.importer import import_script
+from scoped_test_helpers import (
+    add_test_production_memberships,
+    seed_database_with_test_users,
+)
 
 FIXTURE_PATH = (
     Path(__file__).resolve().parents[2] / "fixtures" / "scripts" / "endurance-full-cleaned.md"
@@ -403,7 +406,8 @@ def test_costume_prior_on_ref_from_off_uses_last_wear_source() -> None:
 
 @pytest.fixture
 def seeded_client(client: TestClient, db_session: Session, test_settings) -> TestClient:
-    seed_database(db_session, test_settings)
+    seed_database_with_test_users(db_session, test_settings)
+    db_session.commit()
     return client
 
 
@@ -423,6 +427,11 @@ def _imported_production(client: TestClient, db_session: Session) -> int:
     production_id = create.json()["id"]
     production = db_session.get(Production, production_id)
     assert production is not None
+    add_test_production_memberships(
+        db_session,
+        production,
+        include_actor=False,
+    )
     content = FIXTURE_PATH.read_text(encoding="utf-8")
     import_script(db_session, production, content)
     return production_id

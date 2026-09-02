@@ -1,9 +1,13 @@
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload
 
-from app.api.deps import get_accessible_production, user_display_name
+from app.api.deps import (
+    get_accessible_production,
+    require_production_capability,
+    user_display_name,
+)
 from app.api.notes import notes_visible_to_user
-from app.auth.dependencies import require_authenticated, require_director_or_admin, user_has_role
+from app.auth.dependencies import require_authenticated
 from app.db.session import get_db
 from app.models import (
     Act,
@@ -86,6 +90,7 @@ from app.services.timeline_filters import (
     moment_ids_with_set_piece,
     moment_speaking_character_ids,
     parse_character_ids,
+    is_actor_only_production_member,
 )
 
 router = APIRouter(prefix="/productions", tags=["timeline"])
@@ -527,7 +532,7 @@ def list_moment_types(
 @router.get("/{production_id}/acts", response_model=list[ActSummary])
 def list_acts(
     production_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("timeline", "read")),
     db: Session = Depends(get_db),
 ) -> list[Act]:
     get_accessible_production(db, user, production_id)
@@ -557,7 +562,7 @@ def list_scene_moments(
     exit_only: bool = Query(default=False),
     blocking_only: bool = Query(default=False),
     blocking_character_id: int | None = Query(default=None),
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("timeline", "read")),
     db: Session = Depends(get_db),
 ) -> list[MomentSummary]:
     get_accessible_production(db, user, production_id)
@@ -675,7 +680,9 @@ def list_scene_moments(
     on_stage_by_moment = compute_on_stage_ids_by_moment(moments)
     filtered = apply_timeline_filters(
         moments,
+        db=db,
         user=user,
+        production_id=production_id,
         character_ids=parsed_character_ids,
         character_names=character_names,
         search=search,
@@ -721,7 +728,7 @@ def list_scene_moments(
 def get_moment_detail(
     production_id: int,
     moment_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("timeline", "read")),
     db: Session = Depends(get_db),
 ) -> MomentDetailResponse:
     get_accessible_production(db, user, production_id)
@@ -760,7 +767,10 @@ def get_moment_detail(
     if moment is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Moment not found")
 
-    if user_has_role(user, "Actor") and moment.moment_type.name == "author_note":
+    if (
+        is_actor_only_production_member(db, user, production_id)
+        and moment.moment_type.name == "author_note"
+    ):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Moment not found")
 
     stage_direction = (
@@ -907,7 +917,7 @@ def update_moment(
     production_id: int,
     moment_id: int,
     body: MomentUpdate,
-    _director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("timeline", "update")),
     db: Session = Depends(get_db),
 ) -> MomentDetailResponse:
     moment = _get_moment_in_production_or_404(db, production_id, moment_id)
@@ -960,7 +970,7 @@ def update_moment(
         moment.song_id = body.song_id
 
     db.commit()
-    return get_moment_detail(production_id, moment_id, _director, db)
+    return get_moment_detail(production_id, moment_id, user, db)
 
 
 @router.patch(
@@ -972,7 +982,7 @@ def update_dialogue(
     moment_id: int,
     line_id: int,
     body: DialogueUpdate,
-    _director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("timeline", "update")),
     db: Session = Depends(get_db),
 ) -> MomentDetailResponse:
     _get_moment_in_production_or_404(db, production_id, moment_id)
@@ -1014,7 +1024,7 @@ def update_dialogue(
         line.dialogue_text = body.dialogue_text
 
     db.commit()
-    return get_moment_detail(production_id, moment_id, _director, db)
+    return get_moment_detail(production_id, moment_id, user, db)
 
 
 @router.patch(
@@ -1025,7 +1035,7 @@ def update_stage_direction(
     production_id: int,
     moment_id: int,
     body: StageDirectionUpdate,
-    _director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("timeline", "update")),
     db: Session = Depends(get_db),
 ) -> MomentDetailResponse:
     _get_moment_in_production_or_404(db, production_id, moment_id)
@@ -1049,7 +1059,7 @@ def update_stage_direction(
         stage_direction.direction_text = body.direction_text
 
     db.commit()
-    return get_moment_detail(production_id, moment_id, _director, db)
+    return get_moment_detail(production_id, moment_id, user, db)
 
 
 def _get_scene_in_production_or_404(
@@ -1117,10 +1127,10 @@ def insert_moment(
     production_id: int,
     scene_id: int,
     body: MomentCreate,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("timeline", "create")),
     db: Session = Depends(get_db),
 ) -> MomentDetailResponse:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     _get_scene_in_production_or_404(db, production_id, scene_id)
 
     moment_type = db.query(MomentType).filter(MomentType.id == body.moment_type_id).first()
@@ -1164,7 +1174,7 @@ def insert_moment(
     )
 
     db.commit()
-    return get_moment_detail(production_id, moment.id, director, db)
+    return get_moment_detail(production_id, moment.id, user, db)
 
 
 @router.delete(
@@ -1174,7 +1184,7 @@ def insert_moment(
 def delete_moment(
     production_id: int,
     moment_id: int,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("timeline", "delete")),
     db: Session = Depends(get_db),
 ) -> None:
     moment = _get_moment_in_production_or_404(db, production_id, moment_id)
@@ -1196,7 +1206,7 @@ def update_moment_sequence(
     production_id: int,
     moment_id: int,
     body: MomentSequenceUpdate,
-    _director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("timeline", "update")),
     db: Session = Depends(get_db),
 ) -> MomentDetailResponse:
     moment = _get_moment_in_production_or_404(db, production_id, moment_id)
@@ -1214,4 +1224,4 @@ def update_moment_sequence(
 
     move_moment_sequence(db, moment, body.sequence_number)
     db.commit()
-    return get_moment_detail(production_id, moment_id, _director, db)
+    return get_moment_detail(production_id, moment_id, user, db)

@@ -9,7 +9,6 @@ import { Button } from "@/components/ui/button";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -31,7 +30,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useAuth } from "@/context/AuthContext";
+import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
@@ -97,7 +96,10 @@ export default function RehearsalsPage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
   const navigate = useNavigate();
-  const { canManagePreparation } = useAuth();
+  const { hasCapability } = useProductionAccess();
+  const canManagePreparation = ["create", "update", "delete"].some((action) =>
+    hasCapability("rehearsals", action),
+  );
   const confirm = useConfirm();
   const toast = useToast();
 
@@ -245,11 +247,6 @@ export default function RehearsalsPage() {
           ← Overview
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">Rehearsals</h1>
-        <p className="text-sm text-muted-foreground">
-          {canManagePreparation
-            ? "Schedule rehearsal slots, plan calls, and publish call sheets."
-            : "See upcoming rehearsals and when you are called."}
-        </p>
       </div>
 
       {error && (
@@ -462,11 +459,6 @@ export default function RehearsalsPage() {
           <form onSubmit={(e) => void handleSubmit(e)}>
             <DialogHeader>
               <DialogTitle>{editing ? "Edit rehearsal" : "Add rehearsal"}</DialogTitle>
-              <DialogDescription>
-                {editing
-                  ? "Update this rehearsal slot."
-                  : "Reserve a night or create an ad-hoc rehearsal."}
-              </DialogDescription>
             </DialogHeader>
             <div className="space-y-3 py-4">
               <div className="grid gap-3 sm:grid-cols-2">

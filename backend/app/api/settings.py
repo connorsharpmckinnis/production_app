@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, File, UploadFile
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
@@ -10,12 +10,21 @@ from app.schemas.overview_messages import (
     OverviewMessageDefaultResponse,
     OverviewMessageDefaultsReplace,
 )
+from app.schemas.people import (
+    ProductionRolePermissionResponse,
+    ProductionRolePermissionsUpdate,
+)
 from app.schemas.settings import AppSettingsResponse, AppSettingsUpdate
 from app.services.about_page import get_about_image, get_about_page, store_about_image, update_about_markdown
 from app.services.overview_messages import (
     get_or_create_app_settings,
     list_default_messages,
     replace_default_messages,
+)
+from app.services.production_role_permissions import (
+    ProductionRolePermissionError,
+    list_production_role_permissions,
+    update_production_role_permissions,
 )
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -70,6 +79,35 @@ def replace_overview_message_defaults(
     db: Session = Depends(get_db),
 ) -> list[OverviewMessageDefaultResponse]:
     return replace_default_messages(db, body.messages)
+
+
+@router.get(
+    "/production-role-permissions",
+    response_model=list[ProductionRolePermissionResponse],
+)
+def get_production_role_permissions(
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> list[ProductionRolePermissionResponse]:
+    return list_production_role_permissions(db)
+
+
+@router.put(
+    "/production-role-permissions",
+    response_model=list[ProductionRolePermissionResponse],
+)
+def update_production_role_permissions_matrix(
+    body: ProductionRolePermissionsUpdate,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> list[ProductionRolePermissionResponse]:
+    try:
+        return update_production_role_permissions(db, body.permissions)
+    except ProductionRolePermissionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
 
 
 @router.get("/about-page", response_model=AboutPageResponse)

@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
-from urllib.parse import urlparse
+from urllib.parse import parse_qsl, urlencode, urlparse, urlsplit, urlunsplit
 
 from fastapi import HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 
-from app.api.deps import user_can_access_production, user_display_name
+from app.api.deps import user_display_name, user_has_production_capability
 from app.auth.dependencies import user_has_role
 from app.models import (
     Announcement,
@@ -18,6 +18,8 @@ from app.models import (
     AppRole,
     Notification,
     Production,
+    ProductionRole,
+    ProductionRolePermission,
     User,
     UserAppRole,
 )
@@ -30,53 +32,101 @@ from app.schemas.notifications import (
     NotificationInboxItem,
     NotificationInboxResponse,
 )
+from app.services.production_memberships import list_active_production_users
+from app.services.production_memberships import active_role_codes, get_membership
 
 INBOX_RECENT_LIMIT = 100
 
-VALID_ROLES = frozenset({"Admin", "Director", "Actor"})
+VALID_ROLES = frozenset({"Admin", "Director", "Actor", "Member"})
+GLOBAL_AUDIENCE_ROLES = frozenset({"Admin"})
+PRODUCTION_AUDIENCE_ROLE_CODES = {
+    "Director": "director",
+    "Actor": "actor",
+    "Member": "member",
+}
 
 
 def _utcnow() -> datetime:
     return datetime.now(timezone.utc)
 
 
-def _validate_internal_path(target: str) -> str:
+_PRODUCTION_CTA_RESOURCES = {
+    "timeline": "timeline",
+    "rehearsals": "rehearsals",
+    "characters": "characters",
+    "songs": "songs",
+    "props": "props",
+    "costumes": "costumes",
+    "set-pieces": "set_pieces",
+    "cue-categories": "cue_categories",
+    "people": "people",
+    "groups": "groups",
+    "lav-chart": "lav_chart",
+    "reports": "reports",
+    "rehearse": "rehearse",
+}
+
+
+def _validate_internal_path(target: str) -> tuple[str, str | None, bool]:
     cleaned = target.strip()
     path = cleaned if cleaned.startswith("/") else f"/{cleaned}"
-    if "#" in path:
-        path = path.split("#", 1)[0]
-    base = path.split("?", 1)[0]
-    if base.endswith("/") and base != "/":
-        base = base[:-1]
-    if "://" in base or base.lower().startswith("javascript:"):
+    parsed = urlsplit(path)
+    if parsed.scheme or parsed.netloc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Internal CTA must be an app path",
         )
-    allowed_exact = {"/about", "/settings", "/users", "/productions"}
-    if base in allowed_exact:
-        return path
-    prod_match = re.match(r"^/productions/(\d+)(?:/([a-z0-9-]+))?$", base)
+    base = parsed.path
+    if base.endswith("/") and base != "/":
+        base = base[:-1]
+    query = parse_qsl(parsed.query, keep_blank_values=True)
+    if base in {"/about", "/productions"}:
+        return urlunsplit(("", "", base, urlencode(query), "")), None, False
+    if base in {"/settings", "/users", "/productions/new"}:
+        return urlunsplit(("", "", base, urlencode(query), "")), None, True
+
+    prod_match = re.match(r"^/productions/(\d+)(?:/(.*))?$", base)
     if prod_match:
-        child = prod_match.group(2)
-        allowed_children = {
-            None,
-            "overview",
-            "rehearse",
-            "timeline",
-            "import",
-            "characters",
-            "songs",
-            "props",
-            "costumes",
-            "set-pieces",
-            "groups",
-            "lav-chart",
-            "reports",
-            "announcements",
-        }
-        if child in allowed_children:
-            return path
+        production_id = prod_match.group(1)
+        remainder = prod_match.group(2) or ""
+        segments = remainder.split("/") if remainder else []
+        child = segments[0] if segments else None
+        rest = segments[1:]
+
+        if child in {None, "overview"} and not rest:
+            canonical_base = f"/productions/{production_id}"
+            return (
+                urlunsplit(("", "", canonical_base, urlencode(query), "")),
+                production_id,
+                False,
+            )
+        if child == "rehearse" and not rest:
+            query = [(key, value) for key, value in query if key != "rehearse"]
+            query.append(("rehearse", "1"))
+            canonical_base = f"/productions/{production_id}/timeline"
+            return (
+                urlunsplit(("", "", canonical_base, urlencode(query), "")),
+                production_id,
+                False,
+            )
+        if child == "import" and not rest:
+            return (
+                urlunsplit(("", "", base, urlencode(query), "")),
+                production_id,
+                True,
+            )
+        if child in _PRODUCTION_CTA_RESOURCES:
+            valid_detail = child == "rehearsals" and (
+                not rest
+                or (len(rest) == 1 and rest[0].isdigit())
+                or (len(rest) == 2 and rest[0].isdigit() and rest[1] == "call-sheet")
+            )
+            if not rest or valid_detail:
+                return (
+                    urlunsplit(("", "", base, urlencode(query), "")),
+                    production_id,
+                    False,
+                )
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,
         detail=f"Internal CTA path is not allowed: {cleaned}",
@@ -98,7 +148,89 @@ def validate_cta(cta: AnnouncementCtaCreate) -> tuple[str, str]:
                 detail="External CTA must be an http(s) URL",
             )
         return cta.kind, cleaned
-    return cta.kind, _validate_internal_path(cleaned)
+    return cta.kind, _validate_internal_path(cleaned)[0]
+
+
+def _role_can_read_resource(db: Session, role_name: str, resource: str) -> bool:
+    if role_name == "Admin":
+        return True
+    role_code = PRODUCTION_AUDIENCE_ROLE_CODES.get(role_name)
+    if role_code is None:
+        return False
+    return (
+        db.query(ProductionRolePermission.id)
+        .join(ProductionRole, ProductionRole.id == ProductionRolePermission.production_role_id)
+        .filter(
+            ProductionRole.code == role_code,
+            ProductionRolePermission.resource == resource,
+            ProductionRolePermission.action == "read",
+            ProductionRolePermission.enabled.is_(True),
+        )
+        .first()
+        is not None
+    )
+
+
+def _validate_cta_for_audience(
+    db: Session,
+    cta: AnnouncementCtaCreate,
+    *,
+    production_id: int | None,
+    audience_roles: list[str],
+) -> tuple[str, str]:
+    kind, target = validate_cta(cta)
+    if kind == "external":
+        return kind, target
+
+    _canonical_target, target_production_id, admin_only = _validate_internal_path(target)
+    if production_id is not None and target_production_id not in {
+        None,
+        str(production_id),
+    }:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Production announcement CTAs must target the same production",
+        )
+
+    parsed = urlsplit(target)
+    base = parsed.path.rstrip("/") or "/"
+    required_resource = None
+    unrestricted = base in {"/about", "/productions"}
+    if base in {"/settings", "/users", "/productions/new"}:
+        admin_only = True
+    elif not unrestricted:
+        match = re.match(r"^/productions/\d+(?:/([^/]+))?", base)
+        child = match.group(1) if match else None
+        is_rehearse_target = child == "rehearse" or (
+            child == "timeline"
+            and dict(parse_qsl(parsed.query, keep_blank_values=True)).get("rehearse") == "1"
+        )
+        required_resource = (
+            "production"
+            if child is None or child == "overview"
+            else "rehearse"
+            if is_rehearse_target
+            else _PRODUCTION_CTA_RESOURCES.get(child)
+        )
+
+    for role_name in audience_roles:
+        if role_name == "Admin":
+            continue
+        if admin_only:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="CTA target is not available to every targeted role",
+            )
+        if required_resource and not _role_can_read_resource(
+            db,
+            role_name,
+            required_resource,
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="CTA target is not available to every targeted role",
+            )
+    return kind, _canonical_target
 
 
 def announcement_in_schedule(announcement: Announcement, now: datetime | None = None) -> bool:
@@ -124,47 +256,90 @@ def resolve_audience_user_ids(
     role_names: list[str],
 ) -> list[int]:
     """Users who have any of the target roles and can see the announcement scope."""
-    roles = set(role_names) & VALID_ROLES
-    if not roles:
-        return []
-
-    role_rows = db.query(AppRole).filter(AppRole.name.in_(roles)).all()
-    role_ids = [r.id for r in role_rows]
-    if not role_ids:
-        return []
-
-    candidates = (
-        db.query(User)
-        .join(UserAppRole, UserAppRole.user_id == User.id)
-        .filter(
-            User.organization_id == organization_id,
-            User.is_active.is_(True),
-            UserAppRole.app_role_id.in_(role_ids),
-        )
-        .distinct()
-        .all()
-    )
-
     if production_id is None:
-        return sorted({u.id for u in candidates})
+        roles = set(role_names) & GLOBAL_AUDIENCE_ROLES
+        if not roles:
+            return []
+
+        role_rows = db.query(AppRole).filter(AppRole.name.in_(roles)).all()
+        role_ids = [role.id for role in role_rows]
+        if not role_ids:
+            return []
+
+        candidates = (
+            db.query(User)
+            .join(UserAppRole, UserAppRole.user_id == User.id)
+            .filter(
+                User.organization_id == organization_id,
+                User.is_active.is_(True),
+                UserAppRole.app_role_id.in_(role_ids),
+            )
+            .distinct()
+            .all()
+        )
+        return sorted({user.id for user in candidates})
 
     production = db.query(Production).filter(Production.id == production_id).first()
-    if production is None:
+    if production is None or production.organization_id != organization_id:
         return []
 
-    return sorted(
-        {
+    user_ids: set[int] = set()
+    requested_roles = set(role_names) & VALID_ROLES
+
+    # Admin remains an organization-wide bypass for production announcements.
+    if "Admin" in requested_roles:
+        admin_role = db.query(AppRole).filter(AppRole.name == "Admin").first()
+        if admin_role is not None:
+            admin_ids = (
+                db.query(User.id)
+                .join(UserAppRole, UserAppRole.user_id == User.id)
+                .filter(
+                    User.organization_id == production.organization_id,
+                    User.is_active.is_(True),
+                    UserAppRole.app_role_id == admin_role.id,
+                )
+                .all()
+            )
+            user_ids.update(user_id for (user_id,) in admin_ids)
+
+    for role_name, role_code in PRODUCTION_AUDIENCE_ROLE_CODES.items():
+        if role_name not in requested_roles:
+            continue
+        user_ids.update(
             user.id
-            for user in candidates
-            if user_can_access_production(db, user, production)
-        }
-    )
+            for user in list_active_production_users(
+                db,
+                production.id,
+                role_code=role_code,
+            )
+            if user_has_production_capability(
+                db,
+                user,
+                production,
+                "announcements",
+                "read",
+            )
+        )
+
+    return sorted(user_ids)
 
 
-def _build_ctas(announcement_id: int, ctas: list[AnnouncementCtaCreate]) -> list[AnnouncementCta]:
+def _build_ctas(
+    db: Session,
+    announcement_id: int,
+    ctas: list[AnnouncementCtaCreate],
+    *,
+    production_id: int | None,
+    audience_roles: list[str],
+) -> list[AnnouncementCta]:
     rows: list[AnnouncementCta] = []
     for index, cta in enumerate(ctas):
-        kind, target = validate_cta(cta)
+        kind, target = _validate_cta_for_audience(
+            db,
+            cta,
+            production_id=production_id,
+            audience_roles=audience_roles,
+        )
         rows.append(
             AnnouncementCta(
                 announcement_id=announcement_id,
@@ -373,7 +548,13 @@ def create_announcement(
                 role_name=role_name,
             )
         )
-    for cta_row in _build_ctas(announcement.id, body.ctas):
+    for cta_row in _build_ctas(
+        db,
+        announcement.id,
+        body.ctas,
+        production_id=production_id,
+        audience_roles=body.audience_roles,
+    ):
         db.add(cta_row)
 
     db.flush()
@@ -417,7 +598,12 @@ def update_announcement(
     if body.priority is not None:
         announcement.priority = body.priority
 
+    audience_roles = [
+        role.role_name
+        for role in announcement.audience_roles
+    ]
     if body.audience_roles is not None:
+        audience_roles = list(body.audience_roles)
         announcement.audience_roles.clear()
         db.flush()
         for role_name in body.audience_roles:
@@ -431,8 +617,28 @@ def update_announcement(
     if body.ctas is not None:
         announcement.ctas.clear()
         db.flush()
-        for cta_row in _build_ctas(announcement.id, body.ctas):
+        for cta_row in _build_ctas(
+            db,
+            announcement.id,
+            body.ctas,
+            production_id=announcement.production_id,
+            audience_roles=audience_roles,
+        ):
             db.add(cta_row)
+    elif body.audience_roles is not None:
+        for cta in announcement.ctas:
+            _validate_cta_for_audience(
+                db,
+                AnnouncementCtaCreate(
+                    label=cta.label,
+                    kind=cta.kind,
+                    target=cta.target,
+                    style=cta.style,
+                    sort_order=cta.sort_order,
+                ),
+                production_id=announcement.production_id,
+                audience_roles=audience_roles,
+            )
 
     db.flush()
 
@@ -597,6 +803,67 @@ def _notification_to_item(
     )
 
 
+def _announcement_visible_to_user(
+    db: Session,
+    user: User,
+    announcement: Announcement,
+) -> bool:
+    """Apply current audience roles and announcement capability at read time."""
+    if not user.is_active:
+        return False
+
+    audience_roles = {role.role_name for role in announcement.audience_roles}
+    production = announcement.production
+    if production is None:
+        return user_has_role(user, "Admin") and "Admin" in audience_roles
+    if production.organization_id != user.organization_id:
+        return False
+    if user_has_role(user, "Admin"):
+        return "Admin" in audience_roles
+
+    membership = get_membership(db, production.id, user.id)
+    if membership is None or not membership.is_active:
+        return False
+    role_codes = active_role_codes(db, membership)
+    return any(
+        role_name in audience_roles
+        and PRODUCTION_AUDIENCE_ROLE_CODES.get(role_name) in role_codes
+        and user_has_production_capability(
+            db,
+            user,
+            production,
+            "announcements",
+            "read",
+        )
+        for role_name in PRODUCTION_AUDIENCE_ROLE_CODES
+    )
+
+
+def _notification_visible_to_user(
+    db: Session,
+    user: User,
+    notification: Notification,
+) -> bool:
+    """Keep delivery and announcement access independently capability-gated."""
+    if not user.is_active:
+        return False
+    if notification.announcement is not None and not _announcement_visible_to_user(
+        db,
+        user,
+        notification.announcement,
+    ):
+        return False
+    if notification.production is None:
+        return True
+    return user_has_production_capability(
+        db,
+        user,
+        notification.production,
+        "notifications",
+        "read",
+    )
+
+
 def build_inbox(
     db: Session,
     user: User,
@@ -604,24 +871,20 @@ def build_inbox(
     current_production_id: int | None = None,
     current_route_key: str | None = None,
 ) -> NotificationInboxResponse:
-    unread_count = (
-        db.query(Notification)
-        .filter(Notification.user_id == user.id, Notification.read_at.is_(None))
-        .count()
-    )
-
     rows = (
         db.query(Notification)
         .options(
             joinedload(Notification.announcement).joinedload(Announcement.ctas),
+            joinedload(Notification.announcement).joinedload(Announcement.audience_roles),
             joinedload(Notification.actor),
             joinedload(Notification.production),
         )
         .filter(Notification.user_id == user.id)
         .order_by(Notification.created_at.desc())
-        .limit(max(INBOX_RECENT_LIMIT * 2, 200))
         .all()
     )
+    rows = [row for row in rows if _notification_visible_to_user(db, user, row)]
+    unread_count = sum(row.read_at is None for row in rows)
 
     unread_items = [r for r in rows if r.read_at is None]
     read_items = [r for r in rows if r.read_at is not None]
@@ -635,22 +898,16 @@ def build_inbox(
         for row in selected
     ]
 
-    undismissed = (
-        db.query(Notification)
-        .options(
-            joinedload(Notification.announcement).joinedload(Announcement.ctas),
-            joinedload(Notification.actor),
-            joinedload(Notification.production),
+    undismissed = [
+        row
+        for row in rows
+        if (
+            row.read_at is None
+            and row.dismissed_at is None
+            and row.kind == "announcement"
+            and row.announcement_id is not None
         )
-        .filter(
-            Notification.user_id == user.id,
-            Notification.read_at.is_(None),
-            Notification.dismissed_at.is_(None),
-            Notification.kind == "announcement",
-            Notification.announcement_id.isnot(None),
-        )
-        .all()
-    )
+    ]
 
     banner_pool: list[NotificationInboxItem] = []
     modal_pool: list[NotificationInboxItem] = []
@@ -665,7 +922,13 @@ def build_inbox(
                 and item.production_id == current_production_id
             ):
                 banner_pool.append(item)
-        if item.show_as_modal:
+        if item.show_as_modal and (
+            item.production_id is None
+            or (
+                current_production_id is not None
+                and item.production_id == current_production_id
+            )
+        ):
             modal_pool.append(item)
 
     active_banner = None
@@ -689,10 +952,14 @@ def build_inbox(
 def mark_notification_read(db: Session, user: User, notification_id: int) -> Notification:
     notification = (
         db.query(Notification)
+        .options(
+            joinedload(Notification.announcement).joinedload(Announcement.audience_roles),
+            joinedload(Notification.production),
+        )
         .filter(Notification.id == notification_id, Notification.user_id == user.id)
         .first()
     )
-    if notification is None:
+    if notification is None or not _notification_visible_to_user(db, user, notification):
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found")
     now = _utcnow()
     if notification.read_at is None:
@@ -706,13 +973,21 @@ def mark_notification_read(db: Session, user: User, notification_id: int) -> Not
 
 def mark_all_notifications_read(db: Session, user: User) -> int:
     now = _utcnow()
-    updated = (
+    rows = (
         db.query(Notification)
-        .filter(Notification.user_id == user.id, Notification.read_at.is_(None))
-        .update(
-            {Notification.read_at: now, Notification.dismissed_at: now},
-            synchronize_session=False,
+        .options(
+            joinedload(Notification.announcement).joinedload(Announcement.audience_roles),
+            joinedload(Notification.production),
         )
+        .filter(Notification.user_id == user.id, Notification.read_at.is_(None))
+        .all()
     )
+    visible_rows = [
+        row for row in rows if _notification_visible_to_user(db, user, row)
+    ]
+    for row in visible_rows:
+        row.read_at = now
+        row.dismissed_at = now
+    updated = len(visible_rows)
     db.commit()
     return int(updated or 0)

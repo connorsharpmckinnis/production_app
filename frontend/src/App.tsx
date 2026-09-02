@@ -12,6 +12,7 @@ import LavChartPage from "@/pages/LavChartPage";
 import LoginPage from "@/pages/LoginPage";
 import ProductionOverviewPage from "@/pages/ProductionOverviewPage";
 import ProductionListPage from "@/pages/ProductionListPage";
+import PeoplePage from "@/pages/PeoplePage";
 import PropsPage from "@/pages/PropsPage";
 import CallSheetPage from "@/pages/CallSheetPage";
 import RehearsalDetailPage from "@/pages/RehearsalDetailPage";
@@ -56,11 +57,10 @@ export default function App() {
           <Route path="productions/:id/set-pieces" element={<SetPiecesPage />} />
           <Route path="productions/:id/cue-categories" element={<CueCategoriesPage />} />
 
-          <Route element={<ProtectedRoute directorOnly />}>
-            <Route path="productions/:id/groups" element={<GroupsPage />} />
-            <Route path="productions/:id/lav-chart" element={<LavChartPage />} />
-            <Route path="productions/:id/reports" element={<ReportsPage />} />
-          </Route>
+          <Route path="productions/:id/people" element={<PeoplePage />} />
+          <Route path="productions/:id/groups" element={<GroupsPage />} />
+          <Route path="productions/:id/lav-chart" element={<LavChartPage />} />
+          <Route path="productions/:id/reports" element={<ReportsPage />} />
 
           <Route element={<ProtectedRoute adminOnly />}>
             <Route path="productions/new" element={<CreateProductionPage />} />

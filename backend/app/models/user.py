@@ -47,3 +47,7 @@ class User(Base):
         secondary="user_groups",
         back_populates="users",
     )
+    production_memberships: Mapped[list["ProductionMembership"]] = relationship(
+        back_populates="user",
+        cascade="all, delete-orphan",
+    )

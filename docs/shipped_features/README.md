@@ -11,3 +11,5 @@ Keep these for history, follow-ons, and “don’t rebuild this” context. Rema
 | [app-announcements.md](app-announcements.md) | Prototype 2026-07-29 | In-app announcements, banners/modals, bell inbox |
 
 Live search and multi-select character filter were UX backlog items (not standalone plans). Status lives in [UX_UI_IMPROVEMENTS.md](../UX_UI_IMPROVEMENTS.md) and [PROJECT.md](../PROJECT.md) wish list.
+
+Production membership / People / scoped roles shipped 2026-09-02 and currently live in place under [feature_plans/production-membership-and-casting-workspace.md](../feature_plans/production-membership-and-casting-workspace.md) (same pattern as rehearsal-management).

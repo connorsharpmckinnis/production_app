@@ -18,13 +18,14 @@ import { api, formatApiError } from "@/lib/api";
 import { ROUTE_FILTER_OPTIONS } from "@/lib/notifications";
 import type {
   AnnouncementCreate,
+  AnnouncementAudienceRole,
   AnnouncementCtaCreate,
   AnnouncementResponse,
-  AppRole,
   NotificationSeverity,
 } from "@/lib/types";
 
-const ALL_ROLES: AppRole[] = ["Admin", "Director", "Actor"];
+const GLOBAL_ROLES: AnnouncementAudienceRole[] = ["Admin"];
+const PRODUCTION_ROLES: AnnouncementAudienceRole[] = ["Member", "Director", "Actor"];
 const SEVERITIES: NotificationSeverity[] = ["info", "success", "warning", "urgent"];
 const ALL_PAGES_VALUE = "__all_pages__";
 
@@ -33,13 +34,13 @@ type Props = {
   productionId: number | null;
 };
 
-const emptyForm = (): AnnouncementCreate => ({
+const emptyForm = (productionId: number | null): AnnouncementCreate => ({
   title: "",
   body: "",
   severity: "info",
   show_as_banner: false,
   show_as_modal: false,
-  audience_roles: [...ALL_ROLES],
+  audience_roles: productionId == null ? [...GLOBAL_ROLES] : [...PRODUCTION_ROLES],
   route_filter: null,
   ctas: [],
 });
@@ -54,7 +55,7 @@ export default function AnnouncementManager({ productionId }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showForm, setShowForm] = useState(false);
-  const [form, setForm] = useState<AnnouncementCreate>(() => emptyForm());
+  const [form, setForm] = useState<AnnouncementCreate>(() => emptyForm(productionId));
   const [ctaLabel, setCtaLabel] = useState("");
   const [ctaKind, setCtaKind] = useState<"internal" | "external">("internal");
   const [ctaTarget, setCtaTarget] = useState("");
@@ -78,7 +79,7 @@ export default function AnnouncementManager({ productionId }: Props) {
     void load();
   }, [load]);
 
-  function toggleRole(role: AppRole) {
+  function toggleRole(role: AnnouncementAudienceRole) {
     setForm((prev) => {
       const has = prev.audience_roles.includes(role);
       const next = has
@@ -134,7 +135,7 @@ export default function AnnouncementManager({ productionId }: Props) {
         await api.createProductionAnnouncement(productionId, payload);
       }
       toast.success("Announcement published");
-      setForm(emptyForm());
+      setForm(emptyForm(productionId));
       setShowForm(false);
       await load();
     } catch (err) {
@@ -280,7 +281,7 @@ export default function AnnouncementManager({ productionId }: Props) {
           <fieldset>
             <legend className="mb-1 text-sm text-muted-foreground">Audience roles</legend>
             <div className="flex flex-wrap gap-3">
-              {ALL_ROLES.map((role) => (
+              {(productionId == null ? GLOBAL_ROLES : PRODUCTION_ROLES).map((role) => (
                 <Label key={role} className="font-normal">
                   <Checkbox
                     checked={form.audience_roles.includes(role)}

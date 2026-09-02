@@ -19,6 +19,7 @@ from app.models import (
     SongAttributionCharacter,
     User,
 )
+from app.services.production_memberships import active_role_codes, get_membership
 
 # Moment types shown in cue-only rehearsal mode (Phase 2).
 CUE_ONLY_TYPES = frozenset({"stage_direction", "song_header", "song_attribution"})
@@ -60,6 +61,32 @@ def get_actor_character_ids(db: Session, user: User, production_id: int) -> list
         .all()
     )
     return [row[0] for row in rows]
+
+
+def active_production_role_codes(
+    db: Session,
+    user: User,
+    production_id: int,
+) -> set[str]:
+    """Return this user's active production role codes, if any."""
+    if not user.is_active:
+        return set()
+    membership = get_membership(db, production_id, user.id)
+    if membership is None:
+        return set()
+    return active_role_codes(db, membership)
+
+
+def is_actor_only_production_member(
+    db: Session,
+    user: User,
+    production_id: int,
+) -> bool:
+    """Return whether an active member has Actor but not Director authority."""
+    if user_has_role(user, "Admin"):
+        return False
+    role_codes = active_production_role_codes(db, user, production_id)
+    return "actor" in role_codes and "director" not in role_codes
 
 
 def load_scene_moments(db: Session, scene_id: int) -> list[Moment]:
@@ -230,7 +257,9 @@ def moment_has_blocking_for_characters(moment: Moment, character_ids: set[int]) 
 def apply_timeline_filters(
     moments: list[Moment],
     *,
+    db: Session,
     user: User,
+    production_id: int,
     character_ids: list[int] | None = None,
     character_names: list[str] | None = None,
     search: str | None = None,
@@ -252,7 +281,7 @@ def apply_timeline_filters(
     """Filter moments for timeline display while preserving sequence order."""
     filtered = moments
 
-    if user_has_role(user, "Actor"):
+    if is_actor_only_production_member(db, user, production_id):
         filtered = [
             moment
             for moment in filtered

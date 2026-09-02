@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { TimelineSection } from "@/components/TimelineMomentList";
 import { useAuth } from "@/context/AuthContext";
+import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { api, formatApiError } from "@/lib/api";
 import { deriveSceneSummary } from "@/lib/sceneSummary";
 import type {
@@ -87,7 +88,25 @@ export function useTimelineScene({
   momentFilters: explicitMomentFilters,
   filterInput,
 }: UseTimelineSceneOptions) {
-  const { user, canManagePreparation } = useAuth();
+  const { user } = useAuth();
+  const { hasCapability } = useProductionAccess();
+  const canManagePreparation = [
+    "timeline",
+    "characters",
+    "groups",
+    "songs",
+    "props",
+    "costumes",
+    "set_pieces",
+    "cue_categories",
+    "cues",
+    "lav_chart",
+    "rehearsals",
+  ].some((resource) =>
+    ["create", "update", "delete"].some((action) =>
+      hasCapability(resource, action),
+    ),
+  );
 
   const [productionTitle, setProductionTitle] = useState<string | null>(null);
   const [acts, setActs] = useState<ActSummary[]>([]);

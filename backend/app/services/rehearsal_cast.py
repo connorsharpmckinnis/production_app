@@ -14,9 +14,14 @@ from app.models import (
     User,
     UserCharacterAssignment,
 )
+from app.services.production_memberships import list_active_production_users
 
 
-def character_ids_in_scenes(db: Session, scene_ids: list[int]) -> set[int]:
+def character_ids_in_scenes(
+    db: Session,
+    production_id: int,
+    scene_ids: list[int],
+) -> set[int]:
     """Characters with dialogue, lyrics, entrance, or exit in any of the scenes."""
     if not scene_ids:
         return set()
@@ -26,7 +31,12 @@ def character_ids_in_scenes(db: Session, scene_ids: list[int]) -> set[int]:
         for row in (
             db.query(Dialogue.character_id)
             .join(Moment, Moment.id == Dialogue.moment_id)
-            .filter(Moment.scene_id.in_(scene_ids))
+            .join(Scene, Scene.id == Moment.scene_id)
+            .join(Act, Act.id == Scene.act_id)
+            .filter(
+                Moment.scene_id.in_(scene_ids),
+                Act.production_id == production_id,
+            )
             .distinct()
             .all()
         )
@@ -36,7 +46,12 @@ def character_ids_in_scenes(db: Session, scene_ids: list[int]) -> set[int]:
         for row in (
             db.query(LyricLine.character_id)
             .join(Moment, Moment.id == LyricLine.moment_id)
-            .filter(Moment.scene_id.in_(scene_ids))
+            .join(Scene, Scene.id == Moment.scene_id)
+            .join(Act, Act.id == Scene.act_id)
+            .filter(
+                Moment.scene_id.in_(scene_ids),
+                Act.production_id == production_id,
+            )
             .distinct()
             .all()
         )
@@ -46,7 +61,12 @@ def character_ids_in_scenes(db: Session, scene_ids: list[int]) -> set[int]:
         for row in (
             db.query(MomentEntrance.character_id)
             .join(Moment, Moment.id == MomentEntrance.moment_id)
-            .filter(Moment.scene_id.in_(scene_ids))
+            .join(Scene, Scene.id == Moment.scene_id)
+            .join(Act, Act.id == Scene.act_id)
+            .filter(
+                Moment.scene_id.in_(scene_ids),
+                Act.production_id == production_id,
+            )
             .distinct()
             .all()
         )
@@ -56,7 +76,12 @@ def character_ids_in_scenes(db: Session, scene_ids: list[int]) -> set[int]:
         for row in (
             db.query(MomentExit.character_id)
             .join(Moment, Moment.id == MomentExit.moment_id)
-            .filter(Moment.scene_id.in_(scene_ids))
+            .join(Scene, Scene.id == Moment.scene_id)
+            .join(Act, Act.id == Scene.act_id)
+            .filter(
+                Moment.scene_id.in_(scene_ids),
+                Act.production_id == production_id,
+            )
             .distinct()
             .all()
         )
@@ -73,8 +98,15 @@ def suggested_users_for_scenes(
 
     Each item is (user, character_names in those scenes).
     """
-    character_ids = character_ids_in_scenes(db, scene_ids)
+    character_ids = character_ids_in_scenes(db, production_id, scene_ids)
     if not character_ids:
+        return []
+
+    actor_user_ids = {
+        user.id
+        for user in list_active_production_users(db, production_id, role_code="actor")
+    }
+    if not actor_user_ids:
         return []
 
     rows = (
@@ -84,6 +116,7 @@ def suggested_users_for_scenes(
         .filter(
             Character.production_id == production_id,
             Character.id.in_(character_ids),
+            User.id.in_(actor_user_ids),
         )
         .order_by(User.last_name, User.first_name, Character.name)
         .all()

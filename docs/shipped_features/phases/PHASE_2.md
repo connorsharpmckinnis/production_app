@@ -6,6 +6,13 @@
 
 Phase 1 is complete. This document is the execution plan for the implementing agent.
 
+**Current-state note (2026-09-02):** this phase is historical. Production
+access and casting eligibility are governed by active production
+memberships and production-scoped roles, not global Director/Actor roles or
+cast-only access. See [ROLES.md](ROLES.md) and
+[feature_plans/production-membership-and-casting-workspace.md](feature_plans/production-membership-and-casting-workspace.md)
+(shipped).
+
 ---
 
 ## Current Status (2026-07-09)
@@ -209,7 +216,7 @@ Character/song verification was planned as a P1 soft checklist but **removed fro
 | Characters per actor | **Many** — one actor may play multiple characters in a production                            |
 | Actors per character | **One** — no understudies in MVP                                                             |
 | Understudy exception | Deferred — may later cast via **Groups** (e.g. ensemble), not multiple rows on one character |
-| Castable users       | Users with the **Actor** app role only                                                       |
+| Castable users       | Users with an active membership in this production and the **Actor** production role       |
 | Un-cast character    | Allowed — character exists with no assignment                                                |
 | Re-cast              | Replacing assignment clears previous actor on that character                                 |
 
@@ -508,9 +515,9 @@ Tasks:
 | Casting table                  | `user_character_assignments` per DATABASE.md                                             |
 | One actor per character        | `UNIQUE(character_id)`; no understudies in MVP                                           |
 | Many characters per actor      | Allowed — multiple assignment rows per `user_id`                                         |
-| Castable users                 | Actor app role only                                                                      |
+| Castable users                 | Active production member with the Actor production role                                  |
 | User scope                     | Org-scoped users; casting is per-production via characters                               |
-| Actor production list          | Filtered by casting assignments                                                          |
+| Actor production list          | Filtered by active production membership                                                  |
 | Director/Admin production list | All productions (Phase 5+ may add assignment filtering)                                  |
 | Notes visibility               | `public` / `private` enum on notes row                                                   |
 | Notes attach (Phase 2)         | Moments primary; characters secondary                                                    |

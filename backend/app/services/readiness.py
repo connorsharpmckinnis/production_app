@@ -47,6 +47,7 @@ from app.models import (
     Wire,
 )
 from app.services.importer.builtins import BUILTIN_CHARACTER_NAMES
+from app.services.production_memberships import effective_cast_character_ids
 
 # Soft dimensions: partial credit for seeding a catalog, majority for timeline use.
 SOFT_SEEDED_WEIGHT = 40
@@ -250,7 +251,8 @@ def _casting_dimension(db: Session, production_id: int) -> ReadinessDimensionRes
             gaps=[],
         )
 
-    uncast = [character for character in castable if character.actor_assignment is None]
+    effective_cast_ids = effective_cast_character_ids(db, production_id)
+    uncast = [character for character in castable if character.id not in effective_cast_ids]
     cast_count = len(castable) - len(uncast)
     score = round(100 * cast_count / len(castable))
     if uncast:

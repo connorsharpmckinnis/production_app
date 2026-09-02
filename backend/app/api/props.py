@@ -6,8 +6,12 @@ from app.api.catalog_csv_routes import (
     catalog_template_response,
     read_catalog_upload,
 )
-from app.api.deps import get_accessible_production, user_display_name, validate_optional_person
-from app.auth.dependencies import require_authenticated, require_director_or_admin
+from app.api.deps import (
+    get_accessible_production,
+    require_production_capability,
+    user_display_name,
+    validate_optional_person,
+)
 from app.db.session import get_db
 from app.models import Act, Moment, MomentPropEvent, Prop, Scene, User
 from app.schemas.catalog_csv import CatalogImportResult
@@ -69,7 +73,7 @@ def _moment_prop_event_response(event: MomentPropEvent) -> MomentPropEventRespon
 @router.get("/{production_id}/props", response_model=list[PropResponse])
 def list_props(
     production_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("props", "read")),
     db: Session = Depends(get_db),
 ) -> list[PropResponse]:
     get_accessible_production(db, user, production_id)
@@ -98,10 +102,10 @@ def list_props(
 def create_prop(
     production_id: int,
     body: PropCreate,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("props", "create")),
     db: Session = Depends(get_db),
 ) -> PropResponse:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     prop = Prop(
         production_id=production_id,
         name=body.name.strip(),
@@ -124,7 +128,7 @@ def update_prop(
     production_id: int,
     prop_id: int,
     body: PropUpdate,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("props", "update")),
     db: Session = Depends(get_db),
 ) -> PropResponse:
     prop = _get_prop_or_404(db, production_id, prop_id)
@@ -150,7 +154,7 @@ def update_prop(
 def delete_prop(
     production_id: int,
     prop_id: int,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("props", "delete")),
     db: Session = Depends(get_db),
 ) -> None:
     prop = _get_prop_or_404(db, production_id, prop_id)
@@ -161,10 +165,10 @@ def delete_prop(
 @router.get("/{production_id}/props/import/template")
 def download_props_csv_template(
     production_id: int,
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("props", "read")),
     db: Session = Depends(get_db),
 ) -> Response:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     return catalog_template_response("props_template.csv", PROPS_COLUMNS)
 
 
@@ -175,10 +179,10 @@ def download_props_csv_template(
 async def import_props(
     production_id: int,
     file: UploadFile = File(...),
-    director: User = Depends(require_director_or_admin),
+    user: User = Depends(require_production_capability("props", "create")),
     db: Session = Depends(get_db),
 ) -> CatalogImportResult:
-    get_accessible_production(db, director, production_id)
+    get_accessible_production(db, user, production_id)
     content = await read_catalog_upload(file)
     try:
         return import_props_csv(db, production_id, content)
@@ -193,7 +197,7 @@ async def import_props(
 def list_moment_prop_events(
     production_id: int,
     moment_id: int,
-    user: User = Depends(require_authenticated),
+    user: User = Depends(require_production_capability("props", "read")),
     db: Session = Depends(get_db),
 ) -> list[MomentPropEventResponse]:
     get_accessible_production(db, user, production_id)
@@ -221,7 +225,7 @@ def create_moment_prop_event(
     production_id: int,
     moment_id: int,
     body: MomentPropEventCreate,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("props", "create")),
     db: Session = Depends(get_db),
 ) -> MomentPropEventResponse:
     _get_moment_in_production_or_404(db, production_id, moment_id)
@@ -271,7 +275,7 @@ def update_moment_prop_event(
     moment_id: int,
     moment_prop_event_id: int,
     body: MomentPropEventUpdate,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("props", "update")),
     db: Session = Depends(get_db),
 ) -> MomentPropEventResponse:
     _get_moment_in_production_or_404(db, production_id, moment_id)
@@ -317,7 +321,7 @@ def delete_moment_prop_event(
     production_id: int,
     moment_id: int,
     moment_prop_event_id: int,
-    _director: User = Depends(require_director_or_admin),
+    _user: User = Depends(require_production_capability("props", "delete")),
     db: Session = Depends(get_db),
 ) -> None:
     _get_moment_in_production_or_404(db, production_id, moment_id)

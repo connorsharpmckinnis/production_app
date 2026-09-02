@@ -1,8 +1,9 @@
-# Feature plan — Crew roles (beyond Admin / Director / Actor)
+# Feature plan — Crew roles (beyond Member / Director / Actor)
 
 **Status:** Roadmap (approved intent — build eventually; not yet phased)  
 **Created:** 2026-07-29  
-**Related:** [ROLES.md](../ROLES.md), [PROJECT.md](../PROJECT.md) future roles, [DATABASE.md](../DATABASE.md) `app_roles`, [soft-pilot-ops.md](soft-pilot-ops.md), [print-and-call-sheets.md](print-and-call-sheets.md)
+**Updated:** 2026-09-02  
+**Related:** [ROLES.md](../ROLES.md), [PROJECT.md](../PROJECT.md) future roles, [DATABASE.md](../DATABASE.md) production roles, [production-membership-and-casting-workspace.md](production-membership-and-casting-workspace.md) (shipped), [soft-pilot-ops.md](soft-pilot-ops.md), [print-and-call-sheets.md](print-and-call-sheets.md)
 
 ---
 
@@ -20,15 +21,18 @@ Add **crew-shaped roles** so Stage Managers, lighting, sound, costumes, etc. get
 
 ## Problem
 
-MVP roles are coarse:
+Organization Admin plus three production roles (`member`, `director`, `actor`)
+are still coarse for specialized crew:
 
 | Role | Gap |
 | ---- | --- |
 | Admin | Too powerful for day-to-day crew |
 | Director | Catch-all for all prep — over-shares |
-| Actor | Too weak for crew |
+| Actor / Member | Too weak for crew |
 
 STP reality includes people who should touch **one domain** hard and others lightly.
+The shipped membership matrix already supports adding new production role codes;
+this plan is about which crew roles to add and what defaults they get.
 
 ---
 
@@ -75,9 +79,12 @@ Assigned per user per production (or org-wide defaults).
 
 | Area | Today |
 | ---- | ----- |
-| Roles | Admin, Director, Actor via `app_roles` / `user_app_roles` |
-| Production-scoped roles | Not really — app roles are global; Actor production access via casting |
-| Docs | ROLES.md MVP matrix |
+| Organization role | Admin only via `app_roles` / `user_app_roles` |
+| Production-scoped roles | Shipped — `member`, `director`, `actor` via production memberships + Admin-editable permission matrix |
+| Docs | [ROLES.md](../ROLES.md); membership ship: [production-membership-and-casting-workspace.md](production-membership-and-casting-workspace.md) |
+
+Crew roles such as Stage Manager should add new production role definitions (and
+matrix defaults) on top of this model rather than reintroducing global app roles.
 
 ---
 
@@ -97,7 +104,9 @@ Assigned per user per production (or org-wide defaults).
 2. **Can SM import?**  
    **Recommendation:** No — keep sacred script import Admin-only unless STP demands otherwise.
 3. **Production-scoped role assignment?**  
-   **Recommendation:** eventually yes (SM on Show A, Actor on Show B). v1 may keep global roles if that’s how auth works today — call out migration need.
+   **Resolved for membership foundation:** production-scoped roles already ship
+   (`member` / `director` / `actor`). Stage Manager should be another production
+   role code on the same matrix, not a global `app_roles` row.
 4. **Lighting/Sound as roles or just Director?**  
    **Recommendation:** defer named roles; use shared SM/Director until pain is real.
 

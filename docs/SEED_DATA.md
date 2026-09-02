@@ -1,10 +1,11 @@
 # Seed Data Specification (MVP)
 
-**Version:** 0.1
+**Version:** 0.2 (updated 2026-09-02 for production membership)
 
 Initial database seed data required before the application can run. Schema: [DATABASE.md](DATABASE.md).
+Permissions model: [ROLES.md](ROLES.md).
 
-Seeds run via Alembic migration or a dedicated `seed.py` script at Phase 1 startup.
+Seeds run via the dedicated `backend/app/db/seed.py` path (and related Alembic setup).
 
 ---
 
@@ -18,21 +19,41 @@ Single default organization for MVP (one org per deployment).
 
 ---
 
-## 2. App Roles
+## 2. App Roles (organization-wide)
 
 | name | description |
 |---|---|
-| Admin | Full system access; import scripts; manage users |
-| Director | Edit timeline; cast actors; no create/delete production, import, or user management |
-| Actor | View timeline; add notes and bookmarks |
+| Admin | Full system access; import scripts; manage users; bypasses production membership checks |
 
 Permissions detail: [ROLES.md](ROLES.md).
 
-Future roles (do **not** seed for MVP): Production Manager, Stage Manager, Lighting, Sound.
+Legacy global `Director` and `Actor` app roles are **not** seeded. Fresh seeds create
+only `Admin`. Existing legacy Director/Actor `app_roles` rows are purged on seed so
+they cannot authorize production access.
+
+Future organization-wide staff roles (do **not** seed for MVP): Production Manager,
+Marketing Manager, etc.
 
 ---
 
-## 3. Moment Types
+## 3. Production roles and permission matrix
+
+Seeded via `production_roles` + `production_role_permissions` (see
+`backend/app/db/production_role_defaults.py`):
+
+| code | name | Seeded capability summary |
+|---|---|---|
+| `member` | Member | `read` on every production resource |
+| `actor` | Actor | Member reads plus CRUD for notes and bookmarks |
+| `director` | Director | Broad preparation / rehearsal / people / casting management; `production.update` |
+
+Every role/resource pair receives rows for `read`, `create`, `update`, and `delete`.
+Admins may edit the matrix in App Settings; changes apply on the next authorization
+check. No production memberships are auto-created by seed.
+
+---
+
+## 4. Moment Types
 
 | name | description |
 |---|---|
@@ -47,7 +68,7 @@ Import mapping: [IMPORT_SPEC.md](IMPORT_SPEC.md).
 
 ---
 
-## 4. Bootstrap Admin User
+## 5. Bootstrap Admin User
 
 Created on first run if no users exist.
 
@@ -62,24 +83,31 @@ Created on first run if no users exist.
 
 **Security:** Refuse to start in production without `ADMIN_PASSWORD` set. Document in README at Phase 1.
 
+Seed does **not** create sample `director` / `actor` accounts. Create those under
+**Users**, then assign them to a production under **People**.
+
 ---
 
-## 5. Optional Dev Seeds
+## 6. Optional Dev Seeds
 
 For local development only (not production):
 
-* Sample Director and Actor test users
-* Pre-created production linked to `fixtures/scripts/endurance-scene1.md` after import smoke test
+* Default locations (Main Stage, Dance Room, etc.)
+* Overview encouragement message defaults
+* App display settings row
+* Pre-created production / script import remains a manual or smoke-test step, not automatic seed
 
 ---
 
 ## Seed Order (FK dependencies)
 
 1. `organizations`
-2. `app_roles`
+2. `app_roles` (Admin only; purge legacy Director/Actor)
 3. `moment_types`
-4. `users` + `user_app_roles`
-5. (Application data created via import, not seed)
+4. `app_settings` / overview message defaults / locations
+5. `production_roles` + `production_role_permissions`
+6. Bootstrap `users` + `user_app_roles` (Admin)
+7. Application data (productions, memberships, casts) created via UI / import — **not** seeded
 
 ---
 

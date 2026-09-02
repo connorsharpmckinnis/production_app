@@ -47,8 +47,17 @@ class CreateUserRequest(BaseModel):
     first_name: str
     last_name: str
     email: str | None = None
-    role_name: str = Field(description="Admin, Director, or Actor")
+    role_name: str | None = Field(
+        default=None,
+        description="Optional organization-wide role; only Admin is supported",
+    )
 
 
 class ResetPasswordRequest(BaseModel):
     password: str = Field(min_length=8)
+
+
+class UpdateAdminRoleRequest(BaseModel):
+    is_admin: bool
+
+    model_config = {"extra": "forbid"}

@@ -1,4 +1,6 @@
 export type AppRole = "Admin" | "Director" | "Actor";
+export type GlobalRole = "Admin";
+export type AnnouncementAudienceRole = AppRole | "Member";
 
 export type MomentType =
   | "stage_direction"
@@ -32,7 +34,7 @@ export interface UserResponse {
   last_name: string;
   email: string | null;
   is_active: boolean;
-  roles: AppRole[];
+  roles: GlobalRole[];
   impersonation?: ImpersonationInfo | null;
 }
 
@@ -66,6 +68,53 @@ export interface ProductionResponse {
   season: string | null;
   author: string | null;
   created_at: string;
+}
+
+export interface ProductionAccessResponse {
+  production_id: number;
+  role_codes: string[];
+  capabilities: string[];
+}
+
+export interface ProductionRoleSummary {
+  code: string;
+  name: string;
+}
+
+export interface AssignedCharacterSummary {
+  id: number;
+  name: string;
+}
+
+export interface ProductionMemberResponse {
+  user_id: number;
+  display_name: string;
+  email: string | null;
+  is_active: boolean;
+  roles: ProductionRoleSummary[];
+  assigned_characters: AssignedCharacterSummary[];
+}
+
+export interface ProductionMemberCandidateResponse {
+  user_id: number;
+  display_name: string;
+  email: string | null;
+  is_active: boolean;
+}
+
+export interface ProductionRolePermissionResponse {
+  role_code: string;
+  role_name: string;
+  resource: string;
+  action: string;
+  enabled: boolean;
+}
+
+export interface ProductionRolePermissionUpdate {
+  role_code: string;
+  resource: string;
+  action: string;
+  enabled: boolean;
 }
 
 export interface ImportSuccessResponse {
@@ -741,7 +790,11 @@ export interface CreateUserRequest {
   first_name: string;
   last_name: string;
   email?: string | null;
-  role_name: AppRole;
+  role_name?: GlobalRole | null;
+}
+
+export interface UpdateAdminRoleRequest {
+  is_admin: boolean;
 }
 
 export interface ResetPasswordRequest {
@@ -776,7 +829,7 @@ export interface AnnouncementCreate {
   severity?: NotificationSeverity;
   show_as_banner?: boolean;
   show_as_modal?: boolean;
-  audience_roles: AppRole[];
+  audience_roles: AnnouncementAudienceRole[];
   route_filter?: string | null;
   starts_at?: string | null;
   ends_at?: string | null;
@@ -791,7 +844,7 @@ export interface AnnouncementUpdate {
   severity?: NotificationSeverity;
   show_as_banner?: boolean;
   show_as_modal?: boolean;
-  audience_roles?: AppRole[];
+  audience_roles?: AnnouncementAudienceRole[];
   route_filter?: string | null;
   starts_at?: string | null;
   ends_at?: string | null;
@@ -816,7 +869,7 @@ export interface AnnouncementResponse {
   created_by_user_id: number;
   created_at: string;
   updated_at: string;
-  audience_roles: AppRole[];
+  audience_roles: AnnouncementAudienceRole[];
   ctas: AnnouncementCtaResponse[];
 }
 

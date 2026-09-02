@@ -9,10 +9,10 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.db.seed import seed_database
 from app.models import Production
 from app.services.catalog_csv import MAX_CSV_BYTES
 from app.services.importer import import_script
+from scoped_test_helpers import add_test_production_memberships, seed_database_with_test_users
 
 FIXTURE_SCRIPT = Path(__file__).resolve().parents[2] / "fixtures" / "scripts" / "endurance-scene1.md"
 CATALOG_FIXTURES = Path(__file__).resolve().parents[2] / "fixtures" / "catalogs"
@@ -87,7 +87,8 @@ ASSET_SPECS = {
 
 @pytest.fixture
 def seeded_client(client: TestClient, db_session: Session, test_settings) -> TestClient:
-    seed_database(db_session, test_settings)
+    seed_database_with_test_users(db_session, test_settings)
+    db_session.commit()
     return client
 
 
@@ -97,14 +98,28 @@ def _login(client: TestClient, username: str, password: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
-def _empty_production(client: TestClient) -> int:
+def _empty_production(
+    client: TestClient,
+    db_session: Session,
+    *,
+    include_director: bool = True,
+    include_actor: bool = True,
+) -> int:
     headers = _login(client, "admin", "admin")
     create = client.post(
         "/api/productions",
         json={"title": "Catalog CSV Show", "season": "2026"},
         headers=headers,
     )
-    return create.json()["id"]
+    production_id = create.json()["id"]
+    add_test_production_memberships(
+        db_session,
+        production_id,
+        include_director=include_director,
+        include_actor=include_actor,
+    )
+    db_session.commit()
+    return production_id
 
 
 def _imported_production(client: TestClient, db_session: Session) -> int:
@@ -117,6 +132,8 @@ def _imported_production(client: TestClient, db_session: Session) -> int:
     production_id = create.json()["id"]
     production = db_session.get(Production, production_id)
     assert production is not None
+    add_test_production_memberships(db_session, production)
+    db_session.commit()
     import_script(db_session, production, FIXTURE_SCRIPT.read_bytes())
     return production_id
 
@@ -143,7 +160,7 @@ def _production_for_asset(
 ) -> int:
     if needs_import:
         return _imported_production(client, db_session)
-    return _empty_production(client)
+    return _empty_production(client, db_session)
 
 
 @pytest.mark.parametrize("asset_key", list(ASSET_SPECS.keys()))
@@ -388,7 +405,7 @@ def test_catalog_template_download(
 
 
 @pytest.mark.parametrize("asset_key", list(ASSET_SPECS.keys()))
-def test_catalog_template_actor_forbidden(
+def test_catalog_template_actor_can_read(
     seeded_client: TestClient,
     db_session: Session,
     asset_key: str,
@@ -400,14 +417,14 @@ def test_catalog_template_actor_forbidden(
         f"/api/productions/{production_id}/{spec['path']}/import/template",
         headers=headers,
     )
-    assert response.status_code == 403
+    assert response.status_code == 200
 
 
 def test_case_insensitive_headers(
     seeded_client: TestClient,
     db_session: Session,
 ) -> None:
-    production_id = _empty_production(seeded_client)
+    production_id = _empty_production(seeded_client, db_session)
     headers = _login(seeded_client, "director", "director")
     response = _upload(
         seeded_client,
@@ -420,7 +437,7 @@ def test_case_insensitive_headers(
 
 
 def test_set_piece_mobile_values(seeded_client: TestClient, db_session: Session) -> None:
-    production_id = _empty_production(seeded_client)
+    production_id = _empty_production(seeded_client, db_session)
     headers = _login(seeded_client, "director", "director")
     csv_body = (
         "name,mobile,description\n"
@@ -558,7 +575,7 @@ def test_costume_same_name_different_character_both_created(
     assert body["skipped"] == 0
 
 
-def test_costume_template_and_actor_forbidden(
+def test_costume_template_actor_can_read_but_cannot_import(
     seeded_client: TestClient,
     db_session: Session,
 ) -> None:
@@ -581,11 +598,11 @@ def test_costume_template_and_actor_forbidden(
     )
     assert forbidden.status_code == 403
 
-    template_forbidden = seeded_client.get(
+    actor_template = seeded_client.get(
         f"/api/productions/{production_id}/costumes/import/template",
         headers=actor,
     )
-    assert template_forbidden.status_code == 403
+    assert actor_template.status_code == 200
 
 
 def test_costume_unknown_column_warning(
@@ -611,7 +628,12 @@ def test_costume_unknown_column_warning(
 
 
 def test_admin_can_import_props(seeded_client: TestClient, db_session: Session) -> None:
-    production_id = _empty_production(seeded_client)
+    production_id = _empty_production(
+        seeded_client,
+        db_session,
+        include_director=False,
+        include_actor=False,
+    )
     headers = _login(seeded_client, "admin", "admin")
     response = _upload(
         seeded_client,

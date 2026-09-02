@@ -8,7 +8,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -55,20 +54,15 @@ const SEARCH_OPTIONS = [
 
 function Section({
   title,
-  description,
   children,
 }: {
   title: string;
-  description?: string;
   children: React.ReactNode;
 }) {
   return (
     <section className="space-y-4 rounded-lg border border-border bg-card p-5">
       <div>
         <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
-        {description ? (
-          <p className="mt-1 text-sm text-muted-foreground">{description}</p>
-        ) : null}
       </div>
       {children}
     </section>
@@ -98,7 +92,7 @@ export default function ComponentGalleryPage() {
         </p>
       </div>
 
-      <Section title="Theme" description="Switch modes while reviewing controls below.">
+      <Section title="Theme">
         <div className="flex flex-wrap gap-2">
           {THEME_OPTIONS.map((option) => (
             <Button
@@ -159,7 +153,7 @@ export default function ComponentGalleryPage() {
         </div>
       </Section>
 
-      <Section title="Alerts" description="Semantic feedback follows the active palette.">
+      <Section title="Alerts">
         <div className="space-y-3">
           <Alert variant="info">
             <AlertTitle>Information</AlertTitle>
@@ -180,7 +174,7 @@ export default function ComponentGalleryPage() {
         </div>
       </Section>
 
-      <Section title="Inputs" description="Text fields, labels, and textareas.">
+      <Section title="Inputs">
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="space-y-2">
             <Label htmlFor="gallery-text">Text</Label>
@@ -247,7 +241,7 @@ export default function ComponentGalleryPage() {
         </div>
       </Section>
 
-      <Section title="Select" description="Radix select for fixed option lists.">
+      <Section title="Select">
         <div className="max-w-xs space-y-2">
           <Label>Role</Label>
           <Select value={role} onValueChange={setRole}>
@@ -263,10 +257,7 @@ export default function ComponentGalleryPage() {
         </div>
       </Section>
 
-      <Section
-        title="SearchableSelect"
-        description="Custom combobox used for characters, props, and similar catalogs."
-      >
+      <Section title="SearchableSelect">
         <div className="max-w-sm space-y-2">
           <Label>Catalog item</Label>
           <SearchableSelect
@@ -320,9 +311,6 @@ export default function ComponentGalleryPage() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Sample dialog</DialogTitle>
-                <DialogDescription>
-                  Dialogs use the shared content shell and footer actions.
-                </DialogDescription>
               </DialogHeader>
               <div className="space-y-2 py-2">
                 <Label htmlFor="gallery-dialog-input">Name</Label>

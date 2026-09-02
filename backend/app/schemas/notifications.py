@@ -5,7 +5,7 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-AppRoleName = Literal["Admin", "Director", "Actor"]
+AppRoleName = Literal["Admin", "Director", "Actor", "Member"]
 Severity = Literal["info", "success", "warning", "urgent"]
 CtaKind = Literal["internal", "external"]
 CtaStyle = Literal["primary", "secondary", "link"]
@@ -23,8 +23,11 @@ ALLOWED_ROUTE_FILTERS = {
     "props",
     "costumes",
     "set-pieces",
+    "cue-categories",
     "groups",
+    "people",
     "lav-chart",
+    "rehearsals",
     "reports",
 }
 

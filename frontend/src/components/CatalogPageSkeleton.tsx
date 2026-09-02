@@ -16,7 +16,6 @@ export default function CatalogPageSkeleton({
       <div className="space-y-2">
         {showBreadcrumb && <Skeleton className="h-4 w-24" />}
         <Skeleton className="h-8 w-48" />
-        <Skeleton className="h-4 w-72" />
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <Skeleton className="h-10 w-28" />
