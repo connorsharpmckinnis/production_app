@@ -2,8 +2,8 @@
 
 **Status:** Proposal (not scheduled)  
 **Created:** 2026-08-29  
-**Updated:** 2026-08-29  
-**Related:** [production-membership-and-casting-workspace.md](production-membership-and-casting-workspace.md), [ROLES.md](../ROLES.md), [DATABASE.md](../DATABASE.md), [rehearsal-management.md](rehearsal-management.md), [tasks-and-mentions.md](tasks-and-mentions.md), [app-announcements.md](../shipped_features/app-announcements.md)
+**Updated:** 2026-09-02  
+**Related:** [production-membership-and-casting-workspace.md](production-membership-and-casting-workspace.md) (shipped 2026-09-02), [ROLES.md](../ROLES.md), [DATABASE.md](../DATABASE.md), [rehearsal-management.md](rehearsal-management.md), [tasks-and-mentions.md](tasks-and-mentions.md), [app-announcements.md](../shipped_features/app-announcements.md)
 
 ---
 
@@ -59,41 +59,25 @@ conflict dates to ordinary production members or actors.
 - No per-production availability or unavailable-date model exists.
 - Rehearsal responses currently treat availability as `True`; the planner only warns
   about overlapping calls within a rehearsal.
-- The existing announcement route allowlists and modal selection need hardening before
-  Casting CTAs are added.
+- The existing announcement route allowlists and modal selection were hardened with
+  the membership ship; Casting CTAs should still be added carefully against the
+  current allowlist when WP1 lands.
 
-### Membership/People hardening required first
+### Membership / People foundation (shipped)
 
-The current branch has a strong membership foundation, but the following issues should
-be fixed and tested before depending on it for casting operations:
+Membership hardening that this Casting plan originally listed as WP0 is **complete**
+as of the 2026-09-02 ship of
+[production-membership-and-casting-workspace.md](production-membership-and-casting-workspace.md):
 
-1. `validate_optional_person` in `backend/app/api/deps.py` verifies only an active
-   same-organization user. Props, set-piece, and blocking person references can
-   therefore point at a user who is not an active member of the production.
-2. Manual rehearsal calls in `backend/app/api/rehearsals.py` have the same
-   organization-only validation and can call a non-member.
-3. Deactivated memberships preserve cast rows by design, but readiness, overview
-   counts, character/casting responses, and lav-chart wearer derivation do not
-   consistently treat those retained assignments as inactive.
-4. Production-scoped notification modals are added to the modal pool without the
-   same production filter used for banners. A modal from Production A can appear
-   while viewing Production B or the production list.
-5. Announcement CTA route filtering does not consistently match the frontend route
-   behavior. The `announcements` route is allowlisted without a corresponding route,
-   and `/rehearse` redirects to Timeline while route-key filtering can still use
-   `rehearse`.
-6. Existing organization Admin assignment is supported during account creation but
-   lacks an edit endpoint/UI for promoting or demoting an existing user.
-7. `backend/tests/scoped_test_helpers.py` can lose membership setup across a client
-   request because it only flushes shared SQLite data. The focused run reached
-   38 passing tests and one setup-related failure; the helper or test transaction
-   boundary needs correction.
-8. The People role selector is hard-coded to the three seeded roles. This is
-   acceptable for the seeded MVP only if documented; otherwise it should load the
-   role registry before adding future casting-specific roles.
+- Optional person subjects and manual rehearsal calls require active production membership.
+- Inactive retained casts are inert in readiness, Overview counts, casting responses,
+  actor-specific views, and lav-chart derivation.
+- Notification modals are production-scoped; announcement CTA routes are normalized.
+- Admins can grant/revoke existing users' Admin role (with safeguards).
+- Scoped test helpers and legacy fixtures were migrated; People loads the role registry
+  dynamically.
 
-These are WP0, not optional cleanup. Casting privacy and availability correctness
-depend on production membership being the authoritative boundary.
+Do not reopen those items here. Casting work starts at WP1.
 
 ---
 
@@ -215,29 +199,10 @@ The first integration should therefore be advisory:
 
 ## Proposed work packages
 
-### WP0 — Membership and People hardening
+### WP0 — Membership and People hardening — **complete (2026-09-02)**
 
-**Scope**
-
-- Require active production membership for optional user subjects in props, set pieces,
-  and blocking.
-- Require active production membership for manual rehearsal calls.
-- Make inactive retained casts inert in readiness, overview counts, casting responses,
-  actor-specific views, and lav-chart wearer derivation.
-- Scope notification modals and normalize announcement CTA route behavior.
-- Add Admin editing for existing organization-level Admin assignments, or explicitly
-  document that account creation is the only supported path.
-- Fix the scoped test helper transaction boundary and migrate the focused/full test
-  fixtures away from global Director/Actor assumptions.
-- Decide whether People loads the production role registry dynamically.
-
-**Done when**
-
-- Cross-production users cannot be selected as person subjects or manual calls.
-- Deactivation consistently removes access and effective actor behavior while
-  preserving historical rows.
-- The focused membership/access suite is green, and the legacy-test status in the
-  docs is accurate.
+Satisfied by the shipped membership plan. See that doc for evidence. Casting
+implementation begins at WP1.
 
 ### WP1 — Casting navigation and roster
 
@@ -407,8 +372,8 @@ work package is authorized.
   production notes. Dedicated storage plus capability checks is clearer than extending
   the current public/private Moment Notes semantics.
 - **Membership drift:** retained casts and inactive members can make historical data
-  look current. WP0 must establish one active-membership rule before Casting relies on
-  the roster.
+  look current. The shipped membership model already treats inactive memberships and
+  retained casts as inert for current workflows; Casting must keep using those helpers.
 - **Date-only limitations:** a date conflict cannot know whether a person is free for
   an evening block. Warnings are honest; automatic exclusion would be misleading.
 - **Identity matching:** roster-wide CSVs keyed by email/name are convenient but fragile.
@@ -423,7 +388,7 @@ work package is authorized.
 
 ## Recommended sequence
 
-1. Complete WP0 hardening and make the focused/full test status trustworthy.
+1. Start from the shipped membership foundation (WP0 complete).
 2. Implement WP1 Casting navigation and the active production roster.
 3. Implement WP2 private casting notes and dogfood the feed during audition prep.
 4. Implement WP3 selected-person unavailable-date replacement plus CSV.

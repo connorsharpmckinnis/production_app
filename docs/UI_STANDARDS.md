@@ -1,6 +1,6 @@
 # UI Standards
 
-**Version:** 0.4 (flat / crisp chrome)
+**Version:** 0.5 (capability-driven nav; People roster; 2026-09-02)
 
 Minimum UI conventions for the Theater App. Slice 1 covers import and read-only timeline; Slice 2 adds casting, filters, notes, and bookmarks; Slice 3 adds import-review editing, songs, props, and cues.
 
@@ -20,22 +20,26 @@ Product context: [PROJECT.md](PROJECT.md). Role visibility: [ROLES.md](ROLES.md)
 └──────────┴──────────────────────────────────────────────┘
 ```
 
-* **Sidebar:** Collapsible on mobile. Shows only items the current role may access.
+* **Sidebar:** Collapsible on mobile. Shows only items the current user may access
+  (Admin bypass, otherwise production-role capability matrix — see [ROLES.md](ROLES.md)).
 * **Header:** App name, production title (when inside a production), user menu (bookmarks, logout).
 * **Main content:** One primary task at a time.
 
 ### Sidebar (inside a production)
 
-| Item | Admin | Director | Actor |
-| --- | --- | --- | --- |
-| Timeline | Yes | Yes | Yes |
-| Characters | Yes | Yes | Yes (read-only) |
-| Songs | Yes | Yes | Yes (read-only) |
-| Props | Yes | Yes | Yes (read-only) |
-| Groups | Yes | Yes | Hidden |
-| Cue Categories | Yes | Yes | Hidden |
+Visibility is capability-driven (`read` on each resource). Seeded defaults roughly map to:
 
-Global nav: Productions; User Management (Admin only).
+| Item | Admin | Production Director (default) | Production Actor / Member (default) |
+| --- | --- | --- | --- |
+| Overview | Yes | Yes | Yes |
+| Timeline | Yes | Yes | Yes |
+| People | Yes | Yes | Yes (read roster) |
+| Characters | Yes | Yes | Yes (read-only casting column) |
+| Songs / Props / Costumes / Set pieces | Yes | Yes | Yes (read) |
+| Groups / Cue Categories / Lav chart | Yes | Yes | Hidden unless matrix grants `read` |
+| Rehearse / Rehearsals / Reports | Yes | Yes | Per matrix |
+
+Global nav: Productions; Users + Settings (Admin only). A future **Casting** nav item is reserved for [casting-and-auditions.md](feature_plans/casting-and-auditions.md) and is not present yet.
 
 ---
 
@@ -46,7 +50,7 @@ Global nav: Productions; User Management (Admin only).
 * Table of productions (title, season, status, created date).
 * **Admin:** "New Production" button; Delete action (icon; stops row navigation).
 * **Row click:** the whole row opens the production (or Import for unimported admin rows). Use a chevron affordance, not a separate Open button.
-* **Actor empty state:** "No productions yet — ask your director to cast you."
+* **Actor empty state:** "No productions yet — ask to be added to a production." (Membership grants access; casting is separate.)
 
 ### Lists & selection
 
@@ -70,13 +74,20 @@ Moments listed in sequence order; click row → read-only detail in a `Sheet`.
 ### Characters (Preparation)
 
 * Table: name, scene count, assigned actor.
-* **Director/Admin:** cast dropdown (Actor users only), manual add character.
-* **Actor:** read-only actor column for their cast characters.
+* **Director/Admin (with `casting:update`):** cast dropdown of active production members who have the Actor production role; manual add character when `characters:create` allows.
+* **Others:** read-only actor column when permitted.
 
-### Groups (Preparation — Director/Admin)
+### People (Preparation)
+
+* Active production roster: display name, optional email, production roles, assigned characters.
+* Authorized leads may add existing organization users, assign/remove production roles, and deactivate memberships.
+* Character casting stays on Characters; People shows cast status and links conceptually to that editor.
+* Inactive memberships are not listed for ordinary members.
+
+### Groups (Preparation — when permitted)
 
 * Create named groups (Ensemble, Trio, etc.).
-* Edit members: checkbox lists for **characters** and **actors** (uncast ensemble members).
+* Edit members: checkbox lists for **characters** and **users** (active production members; UI may still emphasize Actor-role users).
 * Member counts shown on each group card.
 
 ### Timeline (rehearsal view)

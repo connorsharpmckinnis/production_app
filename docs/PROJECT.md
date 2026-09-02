@@ -327,6 +327,19 @@ Owns:
 
 
 
+## Production Membership
+
+Records that an organization user actively participates in a production.
+Independent of character casting. Carries one or more production-scoped roles
+(`member`, `director`, `actor`, …) whose capabilities come from the Admin-managed
+permission matrix. See [ROLES.md](ROLES.md) and
+[feature_plans/production-membership-and-casting-workspace.md](feature_plans/production-membership-and-casting-workspace.md)
+(shipped 2026-09-02).
+
+---
+
+
+
 ## Performance
 
 Represents an individual performance date and time.
@@ -815,14 +828,15 @@ Summary:
 - Timeline search
 - Cue-only rehearsal mode
 - Notes and bookmarks
-- Production list filtering by casting (Actors see only cast productions)
+- Production list access by active membership (uncast Actors included when permitted)
 - Manual add character (Director+)
 
 Import review (marking characters/songs as "verified") is **deferred** — directors will comb through imported timeline data directly once editing ships.
 
 **Current-state note:** the original Phase 2 casting and production-list behavior
 was later superseded by explicit production membership and production-scoped
-roles. See [feature_plans/production-membership-and-casting-workspace.md](feature_plans/production-membership-and-casting-workspace.md)
+roles (shipped 2026-09-02). See
+[production-membership-and-casting-workspace.md](feature_plans/production-membership-and-casting-workspace.md)
 and [ROLES.md](ROLES.md) for the current authorization model.
 
 ---
@@ -1144,6 +1158,8 @@ See [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](../.agents/skills/DEVELOPMENT_GU
 
 **Shipped prototype (2026-07-29):** In-app **Notifications** (header bell) + **Announcements** composers (org-wide in App Settings; production-scoped on Overview). Supports banners, Admin-only blocking modals, role targeting, CTAs, and a multi-kind feed ready for future @-mentions. Timeline CTAs use human deep links `?act=&scene=&moment=`. See [shipped_features/app-announcements.md](shipped_features/app-announcements.md). Email / Tasks / mentions UI still deferred.
 
+**Shipped (2026-09-02):** Production **membership**, production-scoped **roles**, **People** workspace, and Admin **permission matrix**. See [feature_plans/production-membership-and-casting-workspace.md](feature_plans/production-membership-and-casting-workspace.md). Future Casting workspace / conflict calendars remain in [casting-and-auditions.md](feature_plans/casting-and-auditions.md).
+
 These bullets remain for lighter capture so good ideas are not lost:
 
 - **Saved views** — save a timeline filter/search combination (character selection, search terms, Rehearse preset) as a named view for quick recall. May evolve into role-specific modes (rehearsal mode, tech night mode).
@@ -1184,6 +1200,8 @@ A successful MVP should allow a Director or Admin to:
 - Generate basic prop and cue sheet reports from timeline data.
 - Configure global display settings (e.g. hide import-review fields after verification).
 - Create and manage user accounts (Admin).
+- Add organization users to a production, assign production roles, and deactivate memberships (People).
+- Configure the global production-role permission matrix (Admin → Settings).
 - Record structured entrances, exits, and blocking on moments (Phase 5).
 - View a minimal production overview with key counts (Phase 5).
 - Generate entrance/exit and blocking reports (Phase 5).

@@ -6,11 +6,12 @@
 
 Phase 1 is complete. This document is the execution plan for the implementing agent.
 
-**Current-state note (2026-08-29):** this phase is historical. Production
-access and casting eligibility are now governed by active production
+**Current-state note (2026-09-02):** this phase is historical. Production
+access and casting eligibility are governed by active production
 memberships and production-scoped roles, not global Director/Actor roles or
 cast-only access. See [ROLES.md](ROLES.md) and
-[feature_plans/production-membership-and-casting-workspace.md](feature_plans/production-membership-and-casting-workspace.md).
+[feature_plans/production-membership-and-casting-workspace.md](feature_plans/production-membership-and-casting-workspace.md)
+(shipped).
 
 ---
 

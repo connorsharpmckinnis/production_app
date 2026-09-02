@@ -1,9 +1,10 @@
 # Feature plan — Production membership & casting workspace
 
-**Status:** Ready for manual validation — membership workspace, scoped authorization, and downstream hardening implemented
+**Status:** Shipped (2026-09-02) — kept in `feature_plans/` like rehearsal-management; may move to `shipped_features/` later  
 **Created:** 2026-08-28  
-**Updated:** 2026-08-30
-**Related:** [ROLES.md](../ROLES.md), [PROJECT.md](../PROJECT.md), [DATABASE.md](../DATABASE.md), [crew-roles.md](crew-roles.md), [understudies-and-cast-overrides.md](understudies-and-cast-overrides.md), [production-home-and-modes.md](production-home-and-modes.md)
+**Updated:** 2026-09-02  
+**Shipped:** 2026-09-02 (owner manual two-production walkthrough complete; WP7 doc closeout)  
+**Related:** [ROLES.md](../ROLES.md), [PROJECT.md](../PROJECT.md), [DATABASE.md](../DATABASE.md), [crew-roles.md](crew-roles.md), [casting-and-auditions.md](casting-and-auditions.md), [understudies-and-cast-overrides.md](understudies-and-cast-overrides.md), [production-home-and-modes.md](production-home-and-modes.md)
 
 ---
 
@@ -27,9 +28,9 @@ This is an authorization and domain-model change, not only a new casting page.
 
 ---
 
-## Current baseline
+## Previous baseline (pre-membership)
 
-The current system has three separate limitations:
+Before this slice shipped, the system had three separate limitations:
 
 1. `User.app_roles` is organization-wide. Admin, Director, and Actor are stored through
    `user_app_roles`.
@@ -49,9 +50,9 @@ Relevant current surfaces include:
 - `frontend/src/pages/ProductionOverviewPage.tsx` — current Overview and quick links
 - `frontend/src/pages/UsersPage.tsx` — organization-wide account administration
 
-No standalone plan currently covers explicit production membership or production-scoped
-role assignments. `crew-roles.md` identifies the need, but leaves the migration from
-global roles unresolved.
+This plan was the first standalone coverage of explicit production membership and
+production-scoped role assignments. Crew-shaped roles beyond Director/Actor remain
+in [crew-roles.md](crew-roles.md).
 
 ---
 
@@ -314,10 +315,9 @@ The owner approved the following implementation choices on 2026-08-29:
   administration.
 
 The original WP1 build-out pause has been passed. The schema, seed path, lifecycle
-service, scoped authorization core, People APIs/UI, casting validation, and the
-highest-risk actor, rehearsal, notification, and group consumers are now
-implemented. Remaining work is test migration/cleanup and any additional
-downstream consumer verification.
+service, scoped authorization core, People APIs/UI, casting validation, downstream
+consumers, hardening, automated tests, owner walkthrough, and WP7 documentation
+closeout are complete as of 2026-09-02.
 
 ---
 
@@ -398,17 +398,13 @@ enforces them across production route families. WP5 has also been started for
 actor-specific timeline/rehearsal behavior, announcement audiences, and group
 membership validation.
 
-**Verification:** The focused membership, access, People, casting, scoped-role,
-notification, and group run reached 38 passing tests and one setup-related
-failure in `scoped_test_helpers.py`; the helper transaction boundary is a
-known hardening item below. Frontend build and utility tests pass (56 tests).
-The complete legacy backend suite remains red because approximately 145 tests
-still assume globally seeded `Director`/`Actor` users or pre-cutover cast-only
-access; migrating those fixtures and assertions is follow-up work.
+**Verification (at hardening close):** Backend suite green after fixture migration
+(`300 passed, 1 skipped` at the time); frontend tests and production build green.
+Scoped test helper commits membership setup across test-client session boundaries.
 
-### Hardening completion and manual validation
+### Hardening completion and ship
 
-The WP5/WP6 hardening pass is implemented:
+The WP5/WP6 hardening pass shipped:
 
 - Optional person subjects in props, set pieces, and blocking require active
   production membership.
@@ -422,19 +418,27 @@ The WP5/WP6 hardening pass is implemented:
   checked against real route families and target-role capabilities.
 - Admins can grant/revoke existing users' Admin role, with self-demotion and
   last-active-Admin safeguards.
-- The scoped SQLite test helper now commits membership setup across test-client
-  session boundaries, and the People page loads the production role registry
-  dynamically while preserving unknown assigned roles.
+- People loads the production role registry dynamically while preserving unknown
+  assigned roles.
 
-Automated verification is complete: backend `300 passed, 1 skipped`; frontend
-`60 passed`; frontend production build succeeds. Remaining work is the owner's
-manual two-production workflow walkthrough and any issues it uncovers before
-promoting this plan to shipped status.
+Owner manual two-production walkthrough completed 2026-09-02. WP7 documentation
+closeout completed the same day. This plan is **Shipped**.
 
-The proposed next feature is documented separately in
-[casting-and-auditions.md](casting-and-auditions.md). It intentionally starts
-after this hardening pass and reserves the Casting nav for a future
-capability-gated workspace.
+The next product slice is [casting-and-auditions.md](casting-and-auditions.md)
+(Casting workspace, private audition notes, conflict calendars / unavailable
+dates). Membership WP0 in that plan is satisfied by this ship.
+
+### Deferred leftovers (not blocking ship)
+
+Small polish that can land in a follow-up or with Casting:
+
+- Overview quick links omit People (roster section already links).
+- People page does not deep-link into Characters for assignment editing.
+- Groups and Rehearsal manual-call UIs still load castable Actor users only;
+  backend accepts any active member.
+- No reserved Casting nav stub yet (intentionally deferred to Casting plan).
+- Frontend production routes rely on nav hiding + API enforcement rather than
+  capability-aware route wrappers.
 
 ### WP2 — Replace global production access with centralized scoped authorization
 
@@ -686,8 +690,8 @@ After the first vertical slice ships:
 - Update `DATABASE.md` with the final tables, constraints, and deletion semantics.
 - Update `ROLES.md` with organization vs production permissions and the Admin-managed
   role permission matrix.
-- Update the feature-plan index and move this plan to shipped/promoted status according
-  to the feature-plan lifecycle.
+- Update the feature-plan index and mark this plan shipped according to the
+  feature-plan lifecycle.
 - Add a short operator walkthrough for:
   - creating an account,
   - adding a production member,
@@ -700,6 +704,10 @@ After the first vertical slice ships:
 - A future implementer can find the source of truth for both data shape and access
   decisions.
 - The docs no longer describe global Director access as the intended long-term model.
+
+**Shipped 2026-09-02:** WP7 complete. Authoritative docs and [DEMO_WALKTHROUGH.md](../DEMO_WALKTHROUGH.md)
+include the People / roles / cast / deactivate path. Index status is **Shipped**.
+Small deferred polish is listed above under Hardening completion and ship.
 
 ---
 

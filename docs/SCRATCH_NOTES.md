@@ -4,27 +4,16 @@
 
 I'll be using this document to store temporary notes relating to the project. Stuff that I need to remember to ask/work on. 
 
-## Roles / People / Casting branch checkpoint — 2026-08-29
+## Roles / People / Casting — closeout — 2026-09-02
 
-The production membership and People workspace are substantially implemented on
-the `casting-and-roles` branch, but the branch is not closed yet. The durable
-plan and next steps are in
-[production-membership-and-casting-workspace.md](feature_plans/production-membership-and-casting-workspace.md)
-and the new
-[casting-and-auditions.md](feature_plans/casting-and-auditions.md).
-
-Before building Casting, fix and test: active-membership validation for optional
-person subjects and manual rehearsal calls; inactive retained-cast behavior;
-production-scoped notification modals and CTA routes; editing existing Admin
-assignments; and the scoped-test-helper transaction failure. The focused run
-currently has 38 passing tests and one setup-related failure, while the legacy
-suite still contains roughly 145 pre-membership assumptions. These are tracked
-hardening items, not completed work.
-
-The next planned product slice is capability-gated Casting navigation, a
-Casting-only author-attributed note feed, and per-person ISO date unavailable
-lists/CSV with advisory rehearsal conflict warnings. Digital intake forms,
-audition sessions, and final casting decisions come afterward.
+~~The production membership and People workspace are substantially implemented on
+the `casting-and-roles` branch, but the branch is not closed yet…~~ — **Shipped
+2026-09-02.** See
+[production-membership-and-casting-workspace.md](feature_plans/production-membership-and-casting-workspace.md).
+Owner walkthrough and WP7 doc closeout are done. Next product slice:
+[casting-and-auditions.md](feature_plans/casting-and-auditions.md) (Casting nav,
+private notes, conflict calendars). Small UI polish leftovers are listed in the
+shipped membership plan under deferred leftovers.
 
 ## Little Things
 

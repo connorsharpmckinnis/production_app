@@ -38,13 +38,13 @@ When implementing, agents should read the matching plan here for goals, non-goal
 
 | Plan | Status | One-liner |
 | ---- | ------ | --------- |
-| [production-membership-and-casting-workspace.md](production-membership-and-casting-workspace.md) | Active implementation | Explicit production roster, production-scoped roles, pre-casting membership, and contact/casting workspace; downstream hardening remains |
 | [casting-and-auditions.md](casting-and-auditions.md) | Proposal | Casting workspace, private audition notes, per-person unavailable dates, and rehearsal conflict awareness |
 
 ## Approved roadmap (near / mid)
 
 | Plan | Status | One-liner |
 | ---- | ------ | --------- |
+| [production-membership-and-casting-workspace.md](production-membership-and-casting-workspace.md) | Shipped (2026-09-02) | Production roster, production-scoped roles, People workspace, Admin permission matrix |
 | [rehearsal-management.md](rehearsal-management.md) | Shipped (Phases 15–18) | Reserved slots, call planner, soft-publish call sheets, notes, times rehearsed |
 | [print-and-call-sheets.md](print-and-call-sheets.md) | Roadmap | Plan-driven call sheet (Phase 17) + optional scene-select Reports shortcut |
 | [org-catalog-and-shop.md](org-catalog-and-shop.md) | Roadmap | Theater-wide catalog + CSV; check out / copy assets into a show |
@@ -53,7 +53,7 @@ When implementing, agents should read the matching plan here for goals, non-goal
 | [soft-pilot-ops.md](soft-pilot-ops.md) | Roadmap | Pilot runbook, What’s new, support loop for one-show soft pilots |
 | [director-house-notes.md](director-house-notes.md) | Roadmap | Mobile house mode, dictation, optional follow-along assist |
 | [show-archives.md](show-archives.md) | Roadmap | Archive past shows as institutional memory |
-| [crew-roles.md](crew-roles.md) | Roadmap | Stage Manager / crew-shaped access beyond Admin·Director·Actor |
+| [crew-roles.md](crew-roles.md) | Roadmap | Stage Manager / crew-shaped production roles beyond Member·Director·Actor |
 
 ## Earlier proposals (comms)
 
@@ -89,5 +89,7 @@ When implementing, agents should read the matching plan here for goals, non-goal
 ## Already shipped
 
 See [shipped_features/](../shipped_features/README.md): in-play deep links (including costumes), lav assignment UX, announcements prototype.
+
+Also shipped in place under this folder (same pattern as rehearsal-management): [production-membership-and-casting-workspace.md](production-membership-and-casting-workspace.md) (2026-09-02).
 
 UX backlog items shipped 2026-08-13 (no standalone plan): Timeline + Rehearse **live search**; Timeline **multi-select character filter**.

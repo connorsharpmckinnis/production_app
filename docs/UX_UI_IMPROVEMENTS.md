@@ -34,13 +34,13 @@ Within each section, items are concrete enough to implement later without re-dis
 ## P0 — Before sharing (credibility & safety)
 
 ### Roles / People branch hardening
-These are tracked in [production-membership-and-casting-workspace.md](feature_plans/production-membership-and-casting-workspace.md)
-WP0/WP6 before the branch is considered closed:
-- [ ] Require active production membership for optional person selectors and manual rehearsal calls.
-- [ ] Make inactive retained casts disappear from current readiness, counts, selectors, and actor-specific behavior.
-- [ ] Scope production notification modals and normalize announcement CTA route filters.
-- [ ] Support editing existing organization-level Admin assignments, or document the creation-only limitation.
-- [ ] Fix the scoped test helper transaction boundary and migrate legacy global-role fixtures.
+~~Tracked in membership plan WP0/WP6 before the branch is considered closed~~ —
+**Shipped 2026-09-02** ([production-membership-and-casting-workspace.md](feature_plans/production-membership-and-casting-workspace.md)):
+- [x] Require active production membership for optional person selectors and manual rehearsal calls.
+- [x] Make inactive retained casts disappear from current readiness, counts, selectors, and actor-specific behavior.
+- [x] Scope production notification modals and normalize announcement CTA route filters.
+- [x] Support editing existing organization-level Admin assignments, or document the creation-only limitation.
+- [x] Fix the scoped test helper transaction boundary and migrate legacy global-role fixtures.
 
 ### Confirmations, errors, and feedback
 - [x] Replace browser `confirm()` / `alert()` with proper **AlertDialog** (and toasts where useful) for deletes and failures — productions, catalog items, groups, users, structural timeline edits, settings save failures.

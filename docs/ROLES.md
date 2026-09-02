@@ -1,6 +1,6 @@
 # Role Permissions (MVP)
 
-**Version:** 0.1
+**Version:** 0.2 (production membership shipped 2026-09-02)
 
 Defines organization-level and production-level access. Schema: [DATABASE.md](DATABASE.md)
 (`app_roles`, `user_app_roles`, and production membership tables).
@@ -71,9 +71,9 @@ Deactivating a membership preserves its role and cast rows, but they are inactiv
 for access, casting eligibility, readiness, and actor-specific views. Re-adding the
 same user reactivates the existing membership rather than creating a duplicate.
 
-## Existing MVP behavior during transition
+## Existing MVP behavior (matrix-governed)
 
-The following production capabilities are moving to the normalized matrix:
+Seeded defaults for production capabilities (Admin always bypasses):
 
 | Capability | Admin | Active production Director | Active production Actor |
 | --- | --- | --- | --- |
@@ -85,10 +85,9 @@ The following production capabilities are moving to the normalized matrix:
 | Act as another user | Yes | No | No |
 | View published call / My call | Yes | Matrix-controlled | Matrix-controlled |
 
-The membership model is now the source of truth for production access. Older
-Phase 2 behavior that filtered Actors' production lists from character casts is
-historical; an active, uncast Actor can access a production when their
-membership and permissions allow it.
+An active, uncast Actor can access a production when their membership and
+permissions allow it. Older Phase 2 cast-only production-list filtering is
+historical.
 
 
 ---
