@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { Navigate } from "react-router-dom";
+import { AppMark } from "@/components/AppMark";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -41,7 +42,8 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-background p-4">
       <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
+        <div className="flex flex-col items-center gap-3 text-center">
+          <AppMark className="h-10 w-10" />
           <h1 className="text-2xl font-semibold tracking-tight">The Theater Thing</h1>
         </div>
 

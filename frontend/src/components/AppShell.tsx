@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useParams } from "react-router-dom";
 import { ChevronRight } from "lucide-react";
 import ActAsDialog from "@/components/ActAsDialog";
+import { AppMark } from "@/components/AppMark";
 import FeedbackDialog from "@/components/FeedbackDialog";
 import {
   NotificationBanner,
@@ -272,7 +273,11 @@ function AppShellInner() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </Button>
-          <Link to="/productions" className="shrink-0 text-lg font-semibold tracking-tight">
+          <Link
+            to="/productions"
+            className="flex shrink-0 items-center gap-2 text-lg font-semibold tracking-tight"
+          >
+            <AppMark className="h-6 w-6" />
             The Theater Thing
           </Link>
           {productionId && displayProductionTitle && (
