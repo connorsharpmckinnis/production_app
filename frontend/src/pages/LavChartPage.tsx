@@ -220,10 +220,6 @@ export default function LavChartPage() {
   const [saving, setSaving] = useState(false);
   const [proposing, setProposing] = useState(false);
   const [dirty, setDirty] = useState(false);
-  const [wireIdentifier, setWireIdentifier] = useState("");
-  const [wireNotes, setWireNotes] = useState("");
-  const [packIdentifier, setPackIdentifier] = useState("");
-  const [packNotes, setPackNotes] = useState("");
   const [rulesOpen, setRulesOpen] = useState(false);
   const [inventoryOpen, setInventoryOpen] = useState(false);
   const [inventoryBusy, setInventoryBusy] = useState(false);
@@ -237,11 +233,8 @@ export default function LavChartPage() {
     label: string;
   } | null>(null);
   const [clearActNumber, setClearActNumber] = useState("");
-
   const [editKind, setEditKind] = useState<InventoryKind | null>(null);
   const [editingItem, setEditingItem] = useState<WireResponse | PackResponse | null>(null);
-  const [editIdentifier, setEditIdentifier] = useState("");
-  const [editNotes, setEditNotes] = useState("");
 
   function applyChart(data: LavChartResponse) {
     setChart(data);
@@ -516,77 +509,106 @@ export default function LavChartPage() {
     setClearActDialog(null);
   }
 
-  async function handleAddWire(event: React.FormEvent) {
-    event.preventDefault();
-    if (!wireIdentifier.trim()) return;
+  async function handleAddWire(identifier: string, notes: string | null): Promise<boolean> {
     try {
-      await api.createWire(productionId, {
-        identifier: wireIdentifier.trim(),
-        notes: wireNotes.trim() || null,
+      const created = await api.createWire(productionId, { identifier, notes });
+      setChart((prev) => {
+        if (!prev) return prev;
+        const item: LavChartCatalogItem = {
+          id: created.id,
+          identifier: created.identifier,
+          notes: created.notes,
+        };
+        return {
+          ...prev,
+          wires: [...prev.wires, item].sort((a, b) =>
+            a.identifier.localeCompare(b.identifier),
+          ),
+        };
       });
-      setWireIdentifier("");
-      setWireNotes("");
       toast.success("Wire added");
-      await loadChart();
+      return true;
     } catch (err) {
       toast.error(formatApiError(err, "Failed to add wire"));
+      return false;
     }
   }
 
-  async function handleAddPack(event: React.FormEvent) {
-    event.preventDefault();
-    if (!packIdentifier.trim()) return;
+  async function handleAddPack(identifier: string, notes: string | null): Promise<boolean> {
     try {
-      await api.createPack(productionId, {
-        identifier: packIdentifier.trim(),
-        notes: packNotes.trim() || null,
+      const created = await api.createPack(productionId, { identifier, notes });
+      setChart((prev) => {
+        if (!prev) return prev;
+        const item: LavChartCatalogItem = {
+          id: created.id,
+          identifier: created.identifier,
+          notes: created.notes,
+        };
+        return {
+          ...prev,
+          packs: [...prev.packs, item].sort((a, b) =>
+            a.identifier.localeCompare(b.identifier),
+          ),
+        };
       });
-      setPackIdentifier("");
-      setPackNotes("");
       toast.success("Pack added");
-      await loadChart();
+      return true;
     } catch (err) {
       toast.error(formatApiError(err, "Failed to add pack"));
+      return false;
     }
   }
 
   function openEditDialog(kind: InventoryKind, item: WireResponse | PackResponse) {
     setEditKind(kind);
     setEditingItem(item);
-    setEditIdentifier(item.identifier);
-    setEditNotes(item.notes ?? "");
   }
 
   function closeEditDialog() {
     setEditKind(null);
     setEditingItem(null);
-    setEditIdentifier("");
-    setEditNotes("");
   }
 
-  async function handleEditSubmit(event: React.FormEvent) {
-    event.preventDefault();
-    if (!editingItem || !editKind || !editIdentifier.trim()) return;
+  async function handleEditSave(identifier: string, notes: string | null): Promise<boolean> {
+    if (!editingItem || !editKind) return false;
 
     setInventoryBusy(true);
     try {
-      const body = {
-        identifier: editIdentifier.trim(),
-        notes: editNotes.trim() || null,
+      const body = { identifier, notes };
+      const updated =
+        editKind === "wire"
+          ? await api.updateWire(productionId, editingItem.id, body)
+          : await api.updatePack(productionId, editingItem.id, body);
+      const item: LavChartCatalogItem = {
+        id: updated.id,
+        identifier: updated.identifier,
+        notes: updated.notes,
       };
-      if (editKind === "wire") {
-        await api.updateWire(productionId, editingItem.id, body);
-        toast.success("Wire updated");
-      } else {
-        await api.updatePack(productionId, editingItem.id, body);
-        toast.success("Pack updated");
-      }
+      setChart((prev) => {
+        if (!prev) return prev;
+        if (editKind === "wire") {
+          return {
+            ...prev,
+            wires: prev.wires
+              .map((w) => (w.id === item.id ? item : w))
+              .sort((a, b) => a.identifier.localeCompare(b.identifier)),
+          };
+        }
+        return {
+          ...prev,
+          packs: prev.packs
+            .map((p) => (p.id === item.id ? item : p))
+            .sort((a, b) => a.identifier.localeCompare(b.identifier)),
+        };
+      });
+      toast.success(editKind === "wire" ? "Wire updated" : "Pack updated");
       closeEditDialog();
-      await loadChart();
+      return true;
     } catch (err) {
       toast.error(
         formatApiError(err, editKind === "wire" ? "Failed to update wire" : "Failed to update pack"),
       );
+      return false;
     } finally {
       setInventoryBusy(false);
     }
@@ -740,13 +762,9 @@ export default function LavChartPage() {
                 title="Wires"
                 emptyLabel="No wires yet."
                 items={chart.wires}
-                identifier={wireIdentifier}
-                notes={wireNotes}
                 identifierPlaceholder="Wire 1"
                 addLabel="Add wire"
                 busy={inventoryBusy}
-                onIdentifierChange={setWireIdentifier}
-                onNotesChange={setWireNotes}
                 onAdd={handleAddWire}
                 onEdit={(item) => openEditDialog("wire", item)}
                 onDelete={(item) => void handleDelete("wire", item)}
@@ -755,13 +773,9 @@ export default function LavChartPage() {
                 title="Packs"
                 emptyLabel="No packs yet."
                 items={chart.packs}
-                identifier={packIdentifier}
-                notes={packNotes}
                 identifierPlaceholder="Pack 1"
                 addLabel="Add pack"
                 busy={inventoryBusy}
-                onIdentifierChange={setPackIdentifier}
-                onNotesChange={setPackNotes}
                 onAdd={handleAddPack}
                 onEdit={(item) => openEditDialog("pack", item)}
                 onDelete={(item) => void handleDelete("pack", item)}
@@ -1175,45 +1189,13 @@ export default function LavChartPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={editKind != null && editingItem != null}
-        onOpenChange={(open) => {
-          if (!open) closeEditDialog();
-        }}
-      >
-        <DialogContent>
-          <form onSubmit={(e) => void handleEditSubmit(e)}>
-            <DialogHeader>
-              <DialogTitle>{editKind === "wire" ? "Edit wire" : "Edit pack"}</DialogTitle>
-              <DialogDescription>
-                Update the identifier and optional notes for this inventory item.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="space-y-3 py-4">
-              <Input
-                value={editIdentifier}
-                onChange={(e) => setEditIdentifier(e.target.value)}
-                placeholder="Identifier"
-                autoFocus
-              />
-              <Textarea
-                value={editNotes}
-                onChange={(e) => setEditNotes(e.target.value)}
-                placeholder="Notes (optional)"
-                rows={2}
-              />
-            </div>
-            <DialogFooter>
-              <Button type="button" variant="outline" onClick={closeEditDialog}>
-                Cancel
-              </Button>
-              <Button type="submit" disabled={inventoryBusy || !editIdentifier.trim()}>
-                Save
-              </Button>
-            </DialogFooter>
-          </form>
-        </DialogContent>
-      </Dialog>
+      <EditInventoryDialog
+        kind={editKind}
+        item={editingItem}
+        busy={inventoryBusy}
+        onClose={closeEditDialog}
+        onSave={handleEditSave}
+      />
     </div>
   );
 }
@@ -1238,17 +1220,86 @@ function RowMenuButton({
   );
 }
 
+function EditInventoryDialog({
+  kind,
+  item,
+  busy,
+  onClose,
+  onSave,
+}: {
+  kind: InventoryKind | null;
+  item: WireResponse | PackResponse | null;
+  busy: boolean;
+  onClose: () => void;
+  onSave: (identifier: string, notes: string | null) => Promise<boolean>;
+}) {
+  const open = kind != null && item != null;
+  const [identifier, setIdentifier] = useState("");
+  const [notes, setNotes] = useState("");
+
+  useEffect(() => {
+    if (item && open) {
+      setIdentifier(item.identifier);
+      setNotes(item.notes ?? "");
+    }
+  }, [item, open]);
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!identifier.trim()) return;
+    await onSave(identifier.trim(), notes.trim() || null);
+  }
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (!nextOpen) onClose();
+      }}
+    >
+      <DialogContent>
+        <form onSubmit={(e) => void handleSubmit(e)}>
+          <DialogHeader>
+            <DialogTitle>{kind === "wire" ? "Edit wire" : "Edit pack"}</DialogTitle>
+            <DialogDescription>
+              Update the identifier and optional notes for this inventory item.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-4">
+            <Input
+              value={identifier}
+              onChange={(e) => setIdentifier(e.target.value)}
+              placeholder="Identifier"
+              autoFocus
+            />
+            <Textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="Notes (optional)"
+              rows={2}
+            />
+          </div>
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button type="submit" disabled={busy || !identifier.trim()}>
+              Save
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function InventoryColumn({
   title,
   emptyLabel,
   items,
-  identifier,
-  notes,
   identifierPlaceholder,
   addLabel,
   busy,
-  onIdentifierChange,
-  onNotesChange,
   onAdd,
   onEdit,
   onDelete,
@@ -1256,17 +1307,26 @@ function InventoryColumn({
   title: string;
   emptyLabel: string;
   items: Array<WireResponse | PackResponse | LavChartCatalogItem>;
-  identifier: string;
-  notes: string;
   identifierPlaceholder: string;
   addLabel: string;
   busy: boolean;
-  onIdentifierChange: (value: string) => void;
-  onNotesChange: (value: string) => void;
-  onAdd: (event: React.FormEvent) => void;
+  onAdd: (identifier: string, notes: string | null) => Promise<boolean>;
   onEdit: (item: WireResponse | PackResponse) => void;
   onDelete: (item: WireResponse | PackResponse) => void;
 }) {
+  const [identifier, setIdentifier] = useState("");
+  const [notes, setNotes] = useState("");
+
+  async function handleSubmit(event: React.FormEvent) {
+    event.preventDefault();
+    if (!identifier.trim()) return;
+    const ok = await onAdd(identifier.trim(), notes.trim() || null);
+    if (ok) {
+      setIdentifier("");
+      setNotes("");
+    }
+  }
+
   return (
     <div className="space-y-3">
       <h3 className="text-sm font-medium">{title}</h3>
@@ -1319,16 +1379,16 @@ function InventoryColumn({
           </Table>
         </div>
       )}
-      <form onSubmit={onAdd} className="space-y-2">
+      <form onSubmit={(e) => void handleSubmit(e)} className="space-y-2">
         <Input
           value={identifier}
-          onChange={(e) => onIdentifierChange(e.target.value)}
+          onChange={(e) => setIdentifier(e.target.value)}
           placeholder={identifierPlaceholder}
           aria-label={`${title} identifier`}
         />
         <Input
           value={notes}
-          onChange={(e) => onNotesChange(e.target.value)}
+          onChange={(e) => setNotes(e.target.value)}
           placeholder="Notes (optional)"
           aria-label={`${title} notes`}
         />

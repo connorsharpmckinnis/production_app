@@ -8,6 +8,8 @@ Catalog bulk loading is documented separately in [CATALOG_CSV.md](CATALOG_CSV.md
 
 Scores are computed by the backend when `GET /api/productions/{production_id}/overview` is requested. They are not stored.
 
+Latency / query-cost ideas for this path (Neon, caching, splitting the payload) live in [PERFORMANCE.md](../PERFORMANCE.md).
+
 All division results and the overall average use Python's `round()` behavior and return whole-number percentages.
 
 ### Soft catalog dimensions
@@ -49,7 +51,7 @@ blocking =
 
 For costumes, a speaking character-scene pair is distinct: multiple dialogue lines by the same character in one scene count once. A pair is covered only when a costume row has that exact `character_id` and `scene_id`. A costume elsewhere in the show does not cover the pair.
 
-The current importer builtin character set is exactly `ALL` and `ENSEMBLE`; both are excluded from the casting and costume denominators. Any future additions to that shared builtin set will be excluded by the same rule.
+The current importer builtin character set is exactly `ALL` and `ENSEMBLE`; both are excluded from the casting and costume denominators, and from the Characters / casting catalog APIs so they do not appear as castable roles. Any future additions to that shared builtin set will be excluded by the same rule.
 
 ### N/A and overall behavior
 

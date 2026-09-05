@@ -42,6 +42,8 @@ export interface UseTimelineSceneOptions {
   productionId: number;
   momentFilters?: MomentListFilters;
   filterInput?: TimelineFilterInput;
+  /** When set, used instead of "all scenes" on first catalog seed (invalid IDs dropped). */
+  preferredSceneIds?: number[] | null;
 }
 
 function buildMomentFilters(
@@ -87,9 +89,12 @@ export function useTimelineScene({
   productionId,
   momentFilters: explicitMomentFilters,
   filterInput,
+  preferredSceneIds = null,
 }: UseTimelineSceneOptions) {
   const { user } = useAuth();
   const { hasCapability } = useProductionAccess();
+  const preferredSceneIdsRef = useRef(preferredSceneIds);
+  preferredSceneIdsRef.current = preferredSceneIds;
   const canManagePreparation = [
     "timeline",
     "characters",
@@ -258,9 +263,17 @@ export function useTimelineScene({
         // Only seed the default multi-scene selection when nothing is selected yet.
         // Deep links (and the user) may already have narrowed to one scene; a later
         // catalog reload must not wipe that (Strict Mode / canManagePreparation).
-        setSelectedSceneIds((prev) =>
-          prev.length > 0 ? prev : allSceneIdsFromActs(actData),
-        );
+        // Restored Timeline prefs may supply a prior scene subset.
+        setSelectedSceneIds((prev) => {
+          if (prev.length > 0) return prev;
+          const allIds = allSceneIdsFromActs(actData);
+          const preferred = preferredSceneIdsRef.current;
+          if (preferred && preferred.length > 0) {
+            const valid = preferred.filter((id) => allIds.includes(id));
+            if (valid.length > 0) return valid;
+          }
+          return allIds;
+        });
       })
       .catch((err: unknown) => {
         if (loadId !== catalogLoadIdRef.current) return;

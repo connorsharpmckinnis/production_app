@@ -35,6 +35,7 @@ from app.schemas.characters import (
     SongUpdate,
 )
 from app.services.catalog_csv import CatalogCsvError, SONGS_COLUMNS, import_songs_csv
+from app.services.importer.builtins import BUILTIN_CHARACTER_NAMES
 from app.services.production_memberships import (
     effective_cast_character_ids,
     get_active_production_user,
@@ -113,6 +114,7 @@ def list_characters(
             joinedload(Character.actor_assignment).joinedload(UserCharacterAssignment.user),
         )
         .filter(Character.production_id == production_id)
+        .filter(Character.name.notin_(BUILTIN_CHARACTER_NAMES))
         .order_by(Character.name)
         .all()
     )
@@ -324,6 +326,7 @@ def list_casting(
             joinedload(Character.actor_assignment).joinedload(UserCharacterAssignment.user),
         )
         .filter(Character.production_id == production_id)
+        .filter(Character.name.notin_(BUILTIN_CHARACTER_NAMES))
         .order_by(Character.name)
         .all()
     )

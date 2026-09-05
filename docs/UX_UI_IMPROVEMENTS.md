@@ -2,9 +2,9 @@
 
 **Purpose:** Candidate polish before sharing the app with the theater group for real-world consideration. This is a working inventory — not committed scope. Items come from owner scratch notes, the product wish list, phase docs, UI standards, and a pass over the current frontend.
 
-**Last updated:** 2026-08-29
+**Last updated:** 2026-09-04
 
-**Related docs:** [SCRATCH_NOTES.md](SCRATCH_NOTES.md), [PROJECT.md](PROJECT.md) Wish List, [UI_STANDARDS.md](UI_STANDARDS.md), [PHASE_6.md](PHASE_6.md), [DEMO_WALKTHROUGH.md](DEMO_WALKTHROUGH.md)
+**Related docs:** [SCRATCH_NOTES.md](SCRATCH_NOTES.md), [PROJECT.md](PROJECT.md) Wish List, [UI_STANDARDS.md](UI_STANDARDS.md), [PHASE_6.md](PHASE_6.md), [DEMO_WALKTHROUGH.md](DEMO_WALKTHROUGH.md), [PERFORMANCE.md](PERFORMANCE.md) (API/DB latency — separate from UI polish)
 
 **Progress (2026-07-12 share-prep passes):** Most **P0** and a large **P1** set shipped (dialogs for users/groups/catalogs, filter chips, reports TOC + clickable moments + print, import drag-drop, skeletons, localStorage presets, shell polish, DEMO_WALKTHROUGH). Remaining P1/P2 are thinner polish. See checkmarks below.
 
@@ -215,6 +215,11 @@ These are already captured in [PROJECT.md](PROJECT.md) and [SCRATCH_NOTES.md](SC
 - Sit in the house, advance moments passively, dictate a short note onto the current moment without leaving the action.
 - Real-time / voice note-flagging while watching.
 
+### Dense-page React architecture review (post-share)
+- **Why:** Lav chart typing lag (2026-09-04) came from draft form state living on the same page component as a large `rows × scenes` Select matrix — every keystroke re-rendered the whole grid. Fix 1 localized add/edit form state; local catalog patch on add/edit (no full reload); Fix 2 (extract + `React.memo` the grid) and lazy Select options remain available if cell editing or other chrome still feels heavy.
+- **Shelved UX rethink:** Aggressive alternatives (shared picker, paint/stamp mode, row-first panel, span model, etc.) sketched under [lav-assignment-ux.md](shipped_features/lav-assignment-ux.md) “Shelved — future interaction models.” Current delay acceptable; revisit for long shows / booth feedback.
+- **Eventual review:** Audit forms, dialogs, toolbars, and matrix/chart pages so draft input state stays local (or sibling) to heavy trees; prefer reusable patterns that stay snappy for a long show (many props, characters, scenes, interactions) — not web-scale traffic, but theater-scale data density.
+
 ---
 
 ## By screen (quick index)
@@ -246,7 +251,7 @@ Reuse these instead of inventing new ones:
 3. **Add to moment** type picker → conditional sub-form.
 4. **Collapsible Advanced filters** + active count badge.
 5. **AttachmentSection** collapse + count — default collapsed when empty.
-6. **Rehearse presets + toggles** with session persistence — extend persistence and Timeline filter memory.
+6. **Rehearse presets + toggles** with localStorage persistence — **Timeline filter/toggle/scroll memory shipped** (`timeline-prefs-{productionId}`: display toggles, filters, scene selection, moment scroll anchor).
 7. **Role-aware empty copy** (productions list) — extend to all empties.
 8. **Scene summary strip** — read-only chips → future drill-down modals.
 9. **Destructive bordered error banners** — prefer over `alert()`.

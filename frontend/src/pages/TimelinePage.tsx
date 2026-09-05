@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { X } from "lucide-react";
 import CharacterMultiSelect from "@/components/CharacterMultiSelect";
@@ -53,6 +53,17 @@ import {
   resolveSceneIdByNumbers,
   type PendingDeepLink,
 } from "@/lib/timelineDeepLinks";
+import {
+  DEFAULT_TIMELINE_PREFS,
+  loadTimelinePrefs,
+  saveTimelinePrefs,
+  type StoredTimelinePrefs,
+  type TimelineScrollAnchor,
+} from "@/lib/timelinePrefsStorage";
+import {
+  resolveNearestMomentId,
+  scrollListToMoment,
+} from "@/lib/timelineScrollAnchor";
 import type {
   CharacterDetailResponse,
   MomentDetailResponse,
@@ -64,6 +75,10 @@ import { momentTypeLabel, sortByName, cn } from "@/lib/utils";
 type GroupFilterValue = "all" | string;
 type ResourceFilterValue = "all" | string;
 
+function prefsOrDefault(productionId: number): StoredTimelinePrefs {
+  return loadTimelinePrefs(productionId) ?? DEFAULT_TIMELINE_PREFS;
+}
+
 export default function TimelinePage() {
   const { id } = useParams<{ id: string }>();
   const productionId = Number(id);
@@ -73,27 +88,43 @@ export default function TimelinePage() {
   const { isAdmin } = useAuth();
   const isMediumScreen = useIsMediumScreen();
   const pendingDeepLinkRef = useRef<PendingDeepLink | null>(null);
+  const momentListRef = useRef<HTMLUListElement | null>(null);
+  const latestAnchorRef = useRef<TimelineScrollAnchor | null>(null);
+  const pendingScrollRestoreRef = useRef<TimelineScrollAnchor | null>(null);
+  const prefsReadyRef = useRef(false);
+  const layoutKeyRef = useRef<string | null>(null);
 
-  const [searchInput, setSearchInput] = useState("");
-  const [searchQuery, setSearchQuery] = useState("");
+  const storedPrefs = useMemo(() => prefsOrDefault(productionId), [productionId]);
+  const preferredSceneIds = storedPrefs.selectedSceneIds;
+
+  const [searchInput, setSearchInput] = useState(storedPrefs.searchInput);
+  const [searchQuery, setSearchQuery] = useState(storedPrefs.searchInput.trim());
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
-  const [costumeOnly, setCostumeOnly] = useState(false);
-  const [entranceOnly, setEntranceOnly] = useState(false);
-  const [exitOnly, setExitOnly] = useState(false);
-  const [blockingOnly, setBlockingOnly] = useState(false);
-  const [selectedCharacterIds, setSelectedCharacterIds] = useState<number[]>([]);
-  const [groupFilter, setGroupFilter] = useState<GroupFilterValue>("all");
+  const [costumeOnly, setCostumeOnly] = useState(storedPrefs.costumeOnly);
+  const [entranceOnly, setEntranceOnly] = useState(storedPrefs.entranceOnly);
+  const [exitOnly, setExitOnly] = useState(storedPrefs.exitOnly);
+  const [blockingOnly, setBlockingOnly] = useState(storedPrefs.blockingOnly);
+  const [selectedCharacterIds, setSelectedCharacterIds] = useState<number[]>(
+    storedPrefs.selectedCharacterIds,
+  );
+  const [groupFilter, setGroupFilter] = useState<GroupFilterValue>(storedPrefs.groupFilter);
   const [blockingCharacterFilter, setBlockingCharacterFilter] =
-    useState<ResourceFilterValue>("all");
-  const [songFilter, setSongFilter] = useState<ResourceFilterValue>("all");
-  const [propFilter, setPropFilter] = useState<ResourceFilterValue>("all");
-  const [cueCategoryFilter, setCueCategoryFilter] = useState<ResourceFilterValue>("all");
-  const [setPieceFilter, setSetPieceFilter] = useState<ResourceFilterValue>("all");
+    useState<ResourceFilterValue>(storedPrefs.blockingCharacterFilter);
+  const [songFilter, setSongFilter] = useState<ResourceFilterValue>(storedPrefs.songFilter);
+  const [propFilter, setPropFilter] = useState<ResourceFilterValue>(storedPrefs.propFilter);
+  const [cueCategoryFilter, setCueCategoryFilter] = useState<ResourceFilterValue>(
+    storedPrefs.cueCategoryFilter,
+  );
+  const [setPieceFilter, setSetPieceFilter] = useState<ResourceFilterValue>(
+    storedPrefs.setPieceFilter,
+  );
 
   const [editTimeline, setEditTimeline] = useState(false);
-  const [showSequenceNumbers, setShowSequenceNumbers] = useState(false);
-  const [showPrepBadges, setShowPrepBadges] = useState(false);
+  const [showSequenceNumbers, setShowSequenceNumbers] = useState(
+    storedPrefs.showSequenceNumbers,
+  );
+  const [showPrepBadges, setShowPrepBadges] = useState(storedPrefs.showPrepBadges);
 
   const [rehearseMode, setRehearseMode] = useState(
     () => searchParams.get("rehearse") === "1",
@@ -161,7 +192,11 @@ export default function TimelinePage() {
     ],
   );
 
-  const scene = useTimelineScene({ productionId, filterInput });
+  const scene = useTimelineScene({
+    productionId,
+    filterInput,
+    preferredSceneIds,
+  });
 
   const myCharacterIds = scene.myCharacterIds;
   const groups = scene.groups;
@@ -180,17 +215,45 @@ export default function TimelinePage() {
     }
   }, [rehearseMode, editTimeline]);
 
+  // Rehydrate Timeline prefs when switching productions (same page instance).
   useEffect(() => {
-    if (rehearseStateLoadedRef.current) return;
-    rehearseStateLoadedRef.current = true;
+    const prefs = prefsOrDefault(productionId);
+    setSearchInput(prefs.searchInput);
+    setSearchQuery(prefs.searchInput.trim());
+    setCostumeOnly(prefs.costumeOnly);
+    setEntranceOnly(prefs.entranceOnly);
+    setExitOnly(prefs.exitOnly);
+    setBlockingOnly(prefs.blockingOnly);
+    setSelectedCharacterIds(prefs.selectedCharacterIds);
+    setGroupFilter(prefs.groupFilter);
+    setBlockingCharacterFilter(prefs.blockingCharacterFilter);
+    setSongFilter(prefs.songFilter);
+    setPropFilter(prefs.propFilter);
+    setCueCategoryFilter(prefs.cueCategoryFilter);
+    setSetPieceFilter(prefs.setPieceFilter);
+    setShowSequenceNumbers(prefs.showSequenceNumbers);
+    setShowPrepBadges(prefs.showPrepBadges);
+    setEditTimeline(false);
+    latestAnchorRef.current = prefs.anchor;
+    pendingScrollRestoreRef.current = prefs.anchor;
+    layoutKeyRef.current = null;
+    prefsReadyRef.current = true;
+  }, [productionId]);
+
+  useEffect(() => {
+    rehearseStateLoadedRef.current = false;
     const stored = loadRehearseState(productionId);
-    if (!stored) return;
-    if (searchParams.get("rehearse") !== "1") {
-      setRehearseMode(stored.rehearseMode);
+    if (stored) {
+      if (searchParams.get("rehearse") !== "1") {
+        setRehearseMode(stored.rehearseMode);
+      }
+      setRehearsePreset(stored.preset);
+      setRehearseToggles(stored.toggles);
     }
-    setRehearsePreset(stored.preset);
-    setRehearseToggles(stored.toggles);
-  }, [productionId, searchParams]);
+    rehearseStateLoadedRef.current = true;
+    // searchParams only consulted on production change / mount — not every URL tweak
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [productionId]);
 
   useEffect(() => {
     if (!rehearseStateLoadedRef.current) return;
@@ -200,6 +263,60 @@ export default function TimelinePage() {
       toggles: rehearseToggles,
     });
   }, [productionId, rehearseMode, rehearsePreset, rehearseToggles]);
+
+  useEffect(() => {
+    if (!prefsReadyRef.current) return;
+    const prefs: StoredTimelinePrefs = {
+      showPrepBadges,
+      showSequenceNumbers,
+      searchInput,
+      selectedCharacterIds,
+      costumeOnly,
+      entranceOnly,
+      exitOnly,
+      blockingOnly,
+      groupFilter,
+      blockingCharacterFilter,
+      songFilter,
+      propFilter,
+      cueCategoryFilter,
+      setPieceFilter,
+      selectedSceneIds:
+        scene.selectedSceneIds.length > 0 ? scene.selectedSceneIds : preferredSceneIds,
+      anchor: latestAnchorRef.current,
+    };
+    saveTimelinePrefs(productionId, prefs);
+  }, [
+    productionId,
+    showPrepBadges,
+    showSequenceNumbers,
+    searchInput,
+    selectedCharacterIds,
+    costumeOnly,
+    entranceOnly,
+    exitOnly,
+    blockingOnly,
+    groupFilter,
+    blockingCharacterFilter,
+    songFilter,
+    propFilter,
+    cueCategoryFilter,
+    setPieceFilter,
+    scene.selectedSceneIds,
+    preferredSceneIds,
+  ]);
+
+  const handleScrollAnchorChange = useCallback(
+    (anchor: TimelineScrollAnchor | null) => {
+      if (!anchor) return;
+      latestAnchorRef.current = anchor;
+      if (!prefsReadyRef.current) return;
+      const existing = loadTimelinePrefs(productionId);
+      if (!existing) return;
+      saveTimelinePrefs(productionId, { ...existing, anchor });
+    },
+    [productionId],
+  );
 
   useEffect(() => {
     const next = new URLSearchParams(searchParams);
@@ -287,7 +404,14 @@ export default function TimelinePage() {
     if (momentId != null) {
       scene.setSelectedMomentId(momentId);
       pendingDeepLinkRef.current = null;
+      pendingScrollRestoreRef.current = null;
       setSearchParams({}, { replace: true });
+      // Scroll after the list paints with the selection.
+      requestAnimationFrame(() => {
+        if (momentListRef.current) {
+          scrollListToMoment(momentListRef.current, momentId, "auto");
+        }
+      });
       return;
     }
 
@@ -361,6 +485,61 @@ export default function TimelinePage() {
     () => displaySections.reduce((sum, section) => sum + section.moments.length, 0),
     [displaySections],
   );
+
+  // Capture anchor before filter/scene reloads remount the list (skeleton).
+  useEffect(() => {
+    if (scene.momentsLoading && latestAnchorRef.current) {
+      pendingScrollRestoreRef.current = latestAnchorRef.current;
+    }
+  }, [scene.momentsLoading]);
+
+  // Deep links win over stored scroll position.
+  useEffect(() => {
+    if (parseTimelineDeepLink(searchParams)) {
+      pendingScrollRestoreRef.current = null;
+    }
+  }, [searchParams]);
+
+  // Restore after moments finish loading (navigate-back, filter change, production switch).
+  useLayoutEffect(() => {
+    if (scene.momentsLoading) return;
+    if (pendingDeepLinkRef.current !== null) return;
+    const anchor = pendingScrollRestoreRef.current;
+    if (!anchor || !momentListRef.current) return;
+    const momentId = resolveNearestMomentId(displaySections, anchor);
+    if (momentId == null) return;
+    scrollListToMoment(momentListRef.current, momentId, "auto");
+    pendingScrollRestoreRef.current = null;
+  }, [scene.momentsLoading, displaySections]);
+
+  // Keep the same script place when row height changes (prep badges / edit / etc.).
+  useLayoutEffect(() => {
+    const key = [
+      showPrepBadges,
+      showSequenceNumbers,
+      showStructuralControls,
+      rehearseMode,
+      rehearseToggles.showPrepBadges,
+    ].join("|");
+    if (layoutKeyRef.current === null) {
+      layoutKeyRef.current = key;
+      return;
+    }
+    if (layoutKeyRef.current === key) return;
+    layoutKeyRef.current = key;
+    const anchor = latestAnchorRef.current;
+    if (!anchor || !momentListRef.current) return;
+    const momentId = resolveNearestMomentId(displaySections, anchor);
+    if (momentId == null) return;
+    scrollListToMoment(momentListRef.current, momentId, "auto");
+  }, [
+    showPrepBadges,
+    showSequenceNumbers,
+    showStructuralControls,
+    rehearseMode,
+    rehearseToggles.showPrepBadges,
+    displaySections,
+  ]);
 
   function handleRehearsePresetChange(nextPreset: Exclude<RehearsePresetId, "custom">) {
     setRehearsePreset(nextPreset);
@@ -967,6 +1146,8 @@ export default function TimelinePage() {
             }
             showStructuralControls={!rehearseMode && showStructuralControls}
             structuralSaving={structuralSaving}
+            listRef={momentListRef}
+            onScrollAnchorChange={handleScrollAnchorChange}
             onMoveUp={
               rehearseMode ? undefined : (moment) => void handleMoveMoment(moment, "up")
             }

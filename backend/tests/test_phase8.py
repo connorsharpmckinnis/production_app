@@ -228,13 +228,11 @@ def test_casting_excludes_builtins_and_partial_cast(
         f"/api/productions/{production_id}/characters",
         headers=director_headers,
     ).json()
-    castable_names = {
-        character["name"]
-        for character in characters
-        if character["name"] not in BUILTIN_CHARACTER_NAMES
-    }
+    character_names = {character["name"] for character in characters}
+    for builtin in BUILTIN_CHARACTER_NAMES:
+        assert builtin not in character_names
     gap_names = set(casting["gaps"])
-    assert gap_names.issubset(castable_names)
+    assert gap_names.issubset(character_names)
     assert "CREAN" not in gap_names
 
 

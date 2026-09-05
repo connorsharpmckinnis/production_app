@@ -4,6 +4,8 @@
 
 # Testing/Development Resources
 test_data/
+tmp/
+
 # Personal pilot/scratch import data (keep curated samples in fixtures/catalogs/)
 fixtures/test_items/
 

@@ -292,13 +292,12 @@ function StaffOverview({
       <section>
         <h2 className="mb-3 text-sm font-medium">Quick links</h2>
         <div className="flex flex-wrap gap-2">
-          <QuickLink to={`/productions/${productionId}/timeline?rehearse=1`} label="Rehearse" />
           <QuickLink to={`/productions/${productionId}/timeline`} label="Timeline" />
-          <QuickLink to={`/productions/${productionId}/characters`} label="Characters" />
-          <QuickLink to={`/productions/${productionId}/reports`} label="Reports" />
           {isAdmin && needsImport && (
             <QuickLink to={`/productions/${productionId}/import`} label="Import script" />
           )}
+          <QuickLink to={`/productions/${productionId}/characters`} label="Characters" />
+          <QuickLink to={`/productions/${productionId}/reports`} label="Reports" />
         </div>
         <p className="mt-3 text-xs text-muted-foreground">
           Catalogs and casting live in the production nav. Reports stay under Reports.

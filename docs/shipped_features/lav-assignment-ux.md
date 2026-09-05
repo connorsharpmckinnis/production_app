@@ -181,3 +181,45 @@ Resolve open questions below; freeze v1 scope.
 ## Done when (overall)
 
 A director can wire a typical cast for a show **mostly via fill-row + a few mid-show exceptions**, without scrolling to find the Packs toggle, without fighting full-catalog dropdowns, and without Propose casually destroying settled rows — at least as fast as maintaining the same matrix in a shared sheet for that workflow.
+
+---
+
+## Follow-ups (performance)
+
+**Shipped 2026-09-04 — inventory form state isolation:** Add-wire / add-pack / edit-dialog draft fields live in local child state (`InventoryColumn`, `EditInventoryDialog`) so typing no longer re-renders the full assignment matrix. Parent only receives values on Add/Save.
+
+**Shipped 2026-09-04 — local catalog patch on add/edit:** Create/update wire or pack uses the API response to patch `chart.wires` / `chart.packs` only. Does **not** call full `loadChart()` / `applyChart`, so assignment maps and unsaved cell edits stay intact. Full reload remains for first load, Save chart, Propose, Retry, and delete (cells may clear server-side).
+
+**Deferred if still needed:**
+- Extract `LavChartGrid` + `React.memo` so other page chrome (sheet toggle, menus, dialogs open/close) does not thrash the matrix.
+- `useMemo` conflict detection; build Select option lists only when a cell menu is open.
+- Virtualization only if scrolling/editing the grid itself stays slow on long shows.
+
+App-wide review of dense forms/charts parked in [UX_UI_IMPROVEMENTS.md](../UX_UI_IMPROVEMENTS.md) Wish list.
+
+---
+
+## Shelved — future interaction models (2026-09-04)
+
+**Status:** Ideas only. Current matrix + local catalog patch is **acceptable** for now; revisit if booth use or longer shows make cell density painful again.
+
+**Core jobs to preserve:** propose a starting chart; assign wire/pack per wearer×scene; fill row/act; see conflicts / taken assets; print; manage catalog.
+
+### Incremental (same matrix shape, cheaper cells)
+
+1. **Native `<select>` or text chip + one shared picker** — Drop per-cell Radix Select. Cells are plain labels; click opens one portal/popover with the catalog (or a native select). Cuts hundreds of heavy widgets to ~N×M light nodes + one editor.
+2. **Options only when open** — Keep Radix but don’t build `catalog.map` until that cell opens.
+3. **Memoized row/cell** — Only the edited cell re-renders; shared option list.
+
+### Structural (change how the page works)
+
+4. **Row-first editor (spreadsheet-lite)** — Matrix is **read-only text** (color/conflict dots). Editing happens in a side panel or row sheet: “Crean — Act 1” with a short list of scene assignments or one “Pack A for all / exceptions.” Matches how people think (“same pack all night”) better than 40 dropdowns.
+5. **Paint / stamp mode** — Pick one wire/pack once (“holding Pack A”), then click cells or drag across a row to apply. Zero per-cell menus; conflicts update as you paint.
+6. **Run-length / span model** — Store “Crean has Pack A from scene 1–12, Pack B from 13–end” instead of one value per scene. UI edits spans; grid is a visualization. Far fewer editable controls; bigger data/API change.
+7. **Exception-only UX** — Default = Propose output or “same as previous scene.” Operators only open cells that differ (booth changes). Most cells never become interactive widgets.
+8. **Split screens** — Inventory + Propose on one view; assignment grid on another (or print-first grid with sparse edit). Matrix never mounts during catalog churn.
+9. **Canvas / virtualized sheet** — One canvas or windowed table for very wide shows. Only if N×M grows past what light DOM can handle.
+
+### Recommendation when revisiting
+
+Try **(1) or (5)** first for biggest snappiness/UX win without schema change; consider **(4)** if fill-row is already 80% of the workflow. Park **(6)** until Timeline lav events / change-list in [lav-follow-ons.md](../feature_plans/lav-follow-ons.md) force a richer model anyway.

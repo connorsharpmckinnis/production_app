@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Smoke-test DATABASE_URL from repo-root .env (or the environment).
+#
+# Usage (from repo root):
+#   ./scripts/check-db
+set -euo pipefail
+
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+cd "$ROOT"
+
+# shellcheck source=lib/load-env.sh
+source "$ROOT/scripts/lib/load-env.sh"
+# shellcheck source=lib/database-url.sh
+source "$ROOT/scripts/lib/database-url.sh"
+
+_PRE_DATABASE_URL="${DATABASE_URL-}"
+load_env_file "$ROOT/.env"
+if [[ -n "${_PRE_DATABASE_URL}" ]]; then
+  export DATABASE_URL="$_PRE_DATABASE_URL"
+fi
+unset _PRE_DATABASE_URL
+
+if [[ -z "${DATABASE_URL:-}" ]]; then
+  echo "DATABASE_URL is not set in the environment or .env" >&2
+  exit 1
+fi
+
+DB_HOST="$(database_url_host "$DATABASE_URL")"
+echo "Checking database at host: ${DB_HOST}"
+
+cd "$ROOT/backend"
+uv run python - <<'PY'
+from sqlalchemy import create_engine, text
+from app.config import get_settings
+
+settings = get_settings()
+url = settings.DATABASE_URL
+host = url.split("@")[-1].split("/")[0].split("?")[0] if "@" in url else "(unparsed)"
+print(f"Settings DATABASE_URL host: {host}")
+engine = create_engine(url, pool_pre_ping=True)
+with engine.connect() as conn:
+    version = conn.execute(text("select version()")).scalar()
+    print(version)
+print("OK: database connection succeeded")
+PY

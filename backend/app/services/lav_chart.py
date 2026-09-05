@@ -34,13 +34,13 @@ from app.services.production_memberships import effective_cast_character_ids
 
 LAV_CHART_RULES: list[str] = [
     "Anyone with dialogue or lyrics needs a lav when they speak or sing (ALL / ENSEMBLE excluded).",
-    "Wires and packs are separate inventories; charts are planned per production.",
+    "Wires and packs are separate assets to be assigned",
     "Prefer one assignment for the whole show; next preference is change only at intermission.",
-    "Propose never inserts mid-act wearer swaps between people.",
+    "Propose (currently) does not insert mid-show or mid-act changes.",
     "Wires are typically worn from the top of the show; packs are assigned when speaking/singing requires them.",
-    "If inventory cannot cover need scenes without mid-act changes, the chart is flagged for manual mid-act work.",
-    "Propose replaces the whole sheet (wires or packs) with a fresh rule-based chart; tweak manually afterward.",
-    "Tech director edits always win after Propose — re-running Propose will overwrite them.",
+    "If there are not enough packs or wires to equip all actors for the entire show, (currently) the chart will require manual completion.",
+    "Propose replaces the whole sheet (wires or packs) with a fresh rule-based chart",
+    "Edits supersede Propose, but Propose also replaces edits",
 ]
 
 

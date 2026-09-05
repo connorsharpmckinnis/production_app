@@ -25,7 +25,9 @@ services:
       db:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-production_app}:${POSTGRES_PASSWORD:-production_app}@db:5432/${POSTGRES_DB:-production_app}
+      # Prefer DATABASE_URL from .env (Neon or other). Default is the Compose db service.
+      # For local Docker via ./scripts/dev on the host, use @127.0.0.1 in .env — not this stack.
+      DATABASE_URL: ${DATABASE_URL:-postgresql://production_app:production_app@db:5432/production_app}
       SECRET_KEY: ${SECRET_KEY:-dev-secret-change-in-production-32chars}
       ADMIN_USERNAME: ${ADMIN_USERNAME:-admin}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:-admin}

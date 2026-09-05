@@ -1,27 +1,55 @@
 #!/usr/bin/env bash
-# Day-to-day local stack: Postgres in Docker; API + Vite on the host with reload.
+# Day-to-day local stack: API + Vite on the host with reload.
+# Postgres: local Docker when DATABASE_URL points at localhost; otherwise remote (e.g. Neon).
 #
 # Usage (from repo root):
 #   ./scripts/dev
 #
+# Switch databases by editing DATABASE_URL in the repo-root .env (source of truth).
+# Optional one-shot override: DATABASE_URL='...' ./scripts/dev
+#
 # Code edits: save and refresh (Vite HMR / uvicorn --reload). No rebuild.
 # New Alembic migrations: Ctrl+C, then re-run ./scripts/dev (migrates + seeds on start).
 #
-# Postgres keeps running after Ctrl+C. Stop it with: docker compose stop db
+# Local Docker Postgres keeps running after Ctrl+C. Stop it with: docker compose stop db
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 
+# shellcheck source=lib/load-env.sh
+source "$ROOT/scripts/lib/load-env.sh"
+# shellcheck source=lib/database-url.sh
+source "$ROOT/scripts/lib/database-url.sh"
+
+# CLI-exported DATABASE_URL wins over .env; otherwise .env is the source of truth.
+_PRE_DATABASE_URL="${DATABASE_URL-}"
+load_env_file "$ROOT/.env"
+if [[ -n "${_PRE_DATABASE_URL}" ]]; then
+  export DATABASE_URL="$_PRE_DATABASE_URL"
+fi
+unset _PRE_DATABASE_URL
+
 POSTGRES_USER="${POSTGRES_USER:-production_app}"
 POSTGRES_PASSWORD="${POSTGRES_PASSWORD:-production_app}"
 POSTGRES_DB="${POSTGRES_DB:-production_app}"
-export DATABASE_URL="${DATABASE_URL:-postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:5432/${POSTGRES_DB}}"
+
+if [[ -z "${DATABASE_URL:-}" ]]; then
+  export DATABASE_URL="postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@127.0.0.1:5432/${POSTGRES_DB}"
+fi
 export ENVIRONMENT="${ENVIRONMENT:-dev}"
 
-if ! command -v docker >/dev/null 2>&1; then
-  echo "Docker is required (for Postgres). Install Docker Desktop and try again." >&2
-  exit 1
+DB_HOST="$(database_url_host "$DATABASE_URL")"
+USE_LOCAL_DB=0
+if database_url_is_local "$DATABASE_URL"; then
+  USE_LOCAL_DB=1
+fi
+
+if [[ "$USE_LOCAL_DB" -eq 1 ]]; then
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "Docker is required for local Postgres. Install Docker Desktop, or set DATABASE_URL in .env to a remote database (e.g. Neon)." >&2
+    exit 1
+  fi
 fi
 if ! command -v uv >/dev/null 2>&1; then
   echo "uv is required. Install: https://docs.astral.sh/uv/" >&2
@@ -33,23 +61,29 @@ if ! command -v npm >/dev/null 2>&1; then
 fi
 
 # Free :8000 / :5173 if a previous full Compose stack left app containers running.
-docker compose stop backend frontend >/dev/null 2>&1 || true
+if command -v docker >/dev/null 2>&1; then
+  docker compose stop backend frontend >/dev/null 2>&1 || true
+fi
 
-echo "Starting Postgres..."
-docker compose up -d db
+if [[ "$USE_LOCAL_DB" -eq 1 ]]; then
+  echo "Using local Docker Postgres (${DB_HOST})..."
+  docker compose up -d db
 
-echo "Waiting for Postgres..."
-ready=0
-for _ in $(seq 1 60); do
-  if docker compose exec -T db pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; then
-    ready=1
-    break
+  echo "Waiting for Postgres..."
+  ready=0
+  for _ in $(seq 1 60); do
+    if docker compose exec -T db pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB" >/dev/null 2>&1; then
+      ready=1
+      break
+    fi
+    sleep 1
+  done
+  if [[ "$ready" -ne 1 ]]; then
+    echo "Postgres did not become ready in time." >&2
+    exit 1
   fi
-  sleep 1
-done
-if [[ "$ready" -ne 1 ]]; then
-  echo "Postgres did not become ready in time." >&2
-  exit 1
+else
+  echo "Using remote DATABASE_URL host: ${DB_HOST} (not starting local Docker Postgres)"
 fi
 
 echo "Syncing backend dependencies..."
@@ -68,7 +102,10 @@ FRONTEND_PID=""
 
 cleanup() {
   echo ""
-  echo "Stopping API and Vite (Postgres stays up)..."
+  echo "Stopping API and Vite..."
+  if [[ "$USE_LOCAL_DB" -eq 1 ]]; then
+    echo "(Local Docker Postgres stays up — docker compose stop db to stop it.)"
+  fi
   if [[ -n "$BACKEND_PID" ]]; then
     kill "$BACKEND_PID" 2>/dev/null || true
   fi
@@ -90,7 +127,8 @@ FRONTEND_PID=$!
 echo ""
 echo "App:  http://localhost:5173"
 echo "API:  http://localhost:8000/health"
-echo "Ctrl+C stops API + Vite. Postgres keeps running (docker compose stop db to stop it)."
+echo "DB:   ${DB_HOST}"
+echo "Ctrl+C stops API + Vite."
 echo ""
 
 # Exit when either child dies (portable; macOS bash 3.2 has no wait -n).

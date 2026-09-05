@@ -303,19 +303,22 @@ An optional nginx “preview” Compose overlay exists only for future VPS smoke
 
 Set these in a root `.env` file or pass them to `docker compose`.
 
-### Database (`db` service)
+### Database
 
 | Variable            | Required | Default           | Description              |
 |---------------------|----------|-------------------|----------|
-| `POSTGRES_USER`     | No       | `production_app`  | PostgreSQL username      |
-| `POSTGRES_PASSWORD` | No       | `production_app`  | PostgreSQL password      |
-| `POSTGRES_DB`       | No       | `production_app`  | PostgreSQL database name |
+| `DATABASE_URL`      | Yes*     | local Docker URL  | **App source of truth** — SQLAlchemy connection string (local Docker or Neon). Switch DBs by editing this in `.env`. |
+| `POSTGRES_USER`     | No       | `production_app`  | Local Docker `db` container username only |
+| `POSTGRES_PASSWORD` | No       | `production_app`  | Local Docker `db` container password only |
+| `POSTGRES_DB`       | No       | `production_app`  | Local Docker `db` container database name |
+
+\* `./scripts/dev` defaults to `postgresql://production_app:production_app@127.0.0.1:5432/production_app` if unset. See [docs/DEPLOY.md](docs/DEPLOY.md) for Neon dump/restore.
 
 ### Backend (`backend` service)
 
 | Variable          | Required | Default                    | Description                                      |
 |-------------------|----------|----------------------------|--------------------------------------------------|
-| `DATABASE_URL`    | Auto     | (built from `POSTGRES_*`)  | SQLAlchemy connection string                     |
+| `DATABASE_URL`    | Yes*     | (see Database above)       | Same root `.env` value; Compose defaults to `@db:5432` if unset |
 | `SECRET_KEY`      | Yes*     | `dev-secret-change-in-production` | Session/JWT signing secret                |
 | `ADMIN_USERNAME`  | No       | `admin`                    | Bootstrap admin username                         |
 | `ADMIN_PASSWORD`  | Prod: Yes| `admin` (dev only)         | Bootstrap admin password                         |
@@ -380,7 +383,8 @@ Admin component gallery (theme preview + all primitives): `/dev/ui` (also linked
 production_app/
 ├── backend/          # FastAPI, SQLAlchemy, Alembic
 ├── frontend/         # React, TypeScript, Vite, Tailwind
-├── scripts/dev       # Day-to-day: db + migrate/seed + API + Vite
+├── scripts/dev       # Day-to-day: load .env DATABASE_URL + migrate/seed + API + Vite
+├── scripts/check-db  # Smoke-test DATABASE_URL connectivity
 ├── docker-compose.yml
 ├── docs/             # Architecture and phase plans
 │   └── screenshots/  # README images (add annotated screenshots here)
@@ -396,6 +400,8 @@ production_app/
 - [docs/feature_plans/README.md](docs/feature_plans/README.md) — upcoming feature intent
 - [docs/shipped_features/README.md](docs/shipped_features/README.md) — shipped feature-plan history
 - [docs/SEED_DATA.md](docs/SEED_DATA.md) — bootstrap seed specification
+- [docs/PERFORMANCE.md](docs/PERFORMANCE.md) — latency / query-cost / caching backlog
+- [docs/DEPLOY.md](docs/DEPLOY.md) — local, Neon, Tailscale, and hosting notes
 - [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](.agents/skills/DEVELOPMENT_GUIDE/SKILL.md) — coding standards
 
 ## Troubleshooting

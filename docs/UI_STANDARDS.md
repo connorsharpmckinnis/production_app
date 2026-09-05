@@ -272,7 +272,8 @@ Semantic action colors:
 * **Timeline** at `/productions/:id/timeline` — all roles; includes **Rehearse mode** toggle for actor practice (presets, blur my lines, etc.). Old `/rehearse` URLs redirect to `/timeline?rehearse=1`.
 * Client-side practice presets: Scene run-through, My lines, Line cues (zero API refetch on preset change)
 * Rehearse display toggles: highlight my lines, stage directions, lyrics/songs, prep badges, blur my lines
-* `sessionStorage` persistence for Rehearse controls per production
+* `localStorage` persistence for Rehearse controls per production (`rehearse-{id}`)
+* `localStorage` Timeline prefs per production (`timeline-prefs-{id}`): Prep badges, Moment numbers, filters, scene selection, and scroll anchor (first fully visible moment). Edit Timeline is not persisted. Deep links override the stored scroll position.
 * **Scene summary strip** — client-side character/song chips and props-used count below act/scene selectors (Timeline + Rehearse)
 * Shared `TimelineMomentList` — full-row click targets, keyboard accessible, shared highlight styles
 * Timeline **Advanced filters** disclosure for director prep controls; cue-only checkbox removed; Sheet on small screens

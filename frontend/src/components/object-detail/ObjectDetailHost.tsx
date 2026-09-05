@@ -99,7 +99,7 @@ export default function ObjectDetailHost() {
         <SheetContent
           side={isLargeScreen ? "right" : "bottom"}
           className={cn(
-            "flex flex-col gap-4 overflow-y-auto",
+            "flex flex-col gap-4 overflow-hidden",
             isLargeScreen ? "sm:max-w-none" : "max-h-[70vh]",
           )}
           style={
@@ -134,14 +134,14 @@ export default function ObjectDetailHost() {
             />
           )}
 
-          <SheetHeader>
+          <SheetHeader className="shrink-0">
             <SheetTitle>{title}</SheetTitle>
             <SheetDescription className="sr-only">
               Quick look and edit for this object without leaving the current page.
             </SheetDescription>
           </SheetHeader>
 
-          <div className="min-h-0 flex-1">
+          <div className="min-h-0 flex-1 overflow-y-auto">
             {target ? (
               <ObjectDetailPanelBody
                 key={`${target.type}:${target.id}:${target.momentId ?? ""}:${target.sceneId ?? ""}:${target.sceneEndMomentId ?? ""}`}
@@ -156,7 +156,7 @@ export default function ObjectDetailHost() {
           </div>
 
           {controllers?.canUpdate ? (
-            <SheetFooter className="gap-2 sm:flex-row sm:justify-end">
+            <SheetFooter className="shrink-0 -mx-6 -mb-6 -mt-4 gap-2 border-t bg-background px-6 pt-4 pb-6 sm:flex-row sm:justify-end">
               <Button
                 type="button"
                 variant="outline"

@@ -22,6 +22,7 @@ Ephemeral **object detail Sheet** + consistent **ObjectLink** affordance so user
 - Explicit **Save / Discard**; three-way unsaved dialog (Save / Discard / Keep editing)
 - Capability-gated: no `read` → plain text; `update` → editable footer
 - Shared Moment-like resize width (`useDetailPanelWidth`)
+- Sheet body scrolls independently; Save/Discard stay pinned in a bottom footer section (2026-09-04)
 
 ### ObjectLink
 

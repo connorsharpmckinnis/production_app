@@ -1,8 +1,10 @@
-import { Fragment, useState } from "react";
+import { Fragment, useEffect, useRef, useState, type RefObject } from "react";
 import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
 import SceneSummaryStrip from "@/components/SceneSummaryStrip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import type { TimelineScrollAnchor } from "@/lib/timelinePrefsStorage";
+import { findFirstFullyVisibleAnchor } from "@/lib/timelineScrollAnchor";
 import type { SceneSummaryData } from "@/lib/sceneSummary";
 import type { CharacterDetailResponse, MomentSummary } from "@/lib/types";
 import { cn, momentTypeLabel } from "@/lib/utils";
@@ -50,6 +52,10 @@ export interface TimelineMomentListProps {
   insertSceneId?: number | null;
   insertFormSlot?: (sequenceNumber: number, sceneId: number) => React.ReactNode;
   footerSlot?: React.ReactNode;
+  /** Optional ref to the scrollable moment list element. */
+  listRef?: RefObject<HTMLUListElement | null>;
+  /** Fires (throttled) with the first fully visible moment as the user scrolls. */
+  onScrollAnchorChange?: (anchor: TimelineScrollAnchor | null) => void;
 }
 
 const MOBILE_VISIBLE_PREP_BADGES = 2;
@@ -331,9 +337,13 @@ export default function TimelineMomentList({
   insertSceneId,
   insertFormSlot,
   footerSlot,
+  listRef,
+  onScrollAnchorChange,
 }: TimelineMomentListProps) {
   const [revealedBlurLineId, setRevealedBlurLineId] = useState<number | null>(null);
   const [blurRevealMode, setBlurRevealMode] = useState<"hover" | "tap" | null>(null);
+  const internalListRef = useRef<HTMLUListElement | null>(null);
+  const anchorRafRef = useRef<number | null>(null);
 
   const resolvedSections: TimelineSection[] =
     sections && sections.length > 0
@@ -348,8 +358,44 @@ export default function TimelineMomentList({
 
   const showHeaders = resolvedSections.length > 1 || Boolean(resolvedSections[0]?.label);
 
+  function assignListRef(node: HTMLUListElement | null) {
+    internalListRef.current = node;
+    if (listRef) {
+      listRef.current = node;
+    }
+  }
+
+  useEffect(() => {
+    const listEl = internalListRef.current;
+    if (!listEl || !onScrollAnchorChange) return;
+
+    const publish = () => {
+      anchorRafRef.current = null;
+      onScrollAnchorChange(findFirstFullyVisibleAnchor(listEl));
+    };
+
+    const onScroll = () => {
+      if (anchorRafRef.current != null) return;
+      anchorRafRef.current = window.requestAnimationFrame(publish);
+    };
+
+    listEl.addEventListener("scroll", onScroll, { passive: true });
+    publish();
+
+    return () => {
+      listEl.removeEventListener("scroll", onScroll);
+      if (anchorRafRef.current != null) {
+        window.cancelAnimationFrame(anchorRafRef.current);
+        anchorRafRef.current = null;
+      }
+    };
+  }, [onScrollAnchorChange, resolvedSections]);
+
   return (
-    <ul className="min-h-0 flex-1 overflow-y-auto divide-y divide-border">
+    <ul
+      ref={assignListRef}
+      className="min-h-0 flex-1 overflow-y-auto divide-y divide-border"
+    >
       {resolvedSections.map((section) => (
         <Fragment key={section.sceneId || "flat"}>
           {showHeaders && section.label ? (
@@ -377,7 +423,12 @@ export default function TimelineMomentList({
             // like an empty "singer with no lyrics" line.
             .filter((moment) => moment.moment_type !== "song_attribution")
             .map((moment, index, visibleMoments) => (
-            <li key={moment.id}>
+            <li
+              key={moment.id}
+              data-moment-id={moment.id}
+              data-scene-id={section.sceneId}
+              data-sequence-number={moment.sequence_number}
+            >
               <MomentRow
                 moment={moment}
                 index={index}

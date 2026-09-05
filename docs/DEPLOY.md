@@ -2,14 +2,14 @@
 
 How to run The Theater Thing on your laptop day to day, reach it from your phone over Tailscale, and (later) move to a real host.
 
-Companion to [PHASE_10.md](PHASE_10.md). **Day-to-day:** Postgres in Docker; API + Vite on the host via `./scripts/dev`. Tailscale Serve on port **5173** for private multi-device access when Tailscale is available.
+Companion to [PHASE_10.md](PHASE_10.md). Latency / Neon query-cost ideas: [PERFORMANCE.md](PERFORMANCE.md). **Day-to-day:** Postgres in Docker; API + Vite on the host via `./scripts/dev`. Tailscale Serve on port **5173** for private multi-device access when Tailscale is available.
 
 ---
 
 ## Day-to-day (Dev)
 
 ```bash
-cp .env.example .env   # optional
+cp .env.example .env   # once; then edit DATABASE_URL / secrets as needed
 ./scripts/dev
 ```
 
@@ -18,16 +18,26 @@ cp .env.example .env   # optional
 | App | http://localhost:5173 |
 | API health | http://localhost:8000/health |
 
-`./scripts/dev` starts Postgres if needed, runs migrations + seed, then API (`uvicorn --reload`) and Vite together.
+**`DATABASE_URL` in the repo-root `.env` is the source of truth** for which Postgres the app uses. `./scripts/dev` loads it, runs migrations + seed, then API (`uvicorn --reload`) and Vite together.
+
+- If `DATABASE_URL` points at `127.0.0.1` / `localhost` / `db`, the script starts local Docker Postgres.
+- If it points at a remote host (e.g. Neon), local Docker Postgres is **not** started.
 
 | Change | Action |
 | ------ | ------ |
 | Frontend / backend code | Save + browser refresh (HMR / reload). No rebuild. |
 | New DB migration | Ctrl+C → `./scripts/dev` again |
-| Stop API + Vite | Ctrl+C (Postgres stays up) |
-| Stop Postgres | `docker compose stop db` |
+| Switch local Docker ↔ Neon | Edit `DATABASE_URL` in `.env`, then `./scripts/dev` |
+| Stop API + Vite | Ctrl+C |
+| Stop local Postgres | `docker compose stop db` (only when using local DB) |
 
-Dev logins (when `ENVIRONMENT=dev`): `admin` / `admin`, plus seeded `director` / `actor`.
+Quick DB connectivity check (uses `.env`):
+
+```bash
+./scripts/check-db
+```
+
+Dev logins (when `ENVIRONMENT=dev`): `admin` / `admin` (and any users already in the database).
 
 On a machine **without Tailscale** (for example a secondary Windows laptop), browser testing at `http://localhost:5173` is enough — leave the Tailscale steps for the machine that has Tailscale installed.
 
@@ -37,7 +47,60 @@ On a machine **without Tailscale** (for example a secondary Windows laptop), bro
 docker compose up -d --build
 ```
 
-Rebuild the service you edited after host changes. Prefer `./scripts/dev` for daily coding so images do not accumulate.
+Compose passes through `DATABASE_URL` from `.env` when set; otherwise the backend uses the internal `db` hostname. Prefer `./scripts/dev` for daily coding (and for Neon) so images do not accumulate.
+
+---
+
+## Neon (hosted Postgres)
+
+Migrate vs seed vs copy data:
+
+| Term | What it does |
+| ---- | ------------ |
+| **Migrate** (`alembic upgrade head`) | Creates/updates **tables and columns** (schema). Needed on an empty Neon database unless you restore a dump that already includes schema. |
+| **Seed** (`python -m app.seed`) | Inserts **default** admin/org/roles/moment types if missing. Does **not** copy your production script data. |
+| **Dump / restore** | Copies **your real data** (and usually schema) from local Docker Postgres → Neon. |
+
+### One-time: copy local Docker data → Neon
+
+1. Keep local Postgres running and dump it (schema + data):
+
+   ```bash
+   docker compose up -d db
+   docker compose exec -T db pg_dump -U production_app -d production_app --no-owner --no-acl \
+     > /tmp/production_app_dump.sql
+   ```
+
+2. In `.env`, set `DATABASE_URL` to your Neon **direct** connection string (include `sslmode=require`). Comment out the local `127.0.0.1` URL.
+
+3. Restore into Neon (requires `psql` on your Mac — from Postgres.app, Homebrew `libpq`, or Neon’s SQL editor upload):
+
+   ```bash
+   # Load DATABASE_URL from .env into this shell, then:
+   set -a && source .env && set +a
+   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f /tmp/production_app_dump.sql
+   ```
+
+4. Verify, then run the app against Neon:
+
+   ```bash
+   ./scripts/check-db
+   ./scripts/dev
+   ```
+
+After a full dump/restore you usually **do not** need a separate migrate for that first load (schema came with the dump). `./scripts/dev` still runs migrate + seed; migrate should be a no-op if `alembic_version` matched, and seed is mostly idempotent.
+
+### Later: refresh Neon from local again
+
+Repeat dump → restore (or dump → drop Neon DB / create fresh → restore). For schema-only changes on an already-populated Neon DB, run `cd backend && uv run alembic upgrade head` with Neon `DATABASE_URL` set.
+
+### Fresh Neon with no local data to copy
+
+```bash
+# DATABASE_URL=Neon in .env
+./scripts/check-db
+./scripts/dev   # migrate + seed + app
+```
 
 ---
 
