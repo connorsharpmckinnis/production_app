@@ -1,9 +1,14 @@
 # Deploy & Private Access
 
-How to run The Theater Thing on your laptop day to day, reach it from your phone over Tailscale, and (later) move to a real host.
+How to run The Theater Thing on your laptop day to day, reach it from your phone over Tailscale, and host the API (and soon the UI) on Google Cloud Run.
 
-Companion to [PHASE_10.md](PHASE_10.md). Latency / Neon query-cost ideas: [PERFORMANCE.md](PERFORMANCE.md). **Day-to-day:** Postgres in Docker; API + Vite on the host via `./scripts/dev`. Tailscale Serve on port **5173** for private multi-device access when Tailscale is available.
+Companion to [PHASE_10.md](shipped_features/phases/PHASE_10.md). Latency / Neon query-cost ideas: [PERFORMANCE.md](PERFORMANCE.md).
 
+**Current hosting (2026-09-05):**
+- **Database:** Neon
+- **API:** Cloud Run (free tier), continuous deploy from GitHub `main` — see [Cloud Run backend](#cloud-run-backend-shipped-2026-09-05)
+- **Frontend:** local Vite day-to-day; **prod image ready** for Cloud Run (`theater-thing-frontend`) — see [Cloud Run frontend](#cloud-run-frontend--owner-console-steps)
+- **Day-to-day coding:** Postgres local Docker *or* Neon via `DATABASE_URL`; API + Vite on the host via `./scripts/dev`. Tailscale Serve on **5173** when you want private multi-device access
 ---
 
 ## Day-to-day (Dev)
@@ -187,14 +192,151 @@ python3 -c "import secrets; print(secrets.token_urlsafe(48))"
 
 ---
 
-## Later: always-on hosting (Tier B)
+## Cloud Run backend (shipped 2026-09-05)
 
-When STP pilots for real:
+**Status:** Backend API is live on **Google Cloud Run** (free tier; example service name `theater-thing-backend`), talking to **Neon**. Frontend stays on the laptop for now (Vite), optionally proxied at the Cloud Run URL.
 
-- Prefer a small **VPS** (or similar hands-off host) over a home Pi for uptime.
-- Use the **production frontend image** (nginx) there — see appendix below.
-- Put TLS in front with a real domain; you keep deploy credentials.
-- Exact vendor can wait until after the August conversation.
+### What was decided / learned
+
+| Topic | Outcome |
+| ----- | ------- |
+| Scope | Backend-first; frontend Cloud Run is next |
+| DB | Neon direct URL with `sslmode=require` (`DATABASE_URL`) |
+| CD | Cloud Run continuous deploy from GitHub `main` via Developer Connect; build context **`backend/`**, Dockerfile **`backend/Dockerfile`** |
+| Port | Cloud Run sets `PORT` (usually `8080`); `backend/scripts/start.sh` must honor `$PORT` (not hardcode 8000) |
+| Env style | Plain Cloud Run **environment variables** for now (not Secret Manager) |
+| Boot | `start.sh` still runs migrate + seed on every container start — OK for solo / free tier |
+| Auth | Allow **unauthenticated** Cloud Run invocations; the API does its own JWT auth |
+| Scale | Min instances **0**; set a low **max** (e.g. 2–3) to avoid surprise scale |
+| Latency | Owner smoke-tested: feels no slower than localhost API + Neon |
+
+### Cloud Run env vars (API service)
+
+Set on the service (Console → Edit → Variables). Do **not** commit real values.
+
+| Variable | Notes |
+| -------- | ----- |
+| `DATABASE_URL` | Neon **direct** URL + `sslmode=require` — not `127.0.0.1` |
+| `SECRET_KEY` | ≥32 chars, not the `.env.example` default |
+| `ADMIN_USERNAME` / `ADMIN_PASSWORD` | Bootstrap only: seed **creates** this user if missing; does **not** reset password of existing users (e.g. dumped `admin`) |
+| `ORG_NAME` | Must match the Neon org name if you want the bootstrap user in the same org as productions |
+| `ENVIRONMENT` | `prod` |
+| `CORS_ORIGINS` | Keep `http://localhost:5173,http://127.0.0.1:5173` for local Vite. Add the frontend Cloud Run `https://….run.app` origin when that service exists |
+| `GITHUB_TOKEN` / `GITHUB_REPO` | Optional in-app feedback |
+
+Skip on Cloud Run API service: `POSTGRES_*`, `VITE_*`, `BACKEND_UPSTREAM`, `PORT` (Cloud Run sets `PORT` for the API container separately).
+
+### IAM gotcha (Developer Connect)
+
+If the build fails at `FETCHSOURCE` with `developerconnect.gitRepositoryLinks.fetchReadToken`, grant the Cloud Build SA (`PROJECT_NUMBER@cloudbuild.gserviceaccount.com`) the role **Developer Connect Read Token Accessor** (`roles/developerconnect.readTokenAccessor`).
+
+### Local frontend → Cloud Run API
+
+`./scripts/dev` always starts a **local** API on `:8000`. To exercise the remote API from the UI, run **Vite only** and point the proxy:
+
+```bash
+cd frontend
+VITE_API_PROXY_TARGET="https://YOUR-SERVICE-XXXX.run.app" npm run dev
+```
+
+Then open `http://localhost:5173` (or whatever port Vite prints if 5173 is busy). Browser calls stay same-origin to Vite; Vite forwards `/api` to Cloud Run — CORS usually does not apply on that path.
+
+Smoke without UI:
+
+```bash
+curl -sS "https://YOUR-SERVICE-XXXX.run.app/health"
+```
+
+### Seed / org caveat
+
+Changing `ADMIN_USERNAME` on Cloud Run can create a **second** Admin in a different org if `ORG_NAME` does not match the existing Neon organization. That user can log in but see empty production/user lists. The original dumped users (e.g. `admin`) remain the ones attached to real data. Prefer changing passwords on existing users rather than inventing new bootstrap usernames.
+
+### Still deferred (hosting)
+
+- Secret Manager for DB/URL secrets
+- Custom domain / Cloud Armor
+- Neon pooler URL for the app (migrations stay on direct URL)
+- Dropping migrate/seed-from-boot
+- Multi-org “platform super-admin” (future SaaS idea — not designed yet)
+
+---
+
+## Cloud Run frontend — owner Console steps
+
+**Local prep (shipped in repo):** `frontend/Dockerfile` target `prod` runs nginx with runtime env:
+
+| Variable | Purpose | Examples |
+| -------- | ------- | -------- |
+| `PORT` | Listen port (Cloud Run injects this) | `8080` |
+| `BACKEND_UPSTREAM` | API base URL for `/api` and `/health` proxy | Compose: `http://backend:8000`; Cloud Run: `https://YOUR-BACKEND-XXXX.run.app` (no trailing slash) |
+
+SPA keeps relative `fetch('/api/…')`. nginx proxies same-origin `/api` to the backend service.
+
+**Decided:**
+
+| Topic | Choice |
+| ----- | ------ |
+| Service name | `theater-thing-frontend` |
+| Proxy | nginx `/api` → backend (not browser absolute API URL) |
+| Port | Listen on `$PORT` (default 8080) |
+| Domain | Default `*.run.app` for now |
+| CD | Continuous deploy from GitHub `main`, build context **`frontend/`**, Dockerfile **`frontend/Dockerfile`**, target **`prod`** — after a successful manual first deploy |
+| Who deploys | Owner does Console / remote steps; agents only change the local repo unless explicitly asked |
+
+### Manual first deploy (Console)
+
+1. Confirm backend is healthy: `curl -sS "https://YOUR-BACKEND-XXXX.run.app/health"`.
+2. In Cloud Run → **Create service** (or Deploy from source / Dockerfile):
+   - Name: **`theater-thing-frontend`**
+   - Region: same as backend (keeps latency boring)
+   - Source: this GitHub repo; build context **`frontend/`**; Dockerfile **`Dockerfile`** (final stage is **`prod`** — default build is correct; set target `prod` only if the UI asks)
+   - Container port: **`8080`** (matches `PORT` default; Cloud Run still sets `PORT`)
+   - Authentication: **Allow unauthenticated**
+   - Min instances **0**; max low (e.g. 2–3)
+3. Environment variables on the frontend service:
+   - `BACKEND_UPSTREAM` = `https://YOUR-BACKEND-XXXX.run.app` (no path, no trailing slash)
+   - Do **not** put `DATABASE_URL` / `SECRET_KEY` on the frontend service
+4. Deploy once; open the service URL → login page should load.
+5. Optional but recommended: on the **backend** service, append the frontend origin to `CORS_ORIGINS` (e.g. `https://theater-thing-frontend-XXXX.run.app`). Same-origin nginx proxy usually does not need it for day-to-day UI traffic; it helps if anything ever calls the API cross-origin.
+6. After smoke-test passes, wire **continuous deploy** from `main` the same way as the backend (Developer Connect), with context **`frontend/`** and target **`prod`**. Expect a second Cloud Build when `main` changes under `frontend/` (or whenever CD is configured to rebuild).
+
+### Local smoke (prod image shape, before or after Cloud)
+
+```bash
+docker compose down
+docker compose -f docker-compose.yml -f docker-compose.preview.yml up -d --build
+# http://127.0.0.1:8080 — nginx on :8080 proxies /api → Compose backend
+```
+
+### Verify when Cloud frontend is live
+
+- [ ] Frontend URL loads login
+- [ ] Login against Neon data (same productions as backend-only phase)
+- [ ] Overview + one write path
+- [ ] Cold start after idle acceptable
+- [ ] Local `./scripts/dev` path still works for day-to-day coding
+
+### Explicitly out of scope (this pass)
+
+- Rewriting the SPA to require a public `VITE_*` API base URL
+- Merging API + UI into one container
+- Custom domain
+- Performance caching work ([PERFORMANCE.md](PERFORMANCE.md))
+
+### Troubleshooting (frontend Cloud Run)
+
+| Symptom | Likely fix |
+| ------- | ---------- |
+| Login page loads, API calls fail / 502 | `BACKEND_UPSTREAM` wrong, missing `https://`, trailing slash, or backend cold/unhealthy |
+| Cloud Run “failed to start listening” | Container must listen on `$PORT` (entrypoint does); confirm service container port is 8080 |
+| CORS errors in browser | Usually means the browser hit the API origin directly; add frontend origin to backend `CORS_ORIGINS`, or fix so calls stay same-origin `/api` via nginx |
+| Build can’t find stage | Ensure CD/build uses Dockerfile target **`prod`** |
+
+---
+
+## Later: always-on hosting (Tier B / alternatives)
+
+Cloud Run + Neon is the current always-on path for the **API**; frontend Console deploy for `theater-thing-frontend` is documented above. A small **VPS** remains an alternative if Cloud Run free-tier limits or ops preferences change. Custom domain + TLS can wait until a real pilot needs a stable bookmark name.
 
 ---
 
@@ -213,7 +355,7 @@ When STP pilots for real:
 
 ## Appendix: optional nginx “preview” (not day-to-day)
 
-Kept in the repo for a future VPS smoke-test. **You do not need this for laptop + phone.**
+Smoke-tests the same **prod** frontend image Cloud Run uses (nginx on `$PORT`, `/api` → `BACKEND_UPSTREAM`). **You do not need this for laptop + phone.**
 
 ```bash
 docker compose down
@@ -223,4 +365,4 @@ docker compose down
 ./scripts/dev
 ```
 
-The frontend `prod` Dockerfile stage and fixed nginx `/api` proxy live here so Tier B does not reinvent them.
+Preview sets `PORT=8080` and `BACKEND_UPSTREAM=http://backend:8000`.

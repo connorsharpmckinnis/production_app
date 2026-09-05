@@ -2,7 +2,7 @@
 
 **Purpose:** Ongoing inventory of latency, query-cost, and caching ideas. Not committed scope — capture findings so we do not rediscover them when free-tier or Cloud Run hosting makes roundtrips more expensive.
 
-**Last updated:** 2026-09-05
+**Last updated:** 2026-09-05 (Cloud Run API live)
 
 **Related docs:** [DEPLOY.md](DEPLOY.md) (Neon / Cloud Run), [PREP_READINESS.md](shipped_features/PREP_READINESS.md) (how readiness is computed), [UX_UI_IMPROVEMENTS.md](UX_UI_IMPROVEMENTS.md) (UI polish backlog)
 
@@ -21,6 +21,8 @@ When adding an item: note the **surface** (page/endpoint), **symptom**, **likely
 ---
 
 ## Context (2026-09-05)
+
+**Hosting update (same day, later):** Backend is now on **Cloud Run** + Neon. Owner smoke-tested full UI via local Vite → Cloud Run API and reported it felt **no slower** than localhost API + Neon. Caching / Overview TTFB work remains **not urgent** — keep the items below as backlog.
 
 With **Neon** as the database and the API still on localhost, Production Overview felt like ~1s of skeletons before data appeared. A WebKit timeline recording showed:
 
@@ -76,3 +78,4 @@ Conclusion for now: free-tier Neon latency is expected; no emergency. Keep the i
 | Date | Note |
 | ---- | ---- |
 | 2026-09-05 | Doc created from Neon + Overview timeline recording sanity check (compute_readiness / overview size / client reuse). |
+| 2026-09-05 | Backend deployed to Cloud Run + Neon; owner reports latency acceptable — caching backlog stays open/not urgent. |

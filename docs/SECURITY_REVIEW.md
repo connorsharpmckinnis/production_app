@@ -155,21 +155,17 @@ Add API tests that attempt direct ID access as an uncast actor and expect 404/40
 
 ---
 
-### S8 — High: Prod nginx strips `/api` incorrectly
+### S8 — High: Prod nginx strips `/api` incorrectly — **Fixed**
 
-**Where:** `frontend/nginx.conf`
+**Where:** Was `frontend/nginx.conf`; now `frontend/nginx.conf.template` + `BACKEND_UPSTREAM`.
 
 ```nginx
 location /api/ {
-    proxy_pass http://backend:8000/;  # strips /api → backend sees /auth/login
+    proxy_pass ${BACKEND_UPSTREAM};  # no URI path — preserves /api prefix
 }
 ```
 
-App mounts routers under `/api`. Vite dev proxy preserves `/api`; the **prod** image target does not.
-
-**Impact:** Production frontend stage would break API calls (or hit wrong paths). Stability/security both—failed auth vs accidental exposure of wrong handlers.
-
-**Fix (basic):** `proxy_pass http://backend:8000;` (no trailing slash) or `proxy_pass http://backend:8000/api/;` with a matching location design. Smoke-test the `prod` image before beta if that path will be used.
+Previously a trailing slash on `proxy_pass http://backend:8000/` stripped `/api`. Vite always preserved the prefix; the prod image now matches.
 
 ---
 

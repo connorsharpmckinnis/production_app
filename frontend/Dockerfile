@@ -23,9 +23,19 @@ RUN npm run build
 
 FROM nginx:1.27-alpine AS prod
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+# envsubst for runtime PORT / BACKEND_UPSTREAM templating
+RUN apk add --no-cache gettext
+
+COPY nginx.conf.template /etc/nginx/templates/default.conf.template
+COPY docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 COPY --from=build /app/dist /usr/share/nginx/html
 
-EXPOSE 80
+# Cloud Run sets PORT (usually 8080). Compose preview can override.
+ENV PORT=8080
+ENV BACKEND_UPSTREAM=http://backend:8000
 
-CMD ["nginx", "-g", "daemon off;"]
+EXPOSE 8080
+
+ENTRYPOINT ["/docker-entrypoint.sh"]

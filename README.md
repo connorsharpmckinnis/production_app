@@ -295,9 +295,9 @@ See [docs/IMPORT_SPEC.md](docs/IMPORT_SPEC.md) and [docs/SCRIPT_FORMAT.md](docs/
 
 ### Phone access (Tailscale)
 
-Day-to-day: run `./scripts/dev`, then `tailscale serve --bg 5173`. Details in **[docs/DEPLOY.md](docs/DEPLOY.md)**.
+Day-to-day: run `./scripts/dev`, then `tailscale serve --bg 5173`. Details in **[docs/DEPLOY.md](docs/DEPLOY.md)**. Hosted API (Cloud Run + Neon) is live; frontend Cloud Run (`theater-thing-frontend`) Console steps are in that doc.
 
-An optional nginx “preview” Compose overlay exists only for future VPS smoke-tests; it is not required for laptop + phone.
+An optional nginx “preview” Compose overlay smoke-tests the same prod image shape Cloud Run uses; it is not required for laptop + phone.
 
 ## Environment Variables
 
@@ -338,6 +338,17 @@ Set these in a root `.env` file or pass them to `docker compose`.
 | `VITE_API_PROXY_TARGET`  | No       | `http://localhost:8000`  | Backend URL for Vite dev proxy       |
 
 With `./scripts/dev`, the default proxy target is correct. In the full Docker stack, Compose sets this to `http://backend:8000`. Browser requests go to `/api/*` and are proxied to the API.
+
+### Frontend (`prod` / nginx image)
+
+Used by Compose preview and Cloud Run service `theater-thing-frontend`. Runtime only (not Vite build args):
+
+| Variable            | Required | Default                 | Description |
+|---------------------|----------|-------------------------|-------------|
+| `PORT`              | No       | `8080`                  | nginx listen port (Cloud Run sets this) |
+| `BACKEND_UPSTREAM`  | Yes*     | `http://backend:8000`   | API origin for `/api` and `/health` proxy (no trailing slash) |
+
+\* On Cloud Run set to the backend `https://….run.app` URL. See [docs/DEPLOY.md](docs/DEPLOY.md).
 
 ## Local Development (manual)
 
@@ -401,7 +412,7 @@ production_app/
 - [docs/shipped_features/README.md](docs/shipped_features/README.md) — shipped feature-plan history
 - [docs/SEED_DATA.md](docs/SEED_DATA.md) — bootstrap seed specification
 - [docs/PERFORMANCE.md](docs/PERFORMANCE.md) — latency / query-cost / caching backlog
-- [docs/DEPLOY.md](docs/DEPLOY.md) — local, Neon, Tailscale, and hosting notes
+- [docs/DEPLOY.md](docs/DEPLOY.md) — local, Neon, Tailscale, Cloud Run API (shipped), frontend Cloud Run Console steps
 - [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](.agents/skills/DEVELOPMENT_GUIDE/SKILL.md) — coding standards
 
 ## Troubleshooting

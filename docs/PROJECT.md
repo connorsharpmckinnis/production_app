@@ -981,8 +981,8 @@ Summary:
 Summary:
 
 - **Tier A (now):** laptop Docker host + Tailscale Serve on **5173** (Vite **dev** stack) for owner multi-device access when Tailscale is available; laptop-awake OK. Localhost-only testing is fine without Tailscale on secondary machines.
-- **Tier B (later):** cheap hands-off VPS + TLS; same images; decide with STP after pilot signal
-- One day-to-day path: Compose **dev** (Vite); optional nginx preview overlay kept for future VPS smoke-tests
+- **Tier B (in progress):** **API on Cloud Run + Neon** (shipped 2026-09-05, free tier). Frontend prod image is Cloud Run–ready (`PORT` + `BACKEND_UPSTREAM`); owner Console deploy for `theater-thing-frontend` — see [DEPLOY.md](DEPLOY.md). Small VPS remains an alternative if prefs change.
+- One day-to-day path: Compose **dev** (Vite); optional nginx preview overlay smoke-tests the Cloud Run frontend image shape
 - Before-beta hardening from Pre-August / [SECURITY_REVIEW.md](SECURITY_REVIEW.md): IDOR, secrets, upload caps, rate limit, report RBAC, password floor, prod docs/CORS, nginx `/api` fix
 - One-page deploy + Tailscale runbook; avoid Cloudflare Tunnel as the default path
 
@@ -1177,6 +1177,7 @@ These bullets remain for lighter capture so good ideas are not lost:
 - **Production-level settings** — per-production overrides for display and workflow flags (if global App Settings prove insufficient).
 - **Real-time note-flagging** -- A tool/ability for directors (or other roles too) to quickly flag or add a note to a moment without fulling disengaging from watching the scene play out. Possibly voice-transcribed, so the person could mumble into their phone while watching the rest of the scene. 
 - **Mobile Interface** -- Some interface ability that's mobile-optimized, probably to support the director in quickly making notes in a mostly-finished show. The idea being that they could sit in the audience with their phone, click through moments of the show passively, and then bring their phone up to talk into it, dictating a brief note that's attached to that moment without disrupting the scene or taking their eyes off the action.
+- **Platform super-admin (future SaaS)** — env-configured operator identity that can see across orgs / meta-org settings. Not designed; only relevant if multi-tenant SaaS happens. Today: one org per deployment.
 - **Dense UI / form architecture review** — Eventually audit pages with large tables, matrices, or charts so draft form/dialog state does not live on the same React component as the heavy tree (Lav chart keystroke lag, 2026-09-04). Aim for consistent, reusable patterns that stay snappy for a long show’s worth of data. Details in [UX_UI_IMPROVEMENTS.md](UX_UI_IMPROVEMENTS.md) Wish list.
 
 See also [SCRATCH_NOTES.md](SCRATCH_NOTES.md) for transient owner notes.

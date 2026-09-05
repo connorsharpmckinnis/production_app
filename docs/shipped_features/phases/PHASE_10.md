@@ -133,7 +133,7 @@ Four vertical slices:
         │  loopback only (preferred)
         ▼
 [Docker Compose]
-   frontend (dev :5173  or  preview nginx :80)
+   frontend (dev :5173  or  preview nginx :8080)
    backend  (:8000)
    db       (internal only)
 ```
@@ -295,8 +295,8 @@ Also cheap if it falls out of S1: centralize `_get_production_or_404` into share
 
 **Tasks**
 
-- [x] Fix `frontend/nginx.conf` `proxy_pass` so `/api/...` reaches the backend with the `/api` prefix intact
-- [x] Add Compose profile or override for frontend `target: prod`, port mapping suitable for Serve (`127.0.0.1:…:80`)
+- [x] Fix nginx `proxy_pass` so `/api/...` reaches the backend with the `/api` prefix intact (`nginx.conf.template` + runtime `BACKEND_UPSTREAM`)
+- [x] Add Compose profile or override for frontend `target: prod`, port mapping suitable for Serve (`127.0.0.1:8080:8080`, `$PORT`)
 - [x] Keep default `docker compose up -d --build` as Vite **dev** (no behavior surprise)
 - [x] Smoke script or documented curl: preview UI → `/api/health` and login
 - [ ] Optional: CI job that builds frontend `prod` and fails if nginx config is wrong (lightweight) — deferred
@@ -459,6 +459,7 @@ WP0 and WP1 can overlap. Do **not** advertise phone access as “safe for real s
 | 2026-07-21 | Defer cookie auth, multi-tenant isolation, non-root images, public hosting provisioning |
 | 2026-07-22 | Localhost-only testing OK without Tailscale on secondary machines; Tailscale runbook remains for the primary Mac |
 | 2026-07-22 | Phase 10 complete — single day-to-day path is Dev + Serve on **5173**; optional nginx preview retained for Tier B smoke |
+| 2026-09-05 | Frontend prod image: runtime `PORT` + `BACKEND_UPSTREAM` via envsubst; Cloud Run service name `theater-thing-frontend` (owner Console deploy) |
 
 
 ---

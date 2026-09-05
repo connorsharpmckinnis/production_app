@@ -4,7 +4,7 @@
 #   ./scripts/dev
 #   tailscale serve --bg 5173
 #
-# Use this only to smoke-test the production frontend image before a VPS:
+# Use this only to smoke-test the production frontend image (same shape as Cloud Run):
 #   docker compose down
 #   docker compose -f docker-compose.yml -f docker-compose.preview.yml up -d --build
 #   open http://127.0.0.1:8080
@@ -20,5 +20,8 @@ services:
     build:
       context: ./frontend
       target: prod
+    environment:
+      PORT: "8080"
+      BACKEND_UPSTREAM: http://backend:8000
     ports: !override
-      - "127.0.0.1:8080:80"
+      - "127.0.0.1:8080:8080"
