@@ -176,7 +176,7 @@ export default function AnnouncementManager({ productionId }: Props) {
   return (
     <section className="space-y-4 rounded-lg border border-border p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-sm font-medium">Announcements</h2>
+        <h2 className="text-lg font-semibold tracking-tight">Announcements</h2>
         <Button
           type="button"
           size="sm"

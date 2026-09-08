@@ -10,6 +10,7 @@ import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
 import type { SetPieceResponse } from "@/lib/types";
+import DetailPanelSkeleton from "@/components/DetailPanelSkeleton";
 
 interface SetPieceDetailPanelProps {
   setPieceId: number;
@@ -110,7 +111,7 @@ export default function SetPieceDetailPanel({ setPieceId }: SetPieceDetailPanelP
   useRegisterObjectDetailPanel(controllers);
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading…</p>;
+    return <DetailPanelSkeleton />;
   }
 
   if (error || piece == null) {

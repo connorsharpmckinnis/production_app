@@ -251,14 +251,9 @@ function StaffOverview({
         />
       )}
 
-      <section className="space-y-4">
+      <section className="space-y-4 rounded-lg bg-muted/20 p-4">
         <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <h2 className="text-sm font-medium">Prep readiness</h2>
-            <p className="text-sm text-muted-foreground">
-              Heuristic coverage from casting, costumes, cues, and catalogs — not a review checklist.
-            </p>
-          </div>
+          <h2 className="text-lg font-semibold tracking-tight">Prep Readiness</h2>
           <p className="text-3xl font-semibold tracking-tight" aria-label="Overall readiness">
             {readinessLabel}
           </p>
@@ -289,8 +284,8 @@ function StaffOverview({
 
       {canManagePreparation && <AnnouncementManager productionId={productionId} />}
 
-      <section>
-        <h2 className="mb-3 text-sm font-medium">Quick links</h2>
+      <section className="rounded-lg bg-muted/20 p-4">
+        <h2 className="mb-3 text-lg font-semibold tracking-tight">Quick links</h2>
         <div className="flex flex-wrap gap-2">
           <QuickLink to={`/productions/${productionId}/timeline`} label="Timeline" />
           {isAdmin && needsImport && (
@@ -299,9 +294,6 @@ function StaffOverview({
           <QuickLink to={`/productions/${productionId}/characters`} label="Characters" />
           <QuickLink to={`/productions/${productionId}/reports`} label="Reports" />
         </div>
-        <p className="mt-3 text-xs text-muted-foreground">
-          Catalogs and casting live in the production nav. Reports stay under Reports.
-        </p>
       </section>
     </div>
   );
@@ -354,8 +346,8 @@ function ActorOverview({
         error={peopleError}
       />
 
-      <section className="space-y-3">
-        <h2 className="text-sm font-medium">Your roles</h2>
+      <section className="space-y-3 rounded-lg bg-muted/20 p-4">
+        <h2 className="text-lg font-semibold tracking-tight">Your roles</h2>
         {rolesError ? (
           <p className="rounded-md border border-warning/40 bg-warning/10 px-3 py-2 text-sm text-foreground">
             The overview loaded, but your roles could not be loaded: {rolesError}
@@ -391,12 +383,24 @@ function ActorOverview({
         </Button>
       </div>
 
-      <section>
-        <h2 className="mb-3 text-sm font-medium">Coming soon</h2>
+      <section className="rounded-lg bg-muted/20 p-4">
+        <h2 className="mb-3 text-lg font-semibold tracking-tight">Shortcuts</h2>
         <div className="grid gap-2 sm:grid-cols-3">
-          <PlaceholderCard label="Your mic" />
-          <PlaceholderCard label="Notes for you" />
-          <PlaceholderCard label="Call sheet" />
+          <ShortcutCard
+            to={`/productions/${productionId}/rehearsals`}
+            label="Rehearsals"
+            description="Schedule and call sheets"
+          />
+          <ShortcutCard
+            to={`/productions/${productionId}/lav-chart`}
+            label="Lav chart"
+            description="Mic and pack assignments"
+          />
+          <ShortcutCard
+            to={`/productions/${productionId}/timeline?rehearse=1`}
+            label="Your lines"
+            description="Rehearse with notes on moments"
+          />
         </div>
       </section>
     </div>
@@ -448,6 +452,10 @@ function DimensionCard({
   );
 }
 
+function isLeadershipMember(person: ProductionMemberResponse): boolean {
+  return person.roles.some((role) => role.code === "director");
+}
+
 function PeopleRosterSection({
   productionId,
   people,
@@ -459,15 +467,12 @@ function PeopleRosterSection({
   loading: boolean;
   error: string | null;
 }) {
+  const leadership = people.filter(isLeadershipMember);
+
   return (
-    <section className="space-y-3">
+    <section className="space-y-3 rounded-lg bg-muted/20 p-4">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="text-sm font-medium">Production people</h2>
-          <p className="text-sm text-muted-foreground">
-            Active members and contact details for this production.
-          </p>
-        </div>
+        <h2 className="text-lg font-semibold tracking-tight">Leadership</h2>
         <Button asChild variant="outline" size="sm">
           <Link to={`/productions/${productionId}/people`}>Open People</Link>
         </Button>
@@ -477,17 +482,20 @@ function PeopleRosterSection({
           The roster could not be loaded: {error}
         </p>
       ) : loading ? (
-        <p className="text-sm text-muted-foreground">Loading production people…</p>
-      ) : people.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No active production members yet.</p>
+        <p className="text-sm text-muted-foreground">Loading leadership…</p>
+      ) : leadership.length === 0 ? (
+        <p className="text-sm text-muted-foreground">No directors listed yet.</p>
       ) : (
         <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-          {people.map((person) => (
+          {leadership.map((person) => (
             <div key={person.user_id} className="rounded-md border border-border bg-card px-3 py-2">
               <p className="text-sm font-medium">{person.display_name}</p>
               {person.email && (
                 <p className="truncate text-xs text-muted-foreground">{person.email}</p>
               )}
+              <p className="mt-1 text-xs text-muted-foreground">
+                {person.roles.map((role) => role.name).join(", ")}
+              </p>
             </div>
           ))}
         </div>
@@ -504,11 +512,22 @@ function QuickLink({ to, label }: { to: string; label: string }) {
   );
 }
 
-function PlaceholderCard({ label }: { label: string }) {
+function ShortcutCard({
+  to,
+  label,
+  description,
+}: {
+  to: string;
+  label: string;
+  description: string;
+}) {
   return (
-    <div className="rounded-md border border-dashed border-border px-3 py-3">
+    <Link
+      to={to}
+      className="rounded-md border border-border bg-card px-3 py-3 transition-colors hover:bg-muted/40"
+    >
       <p className="text-sm font-medium">{label}</p>
-      <p className="text-xs text-muted-foreground">Coming soon</p>
-    </div>
+      <p className="text-xs text-muted-foreground">{description}</p>
+    </Link>
   );
 }

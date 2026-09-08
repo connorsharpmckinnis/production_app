@@ -56,8 +56,9 @@ Organization accounts are separate from production access. Seeded Admin can see 
 ### 4. Rehearse like an actor
 
 1. Log in as `actor` after casting that user to a character.
-2. Open **Rehearse**. Try presets and **Blur my lines** (tap to reveal on touch devices).
-3. Preparation links stay collapsed under **Preparation** for actor-shaped accounts so Rehearse and Timeline stay primary.
+2. Open the production **Overview** — Shortcuts link to Rehearsals, Lav chart, and Your lines (not placeholder “Coming soon” cards).
+3. Open **Rehearse**. Try presets and **Blur my lines** (tap to reveal on touch devices).
+4. Preparation links stay collapsed under **Preparation** for actor-shaped accounts so Rehearse and Timeline stay primary.
 
 ### 5. Reports from the timeline (director)
 

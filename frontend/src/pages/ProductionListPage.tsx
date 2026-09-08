@@ -3,6 +3,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { ChevronRight, Trash2 } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
+import MobileListCard from "@/components/MobileListCard";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -104,29 +105,51 @@ export default function ProductionListPage() {
           actionTo={isAdmin ? "/productions/new" : undefined}
         />
       ) : (
-        <div className="rounded-lg border border-border">
-          <Table storageKey="productions">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Season</TableHead>
-                <TableHead>Status</TableHead>
-                <TableHead>Created</TableHead>
-                <TableHead className="text-right">
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {productions.map((production) => {
-                const ready = Boolean(production.author);
-                const href = productionHref(production);
-                const clickable = Boolean(href);
+        <>
+          <ul className="space-y-2 md:hidden">
+            {productions.map((production) => {
+              const ready = Boolean(production.author);
+              const href = productionHref(production);
+              const clickable = Boolean(href);
 
-                return (
-                  <TableRow
-                    key={production.id}
-                    className={cn(clickable && "cursor-pointer")}
+              return (
+                <MobileListCard
+                  key={production.id}
+                  className={cn(clickable && "cursor-pointer")}
+                  actions={
+                    <>
+                      {!ready && isAdmin && (
+                        <Button asChild variant="outline" size="sm">
+                          <Link to={`/productions/${production.id}/import`}>Import</Link>
+                        </Button>
+                      )}
+                      {isAdmin && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          disabled={deletingId === production.id}
+                          onClick={() => void handleDelete(production.id)}
+                          aria-label={`Delete ${production.title}`}
+                          title="Delete"
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 />
+                        </Button>
+                      )}
+                    </>
+                  }
+                >
+                  <div
+                    role={clickable ? "link" : undefined}
+                    tabIndex={clickable ? 0 : undefined}
+                    aria-label={
+                      clickable
+                        ? ready
+                          ? `Open ${production.title}`
+                          : `Import script for ${production.title}`
+                        : undefined
+                    }
                     onClick={() => {
                       if (href) navigate(href);
                     }}
@@ -137,54 +160,19 @@ export default function ProductionListPage() {
                         navigate(href);
                       }
                     }}
-                    tabIndex={clickable ? 0 : undefined}
-                    role={clickable ? "link" : undefined}
-                    aria-label={
-                      clickable
-                        ? ready
-                          ? `Open ${production.title}`
-                          : `Import script for ${production.title}`
-                        : undefined
-                    }
                   >
-                    <TableCell className="font-medium">{production.title}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {production.season ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      {ready ? (
-                        <Badge variant="secondary">Ready</Badge>
-                      ) : (
-                        <Badge variant="outline">Needs import</Badge>
-                      )}
-                    </TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {formatDate(production.created_at)}
-                    </TableCell>
-                    <TableCell className="text-right">
-                      <div
-                        className="flex items-center justify-end gap-1"
-                        onClick={(event) => event.stopPropagation()}
-                        onKeyDown={(event) => event.stopPropagation()}
-                      >
-                        {!ready && isAdmin && (
-                          <Button asChild variant="outline" size="sm">
-                            <Link to={`/productions/${production.id}/import`}>Import</Link>
-                          </Button>
-                        )}
-                        {isAdmin && (
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            disabled={deletingId === production.id}
-                            onClick={() => void handleDelete(production.id)}
-                            aria-label={`Delete ${production.title}`}
-                            title="Delete"
-                            className="text-destructive hover:text-destructive"
-                          >
-                            <Trash2 />
-                          </Button>
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="font-medium">{production.title}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {production.season ?? "No season"} · {formatDate(production.created_at)}
+                        </p>
+                      </div>
+                      <div className="flex shrink-0 items-center gap-1">
+                        {ready ? (
+                          <Badge variant="secondary">Ready</Badge>
+                        ) : (
+                          <Badge variant="outline">Needs import</Badge>
                         )}
                         {clickable && (
                           <ChevronRight
@@ -193,13 +181,110 @@ export default function ProductionListPage() {
                           />
                         )}
                       </div>
-                    </TableCell>
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+                    </div>
+                  </div>
+                </MobileListCard>
+              );
+            })}
+          </ul>
+
+          <div className="hidden rounded-lg border border-border md:block">
+            <Table storageKey="productions">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Season</TableHead>
+                  <TableHead>Status</TableHead>
+                  <TableHead>Created</TableHead>
+                  <TableHead className="text-right">
+                    <span className="sr-only">Actions</span>
+                  </TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {productions.map((production) => {
+                  const ready = Boolean(production.author);
+                  const href = productionHref(production);
+                  const clickable = Boolean(href);
+
+                  return (
+                    <TableRow
+                      key={production.id}
+                      className={cn(clickable && "cursor-pointer")}
+                      onClick={() => {
+                        if (href) navigate(href);
+                      }}
+                      onKeyDown={(event) => {
+                        if (!href) return;
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          navigate(href);
+                        }
+                      }}
+                      tabIndex={clickable ? 0 : undefined}
+                      role={clickable ? "link" : undefined}
+                      aria-label={
+                        clickable
+                          ? ready
+                            ? `Open ${production.title}`
+                            : `Import script for ${production.title}`
+                          : undefined
+                      }
+                    >
+                      <TableCell className="font-medium">{production.title}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {production.season ?? "—"}
+                      </TableCell>
+                      <TableCell>
+                        {ready ? (
+                          <Badge variant="secondary">Ready</Badge>
+                        ) : (
+                          <Badge variant="outline">Needs import</Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {formatDate(production.created_at)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <div
+                          className="flex items-center justify-end gap-1"
+                          onClick={(event) => event.stopPropagation()}
+                          onKeyDown={(event) => event.stopPropagation()}
+                        >
+                          {!ready && isAdmin && (
+                            <Button asChild variant="outline" size="sm">
+                              <Link to={`/productions/${production.id}/import`}>Import</Link>
+                            </Button>
+                          )}
+                          {isAdmin && (
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              disabled={deletingId === production.id}
+                              onClick={() => void handleDelete(production.id)}
+                              aria-label={`Delete ${production.title}`}
+                              title="Delete"
+                              className="text-destructive hover:text-destructive"
+                            >
+                              <Trash2 />
+                            </Button>
+                          )}
+                          {clickable && (
+                            <ChevronRight
+                              className="size-4 text-muted-foreground"
+                              aria-hidden
+                            />
+                          )}
+                        </div>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
     </div>
   );

@@ -253,7 +253,7 @@ function MomentRow({
       </span>
 
       <div
-        className="flex shrink-0 flex-wrap justify-end gap-1 self-start max-sm:flex-nowrap"
+        className="flex max-w-full shrink-0 flex-wrap justify-end gap-1 self-start"
         onClick={(event) => event.stopPropagation()}
       >
         {prepBadges.map((badge, index) => (

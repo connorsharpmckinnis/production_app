@@ -18,6 +18,7 @@ import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
 import type { CharacterDetailResponse, CostumeResponse } from "@/lib/types";
 import { sortByName } from "@/lib/utils";
+import DetailPanelSkeleton from "@/components/DetailPanelSkeleton";
 
 interface CostumeDetailPanelProps {
   costumeId: number;
@@ -127,7 +128,7 @@ export default function CostumeDetailPanel({ costumeId }: CostumeDetailPanelProp
   useRegisterObjectDetailPanel(controllers);
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading…</p>;
+    return <DetailPanelSkeleton />;
   }
 
   if (error || costume == null) {

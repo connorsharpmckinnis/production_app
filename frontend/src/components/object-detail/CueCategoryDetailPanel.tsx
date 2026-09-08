@@ -9,6 +9,7 @@ import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
 import type { CueCategoryResponse } from "@/lib/types";
+import DetailPanelSkeleton from "@/components/DetailPanelSkeleton";
 
 interface CueCategoryDetailPanelProps {
   categoryId: number;
@@ -105,7 +106,7 @@ export default function CueCategoryDetailPanel({
   useRegisterObjectDetailPanel(controllers);
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading…</p>;
+    return <DetailPanelSkeleton />;
   }
 
   if (error || category == null) {

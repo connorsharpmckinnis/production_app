@@ -100,7 +100,7 @@ export default function ObjectDetailHost() {
           side={isLargeScreen ? "right" : "bottom"}
           className={cn(
             "flex flex-col gap-4 overflow-hidden",
-            isLargeScreen ? "sm:max-w-none" : "max-h-[70vh]",
+            isLargeScreen ? "sm:max-w-none" : "h-dvh max-h-dvh inset-x-0",
           )}
           style={
             isLargeScreen

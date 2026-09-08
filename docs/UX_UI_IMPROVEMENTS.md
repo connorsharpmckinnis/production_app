@@ -2,7 +2,7 @@
 
 **Purpose:** Candidate polish before sharing the app with the theater group for real-world consideration. This is a working inventory — not committed scope. Items come from owner scratch notes, the product wish list, phase docs, UI standards, and a pass over the current frontend.
 
-**Last updated:** 2026-09-04
+**Last updated:** 2026-09-08
 
 **Related docs:** [SCRATCH_NOTES.md](SCRATCH_NOTES.md), [PROJECT.md](PROJECT.md) Wish List, [UI_STANDARDS.md](UI_STANDARDS.md), [PHASE_6.md](PHASE_6.md), [DEMO_WALKTHROUGH.md](DEMO_WALKTHROUGH.md), [PERFORMANCE.md](PERFORMANCE.md) (API/DB latency — separate from UI polish)
 
@@ -13,6 +13,8 @@
 **Progress (2026-08-13):** Timeline + Rehearse live search (debounce ~275ms); Timeline multi-select character filter (OR). Prop/cue multi-select still open. **Owner-approved 2026-08-14.**
 
 **Progress (2026-08-26):** Admin-editable About page (Markdown + image upload); Settings layout aligned with other pages; main content bottom padding doubled.
+
+**Progress (2026-09-08):** Pre-meeting tight polish — actor Overview “Coming soon” → real Shortcuts (Rehearsals, Lav chart, Your lines); softened SlowLoadNotice + Reports “prototype” copy; Productions list uses MobileListCard on narrow viewports.
 
 ---
 
@@ -227,8 +229,8 @@ These are already captured in [PROJECT.md](PROJECT.md) and [SCRATCH_NOTES.md](SC
 | Area | Highest-signal ideas |
 | ---- | -------------------- |
 | **App shell** | Actor-simplified prep nav; Import when empty; bookmarks deep-link; breadcrumb consistency; role badge vs long “(roles)” text; collapsible Preparation/Reports (session persist); Admin Act-as banner |
-| **Productions list** | Status chip; icon Delete; row Open; AlertDialog; table overflow |
-| **Overview** | Rehearse + Import + next-step CTAs; cast progress |
+| **Productions list** | Status chip; icon Delete; row Open; AlertDialog; MobileListCard on narrow viewports |
+| **Overview** | Rehearse + Import + next-step CTAs; cast progress; actor Shortcuts (not Coming soon) |
 | **Timeline** | Clear filters; live search; character multi-select; defaults on insert; skeletons; mobile filter sheet; tooltips |
 | **Rehearse** | Touch blur; compact toggles; jump-to-next-line; preset dropdown clarity; localStorage |
 | **Moment detail** | Collapse empties; confirm delete/detach; spacing; visibility copy; catalog-empty hints; costumes explanation |

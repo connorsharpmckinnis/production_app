@@ -343,109 +343,189 @@ export default function RehearsalsPage() {
           onAction={canManagePreparation ? openCreateDialog : undefined}
         />
       ) : (
-        <div className="rounded-lg border border-border">
-          <Table storageKey="rehearsals">
-            <TableHeader>
-              <TableRow>
-                <TableHead>When</TableHead>
-                <TableHead>Title</TableHead>
-                <TableHead>Kind</TableHead>
-                <TableHead>Location</TableHead>
-                <TableHead>Status</TableHead>
-                {canManagePreparation && <TableHead>Blocks</TableHead>}
-                {canManagePreparation && <TableHead>Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedRehearsals.map((rehearsal) => {
-                const draftForActor =
-                  !canManagePreparation && !isPublishedStatus(rehearsal.status);
-                const titleLabel = rehearsal.title?.trim() || formatDateTime(rehearsal.starts_at);
-                return (
-                  <TableRow
-                    key={rehearsal.id}
-                    className={cn(
-                      "cursor-pointer",
-                      draftForActor && "bg-muted/30",
-                    )}
-                    onClick={() => openRehearsal(rehearsal.id)}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        openRehearsal(rehearsal.id);
-                      }
-                    }}
-                    tabIndex={0}
-                    role="link"
-                    aria-label={`Open ${titleLabel}`}
-                  >
-                    <TableCell className="whitespace-nowrap font-medium">
-                      {formatDateTime(rehearsal.starts_at)}
-                      <div className="text-xs font-normal text-muted-foreground">
-                        until {formatTime(rehearsal.ends_at)}
-                      </div>
+        <>
+          <ul className="space-y-2 md:hidden">
+            {sortedRehearsals.map((rehearsal) => {
+              const draftForActor =
+                !canManagePreparation && !isPublishedStatus(rehearsal.status);
+              const titleLabel = rehearsal.title?.trim() || formatDateTime(rehearsal.starts_at);
+              return (
+                <li
+                  key={rehearsal.id}
+                  role="link"
+                  tabIndex={0}
+                  aria-label={`Open ${titleLabel}`}
+                  className={cn(
+                    "cursor-pointer rounded-lg border border-border px-4 py-3 transition-colors hover:bg-muted/40",
+                    draftForActor && "bg-muted/30",
+                  )}
+                  onClick={() => openRehearsal(rehearsal.id)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      openRehearsal(rehearsal.id);
+                    }
+                  }}
+                >
+                  <div className="flex flex-wrap items-start justify-between gap-2">
+                    <div className="min-w-0">
+                      <p className="font-medium">{titleLabel}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {formatDateTime(rehearsal.starts_at)} – {formatTime(rehearsal.ends_at)}
+                        {rehearsal.location_name ? ` · ${rehearsal.location_name}` : ""}
+                      </p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {kindLabel(rehearsal.kind)}
+                        {canManagePreparation ? ` · ${rehearsal.block_count} blocks` : ""}
+                      </p>
                       {draftForActor && (
                         <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-400">
                           Draft — not published yet
                         </p>
                       )}
-                    </TableCell>
-                    <TableCell>{rehearsal.title ? rehearsal.title : "—"}</TableCell>
-                    <TableCell>{kindLabel(rehearsal.kind)}</TableCell>
-                    <TableCell className="text-muted-foreground">
-                      {rehearsal.location_name ?? "—"}
-                    </TableCell>
-                    <TableCell>
-                      <Badge variant={statusBadgeVariant(rehearsal.status)}>
-                        {statusLabel(rehearsal.status)}
-                      </Badge>
-                    </TableCell>
-                    {canManagePreparation && (
-                      <TableCell className="text-muted-foreground">
-                        {rehearsal.block_count}
-                      </TableCell>
-                    )}
-                    {canManagePreparation && (
-                      <TableCell>
-                        <div
-                          className="flex items-center justify-end gap-1"
-                          onClick={(event) => event.stopPropagation()}
-                          onKeyDown={(event) => event.stopPropagation()}
-                        >
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => openEditDialog(rehearsal)}
-                            aria-label="Edit rehearsal"
-                            title="Edit"
-                            disabled={rehearsal.status === "completed"}
-                          >
-                            <Pencil />
-                          </Button>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            onClick={() => void handleDelete(rehearsal)}
-                            aria-label="Delete rehearsal"
-                            title="Delete"
-                          >
-                            <Trash2 />
-                          </Button>
-                          <ChevronRight
-                            className="size-4 text-muted-foreground"
-                            aria-hidden
-                          />
+                    </div>
+                    <Badge variant={statusBadgeVariant(rehearsal.status)}>
+                      {statusLabel(rehearsal.status)}
+                    </Badge>
+                  </div>
+                  {canManagePreparation && (
+                    <div
+                      className="mt-3 flex items-center justify-end gap-1"
+                      onClick={(event) => event.stopPropagation()}
+                      onKeyDown={(event) => event.stopPropagation()}
+                    >
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => openEditDialog(rehearsal)}
+                        aria-label="Edit rehearsal"
+                        title="Edit"
+                        disabled={rehearsal.status === "completed"}
+                      >
+                        <Pencil />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => void handleDelete(rehearsal)}
+                        aria-label="Delete rehearsal"
+                        title="Delete"
+                      >
+                        <Trash2 />
+                      </Button>
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+
+          <div className="hidden rounded-lg border border-border md:block">
+            <Table storageKey="rehearsals">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>When</TableHead>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Kind</TableHead>
+                  <TableHead>Location</TableHead>
+                  <TableHead>Status</TableHead>
+                  {canManagePreparation && <TableHead>Blocks</TableHead>}
+                  {canManagePreparation && <TableHead>Actions</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {sortedRehearsals.map((rehearsal) => {
+                  const draftForActor =
+                    !canManagePreparation && !isPublishedStatus(rehearsal.status);
+                  const titleLabel = rehearsal.title?.trim() || formatDateTime(rehearsal.starts_at);
+                  return (
+                    <TableRow
+                      key={rehearsal.id}
+                      className={cn(
+                        "cursor-pointer",
+                        draftForActor && "bg-muted/30",
+                      )}
+                      onClick={() => openRehearsal(rehearsal.id)}
+                      onKeyDown={(event) => {
+                        if (event.key === "Enter" || event.key === " ") {
+                          event.preventDefault();
+                          openRehearsal(rehearsal.id);
+                        }
+                      }}
+                      tabIndex={0}
+                      role="link"
+                      aria-label={`Open ${titleLabel}`}
+                    >
+                      <TableCell className="whitespace-nowrap font-medium">
+                        {formatDateTime(rehearsal.starts_at)}
+                        <div className="text-xs font-normal text-muted-foreground">
+                          until {formatTime(rehearsal.ends_at)}
                         </div>
+                        {draftForActor && (
+                          <p className="mt-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+                            Draft — not published yet
+                          </p>
+                        )}
                       </TableCell>
-                    )}
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+                      <TableCell>{rehearsal.title ? rehearsal.title : "—"}</TableCell>
+                      <TableCell>{kindLabel(rehearsal.kind)}</TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {rehearsal.location_name ?? "—"}
+                      </TableCell>
+                      <TableCell>
+                        <Badge variant={statusBadgeVariant(rehearsal.status)}>
+                          {statusLabel(rehearsal.status)}
+                        </Badge>
+                      </TableCell>
+                      {canManagePreparation && (
+                        <TableCell className="text-muted-foreground">
+                          {rehearsal.block_count}
+                        </TableCell>
+                      )}
+                      {canManagePreparation && (
+                        <TableCell>
+                          <div
+                            className="flex items-center justify-end gap-1"
+                            onClick={(event) => event.stopPropagation()}
+                            onKeyDown={(event) => event.stopPropagation()}
+                          >
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => openEditDialog(rehearsal)}
+                              aria-label="Edit rehearsal"
+                              title="Edit"
+                              disabled={rehearsal.status === "completed"}
+                            >
+                              <Pencil />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              onClick={() => void handleDelete(rehearsal)}
+                              aria-label="Delete rehearsal"
+                              title="Delete"
+                            >
+                              <Trash2 />
+                            </Button>
+                            <ChevronRight
+                              className="size-4 text-muted-foreground"
+                              aria-hidden
+                            />
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
 
       <Dialog

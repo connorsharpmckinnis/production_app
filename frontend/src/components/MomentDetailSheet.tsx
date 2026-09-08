@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import DetailPanelSkeleton from "@/components/DetailPanelSkeleton";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import MomentDetailPanel, {
   type MomentDetailPanelHandle,
@@ -80,7 +81,10 @@ export default function MomentDetailSheet({
     >
       <SheetContent
         side={isLargeScreen ? "right" : "bottom"}
-        className={cn("overflow-y-auto", isLargeScreen ? "sm:max-w-none" : "max-h-[70vh]")}
+        className={cn(
+          "overflow-y-auto",
+          isLargeScreen ? "sm:max-w-none" : "h-dvh max-h-dvh inset-x-0",
+        )}
         style={
           isLargeScreen
             ? { width: detailPanelWidth, maxWidth: detailPanelWidth }
@@ -135,7 +139,7 @@ export default function MomentDetailSheet({
             onChanged={onChanged}
           />
         ) : (
-          <p className="text-sm text-muted-foreground">Loading moment detail…</p>
+          <DetailPanelSkeleton />
         )}
       </SheetContent>
     </Sheet>

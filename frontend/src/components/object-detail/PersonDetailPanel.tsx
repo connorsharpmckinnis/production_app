@@ -11,6 +11,7 @@ import type {
   ProductionMemberResponse,
   ProductionRoleSummary,
 } from "@/lib/types";
+import DetailPanelSkeleton from "@/components/DetailPanelSkeleton";
 
 interface PersonDetailPanelProps {
   userId: number;
@@ -125,7 +126,7 @@ export default function PersonDetailPanel({ userId }: PersonDetailPanelProps) {
   useRegisterObjectDetailPanel(controllers);
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading…</p>;
+    return <DetailPanelSkeleton />;
   }
 
   if (error || person == null) {

@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import CatalogCsvImport from "@/components/CatalogCsvImport";
+import MobileListCard from "@/components/MobileListCard";
 import ObjectLink from "@/components/object-detail/ObjectLink";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -211,69 +212,127 @@ export default function CostumesPage() {
           onAction={canManagePreparation ? openCreateDialog : undefined}
         />
       ) : (
-        <div className="rounded-lg border border-border">
-          <Table storageKey="costumes">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Character</TableHead>
-                <TableHead>Costume</TableHead>
-                <TableHead>Description</TableHead>
-                {canManagePreparation && <TableHead>Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {costumes.map((costume) => (
-                <TableRow key={costume.id}>
-                  <TableCell className="font-medium">
-                    <ObjectLink
-                      objectType="character"
-                      objectId={costume.character_id}
-                      label={costume.character_name}
-                    />
-                  </TableCell>
-                  <TableCell className="font-medium">
-                    <ObjectLink
-                      objectType="costume"
-                      objectId={costume.id}
-                      label={costume.name}
-                    />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {costume.description ?? "—"}
-                  </TableCell>
-                  {canManagePreparation && (
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => openEditDialog(costume)}
-                          aria-label={`Edit ${costume.name}`}
-                          title="Edit"
-                        >
-                          <Pencil />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          disabled={saving}
-                          onClick={() => void handleDelete(costume.id)}
-                          aria-label={`Delete ${costume.name}`}
-                          title="Delete"
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  )}
+        <>
+          <ul className="space-y-2 md:hidden">
+            {costumes.map((costume) => (
+              <MobileListCard
+                key={costume.id}
+                actions={
+                  canManagePreparation ? (
+                    <>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => openEditDialog(costume)}
+                        aria-label={`Edit ${costume.name}`}
+                        title="Edit"
+                      >
+                        <Pencil />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={saving}
+                        onClick={() => void handleDelete(costume.id)}
+                        aria-label={`Delete ${costume.name}`}
+                        title="Delete"
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 />
+                      </Button>
+                    </>
+                  ) : undefined
+                }
+              >
+                <p className="font-medium">
+                  <ObjectLink
+                    objectType="costume"
+                    objectId={costume.id}
+                    label={costume.name}
+                  />
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  <ObjectLink
+                    objectType="character"
+                    objectId={costume.character_id}
+                    label={costume.character_name}
+                  />
+                </p>
+                {costume.description && (
+                  <p className="line-clamp-2 text-xs text-muted-foreground">
+                    {costume.description}
+                  </p>
+                )}
+              </MobileListCard>
+            ))}
+          </ul>
+
+          <div className="hidden rounded-lg border border-border md:block">
+            <Table storageKey="costumes">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Character</TableHead>
+                  <TableHead>Costume</TableHead>
+                  <TableHead>Description</TableHead>
+                  {canManagePreparation && <TableHead>Actions</TableHead>}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {costumes.map((costume) => (
+                  <TableRow key={costume.id}>
+                    <TableCell className="font-medium">
+                      <ObjectLink
+                        objectType="character"
+                        objectId={costume.character_id}
+                        label={costume.character_name}
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium">
+                      <ObjectLink
+                        objectType="costume"
+                        objectId={costume.id}
+                        label={costume.name}
+                      />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {costume.description ?? "—"}
+                    </TableCell>
+                    {canManagePreparation && (
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => openEditDialog(costume)}
+                            aria-label={`Edit ${costume.name}`}
+                            title="Edit"
+                          >
+                            <Pencil />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            disabled={saving}
+                            onClick={() => void handleDelete(costume.id)}
+                            aria-label={`Delete ${costume.name}`}
+                            title="Delete"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
 
       <Dialog

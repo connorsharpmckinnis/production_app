@@ -1,4 +1,5 @@
 import { Navigate, Outlet } from "react-router-dom";
+import SlowLoadNotice from "@/components/SlowLoadNotice";
 import { useAuth } from "@/context/AuthContext";
 
 interface ProtectedRouteProps {
@@ -11,11 +12,7 @@ export default function ProtectedRoute({
   const { user, loading, isAdmin } = useAuth();
 
   if (loading) {
-    return (
-      <div className="flex min-h-screen items-center justify-center text-muted-foreground">
-        Loading…
-      </div>
-    );
+    return <SlowLoadNotice fullPage />;
   }
 
   if (!user) {
