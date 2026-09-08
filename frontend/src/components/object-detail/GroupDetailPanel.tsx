@@ -11,6 +11,7 @@ import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
 import type { CharacterDetailResponse, GroupResponse } from "@/lib/types";
 import { sortByName } from "@/lib/utils";
+import DetailPanelSkeleton from "@/components/DetailPanelSkeleton";
 
 interface GroupDetailPanelProps {
   groupId: number;
@@ -115,7 +116,7 @@ export default function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
   useRegisterObjectDetailPanel(controllers);
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading…</p>;
+    return <DetailPanelSkeleton />;
   }
 
   if (error || group == null) {

@@ -4,6 +4,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import CatalogCsvImport from "@/components/CatalogCsvImport";
+import MobileListCard from "@/components/MobileListCard";
 import ObjectLink from "@/components/object-detail/ObjectLink";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -216,61 +217,112 @@ export default function CueCategoriesPage() {
           onAction={canManagePreparation ? openCreateDialog : undefined}
         />
       ) : (
-        <div className="rounded-lg border border-border">
-          <Table storageKey="cue-categories">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Description</TableHead>
-                {canManagePreparation && <TableHead>Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {categories.map((category) => (
-                <TableRow key={category.id}>
-                  <TableCell className="font-medium">
-                    <ObjectLink
-                      objectType="cue_category"
-                      objectId={category.id}
-                      label={category.name}
-                    />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {category.description ?? "—"}
-                  </TableCell>
-                  {canManagePreparation && (
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => openEditDialog(category)}
-                          aria-label={`Edit ${category.name}`}
-                          title="Edit"
-                        >
-                          <Pencil />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          disabled={saving}
-                          onClick={() => void handleDelete(category.id)}
-                          aria-label={`Delete ${category.name}`}
-                          title="Delete"
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  )}
+        <>
+          <ul className="space-y-2 md:hidden">
+            {categories.map((category) => (
+              <MobileListCard
+                key={category.id}
+                actions={
+                  canManagePreparation ? (
+                    <>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => openEditDialog(category)}
+                        aria-label={`Edit ${category.name}`}
+                        title="Edit"
+                      >
+                        <Pencil />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={saving}
+                        onClick={() => void handleDelete(category.id)}
+                        aria-label={`Delete ${category.name}`}
+                        title="Delete"
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 />
+                      </Button>
+                    </>
+                  ) : undefined
+                }
+              >
+                <p className="font-medium">
+                  <ObjectLink
+                    objectType="cue_category"
+                    objectId={category.id}
+                    label={category.name}
+                  />
+                </p>
+                {category.description && (
+                  <p className="line-clamp-2 text-sm text-muted-foreground">
+                    {category.description}
+                  </p>
+                )}
+              </MobileListCard>
+            ))}
+          </ul>
+
+          <div className="hidden rounded-lg border border-border md:block">
+            <Table storageKey="cue-categories">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Description</TableHead>
+                  {canManagePreparation && <TableHead>Actions</TableHead>}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {categories.map((category) => (
+                  <TableRow key={category.id}>
+                    <TableCell className="font-medium">
+                      <ObjectLink
+                        objectType="cue_category"
+                        objectId={category.id}
+                        label={category.name}
+                      />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {category.description ?? "—"}
+                    </TableCell>
+                    {canManagePreparation && (
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => openEditDialog(category)}
+                            aria-label={`Edit ${category.name}`}
+                            title="Edit"
+                          >
+                            <Pencil />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            disabled={saving}
+                            onClick={() => void handleDelete(category.id)}
+                            aria-label={`Delete ${category.name}`}
+                            title="Delete"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
 
       <Dialog

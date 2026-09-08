@@ -1,6 +1,32 @@
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useParams } from "react-router-dom";
-import { ChevronRight } from "lucide-react";
+import {
+  ArrowLeft,
+  BrickWall,
+  Calendar,
+  ChartArea,
+  ChevronRight,
+  Drama,
+  FileUp,
+  Info,
+  LayoutDashboard,
+  Shapes,
+  Mic,
+  Music,
+  PanelLeft,
+  PanelLeftClose,
+  Scroll,
+  Settings,
+  Shirt,
+  Spotlight,
+  Swords,
+  User,
+  UserRoundCog,
+  UsersRound,
+  VenetianMask,
+  X,
+  type LucideIcon,
+} from "lucide-react";
 import ActAsDialog from "@/components/ActAsDialog";
 import { AppMark } from "@/components/AppMark";
 import FeedbackDialog from "@/components/FeedbackDialog";
@@ -21,19 +47,73 @@ import {
   useProductionAccess,
 } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
+import { useIsMediumScreen } from "@/hooks/useIsMediumScreen";
 import { api, formatApiError } from "@/lib/api";
 import { getLastProduction, rememberLastProduction } from "@/lib/lastProduction";
 import { readSessionNavOpen, writeSessionNavOpen } from "@/lib/sessionNavOpen";
+import {
+  readSidebarCollapsed,
+  writeSidebarCollapsed,
+} from "@/lib/sidebarCollapsed";
 import { humanTimelinePath } from "@/lib/timelineDeepLinks";
 import { cn } from "@/lib/utils";
 
-const navLinkClass = ({ isActive }: { isActive: boolean }) =>
-  cn(
-    "block rounded-md px-3 py-2 text-sm font-medium outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring",
-    isActive
-      ? "bg-primary text-primary-foreground"
-      : "text-muted-foreground hover:bg-muted hover:text-foreground",
+const NAV_ICON_CLASS = "size-5 shrink-0";
+
+function SidebarNavLink({
+  to,
+  end,
+  label,
+  icon: Icon,
+  collapsed,
+  onNavigate,
+}: {
+  to: string;
+  end?: boolean;
+  label: string;
+  icon: LucideIcon;
+  collapsed: boolean;
+  onNavigate?: () => void;
+}) {
+  return (
+    <NavLink
+      to={to}
+      end={end}
+      title={collapsed ? label : undefined}
+      aria-label={label}
+      onClick={onNavigate}
+      className={({ isActive }) =>
+        cn(
+          "flex items-center rounded-md text-sm font-medium outline-none transition-colors focus-visible:ring-1 focus-visible:ring-ring",
+          collapsed ? "justify-center px-2 py-2.5" : "gap-2.5 px-3 py-2",
+          isActive
+            ? "bg-primary text-primary-foreground"
+            : "text-muted-foreground hover:bg-muted hover:text-foreground",
+        )
+      }
+    >
+      <Icon className={NAV_ICON_CLASS} strokeWidth={2} aria-hidden />
+      {!collapsed && <span className="truncate">{label}</span>}
+    </NavLink>
   );
+}
+
+function SidebarSectionLabel({
+  label,
+  collapsed,
+}: {
+  label: string;
+  collapsed: boolean;
+}) {
+  if (collapsed) {
+    return <div className="my-2 border-t border-border" role="separator" aria-label={label} />;
+  }
+  return (
+    <div className="pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      {label}
+    </div>
+  );
+}
 
 const sectionSummaryClass =
   "flex cursor-pointer list-none items-center gap-1 rounded-md pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground outline-none marker:content-none focus-visible:ring-1 focus-visible:ring-ring [&::-webkit-details-marker]:hidden";
@@ -54,14 +134,20 @@ function CollapsibleNavSection({
   storageKey,
   defaultOpen,
   title,
+  collapsed,
   children,
 }: {
   storageKey: string;
   defaultOpen: boolean;
   title: string;
+  collapsed: boolean;
   children: ReactNode;
 }) {
   const [open, setOpen] = useState(() => readSessionNavOpen(storageKey, defaultOpen));
+
+  if (collapsed) {
+    return <div className="space-y-1">{children}</div>;
+  }
 
   return (
     <details
@@ -98,7 +184,9 @@ function AppShellInner() {
   const toast = useToast();
   const { id: productionId } = useParams();
   const location = useLocation();
+  const isMediumScreen = useIsMediumScreen();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(() => readSidebarCollapsed(false));
   const [menuOpen, setMenuOpen] = useState(false);
   const [productionTitle, setProductionTitle] = useState<string | null>(null);
   const [productionHasScript, setProductionHasScript] = useState(true);
@@ -122,6 +210,20 @@ function AppShellInner() {
     Boolean(access?.role_codes.includes("actor")) &&
     !access?.role_codes.includes("director") &&
     !isAdmin;
+  // Icon-only rail on desktop when collapsed; mobile drawer always shows labels.
+  const navCollapsed = sidebarCollapsed && isMediumScreen;
+
+  function closeMobileNav() {
+    setSidebarOpen(false);
+  }
+
+  function toggleSidebarCollapsed() {
+    setSidebarCollapsed((prev) => {
+      const next = !prev;
+      writeSidebarCollapsed(next);
+      return next;
+    });
+  }
 
   useEffect(() => {
     if (!productionId) {
@@ -163,87 +265,87 @@ function AppShellInner() {
   const preparationLinks = productionId ? (
     <>
       {canRead("people") && (
-        <NavLink
+        <SidebarNavLink
           to={`/productions/${productionId}/people`}
-          className={navLinkClass}
-          onClick={() => setSidebarOpen(false)}
-        >
-          People
-        </NavLink>
+          label="People"
+          icon={UsersRound}
+          collapsed={navCollapsed}
+          onNavigate={closeMobileNav}
+        />
       )}
       {canRead("characters") && (
-        <NavLink
+        <SidebarNavLink
           to={`/productions/${productionId}/characters`}
-          className={navLinkClass}
-          onClick={() => setSidebarOpen(false)}
-        >
-          Characters
-        </NavLink>
+          label="Characters"
+          icon={VenetianMask}
+          collapsed={navCollapsed}
+          onNavigate={closeMobileNav}
+        />
       )}
       {canRead("songs") && (
-        <NavLink
+        <SidebarNavLink
           to={`/productions/${productionId}/songs`}
-          className={navLinkClass}
-          onClick={() => setSidebarOpen(false)}
-        >
-          Songs
-        </NavLink>
+          label="Songs"
+          icon={Music}
+          collapsed={navCollapsed}
+          onNavigate={closeMobileNav}
+        />
       )}
       {canRead("props") && (
-        <NavLink
+        <SidebarNavLink
           to={`/productions/${productionId}/props`}
-          className={navLinkClass}
-          onClick={() => setSidebarOpen(false)}
-        >
-          Props
-        </NavLink>
+          label="Props"
+          icon={Swords}
+          collapsed={navCollapsed}
+          onNavigate={closeMobileNav}
+        />
       )}
       {canRead("costumes") && (
-        <NavLink
+        <SidebarNavLink
           to={`/productions/${productionId}/costumes`}
-          className={navLinkClass}
-          onClick={() => setSidebarOpen(false)}
-        >
-          Costumes
-        </NavLink>
+          label="Costumes"
+          icon={Shirt}
+          collapsed={navCollapsed}
+          onNavigate={closeMobileNav}
+        />
       )}
       {canRead("lav_chart") && (
-        <NavLink
+        <SidebarNavLink
           to={`/productions/${productionId}/lav-chart`}
-          className={navLinkClass}
-          onClick={() => setSidebarOpen(false)}
-        >
-          Lav chart
-        </NavLink>
+          label="Lav chart"
+          icon={Mic}
+          collapsed={navCollapsed}
+          onNavigate={closeMobileNav}
+        />
       )}
       {canRead("set_pieces") && (
-        <NavLink
+        <SidebarNavLink
           to={`/productions/${productionId}/set-pieces`}
-          className={navLinkClass}
-          onClick={() => setSidebarOpen(false)}
-        >
-          Set Pieces
-        </NavLink>
+          label="Set Pieces"
+          icon={BrickWall}
+          collapsed={navCollapsed}
+          onNavigate={closeMobileNav}
+        />
       )}
       {(canRead("groups") || canRead("cue_categories")) && (
         <>
           {canRead("groups") && (
-            <NavLink
+            <SidebarNavLink
               to={`/productions/${productionId}/groups`}
-              className={navLinkClass}
-              onClick={() => setSidebarOpen(false)}
-            >
-              Groups
-            </NavLink>
+              label="Groups"
+              icon={Shapes}
+              collapsed={navCollapsed}
+              onNavigate={closeMobileNav}
+            />
           )}
           {canRead("cue_categories") && (
-            <NavLink
+            <SidebarNavLink
               to={`/productions/${productionId}/cue-categories`}
-              className={navLinkClass}
-              onClick={() => setSidebarOpen(false)}
-            >
-              Cue Categories
-            </NavLink>
+              label="Cue Categories"
+              icon={Spotlight}
+              collapsed={navCollapsed}
+              onNavigate={closeMobileNav}
+            />
           )}
         </>
       )}
@@ -259,26 +361,31 @@ function AppShellInner() {
         Skip to content
       </a>
 
-      <header className="app-shell-header flex h-14 items-center justify-between border-b border-border px-4">
-        <div className="flex min-w-0 items-center gap-3">
+      <header className="app-shell-header relative z-40 flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border bg-background px-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <Button
             type="button"
             variant="ghost"
             size="icon"
-            className="text-muted-foreground md:hidden"
+            className="shrink-0 text-muted-foreground md:hidden"
             onClick={() => setSidebarOpen((open) => !open)}
-            aria-label="Toggle navigation"
+            aria-label={sidebarOpen ? "Close navigation" : "Open navigation"}
+            aria-expanded={sidebarOpen}
           >
-            <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-            </svg>
+            {sidebarOpen ? (
+              <X className="h-5 w-5" aria-hidden />
+            ) : (
+              <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden>
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+              </svg>
+            )}
           </Button>
           <Link
             to="/productions"
-            className="flex shrink-0 items-center gap-2 text-lg font-semibold tracking-tight"
+            className="flex min-w-0 items-center gap-2 text-lg font-semibold tracking-tight"
           >
-            <AppMark className="h-6 w-6" />
-            The Theater Thing
+            <AppMark className="h-6 w-6 shrink-0" />
+            <span className="truncate">The Theater Thing</span>
           </Link>
           {productionId && displayProductionTitle && (
             <>
@@ -295,19 +402,21 @@ function AppShellInner() {
           )}
         </div>
 
-        <div className="flex items-center gap-1">
+        <div className="flex shrink-0 items-center gap-1">
           <NotificationBell />
           <div className="relative">
             <Button
               type="button"
               variant="ghost"
-              className="h-9 gap-2 px-3 font-normal"
+              className="h-9 gap-2 px-2 font-normal md:px-3"
               onClick={() => setMenuOpen((open) => !open)}
+              aria-label="Open account menu"
             >
-              <span>
+              <User className="h-5 w-5 shrink-0 md:hidden" aria-hidden />
+              <span className="hidden md:inline">
                 {user?.first_name} {user?.last_name}
               </span>
-              <span className="hidden items-center gap-1 sm:flex">
+              <span className="hidden items-center gap-1 md:flex">
                 {user?.roles.map((role) => (
                   <Badge key={role} variant="secondary" className="text-[10px] font-normal">
                     {role}
@@ -479,79 +588,135 @@ function AppShellInner() {
         </div>
       )}
 
-      <div className="flex min-h-0 flex-1 overflow-hidden">
+      <div className="relative flex min-h-0 min-w-0 flex-1 overflow-hidden">
+        {sidebarOpen && (
+          <button
+            type="button"
+            className="app-shell-overlay fixed inset-0 top-14 z-30 bg-black/50 md:hidden"
+            aria-label="Close sidebar"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+
         <aside
           className={cn(
-            "app-shell-sidebar w-56 shrink-0 overflow-y-auto border-r border-border bg-card p-3",
-            "fixed inset-y-14 left-0 z-30 transition-transform md:static md:translate-x-0",
+            "app-shell-sidebar shrink-0 overflow-y-auto border-r border-border bg-card",
+            "fixed inset-y-14 left-0 z-40 transition-[transform,width] md:static md:translate-x-0",
+            navCollapsed ? "w-16 p-2" : "w-56 p-3",
             sidebarOpen ? "translate-x-0" : "-translate-x-full",
           )}
         >
+          <div className="mb-2 flex items-center justify-between gap-2 md:hidden">
+            <p className="px-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+              Menu
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="shrink-0 text-muted-foreground"
+              onClick={closeMobileNav}
+              aria-label="Close navigation"
+            >
+              <X className="h-5 w-5" aria-hidden />
+            </Button>
+          </div>
+
+          <div
+            className={cn(
+              "mb-2 hidden md:flex",
+              navCollapsed ? "justify-center" : "justify-end",
+            )}
+          >
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="shrink-0 text-muted-foreground"
+              onClick={toggleSidebarCollapsed}
+              aria-label={navCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+              title={navCollapsed ? "Expand sidebar" : "Collapse sidebar"}
+            >
+              {navCollapsed ? (
+                <PanelLeft className="size-5" strokeWidth={2} aria-hidden />
+              ) : (
+                <PanelLeftClose className="size-5" strokeWidth={2} aria-hidden />
+              )}
+            </Button>
+          </div>
+
           <nav className="space-y-1">
-            <NavLink to="/productions" className={navLinkClass} onClick={() => setSidebarOpen(false)}>
-              Productions
-            </NavLink>
-            <NavLink to="/about" className={navLinkClass} onClick={() => setSidebarOpen(false)}>
-              About the App
-            </NavLink>
+            <SidebarNavLink
+              to="/productions"
+              label="Productions"
+              icon={Drama}
+              collapsed={navCollapsed}
+              onNavigate={closeMobileNav}
+            />
+            <SidebarNavLink
+              to="/about"
+              label="About"
+              icon={Info}
+              collapsed={navCollapsed}
+              onNavigate={closeMobileNav}
+            />
 
             {showBackToProduction && lastProduction && (
-              <NavLink
+              <SidebarNavLink
                 to={`/productions/${lastProduction.id}`}
-                className={navLinkClass}
-                onClick={() => setSidebarOpen(false)}
-              >
-                Back to {lastProduction.title ?? `Production #${lastProduction.id}`}
-              </NavLink>
+                label={`Back to ${lastProduction.title ?? `Production #${lastProduction.id}`}`}
+                icon={ArrowLeft}
+                collapsed={navCollapsed}
+                onNavigate={closeMobileNav}
+              />
             )}
 
             {productionId && (
               <>
-                <div className="pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Production
-                </div>
+                <SidebarSectionLabel label="Production" collapsed={navCollapsed} />
                 {canRead("overview") && (
-                  <NavLink
+                  <SidebarNavLink
                     to={`/productions/${productionId}`}
                     end
-                    className={navLinkClass}
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    Overview
-                  </NavLink>
+                    label="Overview"
+                    icon={LayoutDashboard}
+                    collapsed={navCollapsed}
+                    onNavigate={closeMobileNav}
+                  />
                 )}
                 {canRead("timeline") && (
-                  <NavLink
+                  <SidebarNavLink
                     to={`/productions/${productionId}/timeline`}
-                    className={navLinkClass}
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    Timeline
-                  </NavLink>
+                    label="Timeline"
+                    icon={Scroll}
+                    collapsed={navCollapsed}
+                    onNavigate={closeMobileNav}
+                  />
                 )}
                 {canRead("rehearsals") && (
-                  <NavLink
+                  <SidebarNavLink
                     to={`/productions/${productionId}/rehearsals`}
-                    className={navLinkClass}
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    Rehearsals
-                  </NavLink>
+                    label="Rehearsals"
+                    icon={Calendar}
+                    collapsed={navCollapsed}
+                    onNavigate={closeMobileNav}
+                  />
                 )}
                 {isAdmin && !productionHasScript && (
-                  <NavLink
+                  <SidebarNavLink
                     to={`/productions/${productionId}/import`}
-                    className={navLinkClass}
-                    onClick={() => setSidebarOpen(false)}
-                  >
-                    Import script
-                  </NavLink>
+                    label="Import script"
+                    icon={FileUp}
+                    collapsed={navCollapsed}
+                    onNavigate={closeMobileNav}
+                  />
                 )}
 
                 <CollapsibleNavSection
                   storageKey="nav.preparation.open"
                   defaultOpen={!isScopedActorOnly}
                   title="Preparation"
+                  collapsed={navCollapsed}
                 >
                   {preparationLinks}
                 </CollapsibleNavSection>
@@ -561,14 +726,15 @@ function AppShellInner() {
                     storageKey="nav.reports.open"
                     defaultOpen
                     title="Reports"
+                    collapsed={navCollapsed}
                   >
-                    <NavLink
+                    <SidebarNavLink
                       to={`/productions/${productionId}/reports`}
-                      className={navLinkClass}
-                      onClick={() => setSidebarOpen(false)}
-                    >
-                      Reports
-                    </NavLink>
+                      label="Reports"
+                      icon={ChartArea}
+                      collapsed={navCollapsed}
+                      onNavigate={closeMobileNav}
+                    />
                   </CollapsibleNavSection>
                 )}
               </>
@@ -576,38 +742,31 @@ function AppShellInner() {
 
             {isAdmin && (
               <>
-                <div className="pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                  Administration
-                </div>
-                <NavLink to="/users" className={navLinkClass} onClick={() => setSidebarOpen(false)}>
-                  User Management
-                </NavLink>
-                <NavLink
+                <SidebarSectionLabel label="Administration" collapsed={navCollapsed} />
+                <SidebarNavLink
+                  to="/users"
+                  label="User Management"
+                  icon={UserRoundCog}
+                  collapsed={navCollapsed}
+                  onNavigate={closeMobileNav}
+                />
+                <SidebarNavLink
                   to="/settings"
-                  className={navLinkClass}
-                  onClick={() => setSidebarOpen(false)}
-                >
-                  App Settings
-                </NavLink>
+                  label="App Settings"
+                  icon={Settings}
+                  collapsed={navCollapsed}
+                  onNavigate={closeMobileNav}
+                />
               </>
             )}
           </nav>
         </aside>
 
-        {sidebarOpen && (
-          <button
-            type="button"
-            className="app-shell-overlay fixed inset-0 z-20 bg-black/30 md:hidden"
-            aria-label="Close sidebar"
-            onClick={() => setSidebarOpen(false)}
-          />
-        )}
-
         <main
           id="main-content"
-          className="flex min-h-0 flex-1 flex-col overflow-auto px-3 pt-3 md:px-4 md:pt-4"
+          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto px-3 pt-3 md:px-4 md:pt-4"
         >
-          <div className="flex min-h-0 flex-1 flex-col pb-6 md:pb-8">
+          <div className="flex min-h-0 min-w-0 flex-1 flex-col pb-6 md:pb-8">
             <Outlet />
           </div>
         </main>

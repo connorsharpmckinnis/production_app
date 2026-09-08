@@ -101,6 +101,7 @@ export default function TimelinePage() {
   const [searchQuery, setSearchQuery] = useState(storedPrefs.searchInput.trim());
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
+  const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
   const [costumeOnly, setCostumeOnly] = useState(storedPrefs.costumeOnly);
   const [entranceOnly, setEntranceOnly] = useState(storedPrefs.entranceOnly);
   const [exitOnly, setExitOnly] = useState(storedPrefs.exitOnly);
@@ -446,6 +447,10 @@ export default function TimelinePage() {
   const hasActiveFilters =
     searchQuery !== "" ||
     (!rehearseMode && (selectedCharacterIds.length > 0 || advancedFilterCount > 0));
+
+  const mobileFilterBadgeCount = !rehearseMode
+    ? selectedCharacterIds.length + advancedFilterCount
+    : 0;
 
   const effectiveRehearsePreset: RehearsePresetId = useMemo(() => {
     if (rehearsePreset === "custom") return "custom";
@@ -883,14 +888,14 @@ export default function TimelinePage() {
         </Alert>
       )}
 
-      <div className="flex shrink-0 flex-col gap-1.5">
-        <form onSubmit={handleSearchSubmit} className="flex flex-wrap gap-1.5">
+      <div className="flex min-w-0 shrink-0 flex-col gap-1.5">
+        <form onSubmit={handleSearchSubmit} className="flex min-w-0 flex-wrap gap-1.5">
           <Input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search timeline…"
             title="Filters combine with AND. Multiple characters within that filter are OR."
-            className="min-w-0 flex-1"
+            className="min-w-0 flex-1 basis-full sm:basis-auto"
           />
           <Button type="submit" variant="outline">
             Search
@@ -902,70 +907,97 @@ export default function TimelinePage() {
           )}
         </form>
 
-        <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center">
-          <SceneMultiSelect
-            acts={scene.acts}
-            selectedSceneIds={scene.selectedSceneIds}
-            onChange={scene.setSelectedSceneIds}
-          />
-
-          {!rehearseMode && (
-            <>
-              <CharacterMultiSelect
-                characters={scene.characters}
-                selectedIds={selectedCharacterIds}
-                myCharacterIds={myCharacterIds}
-                onChange={(ids) => {
-                  setSelectedCharacterIds(ids);
-                  setGroupFilter("all");
-                }}
-                disabled={groupFilter !== "all"}
-              />
-
-              <Button type="button" variant="outline" onClick={() => setAdvancedOpen((open) => !open)}>
-                Advanced filters
-                {advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ""}
-              </Button>
-            </>
-          )}
-        </div>
-
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
-          <Label className="flex items-center gap-2 font-normal">
+        {/* Mobile: collapse scene / character / view options into one Filters sheet */}
+        <div className="flex flex-wrap items-center gap-2 md:hidden">
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() => setMobileFiltersOpen(true)}
+          >
+            Filters
+            {mobileFilterBadgeCount > 0 ? ` (${mobileFilterBadgeCount})` : ""}
+          </Button>
+          <Label className="flex items-center gap-2 text-sm font-normal">
             <Switch
               checked={rehearseMode}
               onCheckedChange={(value) => setRehearseMode(value)}
               aria-label="Rehearse mode"
             />
-            Rehearse mode
+            Rehearse
           </Label>
-          {!rehearseMode && canManagePreparation && (
+        </div>
+
+        {/* Desktop / tablet: keep filters inline */}
+        <div className="hidden flex-col gap-1.5 md:flex">
+          <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center">
+            <SceneMultiSelect
+              acts={scene.acts}
+              selectedSceneIds={scene.selectedSceneIds}
+              onChange={scene.setSelectedSceneIds}
+            />
+
+            {!rehearseMode && (
+              <>
+                <CharacterMultiSelect
+                  characters={scene.characters}
+                  selectedIds={selectedCharacterIds}
+                  myCharacterIds={myCharacterIds}
+                  onChange={(ids) => {
+                    setSelectedCharacterIds(ids);
+                    setGroupFilter("all");
+                  }}
+                  disabled={groupFilter !== "all"}
+                />
+
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => setAdvancedOpen((open) => !open)}
+                >
+                  Advanced filters
+                  {advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ""}
+                </Button>
+              </>
+            )}
+          </div>
+
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
             <Label className="flex items-center gap-2 font-normal">
-              <Checkbox
-                checked={editTimeline}
-                onCheckedChange={(value) => setEditTimeline(value === true)}
+              <Switch
+                checked={rehearseMode}
+                onCheckedChange={(value) => setRehearseMode(value)}
+                aria-label="Rehearse mode"
               />
-              Edit Timeline
+              Rehearse mode
             </Label>
-          )}
-          {!rehearseMode && (
-            <>
+            {!rehearseMode && canManagePreparation && (
               <Label className="flex items-center gap-2 font-normal">
                 <Checkbox
-                  checked={showSequenceNumbers}
-                  onCheckedChange={(value) => setShowSequenceNumbers(value === true)}
+                  checked={editTimeline}
+                  onCheckedChange={(value) => setEditTimeline(value === true)}
                 />
-                Moment numbers
+                Edit Timeline
               </Label>
-              <Label className="flex items-center gap-2 font-normal">
-                <Checkbox
-                  checked={showPrepBadges}
-                  onCheckedChange={(value) => setShowPrepBadges(value === true)}
-                />
-                Prep badges
-              </Label>
-            </>
-          )}
+            )}
+            {!rehearseMode && (
+              <>
+                <Label className="flex items-center gap-2 font-normal">
+                  <Checkbox
+                    checked={showSequenceNumbers}
+                    onCheckedChange={(value) => setShowSequenceNumbers(value === true)}
+                  />
+                  Moment numbers
+                </Label>
+                <Label className="flex items-center gap-2 font-normal">
+                  <Checkbox
+                    checked={showPrepBadges}
+                    onCheckedChange={(value) => setShowPrepBadges(value === true)}
+                  />
+                  Prep badges
+                </Label>
+              </>
+            )}
+          </div>
         </div>
 
         {rehearseMode && (
@@ -1010,45 +1042,100 @@ export default function TimelinePage() {
           />
         )}
 
-        <Sheet
-          open={!rehearseMode && advancedOpen && !isMediumScreen}
-          onOpenChange={setAdvancedOpen}
-        >
-          <SheetContent side="bottom" className="max-h-[85vh] overflow-y-auto">
+        <Sheet open={mobileFiltersOpen} onOpenChange={setMobileFiltersOpen}>
+          <SheetContent side="bottom" className="h-[90dvh] max-h-[90dvh] overflow-y-auto md:hidden">
             <SheetHeader>
-              <SheetTitle>Advanced filters</SheetTitle>
+              <SheetTitle>Filters</SheetTitle>
             </SheetHeader>
-            <AdvancedFiltersPanel
-              canManagePreparation={canManagePreparation}
-              groups={groups}
-              groupFilter={groupFilter}
-              setGroupFilter={setGroupFilter}
-              setSelectedCharacterIds={setSelectedCharacterIds}
-              costumeOnly={costumeOnly}
-              setCostumeOnly={setCostumeOnly}
-              entranceOnly={entranceOnly}
-              setEntranceOnly={setEntranceOnly}
-              exitOnly={exitOnly}
-              setExitOnly={setExitOnly}
-              blockingOnly={blockingOnly}
-              setBlockingOnly={setBlockingOnly}
-              blockingCharacterFilter={blockingCharacterFilter}
-              setBlockingCharacterFilter={setBlockingCharacterFilter}
-              songFilter={songFilter}
-              setSongFilter={setSongFilter}
-              propFilter={propFilter}
-              setPropFilter={setPropFilter}
-              cueCategoryFilter={cueCategoryFilter}
-              setCueCategoryFilter={setCueCategoryFilter}
-              setPieceFilter={setPieceFilter}
-              setSetPieceFilter={setSetPieceFilter}
-              characters={scene.characters}
-              songs={scene.songs}
-              propsCatalog={scene.propsCatalog}
-              cueCategories={scene.cueCategories}
-              setPiecesCatalog={scene.setPiecesCatalog}
-              className="border-0 bg-transparent p-0"
-            />
+            <div className="space-y-4 pb-6">
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Scenes</p>
+                <SceneMultiSelect
+                  acts={scene.acts}
+                  selectedSceneIds={scene.selectedSceneIds}
+                  onChange={scene.setSelectedSceneIds}
+                />
+              </div>
+
+              {!rehearseMode && (
+                <>
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Characters</p>
+                    <CharacterMultiSelect
+                      characters={scene.characters}
+                      selectedIds={selectedCharacterIds}
+                      myCharacterIds={myCharacterIds}
+                      onChange={(ids) => {
+                        setSelectedCharacterIds(ids);
+                        setGroupFilter("all");
+                      }}
+                      disabled={groupFilter !== "all"}
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-3 text-sm">
+                    {canManagePreparation && (
+                      <Label className="flex items-center gap-2 font-normal">
+                        <Checkbox
+                          checked={editTimeline}
+                          onCheckedChange={(value) => setEditTimeline(value === true)}
+                        />
+                        Edit Timeline
+                      </Label>
+                    )}
+                    <Label className="flex items-center gap-2 font-normal">
+                      <Checkbox
+                        checked={showSequenceNumbers}
+                        onCheckedChange={(value) => setShowSequenceNumbers(value === true)}
+                      />
+                      Moment numbers
+                    </Label>
+                    <Label className="flex items-center gap-2 font-normal">
+                      <Checkbox
+                        checked={showPrepBadges}
+                        onCheckedChange={(value) => setShowPrepBadges(value === true)}
+                      />
+                      Prep badges
+                    </Label>
+                  </div>
+
+                  <div className="space-y-2">
+                    <p className="text-sm font-medium">Advanced</p>
+                    <AdvancedFiltersPanel
+                      canManagePreparation={canManagePreparation}
+                      groups={groups}
+                      groupFilter={groupFilter}
+                      setGroupFilter={setGroupFilter}
+                      setSelectedCharacterIds={setSelectedCharacterIds}
+                      costumeOnly={costumeOnly}
+                      setCostumeOnly={setCostumeOnly}
+                      entranceOnly={entranceOnly}
+                      setEntranceOnly={setEntranceOnly}
+                      exitOnly={exitOnly}
+                      setExitOnly={setExitOnly}
+                      blockingOnly={blockingOnly}
+                      setBlockingOnly={setBlockingOnly}
+                      blockingCharacterFilter={blockingCharacterFilter}
+                      setBlockingCharacterFilter={setBlockingCharacterFilter}
+                      songFilter={songFilter}
+                      setSongFilter={setSongFilter}
+                      propFilter={propFilter}
+                      setPropFilter={setPropFilter}
+                      cueCategoryFilter={cueCategoryFilter}
+                      setCueCategoryFilter={setCueCategoryFilter}
+                      setPieceFilter={setPieceFilter}
+                      setSetPieceFilter={setSetPieceFilter}
+                      characters={scene.characters}
+                      songs={scene.songs}
+                      propsCatalog={scene.propsCatalog}
+                      cueCategories={scene.cueCategories}
+                      setPiecesCatalog={scene.setPiecesCatalog}
+                      className="border-0 bg-transparent p-0"
+                    />
+                  </div>
+                </>
+              )}
+            </div>
           </SheetContent>
         </Sheet>
 

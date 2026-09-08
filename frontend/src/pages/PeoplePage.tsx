@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
+import MobileListCard from "@/components/MobileListCard";
 import ObjectLink from "@/components/object-detail/ObjectLink";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -314,136 +315,257 @@ export default function PeoplePage() {
           }
         />
       ) : (
-        <div className="rounded-lg border border-border">
-          <Table storageKey="production-people">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Person</TableHead>
-                <TableHead>Production roles</TableHead>
-                <TableHead>Assigned characters</TableHead>
-                {canMutate && <TableHead className="text-right">Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {people.map((person) => {
-                const editing = editingUserId === person.user_id;
-                const busy = savingKey != null;
-                return (
-                  <TableRow key={person.user_id}>
-                    <TableCell>
-                      <p className="font-medium">
-                        <ObjectLink
-                          objectType="person"
-                          objectId={person.user_id}
-                          label={person.display_name}
-                        />
-                      </p>
-                      {person.email && (
-                        <p className="text-xs text-muted-foreground">{person.email}</p>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {editing ? (
-                        <RoleCheckboxes
-                          selected={editingRoles}
-                          roles={[
-                            ...roleRegistry,
-                            ...person.roles.filter(
-                              (assignedRole) =>
-                                !roleRegistry.some(
-                                  (role) => role.code === assignedRole.code,
-                                ),
-                            ),
-                          ]}
-                          onChange={setEditingRoles}
-                          disabled={busy}
-                          idPrefix={`edit-role-${person.user_id}`}
-                        />
+        <>
+          <ul className="space-y-2 md:hidden">
+            {people.map((person) => {
+              const editing = editingUserId === person.user_id;
+              const busy = savingKey != null;
+              return (
+                <MobileListCard
+                  key={person.user_id}
+                  actions={
+                    canMutate ? (
+                      editing ? (
+                        <>
+                          {canUpdate && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              disabled={busy}
+                              onClick={() => void saveRoles(person.user_id)}
+                            >
+                              Save
+                            </Button>
+                          )}
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={busy}
+                            onClick={() => setEditingUserId(null)}
+                          >
+                            Cancel
+                          </Button>
+                        </>
                       ) : (
-                        <div className="flex flex-wrap gap-1">
-                          {person.roles.map((role) => (
-                            <Badge key={role.code} variant="secondary">{role.name}</Badge>
-                          ))}
-                        </div>
-                      )}
-                    </TableCell>
-                    <TableCell>
-                      {person.assigned_characters.length > 0 ? (
-                        <div className="flex flex-wrap gap-1">
-                          {person.assigned_characters.map((character) => (
-                            <ObjectLink
-                              key={character.id}
-                              objectType="character"
-                              objectId={character.id}
-                              label={`${character.name} · Cast`}
-                              className="text-xs"
-                            />
-                          ))}
-                        </div>
-                      ) : (
-                        <span className="text-muted-foreground">Not cast</span>
-                      )}
-                    </TableCell>
-                    {canMutate && (
-                      <TableCell className="text-right">
-                        <div className="flex flex-wrap justify-end gap-1">
-                          {editing ? (
-                            <>
-                              {canUpdate && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  disabled={busy}
-                                  onClick={() => void saveRoles(person.user_id)}
-                                >
-                                  Save
-                                </Button>
-                              )}
-                              <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                disabled={busy}
-                                onClick={() => setEditingUserId(null)}
-                              >
-                                Cancel
-                              </Button>
-                            </>
-                          ) : (
-                            <>
-                              {canUpdate && (
+                        <>
+                          {canUpdate && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="outline"
+                              onClick={() => startEditing(person)}
+                            >
+                              Edit roles
+                            </Button>
+                          )}
+                          {canUpdate && (
+                            <Button
+                              type="button"
+                              size="sm"
+                              variant="ghost"
+                              className="text-destructive hover:text-destructive"
+                              disabled={busy}
+                              onClick={() => void handleDeactivate(person)}
+                            >
+                              Deactivate
+                            </Button>
+                          )}
+                        </>
+                      )
+                    ) : undefined
+                  }
+                >
+                  <p className="font-medium">
+                    <ObjectLink
+                      objectType="person"
+                      objectId={person.user_id}
+                      label={person.display_name}
+                    />
+                  </p>
+                  {person.email && (
+                    <p className="text-xs text-muted-foreground">{person.email}</p>
+                  )}
+                  <div className="pt-2">
+                    {editing ? (
+                      <RoleCheckboxes
+                        selected={editingRoles}
+                        roles={[
+                          ...roleRegistry,
+                          ...person.roles.filter(
+                            (assignedRole) =>
+                              !roleRegistry.some(
+                                (role) => role.code === assignedRole.code,
+                              ),
+                          ),
+                        ]}
+                        onChange={setEditingRoles}
+                        disabled={busy}
+                        idPrefix={`mobile-edit-role-${person.user_id}`}
+                      />
+                    ) : (
+                      <div className="flex flex-wrap gap-1">
+                        {person.roles.map((role) => (
+                          <Badge key={role.code} variant="secondary">
+                            {role.name}
+                          </Badge>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <div className="pt-2">
+                    {person.assigned_characters.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {person.assigned_characters.map((character) => (
+                          <ObjectLink
+                            key={character.id}
+                            objectType="character"
+                            objectId={character.id}
+                            label={character.name}
+                            className="text-xs"
+                          />
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">Not cast</span>
+                    )}
+                  </div>
+                </MobileListCard>
+              );
+            })}
+          </ul>
+
+          <div className="hidden rounded-lg border border-border md:block">
+            <Table storageKey="production-people">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Person</TableHead>
+                  <TableHead>Production roles</TableHead>
+                  <TableHead>Assigned characters</TableHead>
+                  {canMutate && <TableHead className="text-right">Actions</TableHead>}
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {people.map((person) => {
+                  const editing = editingUserId === person.user_id;
+                  const busy = savingKey != null;
+                  return (
+                    <TableRow key={person.user_id}>
+                      <TableCell>
+                        <p className="font-medium">
+                          <ObjectLink
+                            objectType="person"
+                            objectId={person.user_id}
+                            label={person.display_name}
+                          />
+                        </p>
+                        {person.email && (
+                          <p className="text-xs text-muted-foreground">{person.email}</p>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {editing ? (
+                          <RoleCheckboxes
+                            selected={editingRoles}
+                            roles={[
+                              ...roleRegistry,
+                              ...person.roles.filter(
+                                (assignedRole) =>
+                                  !roleRegistry.some(
+                                    (role) => role.code === assignedRole.code,
+                                  ),
+                              ),
+                            ]}
+                            onChange={setEditingRoles}
+                            disabled={busy}
+                            idPrefix={`edit-role-${person.user_id}`}
+                          />
+                        ) : (
+                          <div className="flex flex-wrap gap-1">
+                            {person.roles.map((role) => (
+                              <Badge key={role.code} variant="secondary">{role.name}</Badge>
+                            ))}
+                          </div>
+                        )}
+                      </TableCell>
+                      <TableCell>
+                        {person.assigned_characters.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {person.assigned_characters.map((character) => (
+                              <ObjectLink
+                                key={character.id}
+                                objectType="character"
+                                objectId={character.id}
+                                label={`${character.name} · Cast`}
+                                className="text-xs"
+                              />
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-muted-foreground">Not cast</span>
+                        )}
+                      </TableCell>
+                      {canMutate && (
+                        <TableCell className="text-right">
+                          <div className="flex flex-wrap justify-end gap-1">
+                            {editing ? (
+                              <>
+                                {canUpdate && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    disabled={busy}
+                                    onClick={() => void saveRoles(person.user_id)}
+                                  >
+                                    Save
+                                  </Button>
+                                )}
                                 <Button
                                   type="button"
                                   size="sm"
                                   variant="outline"
-                                  onClick={() => startEditing(person)}
-                                >
-                                  Edit roles
-                                </Button>
-                              )}
-                              {canUpdate && (
-                                <Button
-                                  type="button"
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-destructive hover:text-destructive"
                                   disabled={busy}
-                                  onClick={() => void handleDeactivate(person)}
+                                  onClick={() => setEditingUserId(null)}
                                 >
-                                  Deactivate
+                                  Cancel
                                 </Button>
-                              )}
-                            </>
-                          )}
-                        </div>
-                      </TableCell>
-                    )}
-                  </TableRow>
-                );
-              })}
-            </TableBody>
-          </Table>
-        </div>
+                              </>
+                            ) : (
+                              <>
+                                {canUpdate && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => startEditing(person)}
+                                  >
+                                    Edit roles
+                                  </Button>
+                                )}
+                                {canUpdate && (
+                                  <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-destructive hover:text-destructive"
+                                    disabled={busy}
+                                    onClick={() => void handleDeactivate(person)}
+                                  >
+                                    Deactivate
+                                  </Button>
+                                )}
+                              </>
+                            )}
+                          </div>
+                        </TableCell>
+                      )}
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
     </div>
   );

@@ -196,7 +196,7 @@ export default function OverviewMessageEditor({
     <section className="space-y-3 rounded-lg border border-border p-4">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 className="text-sm font-medium">Overview messages (spotlight)</h2>
+          <h2 className="text-lg font-semibold tracking-tight">Spotlight Messages</h2>
           <p className="mt-1 text-sm text-muted-foreground">
             Soft rotating scripture, quotes, and greetings for this show&apos;s Overview page.
             For durable reminders with a bell inbox, banners, or CTAs, use{" "}

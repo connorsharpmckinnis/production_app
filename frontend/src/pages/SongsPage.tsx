@@ -4,6 +4,7 @@ import { Pencil } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import CatalogCsvImport from "@/components/CatalogCsvImport";
+import MobileListCard from "@/components/MobileListCard";
 import ObjectLink from "@/components/object-detail/ObjectLink";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -167,43 +168,74 @@ export default function SongsPage() {
           onAction={canManagePreparation ? openCreateDialog : undefined}
         />
       ) : (
-        <div className="rounded-lg border border-border">
-          <Table storageKey="songs">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Title</TableHead>
-                <TableHead>Composer</TableHead>
-                <TableHead>Lyricist</TableHead>
-                {canManagePreparation && <TableHead>Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {songs.map((song) => (
-                <TableRow key={song.id}>
-                  <TableCell className="font-medium">
-                    <ObjectLink objectType="song" objectId={song.id} label={song.title} />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{song.composer ?? "—"}</TableCell>
-                  <TableCell className="text-muted-foreground">{song.lyricist ?? "—"}</TableCell>
-                  {canManagePreparation && (
-                    <TableCell>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => openEditDialog(song)}
-                        aria-label={`Edit ${song.title}`}
-                        title="Edit"
-                      >
-                        <Pencil />
-                      </Button>
-                    </TableCell>
-                  )}
+        <>
+          <ul className="space-y-2 md:hidden">
+            {songs.map((song) => (
+              <MobileListCard
+                key={song.id}
+                actions={
+                  canManagePreparation ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => openEditDialog(song)}
+                      aria-label={`Edit ${song.title}`}
+                      title="Edit"
+                    >
+                      <Pencil />
+                    </Button>
+                  ) : undefined
+                }
+              >
+                <p className="font-medium">
+                  <ObjectLink objectType="song" objectId={song.id} label={song.title} />
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {[song.composer, song.lyricist].filter(Boolean).join(" · ") || "No composer/lyricist"}
+                </p>
+              </MobileListCard>
+            ))}
+          </ul>
+
+          <div className="hidden rounded-lg border border-border md:block">
+            <Table storageKey="songs">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Title</TableHead>
+                  <TableHead>Composer</TableHead>
+                  <TableHead>Lyricist</TableHead>
+                  {canManagePreparation && <TableHead>Actions</TableHead>}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {songs.map((song) => (
+                  <TableRow key={song.id}>
+                    <TableCell className="font-medium">
+                      <ObjectLink objectType="song" objectId={song.id} label={song.title} />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{song.composer ?? "—"}</TableCell>
+                    <TableCell className="text-muted-foreground">{song.lyricist ?? "—"}</TableCell>
+                    {canManagePreparation && (
+                      <TableCell>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => openEditDialog(song)}
+                          aria-label={`Edit ${song.title}`}
+                          title="Edit"
+                        >
+                          <Pencil />
+                        </Button>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
 
       <Dialog

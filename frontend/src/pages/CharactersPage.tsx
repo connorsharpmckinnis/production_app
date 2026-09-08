@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
+import MobileListCard from "@/components/MobileListCard";
 import ObjectLink from "@/components/object-detail/ObjectLink";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -156,60 +157,104 @@ export default function CharactersPage() {
           onAction={canCreateCharacters ? () => setShowAddForm(true) : undefined}
         />
       ) : (
-        <div className="rounded-lg border border-border">
-          <Table storageKey="characters">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Scenes</TableHead>
+        <>
+          <ul className="space-y-2 md:hidden">
+            {characters.map((character) => (
+              <MobileListCard key={character.id}>
+                <p className="font-medium">
+                  <ObjectLink
+                    objectType="character"
+                    objectId={character.id}
+                    label={character.name}
+                  />
+                </p>
+                <p className="text-sm text-muted-foreground">
+                  {character.scene_count} {character.scene_count === 1 ? "scene" : "scenes"}
+                </p>
                 {canCast ? (
-                  <TableHead>Assigned actor</TableHead>
+                  <div className="pt-2">
+                    <Select
+                      value={String(character.assigned_actor?.user_id ?? UNASSIGNED)}
+                      disabled={savingId === character.id}
+                      onValueChange={(value) => void handleCastChange(character.id, value)}
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Unassigned" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+                        {castableUsers.map((user) => (
+                          <SelectItem key={user.id} value={String(user.id)}>
+                            {user.display_name}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
                 ) : (
-                  <TableHead>Actor</TableHead>
+                  <p className="text-sm text-muted-foreground">
+                    {character.assigned_actor?.display_name ?? "Unassigned"}
+                  </p>
                 )}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {characters.map((character) => (
-                <TableRow key={character.id}>
-                  <TableCell className="font-medium">
-                    <ObjectLink
-                      objectType="character"
-                      objectId={character.id}
-                      label={character.name}
-                    />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">{character.scene_count}</TableCell>
+              </MobileListCard>
+            ))}
+          </ul>
+
+          <div className="hidden rounded-lg border border-border md:block">
+            <Table storageKey="characters">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Scenes</TableHead>
                   {canCast ? (
-                    <TableCell>
-                      <Select
-                        value={String(character.assigned_actor?.user_id ?? UNASSIGNED)}
-                        disabled={savingId === character.id}
-                        onValueChange={(value) => void handleCastChange(character.id, value)}
-                      >
-                        <SelectTrigger className="w-full max-w-xs">
-                          <SelectValue placeholder="Unassigned" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
-                          {castableUsers.map((user) => (
-                            <SelectItem key={user.id} value={String(user.id)}>
-                              {user.display_name}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </TableCell>
+                    <TableHead>Assigned actor</TableHead>
                   ) : (
-                    <TableCell className="text-muted-foreground">
-                      {character.assigned_actor?.display_name ?? "—"}
-                    </TableCell>
+                    <TableHead>Actor</TableHead>
                   )}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {characters.map((character) => (
+                  <TableRow key={character.id}>
+                    <TableCell className="font-medium">
+                      <ObjectLink
+                        objectType="character"
+                        objectId={character.id}
+                        label={character.name}
+                      />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">{character.scene_count}</TableCell>
+                    {canCast ? (
+                      <TableCell>
+                        <Select
+                          value={String(character.assigned_actor?.user_id ?? UNASSIGNED)}
+                          disabled={savingId === character.id}
+                          onValueChange={(value) => void handleCastChange(character.id, value)}
+                        >
+                          <SelectTrigger className="w-full max-w-xs">
+                            <SelectValue placeholder="Unassigned" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value={UNASSIGNED}>Unassigned</SelectItem>
+                            {castableUsers.map((user) => (
+                              <SelectItem key={user.id} value={String(user.id)}>
+                                {user.display_name}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </TableCell>
+                    ) : (
+                      <TableCell className="text-muted-foreground">
+                        {character.assigned_actor?.display_name ?? "—"}
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
     </div>
   );

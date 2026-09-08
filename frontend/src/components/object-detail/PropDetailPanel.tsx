@@ -9,6 +9,7 @@ import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
 import type { PropResponse } from "@/lib/types";
+import DetailPanelSkeleton from "@/components/DetailPanelSkeleton";
 
 interface PropDetailPanelProps {
   propId: number;
@@ -109,7 +110,7 @@ export default function PropDetailPanel({ propId }: PropDetailPanelProps) {
   useRegisterObjectDetailPanel(controllers);
 
   if (loading) {
-    return <p className="text-sm text-muted-foreground">Loading…</p>;
+    return <DetailPanelSkeleton />;
   }
 
   if (error || prop == null) {

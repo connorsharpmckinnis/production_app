@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import DetailPanelSkeleton from "@/components/DetailPanelSkeleton";
 import SearchableSelect from "@/components/SearchableSelect";
+import SlowLoadNotice from "@/components/SlowLoadNotice";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -79,6 +81,7 @@ export default function ComponentGalleryPage() {
   const [role, setRole] = useState("actor");
   const [searchValue, setSearchValue] = useState("");
   const [rotation, setRotation] = useState("inherit");
+  const [slowLoadKey, setSlowLoadKey] = useState(0);
 
   return (
     <div className="mx-auto max-w-4xl space-y-6 pb-16">
@@ -349,6 +352,34 @@ export default function ComponentGalleryPage() {
           <Skeleton className="h-4 w-1/3" />
           <Skeleton className="h-4 w-2/3" />
           <Skeleton className="h-24 w-full" />
+        </div>
+      </Section>
+
+      <Section title="Slow load notice">
+        <p className="text-sm text-muted-foreground">
+          Free-tier loading empathy used on auth bootstrap. Message appears after the delay
+          (1.8s here, same as production). Replay remounts the component.
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => setSlowLoadKey((key) => key + 1)}
+        >
+          Replay delay
+        </Button>
+        <div className="overflow-hidden rounded-md border border-dashed border-border bg-background">
+          <SlowLoadNotice
+            key={slowLoadKey}
+            fullPage
+            className="min-h-[16rem] px-6 py-8"
+          />
+        </div>
+        <div>
+          <p className="mb-2 text-sm font-medium">Detail panel skeleton</p>
+          <div className="rounded-md border border-dashed border-border bg-background p-4">
+            <DetailPanelSkeleton />
+          </div>
         </div>
       </Section>
     </div>

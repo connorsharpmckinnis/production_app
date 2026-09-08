@@ -4,8 +4,10 @@ import { Pencil, Trash2 } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
 import CatalogCsvImport from "@/components/CatalogCsvImport";
+import MobileListCard from "@/components/MobileListCard";
 import ObjectLink from "@/components/object-detail/ObjectLink";
 import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -187,65 +189,119 @@ export default function SetPiecesPage() {
           onAction={canManagePreparation ? openCreateDialog : undefined}
         />
       ) : (
-        <div className="rounded-lg border border-border">
-          <Table storageKey="set-pieces">
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Mobile</TableHead>
-                <TableHead>Description</TableHead>
-                {canManagePreparation && <TableHead>Actions</TableHead>}
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {setPieces.map((piece) => (
-                <TableRow key={piece.id}>
-                  <TableCell className="font-medium">
+        <>
+          <ul className="space-y-2 md:hidden">
+            {setPieces.map((piece) => (
+              <MobileListCard
+                key={piece.id}
+                actions={
+                  canManagePreparation ? (
+                    <>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => openEditDialog(piece)}
+                        aria-label={`Edit ${piece.name}`}
+                        title="Edit"
+                      >
+                        <Pencil />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={saving}
+                        onClick={() => void handleDelete(piece.id)}
+                        aria-label={`Delete ${piece.name}`}
+                        title="Delete"
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 />
+                      </Button>
+                    </>
+                  ) : undefined
+                }
+              >
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <p className="font-medium">
                     <ObjectLink
                       objectType="set_piece"
                       objectId={piece.id}
                       label={piece.name}
                     />
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {piece.mobile ? "Yes" : "No"}
-                  </TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {piece.description ?? "—"}
-                  </TableCell>
-                  {canManagePreparation && (
-                    <TableCell>
-                      <div className="flex gap-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => openEditDialog(piece)}
-                          aria-label={`Edit ${piece.name}`}
-                          title="Edit"
-                        >
-                          <Pencil />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          disabled={saving}
-                          onClick={() => void handleDelete(piece.id)}
-                          aria-label={`Delete ${piece.name}`}
-                          title="Delete"
-                          className="text-destructive hover:text-destructive"
-                        >
-                          <Trash2 />
-                        </Button>
-                      </div>
-                    </TableCell>
-                  )}
+                  </p>
+                  <Badge variant="outline">{piece.mobile ? "Mobile" : "Fixed"}</Badge>
+                </div>
+                {piece.description && (
+                  <p className="line-clamp-2 text-sm text-muted-foreground">
+                    {piece.description}
+                  </p>
+                )}
+              </MobileListCard>
+            ))}
+          </ul>
+
+          <div className="hidden rounded-lg border border-border md:block">
+            <Table storageKey="set-pieces">
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Mobile</TableHead>
+                  <TableHead>Description</TableHead>
+                  {canManagePreparation && <TableHead>Actions</TableHead>}
                 </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
+              </TableHeader>
+              <TableBody>
+                {setPieces.map((piece) => (
+                  <TableRow key={piece.id}>
+                    <TableCell className="font-medium">
+                      <ObjectLink
+                        objectType="set_piece"
+                        objectId={piece.id}
+                        label={piece.name}
+                      />
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {piece.mobile ? "Yes" : "No"}
+                    </TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {piece.description ?? "—"}
+                    </TableCell>
+                    {canManagePreparation && (
+                      <TableCell>
+                        <div className="flex gap-1">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            onClick={() => openEditDialog(piece)}
+                            aria-label={`Edit ${piece.name}`}
+                            title="Edit"
+                          >
+                            <Pencil />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            disabled={saving}
+                            onClick={() => void handleDelete(piece.id)}
+                            aria-label={`Delete ${piece.name}`}
+                            title="Delete"
+                            className="text-destructive hover:text-destructive"
+                          >
+                            <Trash2 />
+                          </Button>
+                        </div>
+                      </TableCell>
+                    )}
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </>
       )}
 
       <Dialog
