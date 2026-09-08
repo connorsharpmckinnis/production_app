@@ -384,11 +384,23 @@ function ActorOverview({
       </div>
 
       <section className="rounded-lg bg-muted/20 p-4">
-        <h2 className="mb-3 text-lg font-semibold tracking-tight">Coming soon</h2>
+        <h2 className="mb-3 text-lg font-semibold tracking-tight">Shortcuts</h2>
         <div className="grid gap-2 sm:grid-cols-3">
-          <PlaceholderCard label="Your mic" />
-          <PlaceholderCard label="Notes for you" />
-          <PlaceholderCard label="Call sheet" />
+          <ShortcutCard
+            to={`/productions/${productionId}/rehearsals`}
+            label="Rehearsals"
+            description="Schedule and call sheets"
+          />
+          <ShortcutCard
+            to={`/productions/${productionId}/lav-chart`}
+            label="Lav chart"
+            description="Mic and pack assignments"
+          />
+          <ShortcutCard
+            to={`/productions/${productionId}/timeline?rehearse=1`}
+            label="Your lines"
+            description="Rehearse with notes on moments"
+          />
         </div>
       </section>
     </div>
@@ -500,11 +512,22 @@ function QuickLink({ to, label }: { to: string; label: string }) {
   );
 }
 
-function PlaceholderCard({ label }: { label: string }) {
+function ShortcutCard({
+  to,
+  label,
+  description,
+}: {
+  to: string;
+  label: string;
+  description: string;
+}) {
   return (
-    <div className="rounded-md border border-dashed border-border px-3 py-3">
+    <Link
+      to={to}
+      className="rounded-md border border-border bg-card px-3 py-3 transition-colors hover:bg-muted/40"
+    >
       <p className="text-sm font-medium">{label}</p>
-      <p className="text-xs text-muted-foreground">Coming soon</p>
-    </div>
+      <p className="text-xs text-muted-foreground">{description}</p>
+    </Link>
   );
 }

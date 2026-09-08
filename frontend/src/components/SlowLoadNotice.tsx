@@ -4,10 +4,10 @@ import { AppMark } from "@/components/AppMark";
 import { cn } from "@/lib/utils";
 
 const DEFAULT_MESSAGE =
-  "Sorry for the delay — loading is a bit slower while this prototype runs on free hosting. It will get faster.";
+  "Still loading — the first request after idle can take a few seconds while the database wakes up.";
 
 type SlowLoadNoticeProps = {
-  /** Delay before showing the free-tier explanation. */
+  /** Delay before showing the cold-start explanation. */
   delayMs?: number;
   message?: string;
   className?: string;
@@ -16,7 +16,7 @@ type SlowLoadNoticeProps = {
 };
 
 /**
- * Temporary free-tier loading empathy. Easy to remove later: drop usages of this component.
+ * Empathy message for cold-start latency. Easy to remove later: drop usages of this component.
  */
 export default function SlowLoadNotice({
   delayMs = 1800,

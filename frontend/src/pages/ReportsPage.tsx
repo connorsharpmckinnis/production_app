@@ -157,7 +157,7 @@ export default function ReportsPage() {
       >
         <h2 className="text-lg font-medium">On-stage chart</h2>
         <p className="text-sm text-muted-foreground">
-          Prototype: character presence across the show, derived from entrance and exit records.
+          Character presence across the show, derived from entrance and exit records.
         </p>
         {onStageChart ? (
           <OnStagePresenceChart productionId={productionId} report={onStageChart} />

@@ -889,19 +889,20 @@ export default function TimelinePage() {
       )}
 
       <div className="flex min-w-0 shrink-0 flex-col gap-1.5">
-        <form onSubmit={handleSearchSubmit} className="flex min-w-0 flex-wrap gap-1.5">
+        <form
+          onSubmit={handleSearchSubmit}
+          className="flex min-w-0 items-center gap-1.5"
+        >
           <Input
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
             placeholder="Search timeline…"
-            title="Filters combine with AND. Multiple characters within that filter are OR."
-            className="min-w-0 flex-1 basis-full sm:basis-auto"
+            title="Filters combine with AND. Multiple characters within that filter are OR. Results update as you type."
+            aria-label="Search timeline"
+            className="min-w-0 flex-1"
           />
-          <Button type="submit" variant="outline">
-            Search
-          </Button>
           {hasActiveFilters && (
-            <Button type="button" variant="outline" onClick={clearAllFilters}>
+            <Button type="button" variant="outline" className="shrink-0" onClick={clearAllFilters}>
               Clear filters
             </Button>
           )}
