@@ -2,7 +2,8 @@
 
 **Version:** 0.4
 
-Defines how the importer reads a script file (Markdown or DOCX) and creates database records.
+Defines how the importer reads a script file (Markdown, DOCX, or selectable-text
+PDF) and creates database records.
 
 Companion documents:
 
@@ -21,8 +22,58 @@ Test fixtures: [fixtures/scripts/](../fixtures/scripts/)
 
 1. Google Docs **Markdown** export (`File → Download → Markdown`) — `.md`
 2. Google Docs / Word **DOCX** export (`File → Download → Microsoft Word (.docx)`) — `.docx`
+3. Selectable-text **PDF** — `.pdf`, interpreted through an Admin-configurable
+   import profile. Scanned/image-only PDFs are not supported.
 
-Architecture: **format adapter → shared preprocess → shared classifier**. Adapters emit newline-oriented lines that look like the Markdown dialect (or plain SCRIPT_FORMAT aliases). Classification stays in one place.
+Architecture: **format adapter → classification path**. Markdown and DOCX still
+go through shared preprocess + the legacy state-machine classifier in
+`importer.py`. Selectable-text PDFs use a profile-driven rule engine
+(`rule_engine.py`) and persist via `mapped_importer.py`. Adapters emit
+newline-oriented lines (with optional layout metadata for PDF). Profiles use a
+safe, validated vocabulary of text, layout, font, page, and context predicates.
+Rules are ordered by priority; the first matching rule wins. Rules may inspect a
+whole logical line or individual PDF spans, which is necessary when a speaker and
+dialogue share a baseline in different columns. Profiles do not execute
+user-supplied code.
+
+Engine comforts for mapped PDF profiles (universal helpers; column geometry comes
+from the profile):
+
+- The left/right **column band** used for comforts is derived from speaker /
+  dialogue / lyric rule predicates (`x0_lte` / `x0_gte` / `x0_between`). If those
+  predicates are missing, the engine falls back to `x0` ≤ 130 / ≥ 130 (Scrooge-
+  tuned defaults). LifeHouse sets speaker `x0_lte: 130` and body `x0_gte: 130`.
+- Stage-direction moments do **not** inherit the current speaker (orphan music /
+  blocking cues stay unattributed).
+- Short parentheticals near the speaker column (≤ derived speaker `x0` max, ≤ ~80
+  characters) are held and attached to the turn they belong to instead of becoming
+  their own moment:
+  - Complete same-row cues like `(Spoken)` / `(with Tiny Tim)` are **prepended**
+    to the following lyric/dialogue on **this** turn (never the previous speaker).
+  - Multi-line wraps like `(lifting Tim to` / `his shoulders)` accumulate and
+    **append** to the lyric/dialogue that was active when the paren opened —
+    right-column body on those wrap rows keeps the current speaker.
+  - Trailing / mid-line body-column parentheticals like `(Exits)` or a mid-lyric
+    `(Spoken)` fold into the previous lyric/dialogue on the same turn instead of
+    becoming their own Moment.
+  - Line-level “starts with `(`” rules do **not** swallow two-column rows;
+    span matching splits left paren from right body.
+- An ensemble mark like `(B)` after `Carolers (A)` / `Carolers` continues the
+  base name → `Carolers (B)` (lone mark or mark + dialogue on the same row;
+  also when a rule briefly classifies `(B)` as stage direction).
+- Multi-speaker labels split into distinct Characters on one Moment using the
+  same separators as the MD/DOCX grammar (`A & B`, `A and B`, commas). A
+  left-column wrap that ends mid-list (`Undertaker and` then `Gravediggers`) is
+  joined before splitting; lyrics already emitted on the wrap row are rewritten
+  to the completed speaker list.
+- Consecutive **dialogue** Moments with the same speaker list and nothing in
+  between (no stage direction, song header, etc.) coalesce into one Moment with
+  newline-separated text. Lyrics stay one Moment per line for now.
+
+Admins may create a profile draft in the Import page, preview a page/line window,
+and commit the exact same draft without saving it first. Saving a profile only
+makes it reusable. Preview classification is in memory and never writes Acts,
+Scenes, or Moments.
 
 The Endurance scene-1 fixtures (`endurance-scene1.md` and `Endurance Scene 1.docx`) are the regression references.
 
@@ -66,6 +117,11 @@ If Heading styles are missing (bold-only formatting), import may fail with a cle
 
 **Collect all issues, then fail with a full rollback.**
 
+For profile-driven imports, unmatched lines and invalid state transitions appear
+in preview as unclassified lines or warnings. Commit treats either as import
+issues and writes nothing. This keeps preview exploratory while preserving the
+existing all-or-nothing import policy.
+
 When the importer cannot classify a non-blank, non-ignored line:
 
 1. Record an issue with:
@@ -93,7 +149,8 @@ The API error body is:
 }
 ```
 
-Warnings (non-fatal) may be added post-MVP. MVP has no warn-and-continue commit mode.
+On the mapped (profile) path, preview **warnings** are also fatal at commit
+(prefixed in the error list). Soft warn-and-continue remains post-MVP.
 
 ---
 
@@ -451,7 +508,10 @@ cleaned full twins for successful full-show import and structural parity
   on failure. Optional per-issue diagnostics may include `source_format`,
   `context_snippet` (a few preceding lines plus the failing line), `song_title`
   for song-block issues, and for DOCX `paragraph_number` / `paragraph_style`.
-- Accept `.md` and `.docx` only.
+- Accept `.md`, `.docx`, and selectable-text `.pdf` (PDF requires an import profile).
+- Preview warnings and unclassified lines both block commit on the mapped path.
+- Preview window (UI): PDF pages `start_page` … `start_page + 3`, capped at 200
+  lines; commit uses the profile’s start/end page (end null = remainder of file).
 - Re-import remains blocked once acts exist.
 - Developer diagnose command (no app-DB writes):
   `uv run python scripts/import_diagnose.py path/to/script.md`

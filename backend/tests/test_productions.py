@@ -252,3 +252,40 @@ def test_non_admin_cannot_delete_production(
         headers=director_headers,
     )
     assert response.status_code == 403
+
+
+def test_has_imported_script_uses_acts_not_author(
+    seeded_client: TestClient,
+    db_session: Session,
+) -> None:
+    """List/detail import status follows Acts, even when author metadata is missing."""
+    headers = _admin_headers(seeded_client)
+    create = seeded_client.post(
+        "/api/productions",
+        json={"title": "Scrooge-like PDF Import", "season": "2026"},
+        headers=headers,
+    )
+    assert create.status_code == 201
+    body = create.json()
+    production_id = body["id"]
+    assert body["has_imported_script"] is False
+    assert body["author"] is None
+    add_test_production_memberships(db_session, production_id)
+
+    production = db_session.get(Production, production_id)
+    assert production is not None
+    db_session.add(Act(production_id=production.id, number=1, title="Act 1", sort_order=0))
+    # Leave author unset — PDF/profile imports often never set it.
+    production.author = None
+    db_session.commit()
+
+    listed = seeded_client.get("/api/productions", headers=headers)
+    assert listed.status_code == 200
+    match = next(item for item in listed.json() if item["id"] == production_id)
+    assert match["has_imported_script"] is True
+    assert match["author"] is None
+
+    detail = seeded_client.get(f"/api/productions/{production_id}", headers=headers)
+    assert detail.status_code == 200
+    assert detail.json()["has_imported_script"] is True
+    assert detail.json()["author"] is None

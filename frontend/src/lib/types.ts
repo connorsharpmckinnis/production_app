@@ -68,6 +68,8 @@ export interface ProductionResponse {
   season: string | null;
   author: string | null;
   created_at: string;
+  /** True when timeline Acts exist; independent of author metadata. */
+  has_imported_script: boolean;
 }
 
 export interface ProductionAccessResponse {
@@ -142,6 +144,135 @@ export interface ImportErrorsDetail {
   errors: ImportLineErrorDetail[];
 }
 
+export type ImportActionType =
+  | "ignore"
+  | "set_act"
+  | "set_scene"
+  | "stage_direction"
+  | "speaker"
+  | "dialogue"
+  | "song_header"
+  | "song_attribution"
+  | "lyric"
+  | "continue_previous"
+  | "inline_dialogue";
+
+export interface ImportRulePredicates {
+  text_equals?: string | null;
+  text_starts_with?: string | null;
+  text_contains?: string | null;
+  case_sensitive?: boolean;
+  regex_match?: string | null;
+  is_all_caps?: boolean | null;
+  is_wrapped_in_parens?: boolean | null;
+  word_count_lte?: number | null;
+  char_count_lte?: number | null;
+  x0_lte?: number | null;
+  x0_gte?: number | null;
+  x0_between?: [number, number] | null;
+  indent_gte?: number | null;
+  font_size_gte?: number | null;
+  font_size_lte?: number | null;
+  is_bold?: boolean | null;
+  is_italic?: boolean | null;
+  previous_was?: string[] | null;
+  inside_song_block?: boolean | null;
+  inside_parenthetical_block?: boolean | null;
+  page_gte?: number | null;
+  page_lte?: number | null;
+}
+
+export interface ImportRuleAction {
+  type: ImportActionType;
+  number_capture?: string | number | null;
+  title_capture?: string | number | null;
+  text_capture?: string | number | null;
+  literal_number?: number | null;
+  literal_title?: string | null;
+  strip_outer_parens?: boolean;
+  end_song_block?: boolean;
+}
+
+export interface ImportRule {
+  id: string;
+  name: string;
+  priority: number;
+  enabled: boolean;
+  scope: "line" | "span";
+  match: ImportRulePredicates;
+  action: ImportRuleAction;
+}
+
+export interface ImportProfileDefinition {
+  name: string;
+  description?: string | null;
+  version: number;
+  source_formats: Array<"pdf" | "md" | "docx">;
+  pdf: { start_page: number; end_page?: number | null };
+  speakers: { require_all_caps: boolean; allow_parentheses: boolean };
+  rules: ImportRule[];
+}
+
+export interface ImportProfileResponse extends ImportProfileDefinition {
+  id: number;
+  is_builtin: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface ImportPreviewMoment {
+  type: string;
+  text: string;
+  page: number | null;
+  line_number: number | null;
+  speakers: string[];
+  title: string | null;
+  /** PDF points from page top-left; null for md/docx. */
+  x0?: number | null;
+  y0?: number | null;
+  x1?: number | null;
+}
+
+export interface ImportPreviewScene {
+  number: number;
+  title: string | null;
+  moments: ImportPreviewMoment[];
+}
+
+export interface ImportPreviewAct {
+  number: number;
+  title: string | null;
+  scenes: ImportPreviewScene[];
+}
+
+export interface ImportPreviewUnclassifiedLine {
+  line_number: number;
+  text: string;
+  page: number | null;
+  x0?: number | null;
+  y0?: number | null;
+  x1?: number | null;
+}
+
+export interface ImportPreviewResponse {
+  source_format: string;
+  preview_window: {
+    page_from: number | null;
+    page_to: number | null;
+    line_count: number;
+  };
+  counts: {
+    acts: number;
+    scenes: number;
+    moments: number;
+    characters: number;
+    unclassified: number;
+  };
+  acts: ImportPreviewAct[];
+  warnings: Array<{ line_number: number; message: string; page: number | null }>;
+  unclassified: ImportPreviewUnclassifiedLine[];
+}
+
 export interface CatalogImportRowError {
   row: number;
   message: string;
@@ -166,7 +297,7 @@ export interface SceneSummary {
 export interface ActSummary {
   id: number;
   number: number;
-  title: string;
+  title: string | null;
   sort_order: number;
   scenes: SceneSummary[];
 }

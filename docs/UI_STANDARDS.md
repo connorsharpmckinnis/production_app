@@ -61,7 +61,11 @@ Global nav: Productions; Users + Settings (Admin only). A future **Casting** nav
 
 ### Create Production / Upload & Import
 
-Unchanged from Phase 1 — Admin-only import with line-level error reporting.
+Admin-only. Accepts `.md`, `.docx`, and selectable-text `.pdf`. PDF and optional
+custom mapping use an import-profile draft with preview-before-commit; standard
+Markdown/DOCX import keeps the legacy classifier. Line-level error reporting and
+all-or-nothing commit remain. After a successful import, show counts and next-
+step links rather than only dumping into the Timeline.
 
 ### Timeline Review (read-only baseline)
 
@@ -248,7 +252,7 @@ Semantic action colors:
 
 * Moment detail auto-save on blur; flush pending saves on panel close
 * Parsed-data correction collapsed behind pencil toggle; global App Settings for original/parsed text visibility
-* Prose-like timeline rows with optional dialogue character column
+* Prose-like timeline rows with optional dialogue character column; song/lyric rows use a soft `moment-song` background tint for glanceability
 * Structural editing: insert (inline form), delete (confirm), move up/down
 * Prep catalog pages: Costumes (scene+character), Set Pieces; Lav chart for wires/packs
 * Moment detail sections for set pieces (mirror props); lav change Moments are a Phase 13 follow-on

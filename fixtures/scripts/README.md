@@ -11,6 +11,13 @@ Test scripts for import development and validation.
 | `endurance-full-cleaned.md` | Cleaned twin | Owner-normalized Markdown for full-show import/parity. |
 | `endurance-full-cleaned.docx` | Cleaned twin | Owner-normalized DOCX for full-show import/parity. |
 
+## PDF fixtures
+
+There are none here, on purpose.
+
+- `Scrooge script snippet.pdf` may be present locally for manual testing. It is **licensed third-party material** (LifeHouse / W.R. Scott) and must stay out of git history.
+- The PDF adapter's unit fixtures are generated in memory with PyMuPDF in `backend/tests/test_importer_pdf.py`, so the two-column layout can be exercised without shipping anyone's script.
+
 ## Dirty vs cleaned
 
 - **Dirty originals** preserve confirmed parser and source-format failures for regression.
@@ -21,3 +28,13 @@ Test scripts for import development and validation.
 Known full-script issues and cleanup decisions are tracked in [IMPORT_SPEC.md](../../docs/IMPORT_SPEC.md) and [PHASE_9.md](../../docs/PHASE_9.md).
 
 Source: Google Docs *Endurance* draft exports.
+
+## PDF importer fixtures
+
+`backend/tests/test_importer_pdf.py` and
+`backend/tests/test_import_preview_api.py` generate small synthetic two-column
+PDFs in memory. They cover PDF geometry and profile-driven preview/commit without
+publishing licensed script text.
+
+The local `Scrooge script snippet.pdf` is licensed LifeHouse material used only
+for manual profile tuning. Keep it out of git history and public fixtures.

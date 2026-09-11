@@ -374,6 +374,35 @@ Fields
 
 ---
 
+# IMPORT_PROFILES
+
+Purpose
+
+Reusable, validated script-mapping profiles for PDF and other consistently
+formatted sources. Built-in rows have no organization and are read-only starter
+templates. Organization rows are Admin-created working profiles.
+
+Fields
+
+* id
+* organization_id (nullable for built-in templates)
+* name
+* description (nullable)
+* source_formats (JSON list)
+* version
+* rules (JSON ordered rule definitions)
+* pdf_options (JSON page range settings)
+* speaker_options (JSON profile-specific speaker validation)
+* is_builtin
+* created_at
+* updated_at
+
+The live Import-page draft does not need a database row. Preview and commit
+accept the inline validated definition; this table exists only for reuse across
+sessions and Cloud Run instances.
+
+---
+
 # APP_CONTENT_IMAGES
 
 Purpose

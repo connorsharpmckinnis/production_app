@@ -195,7 +195,7 @@ function MomentRow({
             }
           : undefined
       }
-      className={momentHighlightRowClass(highlighted, selected)}
+      className={momentHighlightRowClass(highlighted, selected, moment.moment_type)}
     >
       {showStructuralControls && (
         <div

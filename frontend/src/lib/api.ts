@@ -26,6 +26,9 @@ import type {
   FeedbackResponse,
   GroupResponse,
   ImportErrorsDetail,
+  ImportPreviewResponse,
+  ImportProfileDefinition,
+  ImportProfileResponse,
   ImportSuccessResponse,
   LoginRequest,
   MomentBlockingResponse,
@@ -327,13 +330,65 @@ export const api = {
     return request<void>(`/productions/${id}`, { method: "DELETE" });
   },
 
-  importScript(productionId: number, file: File) {
+  importScript(
+    productionId: number,
+    file: File,
+    profile?: ImportProfileDefinition,
+  ) {
     const formData = new FormData();
     formData.append("file", file);
+    if (profile) formData.append("profile", JSON.stringify(profile));
     return request<ImportSuccessResponse>(`/productions/${productionId}/import`, {
       method: "POST",
       body: formData,
     });
+  },
+
+  previewScript(
+    productionId: number,
+    file: File,
+    profile: ImportProfileDefinition,
+    options?: { pageFrom?: number; pageTo?: number; maxLines?: number },
+  ) {
+    const formData = new FormData();
+    formData.append("file", file);
+    formData.append("profile", JSON.stringify(profile));
+    if (options?.pageFrom != null) formData.append("page_from", String(options.pageFrom));
+    if (options?.pageTo != null) formData.append("page_to", String(options.pageTo));
+    if (options?.maxLines != null) formData.append("max_lines", String(options.maxLines));
+    return request<ImportPreviewResponse>(
+      `/productions/${productionId}/import/preview`,
+      { method: "POST", body: formData },
+    );
+  },
+
+  listImportProfiles() {
+    return request<ImportProfileResponse[]>("/import-profiles");
+  },
+
+  createImportProfile(profile: ImportProfileDefinition) {
+    return request<ImportProfileResponse>("/import-profiles", {
+      method: "POST",
+      body: JSON.stringify(profile),
+    });
+  },
+
+  updateImportProfile(id: number, profile: ImportProfileDefinition) {
+    return request<ImportProfileResponse>(`/import-profiles/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(profile),
+    });
+  },
+
+  duplicateImportProfile(id: number, name?: string) {
+    return request<ImportProfileResponse>(`/import-profiles/${id}/duplicate`, {
+      method: "POST",
+      body: JSON.stringify({ name: name || null }),
+    });
+  },
+
+  deleteImportProfile(id: number) {
+    return request<void>(`/import-profiles/${id}`, { method: "DELETE" });
   },
 
   listActs(productionId: number) {

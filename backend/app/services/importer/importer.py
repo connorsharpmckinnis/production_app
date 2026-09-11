@@ -688,6 +688,12 @@ def import_script(
 
     try:
         if filename is not None:
+            lower_name = filename.lower()
+            if lower_name.endswith(".pdf"):
+                raise ValueError(
+                    "PDF scripts require an import profile. Use the profile-based "
+                    "import / preview endpoints instead of the standard importer."
+                )
             if isinstance(content, str):
                 content = content.encode("utf-8")
             extraction = extract_script(filename, content)
@@ -700,6 +706,7 @@ def import_script(
                     text=text,
                     paragraph_number=meta.paragraph_number,
                     paragraph_style=meta.paragraph_style,
+                    layout=meta.layout,
                 )
                 for text, meta in zip(lines, line_metadata, strict=True)
             ]

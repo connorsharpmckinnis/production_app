@@ -29,7 +29,8 @@ class SceneSummary(BaseModel):
 class ActSummary(BaseModel):
     id: int
     number: int
-    title: str
+    # PDF/profile imports may omit a title; DB column is nullable.
+    title: str | None
     sort_order: int
     scenes: list[SceneSummary]
 

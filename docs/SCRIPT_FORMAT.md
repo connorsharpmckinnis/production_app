@@ -11,7 +11,13 @@ Companion documents:
 
 The goal is not to capture every possible way a playwright might write a script. The goal is to give writers a clear, consistent set of rules so that a script can be imported faithfully into the production Timeline (Acts → Scenes → Moments) without guesswork.
 
-**MVP import sources:** Markdown (`.md`) or Word (`.docx`) files, typically exported from Google Docs via **File → Download → Markdown** or **Microsoft Word (.docx)**. Markdown export uses headings and optional link syntax; DOCX uses Heading styles, italic Body for stage directions, and ALL CAPS (centered in the gold-standard script) for singers/lyrics. See [IMPORT_SPEC.md](IMPORT_SPEC.md) for how the importer reads each format. This document describes authoring intent.
+**Standard import sources:** Markdown (`.md`) or Word (`.docx`) files, typically exported from Google Docs via **File → Download → Markdown** or **Microsoft Word (.docx)**. Markdown export uses headings and optional link syntax; DOCX uses Heading styles, italic Body for stage directions, and ALL CAPS (centered in the gold-standard script) for singers/lyrics. See [IMPORT_SPEC.md](IMPORT_SPEC.md) for how the importer reads each format. This document describes authoring intent.
+
+Selectable-text PDFs may also be imported through an Admin-configured layout
+profile. A PDF profile maps the source's own consistent text, column, font, and
+page conventions into the same Act → Scene → Moment model. It does **not** make
+that PDF layout part of the Theater App Standard, and scanned PDFs still require
+OCR outside the app.
 
 ---
 
