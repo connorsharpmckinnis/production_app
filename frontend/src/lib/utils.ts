@@ -75,10 +75,15 @@ export function truncate(text: string, maxLength = 80): string {
 }
 
 export function momentTypeLabel(type: string): string {
-  return type.replace(/_/g, " ");
+  const label = type.replace(/_/g, " ");
+  if (!label) return label;
+  return label.charAt(0).toUpperCase() + label.slice(1);
 }
 
-export function formatActLabel(act: { number: number; title: string }): string {
+export function formatActLabel(act: {
+  number: number;
+  title: string | null;
+}): string {
   const defaultTitle = `Act ${act.number}`;
   if (!act.title || act.title === defaultTitle) {
     return defaultTitle;

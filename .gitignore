@@ -9,6 +9,10 @@ tmp/
 # Personal pilot/scratch import data (keep curated samples in fixtures/catalogs/)
 fixtures/test_items/
 
+# Licensed LifeHouse/Scrooge PDF — local manual testing only (see fixtures/scripts/README.md)
+fixtures/scripts/Scrooge script snippet.pdf
+fixtures/scripts/Scrooge! Script.pdf
+
 # Python
 __pycache__/
 *.py[cod]

@@ -16,6 +16,8 @@ class ProductionResponse(BaseModel):
     season: str | None
     author: str | None
     created_at: datetime
+    # Derived from timeline Acts — not author metadata (imports may omit Author).
+    has_imported_script: bool
 
     model_config = {"from_attributes": True}
 
@@ -77,3 +79,65 @@ class ImportSuccessResponse(BaseModel):
     moments_created: int
     characters_created: int
     songs_created: int
+
+
+class ImportPreviewMomentResponse(BaseModel):
+    type: str
+    text: str
+    page: int | None = None
+    line_number: int | None = None
+    speakers: list[str] = Field(default_factory=list)
+    title: str | None = None
+    x0: float | None = None
+    y0: float | None = None
+    x1: float | None = None
+
+
+class ImportPreviewSceneResponse(BaseModel):
+    number: int
+    title: str | None = None
+    moments: list[ImportPreviewMomentResponse]
+
+
+class ImportPreviewActResponse(BaseModel):
+    number: int
+    title: str | None = None
+    scenes: list[ImportPreviewSceneResponse]
+
+
+class ImportPreviewWarningResponse(BaseModel):
+    line_number: int
+    message: str
+    page: int | None = None
+
+
+class ImportPreviewUnclassifiedResponse(BaseModel):
+    line_number: int
+    text: str
+    page: int | None = None
+    x0: float | None = None
+    y0: float | None = None
+    x1: float | None = None
+
+
+class ImportPreviewWindowResponse(BaseModel):
+    page_from: int | None
+    page_to: int | None
+    line_count: int
+
+
+class ImportPreviewCountsResponse(BaseModel):
+    acts: int
+    scenes: int
+    moments: int
+    characters: int
+    unclassified: int
+
+
+class ImportPreviewResponse(BaseModel):
+    source_format: str
+    preview_window: ImportPreviewWindowResponse
+    counts: ImportPreviewCountsResponse
+    acts: list[ImportPreviewActResponse]
+    warnings: list[ImportPreviewWarningResponse]
+    unclassified: list[ImportPreviewUnclassifiedResponse]

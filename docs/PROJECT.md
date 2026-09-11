@@ -617,11 +617,21 @@ Example: instead of a single "Iceberg attached to this Moment" row, the system s
 
 # Import Philosophy
 
-The importer creates a Timeline from a Markdown (`.md`) or Word (`.docx`) script file — typically exported from Google Docs via **File → Download → Markdown** or **Microsoft Word (.docx)**.
+The importer creates a Timeline from a Markdown (`.md`), Word (`.docx`), or
+selectable-text PDF (`.pdf`) script — typically exported from Google Docs via
+**File → Download → Markdown** or **Microsoft Word (.docx)**, or a publisher PDF
+with real selectable text.
 
 It does not create a finished production.
 
-**Importer approach:** Format adapters extract lines; a shared classifier reads line by line with regex pattern matching. Collect all classification issues in one pass, then fail with a full rollback (no partial timeline). Song-block problems collapse to one issue per song. Production title is admin-owned (create-time name is not overwritten by the script title page). See [IMPORT_SPEC.md](IMPORT_SPEC.md) and [PHASE_7.md](PHASE_7.md).
+**Importer approach:** Format adapters extract lines. Markdown/DOCX use a shared
+preprocess step and the legacy classifier state machine. PDFs use an Admin
+import profile (rule vocabulary + layout predicates) with preview-before-commit.
+Collect all classification issues in one pass, then fail with a full rollback
+(no partial timeline). Song-block problems collapse to one issue per song.
+Production title is admin-owned (create-time name is not overwritten by the
+script title page). See [IMPORT_SPEC.md](IMPORT_SPEC.md), [IMPORTER_2_0.md](IMPORTER_2_0.md),
+and [PHASE_7.md](PHASE_7.md).
 
 Imported information should remain intact while allowing structured production data to be layered on top.
 
@@ -930,7 +940,7 @@ Summary:
 - Format adapters for `.md` and `.docx` → shared preprocess → shared classifier
 - Preprocessing: mojibake (including smart quotes), Markdown unescape, clear UTF-8 errors
 - Plain SCRIPT_FORMAT aliases (`Title:`, `Author:`, `Act 1`, `Scene 1 - …`) and plain `### SONG TITLE` (no hyperlink required)
-- Overview “needs script” based on acts only (not author)
+- Overview / production list “needs script” based on acts only (not author)
 
 **Explicitly out of Phase 7:** re-import, admin field-mapping UI, warn-and-continue, ODT/RTF/PDF/Drive API.
 
@@ -1179,6 +1189,7 @@ These bullets remain for lighter capture so good ideas are not lost:
 - **Mobile Interface** -- Some interface ability that's mobile-optimized, probably to support the director in quickly making notes in a mostly-finished show. The idea being that they could sit in the audience with their phone, click through moments of the show passively, and then bring their phone up to talk into it, dictating a brief note that's attached to that moment without disrupting the scene or taking their eyes off the action.
 - **Platform super-admin (future SaaS)** — env-configured operator identity that can see across orgs / meta-org settings. Not designed; only relevant if multi-tenant SaaS happens. Today: one org per deployment.
 - **Dense UI / form architecture review** — Eventually audit pages with large tables, matrices, or charts so draft form/dialog state does not live on the same React component as the heavy tree (Lav chart keystroke lag, 2026-09-04). Aim for consistent, reusable patterns that stay snappy for a long show’s worth of data. Details in [UX_UI_IMPROVEMENTS.md](UX_UI_IMPROVEMENTS.md) Wish list.
+- **Importer example-driven rules (click-to-build)** — Select words/spans on a PDF (or layout peek), label them (Character name, lyric, …); system proposes predicates from shared layout/style traits and highlights other matches for confirm/reject. “Inverted regex builder.” See [IMPORTER_2_0.md](IMPORTER_2_0.md) §17. Not started; LifeHouse hand-tuning first.
 
 See also [SCRATCH_NOTES.md](SCRATCH_NOTES.md) for transient owner notes.
 

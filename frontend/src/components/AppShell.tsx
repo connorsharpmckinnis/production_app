@@ -236,7 +236,7 @@ function AppShellInner() {
       .getProduction(Number(productionId))
       .then((production) => {
         setProductionTitle(production.title);
-        setProductionHasScript(Boolean(production.author));
+        setProductionHasScript(production.has_imported_script);
         rememberLastProduction(Number(productionId), production.title);
       })
       .catch(() => {

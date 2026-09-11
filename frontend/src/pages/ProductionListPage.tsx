@@ -65,7 +65,7 @@ export default function ProductionListPage() {
   }
 
   function productionHref(production: ProductionResponse): string | null {
-    if (production.author) return `/productions/${production.id}`;
+    if (production.has_imported_script) return `/productions/${production.id}`;
     if (isAdmin) return `/productions/${production.id}/import`;
     return null;
   }
@@ -108,7 +108,7 @@ export default function ProductionListPage() {
         <>
           <ul className="space-y-2 md:hidden">
             {productions.map((production) => {
-              const ready = Boolean(production.author);
+              const ready = production.has_imported_script;
               const href = productionHref(production);
               const clickable = Boolean(href);
 
@@ -203,7 +203,7 @@ export default function ProductionListPage() {
               </TableHeader>
               <TableBody>
                 {productions.map((production) => {
-                  const ready = Boolean(production.author);
+                  const ready = production.has_imported_script;
                   const href = productionHref(production);
                   const clickable = Boolean(href);
 

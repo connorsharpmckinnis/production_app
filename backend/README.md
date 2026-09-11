@@ -57,24 +57,30 @@ uv run pytest -q
 
 ## Script Importer
 
-Script import lives in [`app/services/importer/`](app/services/importer/). It accepts Google Docs **Markdown** (`.md`) and **Word** (`.docx`) exports, extracts lines via format adapters, then classifies into production timeline records without modifying sacred script text. The production title set at create time is never overwritten by the script title page.
+Script import lives in [`app/services/importer/`](app/services/importer/). It accepts Google Docs **Markdown** (`.md`), **Word** (`.docx`), and selectable-text **PDF** (`.pdf`) uploads. Format adapters extract lines; Markdown/DOCX use the legacy classifier, while PDFs require an import profile (rule engine + mapped persist). Sacred script text is never rewritten. The production title set at create time is never overwritten by the script title page.
 
 | Module | Purpose |
 |--------|---------|
-| `importer.py` | Main `import_script()` entry point and line-by-line state machine |
+| `importer.py` | Legacy `import_script()` for `.md` / `.docx` |
+| `rule_engine.py` | Profile-driven classification → in-memory preview |
+| `mapped_importer.py` | Persist a profile preview into Timeline records |
+| `profiles.py` | Pydantic import-profile schema / safety |
 | `extract.py` | Format detection and adapter dispatch |
 | `formats/md.py` | Markdown bytes → lines |
 | `formats/docx.py` | DOCX paragraphs → classifier-shaped lines (`python-docx`) |
+| `formats/pdf.py` | Selectable-text PDF → layout-aware lines (`pymupdf`) |
 | `patterns.py` | Regex patterns for acts, scenes, dialogue, songs, etc. |
 | `preprocessing.py` | Mojibake repair, Markdown unescape, line normalization |
-| `parentheticals.py` | Parses speaker names and singer attribution lines |
+| `grammar.py` | Speaker lists, dialogue / performer line parsing |
 | `builtins.py` | Built-in character and singer name lists |
 | `word_numbers.py` | Converts written numbers (e.g. "One") to integers |
 | `errors.py` | `ImportLineError` for line-level import failures |
 
-Import rules and line classification are defined in [docs/IMPORT_SPEC.md](../docs/IMPORT_SPEC.md). Authoring format is in [docs/SCRIPT_FORMAT.md](../docs/SCRIPT_FORMAT.md).
+Org/builtin profile CRUD helpers live in [`app/services/import_profiles.py`](app/services/import_profiles.py) with API routes under `/api/import-profiles`.
 
-The import API endpoint is `POST /api/productions/{id}/import` (Admin only; `.md` or `.docx`).
+Import rules and line classification are defined in [docs/IMPORT_SPEC.md](../docs/IMPORT_SPEC.md). Authoring format is in [docs/SCRIPT_FORMAT.md](../docs/SCRIPT_FORMAT.md). Sprint notes: [docs/IMPORTER_2_0.md](../docs/IMPORTER_2_0.md).
+
+Import endpoints: `POST /api/productions/{id}/import` and `…/import/preview` (Admin only; PDF requires profile JSON).
 
 ## Phase 2 Features
 

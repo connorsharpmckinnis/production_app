@@ -7,6 +7,7 @@ from app.api import (
     cues,
     feedback,
     groups,
+    import_profiles,
     lav_chart,
     notes,
     notifications,
@@ -31,6 +32,7 @@ api_router.include_router(settings.router)
 api_router.include_router(feedback.router)
 api_router.include_router(notifications.router)
 api_router.include_router(productions.router)
+api_router.include_router(import_profiles.router)
 api_router.include_router(timeline.router)
 api_router.include_router(timeline.lookup_router)
 api_router.include_router(characters.router)

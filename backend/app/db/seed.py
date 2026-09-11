@@ -24,6 +24,7 @@ from app.models import (
     User,
     UserAppRole,
 )
+from app.services.import_profiles import ensure_builtin_import_profiles
 
 DEFAULT_LOCATIONS = [
     ("Main Stage", 0),
@@ -212,6 +213,7 @@ def seed_database(db: Session, settings: Settings) -> None:
     _seed_overview_message_defaults(db)
     _seed_locations(db, organization)
     _seed_production_roles(db)
+    ensure_builtin_import_profiles(db)
 
     admin = db.query(User).filter(User.username == settings.ADMIN_USERNAME).first()
     if admin is None:
