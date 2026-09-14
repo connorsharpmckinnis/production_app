@@ -1,12 +1,13 @@
 # Role Permissions (MVP)
 
-**Version:** 0.2 (production membership shipped 2026-09-02)
+**Version:** 0.3 (custom production roles 2026-09-13)
 
 Defines organization-level and production-level access. Schema: [DATABASE.md](DATABASE.md)
 (`app_roles`, `user_app_roles`, and production membership tables).
 
-The only organization-wide role is **Admin**. **Director** and **Actor** are
-production-scoped roles assigned through an active production membership.
+The only organization-wide role is **Admin**. **Director**, **Actor**, **Member**, and
+any Admin-created custom roles (for example Stage Manager) are production-scoped roles
+assigned through an active production membership.
 
 ---
 
@@ -19,6 +20,7 @@ production-scoped roles assigned through an active production membership.
 | Create/edit/deactivate organization users | Yes |
 | Reset user passwords | Yes |
 | Assign organization-level Admin | Yes |
+| Create/edit/deactivate production role definitions | Yes |
 | Change the production-role permission matrix | Yes |
 
 Admin access bypasses production membership and production-role permission checks.
@@ -26,10 +28,14 @@ The Admin role is the only global bypass in V1.
 
 ## Production role defaults
 
-Production roles are reusable definitions with immutable codes (`member`,
-`director`, `actor`) and editable labels/descriptions. A membership may have more
-than one role. Effective permissions are the union of enabled permissions on all
-active roles.
+Production roles are reusable **org-wide** definitions with immutable codes and editable
+labels/descriptions. System codes (`member`, `director`, `actor`) are seeded and cannot
+be deactivated. Admins may create additional custom roles in App Settings; new roles
+receive a full resource/action matrix copied from an existing role (often Director).
+
+A membership may have more than one role. Effective permissions are the union of enabled
+permissions on all **active** roles. Inactive custom roles cannot be newly assigned and
+do not contribute capabilities.
 
 The normalized matrix stores one row for every role/resource/action combination.
 Actions are `read`, `create`, `update`, and `delete`. These are the seeded
@@ -46,14 +52,30 @@ resource keys:
 | Actor | Member reads plus CRUD for `notes` and `bookmarks`; no other writes |
 | Director | `read` everywhere; CRUD for preparation, catalog, rehearsal, announcement, casting, and `people` resources; `production.update`; no production create/delete |
 
-The exact rows remain Admin-editable in App Settings. Admin changes apply on the
-next authorization check to every matching active membership. V1 has no
-per-member overrides.
+The exact rows remain Admin-editable in App Settings (select a role, then edit grouped
+resources). Admin changes apply on the next authorization check to every matching
+active membership. V1 has no per-member overrides.
 
 `casting` is intentionally a staff-facing capability. It is reserved for the
 future production Casting workspace and is not granted to Member or Actor by
 the seeded defaults. Future casting-specific roles can receive it through the
 same matrix.
+
+### Recommended custom role: Stage Manager
+
+Do **not** seed Stage Manager. Create it in App Settings as a pilot of the role
+builder:
+
+1. **Create role** → name `Stage Manager`, code `stage_manager` (optional; auto-slugged
+   from the name if omitted).
+2. **Copy permissions from** `Director`.
+3. Leave Admin-only operations alone (import, user admin, production create/delete stay
+   outside the matrix / Admin-only).
+4. Optionally tighten later if Emmy’s SMs should not manage casting or people.
+
+Recommended starting point (same as Director’s current matrix): full prep/catalog/lav/
+rehearsal/people/casting CRUD; `production.update`; read elsewhere. That lets an SM run
+Scrooge day-to-day without sharing the Director login or receiving Admin.
 
 ## Legacy global roles
 
@@ -99,6 +121,7 @@ historical.
 - **Import is Admin-only.** Directors prepare productions but cannot upload or re-import scripts.
 - **Actors are view-only on the Timeline** except for Notes and Bookmarks.
 - **User management is Admin-only.** Includes account creation, password resets, role assignment, and deactivation.
+- **Production role definitions are Admin-only.** Directors assign existing roles on People; they do not create custom roles.
 - **Act as user is Admin-only.** An Admin may switch their session to another active org user to verify that account’s view. The JWT carries an impersonator claim; nested act-as is blocked; a banner + **Return to admin** restores the original Admin session. Not a separate SuperAdmin role.
 - **Directors** can edit timeline and perform preparation work on existing productions. They cannot create, delete, or import productions, and cannot manage users.
 - **Casting data is private by capability.** Future casting notes and individual
@@ -108,12 +131,17 @@ historical.
 - **Inactive memberships are not effective.** Deactivation preserves historical
   membership, role, and cast rows, but those rows do not grant access or count as
   current actor behavior.
+- **Inactive custom roles are not assignable.** Soft-deactivated roles remain in
+  Settings for reactivation but are hidden from People role pickers and do not
+  contribute capabilities.
 
 ## Current implementation gaps
 
 - The future Casting workspace, casting notes, and availability records are
   planned in [casting-and-auditions.md](feature_plans/casting-and-auditions.md);
   they are not current permissions-backed features.
+- Announcement audience targeting still uses the fixed Title Case set
+  (`Admin` / `Director` / `Actor` / `Member`). Custom roles such as Stage Manager
+  are not announcement targets yet.
 
 ---
-

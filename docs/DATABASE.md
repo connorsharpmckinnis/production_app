@@ -235,13 +235,18 @@ Constraints and deletion behavior
 
 Purpose
 
-Reusable production-scoped role definitions.
+Reusable production-scoped role definitions (org-wide / app-global for the single-org
+deployment). Assigned to memberships; not organization-wide Admin.
 
-Seeded roles:
+Seeded system roles:
 
 * `member` — Member
 * `director` — Director
 * `actor` — Actor
+
+Admins may create additional custom roles in App Settings (for example
+`stage_manager`). Custom roles are soft-deactivated via `is_active` rather than
+hard-deleted while history may still reference them.
 
 Fields
 
@@ -249,11 +254,13 @@ Fields
 * code (immutable, unique, lowercase)
 * name
 * description
+* is_active
 * created_at
 * updated_at
 
 `code` is the stable identifier used by application logic and permission rows.
 `name` and `description` may be edited without changing assignments.
+System codes (`member`, `director`, `actor`) cannot be deactivated.
 
 ---
 

@@ -15,6 +15,15 @@ Owner walkthrough and WP7 doc closeout are done. Next product slice:
 private notes, conflict calendars). Small UI polish leftovers are listed in the
 shipped membership plan under deferred leftovers.
 
+## Custom production roles — 2026-09-13
+
+Admin Settings can create org-wide custom production roles (copy matrix from an
+existing role), edit one role’s permissions with grouped accordion sections, and
+soft-deactivate unused custom roles. Stage Manager is intentionally **not**
+seeded — create it in Settings (copy from Director) for the Scrooge pilot. See
+[ROLES.md](ROLES.md) and [crew-roles.md](feature_plans/crew-roles.md). Follow-up:
+announcement audience targeting still only knows Admin/Director/Actor/Member.
+
 ## Little Things
 
 - The My Bookmarks experience is odd right now. It pops up a screen-wide banner-looking thing with the bookmarks listed there. Not a terrible instinct, but I think I'd like it to show in its own dedicated timeline-like view with '...'s between bookmarks to show it's not the whole timeline view. And then clicking on a bookmark will open it up in the 'main' timeline view. Or something like that. I'm not sure how I want bookmarks to work yet, so we'll leave it be for the time being and come back to it when I know how I want it to work. → **Wish list** (undecided)

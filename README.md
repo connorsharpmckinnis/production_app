@@ -49,7 +49,7 @@ The Theater Thing aims to be **one source of truth for production prep**, withou
 
 | Role in the app | Who that usually is | What they can do |
 | --------------- | ------------------- | ---------------- |
-| **Admin** (organization) | Production or organizational managers | Create productions, import scripts, manage user accounts, edit the global production-role permission matrix, full system bypass |
+| **Admin** (organization) | Production or organizational managers | Create productions, import scripts, manage user accounts, create custom production roles, edit the production-role permission matrix, full system bypass |
 | **Director** (per production) | Directors, assistant directors, and people doing show-specific prep | Assigned on **People**; cast the show, edit the Timeline, manage props/cues/costumes/etc., run reports, use Rehearse Mode (subject to the Admin-editable matrix) |
 | **Actor** / **Member** (per production) | Cast and other participants | See productions they're **members** of (including before casting); use Timeline (read-only by default) and Rehearse; leave notes and bookmarks when permitted |
 
@@ -140,7 +140,7 @@ Click a moment reference in a report and jump straight back to that spot on the 
 
 ### 8. Admin tools
 
-Admins can manage **Users** (accounts and organization Admin assignment) and **Settings** (including the global production-role permission matrix). Anyone can open **About the App** for a plain-language summary of what works today and what's planned. Admins can edit that page in-app with Markdown (including image uploads) — no code changes required for copy updates.
+Admins can manage **Users** (accounts and organization Admin assignment) and **Settings** (including creating custom production roles and editing each role’s permission matrix). Anyone can open **About the App** for a plain-language summary of what works today and what's planned. Admins can edit that page in-app with Markdown (including image uploads) — no code changes required for copy updates.
 
 ---
 
@@ -188,7 +188,7 @@ Features under active thought (not day-one promises):
 3. **Timeline and Rehearse polish** — faster search, better filters, character colors, saved views  
 4. **Director notes from the house** — phone-friendly notes onto the current moment while watching from the audience (dictated and/or typed)
 5. **Scheduling, attendance, tasks, and archives** — moving from prep into running (and archiving) the show  
-6. **More roles** — stage manager, lighting, sound, and views tuned to each job  
+6. **More roles** — create Stage Manager (and lighting/sound) in Settings; views tuned to each job later  
 
 Feedback from real productions and in-the-field staff will shape what gets built.
 

@@ -136,6 +136,7 @@ def list_production_roles(
 ) -> list[ProductionRoleResponse]:
     roles = (
         db.query(ProductionRole)
+        .filter(ProductionRole.is_active.is_(True))
         .order_by(ProductionRole.name, ProductionRole.code)
         .all()
     )

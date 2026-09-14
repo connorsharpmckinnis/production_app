@@ -48,8 +48,10 @@ Seeded via `production_roles` + `production_role_permissions` (see
 | `director` | Director | Broad preparation / rehearsal / people / casting management; `production.update` |
 
 Every role/resource pair receives rows for `read`, `create`, `update`, and `delete`.
-Admins may edit the matrix in App Settings; changes apply on the next authorization
-check. No production memberships are auto-created by seed.
+Admins may create additional custom production roles in App Settings (full matrix
+copied from an existing role) and edit the matrix per role. Changes apply on the
+next authorization check. Stage Manager and other crew roles are **not** seeded —
+create them in Settings. No production memberships are auto-created by seed.
 
 ---
 

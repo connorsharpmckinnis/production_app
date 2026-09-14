@@ -53,7 +53,7 @@ When implementing, agents should read the matching plan here for goals, non-goal
 | [soft-pilot-ops.md](soft-pilot-ops.md) | Roadmap | Pilot runbook, What’s new, support loop for one-show soft pilots |
 | [director-house-notes.md](director-house-notes.md) | Roadmap | Mobile house mode, dictation, optional follow-along assist |
 | [show-archives.md](show-archives.md) | Roadmap | Archive past shows as institutional memory |
-| [crew-roles.md](crew-roles.md) | Roadmap | Stage Manager / crew-shaped production roles beyond Member·Director·Actor |
+| [crew-roles.md](crew-roles.md) | Partial ship | Custom production role builder shipped; create Stage Manager in Settings (not seeded) |
 
 ## Earlier proposals (comms)
 
