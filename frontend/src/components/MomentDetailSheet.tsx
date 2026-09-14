@@ -29,6 +29,7 @@ interface MomentDetailSheetProps {
   momentDetail: MomentDetailResponse | null;
   sceneId: number | null;
   canEdit: boolean;
+  canEditScript: boolean;
   characters: CharacterDetailResponse[];
   castableUsers: CastableUserResponse[];
   groups: GroupResponse[];
@@ -50,6 +51,7 @@ export default function MomentDetailSheet({
   momentDetail,
   sceneId,
   canEdit,
+  canEditScript,
   characters,
   castableUsers,
   groups,
@@ -123,6 +125,7 @@ export default function MomentDetailSheet({
             detail={momentDetail}
             sceneId={sceneId}
             canEdit={canEdit}
+            canEditScript={canEditScript}
             canChooseVisibility={canEdit}
             characters={characters}
             castableUsers={castableUsers}

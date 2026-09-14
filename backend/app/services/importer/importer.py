@@ -10,6 +10,7 @@ from app.models import (
     Act,
     Character,
     Dialogue,
+    Group,
     LyricLine,
     Moment,
     MomentType,
@@ -19,7 +20,7 @@ from app.models import (
     SongAttributionCharacter,
     StageDirection,
 )
-from app.services.importer.builtins import BUILTIN_CHARACTER_NAMES, BUILTIN_SINGER_NAMES
+from app.services.importer.builtins import BUILTIN_SINGER_NAMES
 from app.services.importer.errors import ImportIssue, ImportLineError
 from app.services.importer.extract import ExtractedLine, extract_script
 from app.services.importer.grammar import (
@@ -55,6 +56,12 @@ from app.services.importer.preprocessing import (
     preprocess_lines,
     preprocess_script,
 )
+from app.services.importer.speaker_kinds import (
+    SpeakerKind,
+    default_speaker_kind,
+    get_or_create_character,
+    get_or_create_group,
+)
 from app.services.importer.word_numbers import parse_number
 
 SONG_MOMENT_TYPES = frozenset({"song_header", "song_attribution", "lyric"})
@@ -71,6 +78,8 @@ class ImportState:
     sequence_number: int = 0
     title_page_complete: bool = False
     characters: dict[str, Character] = field(default_factory=dict)
+    groups: dict[str, Group] = field(default_factory=dict)
+    speaker_kinds: dict[str, SpeakerKind] = field(default_factory=dict)
     dialogue_character_names: set[str] = field(default_factory=set)
     moment_types: dict[str, MomentType] = field(default_factory=dict)
     source_format: str | None = None
@@ -91,6 +100,7 @@ class ImportResult:
     scenes_created: int = 0
     moments_created: int = 0
     characters_created: int = 0
+    groups_created: int = 0
     songs_created: int = 0
     script_title: str | None = None
 
@@ -114,13 +124,25 @@ def _collect_dialogue_character_names(lines: list[str]) -> set[str]:
     return names
 
 
-def _ensure_builtin_characters(
+def _speaker_kind_for(state: ImportState, name: str) -> SpeakerKind:
+    if name in state.speaker_kinds:
+        return state.speaker_kinds[name]
+    return default_speaker_kind(name)
+
+
+def _ensure_subject(
     db: Session,
     production: Production,
     state: ImportState,
+    name: str,
 ) -> None:
-    for name in BUILTIN_CHARACTER_NAMES:
-        _get_or_create_character(db, production, state, name)
+    """Create Character or Group for a speaker label according to speaker_kinds."""
+    if _speaker_kind_for(state, name) == "group":
+        get_or_create_group(db, production, state.groups, name)
+        state.dialogue_character_names.add(name)
+    else:
+        get_or_create_character(db, production, state.characters, name)
+        state.dialogue_character_names.add(name)
 
 
 _CONTEXT_BEFORE = 3
@@ -259,15 +281,71 @@ def _get_or_create_character(
     state: ImportState,
     name: str,
 ) -> Character:
-    if name in state.characters:
-        return state.characters[name]
+    return get_or_create_character(db, production, state.characters, name)
 
-    character = Character(production_id=production.id, name=name)
-    db.add(character)
-    db.flush()
-    state.characters[name] = character
-    state.dialogue_character_names.add(name)
-    return character
+
+def _add_attribution_rows(
+    db: Session,
+    production: Production,
+    state: ImportState,
+    moment: Moment,
+    names: list[str],
+    *,
+    kind: str,
+    text: str = "",
+) -> None:
+    for name in names:
+        _ensure_subject(db, production, state, name)
+        if _speaker_kind_for(state, name) == "group":
+            group = state.groups[name]
+            if kind == "dialogue":
+                db.add(
+                    Dialogue(
+                        moment_id=moment.id,
+                        group_id=group.id,
+                        dialogue_text=text,
+                    )
+                )
+            elif kind == "lyric":
+                db.add(
+                    LyricLine(
+                        moment_id=moment.id,
+                        group_id=group.id,
+                        lyric_text=text,
+                    )
+                )
+            else:
+                db.add(
+                    SongAttributionCharacter(
+                        moment_id=moment.id,
+                        group_id=group.id,
+                    )
+                )
+        else:
+            character = state.characters[name]
+            if kind == "dialogue":
+                db.add(
+                    Dialogue(
+                        moment_id=moment.id,
+                        character_id=character.id,
+                        dialogue_text=text,
+                    )
+                )
+            elif kind == "lyric":
+                db.add(
+                    LyricLine(
+                        moment_id=moment.id,
+                        character_id=character.id,
+                        lyric_text=text,
+                    )
+                )
+            else:
+                db.add(
+                    SongAttributionCharacter(
+                        moment_id=moment.id,
+                        character_id=character.id,
+                    )
+                )
 
 
 def _song_id_for_moment(state: ImportState, moment_type_name: str) -> int | None:
@@ -319,9 +397,6 @@ def _handle_dialogue(
     dialogue_text: str,
     line_number: int,
 ) -> None:
-    for speaker in speakers:
-        _get_or_create_character(db, production, state, speaker)
-
     # MVP: keep all parentheticals inline (vocal cues and stage action alike).
     text = dialogue_text.strip()
     moment = _create_moment(
@@ -332,15 +407,15 @@ def _handle_dialogue(
         line_number,
         parsed_text=text or None,
     )
-    for speaker in speakers:
-        character = state.characters[speaker]
-        db.add(
-            Dialogue(
-                moment_id=moment.id,
-                character_id=character.id,
-                dialogue_text=text,
-            ),
-        )
+    _add_attribution_rows(
+        db,
+        production,
+        state,
+        moment,
+        speakers,
+        kind="dialogue",
+        text=text,
+    )
 
 
 def _classify_song_block_line(
@@ -375,23 +450,22 @@ def _persist_song_attribution(
     original_text: str,
     line_number: int,
 ) -> Moment:
-    for name in performers:
-        _get_or_create_character(db, production, state, name)
     state.current_performers = list(performers)
     moment = _create_moment(db, state, "song_attribution", original_text, line_number)
-    for name in performers:
-        character = state.characters[name]
-        db.add(
-            SongAttributionCharacter(
-                moment_id=moment.id,
-                character_id=character.id,
-            ),
-        )
+    _add_attribution_rows(
+        db,
+        production,
+        state,
+        moment,
+        performers,
+        kind="song_attribution",
+    )
     return moment
 
 
 def _persist_lyric(
     db: Session,
+    production: Production,
     state: ImportState,
     original_text: str,
     line_number: int,
@@ -413,15 +487,15 @@ def _persist_lyric(
         line_number,
         parsed_text=lyric_text or None,
     )
-    for name in state.current_performers:
-        character = state.characters[name]
-        db.add(
-            LyricLine(
-                moment_id=moment.id,
-                character_id=character.id,
-                lyric_text=lyric_text,
-            ),
-        )
+    _add_attribution_rows(
+        db,
+        production,
+        state,
+        moment,
+        state.current_performers,
+        kind="lyric",
+        text=lyric_text,
+    )
     return moment
 
 
@@ -451,7 +525,7 @@ def _handle_song_block_moment(
             line_number,
         )
         return
-    _persist_lyric(db, state, original_text, line_number)
+    _persist_lyric(db, production, state, original_text, line_number)
 
 
 def _handle_h4_line(
@@ -666,6 +740,7 @@ def import_script(
     *,
     filename: str | None = None,
     dry_run: bool = False,
+    speaker_kinds: dict[str, SpeakerKind] | None = None,
 ) -> ImportResult:
     """
     Import script content into an existing production.
@@ -727,13 +802,12 @@ def import_script(
         dialogue_character_names=_collect_dialogue_character_names(lines),
         source_format=source_format,
         line_metadata=line_metadata,
+        speaker_kinds=dict(speaker_kinds or {}),
     )
     result = ImportResult()
     issues: list[ImportIssue] = []
 
     try:
-        _ensure_builtin_characters(db, production, state)
-
         for line_number, line in enumerate(lines, start=1):
             if state.recovery_mode == "act_or_scene":
                 if not line.strip() or not _is_act_or_scene_line(line):
@@ -784,6 +858,9 @@ def import_script(
         )
         result.characters_created = (
             db.query(Character).filter(Character.production_id == production.id).count()
+        )
+        result.groups_created = (
+            db.query(Group).filter(Group.production_id == production.id).count()
         )
         result.songs_created = (
             db.query(Song).filter(Song.production_id == production.id).count()

@@ -17,6 +17,14 @@ def normalize_source_markup(text: str | None) -> str | None:
     return without_footnotes.replace("*", "")
 
 
+def _subject_name(row) -> str:
+    if getattr(row, "character", None) is not None:
+        return row.character.name
+    if getattr(row, "group", None) is not None:
+        return row.group.name
+    raise AssertionError("attribution row missing character and group")
+
+
 def semantic_import_fingerprint(db: Session, production: Production) -> dict:
     """Build an exact, format-normalized comparison of imported production data."""
     acts = (
@@ -37,7 +45,7 @@ def semantic_import_fingerprint(db: Session, production: Production) -> dict:
                 moment_type = moment.moment_type.name
                 if moment_type == "dialogue":
                     speakers = tuple(
-                        dialogue.character.name
+                        _subject_name(dialogue)
                         for dialogue in sorted(
                             moment.dialogue_lines,
                             key=lambda item: item.id,
@@ -46,7 +54,7 @@ def semantic_import_fingerprint(db: Session, production: Production) -> dict:
                     semantic_text = normalize_source_markup(moment.parsed_text)
                 elif moment_type == "lyric":
                     speakers = tuple(
-                        line.character.name
+                        _subject_name(line)
                         for line in sorted(
                             moment.lyric_lines,
                             key=lambda item: item.id,
@@ -57,7 +65,7 @@ def semantic_import_fingerprint(db: Session, production: Production) -> dict:
                     )
                 elif moment_type == "song_attribution":
                     speakers = tuple(
-                        row.character.name
+                        _subject_name(row)
                         for row in sorted(
                             moment.song_attribution_characters,
                             key=lambda item: item.id,

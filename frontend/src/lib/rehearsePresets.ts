@@ -1,5 +1,5 @@
 import type { CharacterDetailResponse, MomentSummary } from "@/lib/types";
-import { isMyMoment } from "@/lib/momentHighlight";
+import { isMyMoment, type HighlightGroup } from "@/lib/momentHighlight";
 
 export type RehearsePresetId = "scene_run_through" | "my_lines" | "line_cues" | "custom";
 
@@ -73,13 +73,14 @@ export function filterMyLines(
   moments: MomentSummary[],
   myCharacterIds: number[],
   characters: CharacterDetailResponse[],
+  groups?: HighlightGroup[],
 ): MomentSummary[] {
   return moments.filter((moment) => {
     if (moment.moment_type === "dialogue" || moment.moment_type === "lyric") {
-      return isMyMoment(moment, myCharacterIds, characters);
+      return isMyMoment(moment, myCharacterIds, characters, groups);
     }
     if (moment.moment_type === "stage_direction") {
-      return isMyMoment(moment, myCharacterIds, characters);
+      return isMyMoment(moment, myCharacterIds, characters, groups);
     }
     return false;
   });
@@ -90,9 +91,10 @@ export function filterLineCues(
   moments: MomentSummary[],
   myCharacterIds: number[],
   characters: CharacterDetailResponse[],
+  groups?: HighlightGroup[],
 ): MomentSummary[] {
   const myLineMoments = moments.filter((moment) =>
-    isMyMoment(moment, myCharacterIds, characters),
+    isMyMoment(moment, myCharacterIds, characters, groups),
   );
   const idsToShow = new Set<number>();
 
@@ -112,14 +114,15 @@ export function applyRehearsePreset(
   moments: MomentSummary[],
   myCharacterIds: number[],
   characters: CharacterDetailResponse[],
+  groups?: HighlightGroup[],
 ): MomentSummary[] {
   switch (preset) {
     case "scene_run_through":
       return filterSceneRunThrough(moments, myCharacterIds);
     case "my_lines":
-      return filterMyLines(moments, myCharacterIds, characters);
+      return filterMyLines(moments, myCharacterIds, characters, groups);
     case "line_cues":
-      return filterLineCues(moments, myCharacterIds, characters);
+      return filterLineCues(moments, myCharacterIds, characters, groups);
   }
 }
 

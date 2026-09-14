@@ -44,6 +44,7 @@ When implementing, agents should read the matching plan here for goals, non-goal
 
 | Plan | Status | One-liner |
 | ---- | ------ | --------- |
+| [GROUP_IMPORTING.md](../GROUP_IMPORTING.md) | Shipped (2026-09-14) | Group attributions on Moments + multi-step import wizard (Characters/Groups, People step); #130 |
 | [production-membership-and-casting-workspace.md](production-membership-and-casting-workspace.md) | Shipped (2026-09-02) | Production roster, production-scoped roles, People workspace, Admin permission matrix |
 | [rehearsal-management.md](rehearsal-management.md) | Shipped (Phases 15–18) | Reserved slots, call planner, soft-publish call sheets, notes, times rehearsed |
 | [print-and-call-sheets.md](print-and-call-sheets.md) | Roadmap | Plan-driven call sheet (Phase 17) + optional scene-select Reports shortcut |

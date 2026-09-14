@@ -8,6 +8,7 @@ from app.models import (
     Act,
     Character,
     Dialogue,
+    Group,
     LyricLine,
     Moment,
     MomentType,
@@ -20,6 +21,12 @@ from app.models import (
 from app.services.importer.errors import ImportIssue, ImportLineError
 from app.services.importer.importer import ImportResult
 from app.services.importer.rule_engine import ImportPreview, PreviewMoment
+from app.services.importer.speaker_kinds import (
+    SpeakerKind,
+    get_or_create_character,
+    get_or_create_group,
+    resolve_speaker_kinds,
+)
 
 
 def _preview_issues(preview: ImportPreview) -> list[ImportIssue]:
@@ -44,26 +51,14 @@ def _preview_issues(preview: ImportPreview) -> list[ImportIssue]:
     return sorted(issues, key=lambda issue: issue.line_number)
 
 
-def _get_character(
-    db: Session,
-    production: Production,
-    characters: dict[str, Character],
-    name: str,
-) -> Character:
-    if name not in characters:
-        character = Character(production_id=production.id, name=name)
-        db.add(character)
-        db.flush()
-        characters[name] = character
-    return characters[name]
-
-
 def _add_moment_details(
     db: Session,
     production: Production,
     preview_moment: PreviewMoment,
     moment: Moment,
     characters: dict[str, Character],
+    groups: dict[str, Group],
+    speaker_kinds: dict[str, SpeakerKind],
 ) -> None:
     if preview_moment.type == "stage_direction":
         db.add(
@@ -74,42 +69,72 @@ def _add_moment_details(
         )
         return
 
-    moment_characters = [
-        _get_character(db, production, characters, name)
-        for name in preview_moment.speakers
-    ]
+    kinds = resolve_speaker_kinds(preview_moment.speakers, speaker_kinds)
     if preview_moment.type == "dialogue":
-        for character in moment_characters:
-            db.add(
-                Dialogue(
-                    moment_id=moment.id,
-                    character_id=character.id,
-                    dialogue_text=preview_moment.text,
+        for name in preview_moment.speakers:
+            if kinds[name] == "group":
+                group = get_or_create_group(db, production, groups, name)
+                db.add(
+                    Dialogue(
+                        moment_id=moment.id,
+                        group_id=group.id,
+                        dialogue_text=preview_moment.text,
+                    )
                 )
-            )
+            else:
+                character = get_or_create_character(db, production, characters, name)
+                db.add(
+                    Dialogue(
+                        moment_id=moment.id,
+                        character_id=character.id,
+                        dialogue_text=preview_moment.text,
+                    )
+                )
     elif preview_moment.type == "lyric":
-        for character in moment_characters:
-            db.add(
-                LyricLine(
-                    moment_id=moment.id,
-                    character_id=character.id,
-                    lyric_text=preview_moment.text,
+        for name in preview_moment.speakers:
+            if kinds[name] == "group":
+                group = get_or_create_group(db, production, groups, name)
+                db.add(
+                    LyricLine(
+                        moment_id=moment.id,
+                        group_id=group.id,
+                        lyric_text=preview_moment.text,
+                    )
                 )
-            )
+            else:
+                character = get_or_create_character(db, production, characters, name)
+                db.add(
+                    LyricLine(
+                        moment_id=moment.id,
+                        character_id=character.id,
+                        lyric_text=preview_moment.text,
+                    )
+                )
     elif preview_moment.type == "song_attribution":
-        for character in moment_characters:
-            db.add(
-                SongAttributionCharacter(
-                    moment_id=moment.id,
-                    character_id=character.id,
+        for name in preview_moment.speakers:
+            if kinds[name] == "group":
+                group = get_or_create_group(db, production, groups, name)
+                db.add(
+                    SongAttributionCharacter(
+                        moment_id=moment.id,
+                        group_id=group.id,
+                    )
                 )
-            )
+            else:
+                character = get_or_create_character(db, production, characters, name)
+                db.add(
+                    SongAttributionCharacter(
+                        moment_id=moment.id,
+                        character_id=character.id,
+                    )
+                )
 
 
 def persist_profile_preview(
     db: Session,
     production: Production,
     preview: ImportPreview,
+    speaker_kinds: dict[str, SpeakerKind] | None = None,
 ) -> ImportResult:
     """Write the exact already-classified preview or roll back completely."""
     if db.query(Act).filter(Act.production_id == production.id).count():
@@ -128,8 +153,10 @@ def persist_profile_preview(
         raise ValueError(f"Missing Moment types: {', '.join(sorted(missing_types))}")
 
     characters: dict[str, Character] = {}
+    groups: dict[str, Group] = {}
     current_song: Song | None = None
     result = ImportResult()
+    kinds = speaker_kinds or {}
 
     try:
         for act_order, preview_act in enumerate(preview.acts, start=1):
@@ -193,12 +220,14 @@ def persist_profile_preview(
                         preview_moment,
                         moment,
                         characters,
+                        groups,
+                        kinds,
                     )
 
         result.characters_created = len(characters)
+        result.groups_created = len(groups)
         db.commit()
         return result
     except Exception:
         db.rollback()
         raise
-

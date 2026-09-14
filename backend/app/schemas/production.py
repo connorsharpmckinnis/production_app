@@ -78,6 +78,7 @@ class ImportSuccessResponse(BaseModel):
     scenes_created: int
     moments_created: int
     characters_created: int
+    groups_created: int = 0
     songs_created: int
 
 

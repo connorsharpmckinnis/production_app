@@ -647,14 +647,22 @@ Fields
 
 * id
 * moment_id
-* character_id
+* character_id (nullable)
+* group_id (nullable)
 * dialogue_text
+
+**Decision:** Exactly one of `character_id` or `group_id` must be set (XOR CHECK),
+mirroring `moment_blocking` subject rules without `user_id`. Multi-subject Moments
+use one row per Character or Group with the same text. Admins may replace-set
+subjects (and shared text) from Moment Detail when import attribution is wrong.
 
 Relationships
 
 Many → One Moment
 
-Many → One Character
+Many → One Character (optional)
+
+Many → One Group (optional)
 
 ---
 
@@ -671,14 +679,19 @@ Fields
 
 * id
 * moment_id
-* character_id
+* character_id (nullable)
+* group_id (nullable)
 * lyric_text
+
+**Decision:** Same XOR subject rule as Dialogue (`character_id` XOR `group_id`).
 
 Relationships
 
 Many → One Moment
 
-Many → One Character
+Many → One Character (optional)
+
+Many → One Group (optional)
 
 ---
 
@@ -686,23 +699,28 @@ Many → One Character
 
 Purpose
 
-Characters named on a `song_attribution` Moment (for example `VERA & MOM` or
-`SHACKLETON (WILD)`).
+Subjects named on a `song_attribution` Moment (for example `VERA & MOM`,
+`SHACKLETON (WILD)`, or `ALL` / `ENSEMBLE` as Groups).
 
 Fields
 
 * id
 * moment_id
-* character_id
+* character_id (nullable)
+* group_id (nullable)
+
+**Decision:** Same XOR subject rule as Dialogue. Table name is historical;
+rows may reference a Group. Parenthetical splits link all named subjects to
+following lyrics for filtering; segment-accurate ownership inside a single lyric
+line is future work.
 
 Relationships
 
 Many → One Moment
 
-Many → One Character
+Many → One Character (optional)
 
-**Decision:** Parenthetical splits link all named Characters to following lyrics
-for filtering; segment-accurate ownership inside a single lyric line is future work.
+Many → One Group (optional)
 
 ---
 

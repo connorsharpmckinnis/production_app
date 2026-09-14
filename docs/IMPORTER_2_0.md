@@ -20,8 +20,9 @@ Column comforts now **derive** speaker/body `x0` bounds from profile rules
 **Owner ruleset tuning** continues on throwaway productions. Deferred: Simple
 mode, manual song-end, full “turn block” classifier, lyric coalesce,
 **example-driven / click-to-build rules** (see §17), post-import profile
-management UI (#162), in-dialogue parentheticals (#59), Groups for ALL/ENSEMBLE
-(#130).
+management UI (#162), in-dialogue parentheticals (#59). Groups for ALL/ENSEMBLE
+(#130) shipped via [GROUP_IMPORTING.md](GROUP_IMPORTING.md) (multi-step wizard +
+Group attributions on dialogue/lyrics).
 
 1. Goal
 Extend the importer so staff can bring more script shapes into Theater Thing — especially PDF scripts with real selectable text — without forcing authors into the Theater App Standard Markdown/DOCX format first.

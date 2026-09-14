@@ -6,7 +6,7 @@ import pytest
 from sqlalchemy.orm import Session
 
 from app.db.seed import seed_database
-from app.models import Act, Character, Moment, Organization, Production, Song
+from app.models import Act, Character, Group, Moment, Organization, Production, Song
 from app.services.importer import ImportLineError, import_script
 from app.services.importer.extract import extract_script_lines
 from app.services.importer.preprocessing import (
@@ -143,7 +143,7 @@ class TestDialogue:
 SHACKLETON: Hello world.
 """
         result = _import(seeded_db, production, script)
-        assert result.characters_created == 3  # SHACKLETON + built-in ALL, ENSEMBLE
+        assert result.characters_created == 1  # SHACKLETON only; ALL/ENSEMBLE are Groups when used
         char = seeded_db.query(Character).filter(Character.name == "SHACKLETON").one()
         assert char is not None
 
@@ -153,7 +153,7 @@ SHACKLETON: Hello world.
 SHACKLETON, WORSLEY: Together.
 """
         result = _import(seeded_db, production, script)
-        assert result.characters_created == 4  # SHACKLETON, WORSLEY + built-ins
+        assert result.characters_created == 2  # SHACKLETON, WORSLEY
 
 
 class TestSongs:
@@ -170,6 +170,8 @@ LINE TWO HERE
         song = seeded_db.query(Song).one()
         assert song.title == "MY SONG"
         assert result.moments_created == 4  # header + attribution + 2 lyrics
+        assert result.groups_created == 1
+        assert seeded_db.query(Group).filter(Group.name == "ALL").one() is not None
 
     def test_plain_song_header_without_link(self, seeded_db, production):
         script = """# Act One
@@ -193,10 +195,11 @@ WE ARE THE CHORUS LINE
 """
         result = _import(seeded_db, production, script)
         assert result.moments_created == 3
-        ensemble = seeded_db.query(Character).filter(Character.name == "ENSEMBLE").one()
+        ensemble = seeded_db.query(Group).filter(Group.name == "ENSEMBLE").one()
         assert ensemble is not None
-        all_char = seeded_db.query(Character).filter(Character.name == "ALL").one()
-        assert all_char is not None
+        assert seeded_db.query(Character).filter(Character.name == "ENSEMBLE").first() is None
+        assert seeded_db.query(Character).filter(Character.name == "ALL").first() is None
+        assert result.groups_created == 1
 
 
 class TestErrors:
@@ -227,7 +230,8 @@ class TestEnduranceScene1:
         assert result.acts_created == 1
         assert result.scenes_created == 1
         assert result.songs_created == 2
-        assert result.characters_created == 7
+        assert result.characters_created == 5
+        assert result.groups_created == 1
         assert result.moments_created == 90
 
         act = seeded_db.query(Act).one()
@@ -248,8 +252,9 @@ class TestEnduranceScene1:
         bri = seeded_db.query(Character).filter(Character.name == "BRI'ISH NEWSIE").first()
         assert bri is not None
 
-        ensemble = seeded_db.query(Character).filter(Character.name == "ENSEMBLE").first()
-        assert ensemble is not None
+        all_group = seeded_db.query(Group).filter(Group.name == "ALL").first()
+        assert all_group is not None
+        assert seeded_db.query(Character).filter(Character.name == "ALL").first() is None
 
         # Mojibake sequences should be repaired in stored text
         moments = seeded_db.query(Moment).all()
@@ -274,7 +279,8 @@ class TestDocxImport:
         assert result.acts_created == 1
         assert result.scenes_created == 1
         assert result.songs_created == 2
-        assert result.characters_created == 7
+        assert result.characters_created == 5
+        assert result.groups_created == 1
         assert result.moments_created == 90
 
         seeded_db.refresh(production)
@@ -292,6 +298,8 @@ class TestDocxImport:
 
         crean = seeded_db.query(Character).filter(Character.name == "CREAN").first()
         assert crean is not None
+        assert seeded_db.query(Group).filter(Group.name == "ALL").one() is not None
+        assert seeded_db.query(Character).filter(Character.name == "ALL").first() is None
 
     def test_corrupt_docx_fails_clearly(self, seeded_db, production):
         with pytest.raises(ValueError, match="DOCX|Word"):

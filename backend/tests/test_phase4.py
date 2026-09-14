@@ -197,6 +197,7 @@ def test_original_text_immutable_on_patch(
     seeded_client: TestClient, db_session: Session
 ) -> None:
     production_id = _imported_production(seeded_client, db_session)
+    admin_headers = _login(seeded_client, "admin", "admin")
     director_headers = _login(seeded_client, "director", "director")
     scene_id = _first_scene_id(seeded_client, production_id, director_headers)
     moment = _first_dialogue_moment(seeded_client, production_id, scene_id, director_headers)
@@ -205,14 +206,14 @@ def test_original_text_immutable_on_patch(
     rejected = seeded_client.patch(
         f"/api/productions/{production_id}/moments/{moment['id']}",
         json={"original_text": "Changed import text"},
-        headers=director_headers,
+        headers=admin_headers,
     )
     assert rejected.status_code == 422
 
     patched = seeded_client.patch(
         f"/api/productions/{production_id}/moments/{moment['id']}",
-        json={"parsed_text": "Director correction"},
-        headers=director_headers,
+        json={"parsed_text": "Admin correction"},
+        headers=admin_headers,
     )
     assert patched.status_code == 200
     assert patched.json()["original_text"] == original_text
@@ -226,6 +227,7 @@ def test_moment_type_change_warning(
     seeded_client: TestClient, db_session: Session
 ) -> None:
     production_id = _imported_production(seeded_client, db_session)
+    admin_headers = _login(seeded_client, "admin", "admin")
     director_headers = _login(seeded_client, "director", "director")
     scene_id = _first_scene_id(seeded_client, production_id, director_headers)
     moment = _first_dialogue_moment(seeded_client, production_id, scene_id, director_headers)
@@ -234,7 +236,7 @@ def test_moment_type_change_warning(
     blocked = seeded_client.patch(
         f"/api/productions/{production_id}/moments/{moment['id']}",
         json={"moment_type_id": stage_direction_type_id},
-        headers=director_headers,
+        headers=admin_headers,
     )
     assert blocked.status_code == 409
     assert "orphan" in blocked.json()["detail"].lower()
@@ -242,7 +244,7 @@ def test_moment_type_change_warning(
     forced = seeded_client.patch(
         f"/api/productions/{production_id}/moments/{moment['id']}",
         json={"moment_type_id": stage_direction_type_id, "force_type_change": True},
-        headers=director_headers,
+        headers=admin_headers,
     )
     assert forced.status_code == 200
     assert forced.json()["moment_type"] == "stage_direction"

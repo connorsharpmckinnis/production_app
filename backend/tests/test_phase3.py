@@ -82,7 +82,35 @@ def test_actor_cannot_patch_moment(seeded_client: TestClient, db_session: Sessio
     assert response.status_code == 403
 
 
-def test_director_can_change_dialogue_character_id(
+def test_admin_can_change_dialogue_character_id(
+    seeded_client: TestClient, db_session: Session
+) -> None:
+    production_id = _imported_production(seeded_client, db_session)
+    admin_headers = _login(seeded_client, "admin", "admin")
+    scene_id = _first_scene_id(seeded_client, production_id, admin_headers)
+    moment = _first_dialogue_moment(seeded_client, production_id, scene_id, admin_headers)
+
+    detail = seeded_client.get(
+        f"/api/productions/{production_id}/moments/{moment['id']}",
+        headers=admin_headers,
+    ).json()
+    line = detail["dialogue"][0]
+    original_character_id = line["character_id"]
+    worsley_id = _character_id_by_name(seeded_client, production_id, "WORSLEY", admin_headers)
+    assert original_character_id != worsley_id
+
+    updated = seeded_client.patch(
+        f"/api/productions/{production_id}/moments/{moment['id']}/dialogue/{line['id']}",
+        json={"character_id": worsley_id},
+        headers=admin_headers,
+    )
+    assert updated.status_code == 200
+    updated_line = updated.json()["dialogue"][0]
+    assert updated_line["character_id"] == worsley_id
+    assert updated_line["character_name"] == "WORSLEY"
+
+
+def test_director_cannot_patch_dialogue_or_moment_text(
     seeded_client: TestClient, db_session: Session
 ) -> None:
     production_id = _imported_production(seeded_client, db_session)
@@ -95,25 +123,27 @@ def test_director_can_change_dialogue_character_id(
         headers=director_headers,
     ).json()
     line = detail["dialogue"][0]
-    original_character_id = line["character_id"]
-    worsley_id = _character_id_by_name(seeded_client, production_id, "WORSLEY", director_headers)
-    assert original_character_id != worsley_id
 
-    updated = seeded_client.patch(
+    dialogue_patch = seeded_client.patch(
         f"/api/productions/{production_id}/moments/{moment['id']}/dialogue/{line['id']}",
-        json={"character_id": worsley_id},
+        json={"dialogue_text": "Director edit"},
         headers=director_headers,
     )
-    assert updated.status_code == 200
-    updated_line = updated.json()["dialogue"][0]
-    assert updated_line["character_id"] == worsley_id
-    assert updated_line["character_name"] == "WORSLEY"
+    assert dialogue_patch.status_code == 403
+
+    moment_patch = seeded_client.patch(
+        f"/api/productions/{production_id}/moments/{moment['id']}",
+        json={"parsed_text": "Director corrected parsing"},
+        headers=director_headers,
+    )
+    assert moment_patch.status_code == 403
 
 
 def test_original_text_unchanged_after_patch(
     seeded_client: TestClient, db_session: Session
 ) -> None:
     production_id = _imported_production(seeded_client, db_session)
+    admin_headers = _login(seeded_client, "admin", "admin")
     director_headers = _login(seeded_client, "director", "director")
     scene_id = _first_scene_id(seeded_client, production_id, director_headers)
     moment = _first_dialogue_moment(seeded_client, production_id, scene_id, director_headers)
@@ -121,12 +151,12 @@ def test_original_text_unchanged_after_patch(
 
     patched = seeded_client.patch(
         f"/api/productions/{production_id}/moments/{moment['id']}",
-        json={"parsed_text": "Director corrected parsing"},
-        headers=director_headers,
+        json={"parsed_text": "Admin corrected parsing"},
+        headers=admin_headers,
     )
     assert patched.status_code == 200
     assert patched.json()["original_text"] == original_text
-    assert patched.json()["parsed_text"] == "Director corrected parsing"
+    assert patched.json()["parsed_text"] == "Admin corrected parsing"
 
     db_moment = db_session.get(Moment, moment["id"])
     assert db_moment is not None
@@ -137,15 +167,16 @@ def test_moment_list_display_text_reflects_edits(
     seeded_client: TestClient, db_session: Session
 ) -> None:
     production_id = _imported_production(seeded_client, db_session)
+    admin_headers = _login(seeded_client, "admin", "admin")
     director_headers = _login(seeded_client, "director", "director")
     scene_id = _first_scene_id(seeded_client, production_id, director_headers)
     moment = _first_dialogue_moment(seeded_client, production_id, scene_id, director_headers)
 
-    corrected = "Director corrected parsing"
+    corrected = "Admin corrected parsing"
     patched = seeded_client.patch(
         f"/api/productions/{production_id}/moments/{moment['id']}",
         json={"parsed_text": corrected},
-        headers=director_headers,
+        headers=admin_headers,
     )
     assert patched.status_code == 200
 
@@ -162,6 +193,7 @@ def test_moment_list_display_text_reflects_dialogue_speaker_change(
     seeded_client: TestClient, db_session: Session
 ) -> None:
     production_id = _imported_production(seeded_client, db_session)
+    admin_headers = _login(seeded_client, "admin", "admin")
     director_headers = _login(seeded_client, "director", "director")
     scene_id = _first_scene_id(seeded_client, production_id, director_headers)
     moment = _first_dialogue_moment(seeded_client, production_id, scene_id, director_headers)
@@ -176,7 +208,7 @@ def test_moment_list_display_text_reflects_dialogue_speaker_change(
     updated = seeded_client.patch(
         f"/api/productions/{production_id}/moments/{moment['id']}/dialogue/{line['id']}",
         json={"character_id": worsley_id},
-        headers=director_headers,
+        headers=admin_headers,
     )
     assert updated.status_code == 200
     updated_line = updated.json()["dialogue"][0]

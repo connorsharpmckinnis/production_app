@@ -325,6 +325,11 @@ The importer treats each name as a participant in the same dialogue Moment.
 Supported group separators are comma, ` & `, and lowercase ` and `. Do not use
 dangling or repeated separators.
 
+Collective labels such as `ALL` and `ENSEMBLE` are normally imported as **Groups**
+(empty membership until the director configures who belongs). The import wizard
+can reclassify any label as Character or Group. Mixing is allowed, e.g.
+`VERA & ENSEMBLE:`. See [GROUP_IMPORTING.md](GROUP_IMPORTING.md).
+
 ### Examples
 
 ```

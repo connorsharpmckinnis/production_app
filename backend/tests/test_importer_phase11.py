@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from app.db.seed import seed_database
 from app.models import (
     Character,
+    Group,
     LyricLine,
     Moment,
     MomentType,
@@ -56,6 +57,14 @@ def production(seeded_db: Session) -> Production:
     return production
 
 
+def _subject_name(row) -> str:
+    if row.character is not None:
+        return row.character.name
+    if row.group is not None:
+        return row.group.name
+    raise AssertionError("attribution row has no subject")
+
+
 def test_strip_inline_footnotes():
     assert strip_inline_footnotes("right, it's the Nimrod[^2]") == "right, it's the Nimrod"
     assert strip_inline_footnotes("AMEN[^9]") == "AMEN"
@@ -87,37 +96,43 @@ def test_import_persists_singers_and_strips_footnotes(
     assert len(attributions) == 3
 
     all_attr = attributions[0]
-    all_names = {row.character.name for row in all_attr.song_attribution_characters}
+    all_names = {_subject_name(row) for row in all_attr.song_attribution_characters}
     assert all_names == {"ALL"}
+    assert all(row.group_id is not None for row in all_attr.song_attribution_characters)
 
     lyrics = by_type["lyric"]
     first_lyric = lyrics[0]
     assert "[^" not in first_lyric.original_text
     assert first_lyric.original_text == "INTO THE DEEEEEEEEEP"
-    assert {line.character.name for line in first_lyric.lyric_lines} == {"ALL"}
+    assert {_subject_name(line) for line in first_lyric.lyric_lines} == {"ALL"}
     assert {line.lyric_text for line in first_lyric.lyric_lines} == {"INTO THE DEEEEEEEEEP"}
 
     vera_mom_attr = attributions[1]
-    assert {row.character.name for row in vera_mom_attr.song_attribution_characters} == {
+    assert {_subject_name(row) for row in vera_mom_attr.song_attribution_characters} == {
         "VERA",
         "MOM",
     }
     vera_mom_lyric = lyrics[2]
-    assert {line.character.name for line in vera_mom_lyric.lyric_lines} == {"VERA", "MOM"}
+    assert {_subject_name(line) for line in vera_mom_lyric.lyric_lines} == {"VERA", "MOM"}
 
     split_attr = attributions[2]
-    assert {row.character.name for row in split_attr.song_attribution_characters} == {
+    assert {_subject_name(row) for row in split_attr.song_attribution_characters} == {
         "SHACKLETON",
         "WILD",
     }
     split_lyric = lyrics[3]
-    assert {line.character.name for line in split_lyric.lyric_lines} == {
+    assert {_subject_name(line) for line in split_lyric.lyric_lines} == {
         "SHACKLETON",
         "WILD",
     }
     assert (
         seeded_db.query(Character)
         .filter_by(production_id=production.id, name="WILD")
+        .one()
+    )
+    assert (
+        seeded_db.query(Group)
+        .filter_by(production_id=production.id, name="ALL")
         .one()
     )
 
@@ -157,7 +172,8 @@ LINE TWO STILL ALL
     )
     assert len(lyrics) == 2
     for lyric in lyrics:
-        assert {line.character.name for line in lyric.lyric_lines} == {"ALL"}
+        assert {_subject_name(line) for line in lyric.lyric_lines} == {"ALL"}
+        assert all(line.group_id is not None for line in lyric.lyric_lines)
 
 
 def test_lyric_line_count_matches_performers(

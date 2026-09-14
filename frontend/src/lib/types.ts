@@ -140,11 +140,14 @@ export interface ProductionRolePermissionUpdate {
   enabled: boolean;
 }
 
+export type SpeakerKind = "character" | "group";
+
 export interface ImportSuccessResponse {
   acts_created: number;
   scenes_created: number;
   moments_created: number;
   characters_created: number;
+  groups_created: number;
   songs_created: number;
 }
 
@@ -331,6 +334,7 @@ export interface MomentSummary {
   display_text: string;
   song_id: number | null;
   speaking_character_ids: number[];
+  speaking_group_ids?: number[];
   has_props: boolean;
   has_cues: boolean;
   has_set_piece: boolean;
@@ -343,16 +347,28 @@ export interface MomentSummary {
 
 export interface DialogueLineResponse {
   id: number;
-  character_id: number;
-  character_name: string;
+  character_id: number | null;
+  character_name: string | null;
+  group_id?: number | null;
+  group_name?: string | null;
   dialogue_text: string;
 }
 
 export interface LyricLineResponse {
   id: number;
-  character_id: number;
-  character_name: string;
+  character_id: number | null;
+  character_name: string | null;
+  group_id?: number | null;
+  group_name?: string | null;
   lyric_text: string;
+}
+
+export interface SongAttributionSubjectResponse {
+  id: number;
+  character_id: number | null;
+  character_name: string | null;
+  group_id?: number | null;
+  group_name?: string | null;
 }
 
 export interface MomentTypeResponse {
@@ -519,6 +535,7 @@ export interface MomentDetailResponse {
   song_title: string | null;
   dialogue: DialogueLineResponse[];
   lyrics: LyricLineResponse[];
+  song_attribution: SongAttributionSubjectResponse[];
   stage_direction: string | null;
   props: MomentPropEventResponse[];
   props_in_play: PropInPlayResponse[];

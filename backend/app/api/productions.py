@@ -1,4 +1,5 @@
 from dataclasses import asdict
+import json
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from pydantic import ValidationError
@@ -46,6 +47,7 @@ from app.services.importer.extract import extract_script
 from app.services.importer.mapped_importer import persist_profile_preview
 from app.services.importer.profiles import ImportProfileDefinition
 from app.services.importer.rule_engine import classify_with_profile
+from app.services.importer.speaker_kinds import SpeakerKind
 from app.services.notifications import notify_admins_production_created
 from app.services.production_memberships import (
     active_role_codes,
@@ -482,6 +484,7 @@ async def import_production_script(
     production_id: int,
     file: UploadFile = File(...),
     profile: str | None = Form(default=None),
+    speaker_kinds: str | None = Form(default=None),
     admin: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> ImportSuccessResponse:
@@ -492,6 +495,25 @@ async def import_production_script(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail="Only .md, .docx, and .pdf script files are accepted",
         )
+
+    parsed_kinds: dict[str, SpeakerKind] | None = None
+    if speaker_kinds is not None and speaker_kinds.strip():
+        try:
+            data = json.loads(speaker_kinds)
+            if not isinstance(data, dict):
+                raise ValueError("speaker_kinds must be a JSON object")
+            parsed_kinds = {}
+            for key, value in data.items():
+                if not isinstance(key, str) or value not in ("character", "group"):
+                    raise ValueError(
+                        'speaker_kinds values must be "character" or "group"'
+                    )
+                parsed_kinds[key] = value
+        except (ValueError, json.JSONDecodeError) as exc:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"Invalid speaker_kinds: {exc}",
+            ) from exc
 
     production = get_accessible_production(db, admin, production_id)
     content = await file.read()
@@ -549,14 +571,25 @@ async def import_production_script(
                 ),
             )
             preview = classify_with_profile(extraction.lines, profile_definition)
-            result = persist_profile_preview(db, production, preview)
+            result = persist_profile_preview(
+                db,
+                production,
+                preview,
+                speaker_kinds=parsed_kinds,
+            )
         elif lower_name.endswith(".pdf"):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="PDF imports require an import profile",
             )
         else:
-            result = import_script(db, production, content, filename=filename)
+            result = import_script(
+                db,
+                production,
+                content,
+                filename=filename,
+                speaker_kinds=parsed_kinds,
+            )
     except ImportLineError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -573,5 +606,6 @@ async def import_production_script(
         scenes_created=result.scenes_created,
         moments_created=result.moments_created,
         characters_created=result.characters_created,
+        groups_created=result.groups_created,
         songs_created=result.songs_created,
     )

@@ -7,7 +7,7 @@ from app.api.deps import (
     user_display_name,
 )
 from app.api.notes import notes_visible_to_user
-from app.auth.dependencies import require_authenticated
+from app.auth.dependencies import require_admin, require_authenticated
 from app.db.session import get_db
 from app.models import (
     Act,
@@ -52,13 +52,19 @@ from app.schemas.timeline import (
     LyricLineResponse,
     MomentDetailResponse,
     MomentSummary,
+    SongAttributionSubjectResponse,
 )
 from app.schemas.timeline_editing import (
+    AttributionSubjectInput,
+    DialogueAttributionsReplace,
     DialogueUpdate,
+    LyricAttributionsReplace,
+    LyricUpdate,
     MomentCreate,
     MomentSequenceUpdate,
     MomentTypeResponse,
     MomentUpdate,
+    SongAttributionsReplace,
     StageDirectionUpdate,
 )
 from app.services.asset_state import (
@@ -89,6 +95,7 @@ from app.services.timeline_filters import (
     moment_ids_with_prop,
     moment_ids_with_set_piece,
     moment_speaking_character_ids,
+    moment_speaking_group_ids,
     parse_character_ids,
     is_actor_only_production_member,
 )
@@ -104,6 +111,12 @@ def _get_moment_in_production_or_404(
 ) -> Moment:
     moment = (
         db.query(Moment)
+        .options(
+            joinedload(Moment.moment_type),
+            joinedload(Moment.dialogue_lines),
+            joinedload(Moment.lyric_lines),
+            joinedload(Moment.song_attribution_characters),
+        )
         .join(Scene)
         .join(Act)
         .filter(Moment.id == moment_id, Act.production_id == production_id)
@@ -711,6 +724,7 @@ def list_scene_moments(
             display_text=moment_display_text(moment),
             song_id=moment.song_id,
             speaking_character_ids=moment_speaking_character_ids(moment),
+            speaking_group_ids=moment_speaking_group_ids(moment),
             has_props=len(moment.moment_prop_events) > 0,
             has_cues=len(moment.cues) > 0,
             has_set_piece=len(moment.moment_set_piece_events) > 0,
@@ -737,9 +751,14 @@ def get_moment_detail(
         .options(
             joinedload(Moment.moment_type),
             joinedload(Moment.dialogue_lines).joinedload(Dialogue.character),
+            joinedload(Moment.dialogue_lines).joinedload(Dialogue.group),
             joinedload(Moment.lyric_lines).joinedload(LyricLine.character),
+            joinedload(Moment.lyric_lines).joinedload(LyricLine.group),
             joinedload(Moment.song_attribution_characters).joinedload(
                 SongAttributionCharacter.character,
+            ),
+            joinedload(Moment.song_attribution_characters).joinedload(
+                SongAttributionCharacter.group,
             ),
             joinedload(Moment.stage_directions),
             joinedload(Moment.song),
@@ -847,7 +866,9 @@ def get_moment_detail(
             DialogueLineResponse(
                 id=line.id,
                 character_id=line.character_id,
-                character_name=line.character.name,
+                character_name=line.character.name if line.character else None,
+                group_id=line.group_id,
+                group_name=line.group.name if line.group else None,
                 dialogue_text=line.dialogue_text,
             )
             for line in moment.dialogue_lines
@@ -856,10 +877,22 @@ def get_moment_detail(
             LyricLineResponse(
                 id=line.id,
                 character_id=line.character_id,
-                character_name=line.character.name,
+                character_name=line.character.name if line.character else None,
+                group_id=line.group_id,
+                group_name=line.group.name if line.group else None,
                 lyric_text=line.lyric_text,
             )
             for line in moment.lyric_lines
+        ],
+        song_attribution=[
+            SongAttributionSubjectResponse(
+                id=row.id,
+                character_id=row.character_id,
+                character_name=row.character.name if row.character else None,
+                group_id=row.group_id,
+                group_name=row.group.name if row.group else None,
+            )
+            for row in moment.song_attribution_characters
         ],
         stage_direction=stage_direction,
         props=[
@@ -917,9 +950,10 @@ def update_moment(
     production_id: int,
     moment_id: int,
     body: MomentUpdate,
-    user: User = Depends(require_production_capability("timeline", "update")),
+    user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> MomentDetailResponse:
+    get_accessible_production(db, user, production_id)
     moment = _get_moment_in_production_or_404(db, production_id, moment_id)
 
     if "moment_type_id" in body.model_fields_set:
@@ -982,9 +1016,10 @@ def update_dialogue(
     moment_id: int,
     line_id: int,
     body: DialogueUpdate,
-    user: User = Depends(require_production_capability("timeline", "update")),
+    user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> MomentDetailResponse:
+    get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     line = (
         db.query(Dialogue)
@@ -994,26 +1029,50 @@ def update_dialogue(
     if line is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Dialogue line not found")
 
-    if "character_id" in body.model_fields_set:
-        if body.character_id is None:
+    if "character_id" in body.model_fields_set or "group_id" in body.model_fields_set:
+        character_id = body.character_id if "character_id" in body.model_fields_set else None
+        group_id = body.group_id if "group_id" in body.model_fields_set else None
+        # When only one field is sent, clear the other so XOR holds.
+        if "character_id" in body.model_fields_set and "group_id" not in body.model_fields_set:
+            group_id = None
+        if "group_id" in body.model_fields_set and "character_id" not in body.model_fields_set:
+            character_id = None
+
+        if (character_id is None) == (group_id is None):
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="character_id cannot be null",
+                detail="Provide exactly one of character_id or group_id",
             )
-        character = (
-            db.query(Character)
-            .filter(
-                Character.id == body.character_id,
-                Character.production_id == production_id,
+
+        if character_id is not None:
+            character = (
+                db.query(Character)
+                .filter(
+                    Character.id == character_id,
+                    Character.production_id == production_id,
+                )
+                .first()
             )
-            .first()
-        )
-        if character is None:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Character is not in this production",
+            if character is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Character is not in this production",
+                )
+            line.character_id = character_id
+            line.group_id = None
+        else:
+            group = (
+                db.query(Group)
+                .filter(Group.id == group_id, Group.production_id == production_id)
+                .first()
             )
-        line.character_id = body.character_id
+            if group is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Group is not in this production",
+                )
+            line.group_id = group_id
+            line.character_id = None
 
     if "dialogue_text" in body.model_fields_set:
         if body.dialogue_text is None:
@@ -1027,6 +1086,179 @@ def update_dialogue(
     return get_moment_detail(production_id, moment_id, user, db)
 
 
+@router.put(
+    "/{production_id}/moments/{moment_id}/dialogue-attributions",
+    response_model=MomentDetailResponse,
+)
+def replace_dialogue_attributions(
+    production_id: int,
+    moment_id: int,
+    body: DialogueAttributionsReplace,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> MomentDetailResponse:
+    get_accessible_production(db, user, production_id)
+    moment = _get_moment_in_production_or_404(db, production_id, moment_id)
+    _require_moment_type(moment, "dialogue")
+    subjects = _validated_attribution_subjects(db, production_id, body.subjects)
+
+    for line in list(moment.dialogue_lines):
+        db.delete(line)
+    db.flush()
+    for subject in subjects:
+        db.add(
+            Dialogue(
+                moment_id=moment.id,
+                character_id=subject.character_id,
+                group_id=subject.group_id,
+                dialogue_text=body.dialogue_text,
+            )
+        )
+    db.commit()
+    return get_moment_detail(production_id, moment_id, user, db)
+
+
+@router.patch(
+    "/{production_id}/moments/{moment_id}/lyrics/{line_id}",
+    response_model=MomentDetailResponse,
+)
+def update_lyric(
+    production_id: int,
+    moment_id: int,
+    line_id: int,
+    body: LyricUpdate,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> MomentDetailResponse:
+    get_accessible_production(db, user, production_id)
+    _get_moment_in_production_or_404(db, production_id, moment_id)
+    line = (
+        db.query(LyricLine)
+        .filter(LyricLine.id == line_id, LyricLine.moment_id == moment_id)
+        .first()
+    )
+    if line is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Lyric line not found")
+
+    if "character_id" in body.model_fields_set or "group_id" in body.model_fields_set:
+        character_id = body.character_id if "character_id" in body.model_fields_set else None
+        group_id = body.group_id if "group_id" in body.model_fields_set else None
+        if "character_id" in body.model_fields_set and "group_id" not in body.model_fields_set:
+            group_id = None
+        if "group_id" in body.model_fields_set and "character_id" not in body.model_fields_set:
+            character_id = None
+
+        if (character_id is None) == (group_id is None):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Provide exactly one of character_id or group_id",
+            )
+
+        if character_id is not None:
+            character = (
+                db.query(Character)
+                .filter(
+                    Character.id == character_id,
+                    Character.production_id == production_id,
+                )
+                .first()
+            )
+            if character is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Character is not in this production",
+                )
+            line.character_id = character_id
+            line.group_id = None
+        else:
+            group = (
+                db.query(Group)
+                .filter(Group.id == group_id, Group.production_id == production_id)
+                .first()
+            )
+            if group is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Group is not in this production",
+                )
+            line.group_id = group_id
+            line.character_id = None
+
+    if "lyric_text" in body.model_fields_set:
+        if body.lyric_text is None:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="lyric_text cannot be null",
+            )
+        line.lyric_text = body.lyric_text
+
+    db.commit()
+    return get_moment_detail(production_id, moment_id, user, db)
+
+
+@router.put(
+    "/{production_id}/moments/{moment_id}/lyric-attributions",
+    response_model=MomentDetailResponse,
+)
+def replace_lyric_attributions(
+    production_id: int,
+    moment_id: int,
+    body: LyricAttributionsReplace,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> MomentDetailResponse:
+    get_accessible_production(db, user, production_id)
+    moment = _get_moment_in_production_or_404(db, production_id, moment_id)
+    _require_moment_type(moment, "lyric")
+    subjects = _validated_attribution_subjects(db, production_id, body.subjects)
+
+    for line in list(moment.lyric_lines):
+        db.delete(line)
+    db.flush()
+    for subject in subjects:
+        db.add(
+            LyricLine(
+                moment_id=moment.id,
+                character_id=subject.character_id,
+                group_id=subject.group_id,
+                lyric_text=body.lyric_text,
+            )
+        )
+    db.commit()
+    return get_moment_detail(production_id, moment_id, user, db)
+
+
+@router.put(
+    "/{production_id}/moments/{moment_id}/song-attributions",
+    response_model=MomentDetailResponse,
+)
+def replace_song_attributions(
+    production_id: int,
+    moment_id: int,
+    body: SongAttributionsReplace,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> MomentDetailResponse:
+    get_accessible_production(db, user, production_id)
+    moment = _get_moment_in_production_or_404(db, production_id, moment_id)
+    _require_moment_type(moment, "song_attribution")
+    subjects = _validated_attribution_subjects(db, production_id, body.subjects)
+
+    for row in list(moment.song_attribution_characters):
+        db.delete(row)
+    db.flush()
+    for subject in subjects:
+        db.add(
+            SongAttributionCharacter(
+                moment_id=moment.id,
+                character_id=subject.character_id,
+                group_id=subject.group_id,
+            )
+        )
+    db.commit()
+    return get_moment_detail(production_id, moment_id, user, db)
+
+
 @router.patch(
     "/{production_id}/moments/{moment_id}/stage-direction",
     response_model=MomentDetailResponse,
@@ -1035,9 +1267,10 @@ def update_stage_direction(
     production_id: int,
     moment_id: int,
     body: StageDirectionUpdate,
-    user: User = Depends(require_production_capability("timeline", "update")),
+    user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> MomentDetailResponse:
+    get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     stage_direction = (
         db.query(StageDirection)
@@ -1060,6 +1293,64 @@ def update_stage_direction(
 
     db.commit()
     return get_moment_detail(production_id, moment_id, user, db)
+
+
+def _require_moment_type(moment: Moment, expected: str) -> None:
+    if moment.moment_type.name != expected:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Moment type must be {expected}",
+        )
+
+
+def _validated_attribution_subjects(
+    db: Session,
+    production_id: int,
+    subjects: list[AttributionSubjectInput],
+) -> list[AttributionSubjectInput]:
+    seen: set[tuple[str, int]] = set()
+    for subject in subjects:
+        if subject.character_id is not None:
+            key = ("character", subject.character_id)
+            if key in seen:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Duplicate character attribution",
+                )
+            character = (
+                db.query(Character)
+                .filter(
+                    Character.id == subject.character_id,
+                    Character.production_id == production_id,
+                )
+                .first()
+            )
+            if character is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Character is not in this production",
+                )
+            seen.add(key)
+        else:
+            assert subject.group_id is not None
+            key = ("group", subject.group_id)
+            if key in seen:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Duplicate group attribution",
+                )
+            group = (
+                db.query(Group)
+                .filter(Group.id == subject.group_id, Group.production_id == production_id)
+                .first()
+            )
+            if group is None:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Group is not in this production",
+                )
+            seen.add(key)
+    return subjects
 
 
 def _get_scene_in_production_or_404(

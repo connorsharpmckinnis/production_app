@@ -96,10 +96,19 @@ def load_scene_moments(db: Session, scene_id: int) -> list[Moment]:
         .options(
             joinedload(Moment.moment_type),
             joinedload(Moment.dialogue_lines).joinedload(Dialogue.character),
+            joinedload(Moment.dialogue_lines).joinedload(Dialogue.group).joinedload(
+                Group.characters,
+            ),
             joinedload(Moment.lyric_lines).joinedload(LyricLine.character),
+            joinedload(Moment.lyric_lines).joinedload(LyricLine.group).joinedload(
+                Group.characters,
+            ),
             joinedload(Moment.song_attribution_characters).joinedload(
                 SongAttributionCharacter.character,
             ),
+            joinedload(Moment.song_attribution_characters).joinedload(
+                SongAttributionCharacter.group,
+            ).joinedload(Group.characters),
             joinedload(Moment.stage_directions),
             joinedload(Moment.moment_prop_events),
             joinedload(Moment.moment_set_piece_events),
@@ -121,8 +130,16 @@ def moment_display_text(moment: Moment) -> str:
     """Return the best text to show in timeline list rows after director edits."""
     if moment.moment_type.name == "dialogue" and moment.dialogue_lines:
         lines = sorted(moment.dialogue_lines, key=lambda line: line.id)
+
+        def _subject_name(line: Dialogue) -> str:
+            if line.character is not None:
+                return line.character.name
+            if line.group is not None:
+                return line.group.name
+            return "?"
+
         line_based = "\n".join(
-            f"{line.character.name}: {line.dialogue_text}" for line in lines
+            f"{_subject_name(line)}: {line.dialogue_text}" for line in lines
         )
         # Importer stores dialogue body in parsed_text; prefer structured lines unless
         # a director has replaced parsed_text with an explicit correction.
@@ -196,11 +213,48 @@ def moment_has_costume(moment: Moment) -> bool:
 
 
 def moment_speaking_character_ids(moment: Moment) -> list[int]:
-    """Character IDs that speak or sing in this moment (for highlighting/filters)."""
-    ids = {line.character_id for line in moment.dialogue_lines}
-    ids.update(line.character_id for line in moment.lyric_lines)
-    ids.update(row.character_id for row in moment.song_attribution_characters)
+    """Character IDs directly attributed on this moment (not group membership)."""
+    ids: set[int] = set()
+    for line in moment.dialogue_lines:
+        if line.character_id is not None:
+            ids.add(line.character_id)
+    for line in moment.lyric_lines:
+        if line.character_id is not None:
+            ids.add(line.character_id)
+    for row in moment.song_attribution_characters:
+        if row.character_id is not None:
+            ids.add(row.character_id)
     return list(ids)
+
+
+def moment_speaking_group_ids(moment: Moment) -> list[int]:
+    """Group IDs directly attributed on this moment."""
+    ids: set[int] = set()
+    for line in moment.dialogue_lines:
+        if line.group_id is not None:
+            ids.add(line.group_id)
+    for line in moment.lyric_lines:
+        if line.group_id is not None:
+            ids.add(line.group_id)
+    for row in moment.song_attribution_characters:
+        if row.group_id is not None:
+            ids.add(row.group_id)
+    return list(ids)
+
+
+def _group_member_character_ids(moment: Moment) -> set[int]:
+    """Character IDs that belong to Groups attributed on this moment."""
+    member_ids: set[int] = set()
+    for line in moment.dialogue_lines:
+        if line.group is not None:
+            member_ids.update(character.id for character in line.group.characters)
+    for line in moment.lyric_lines:
+        if line.group is not None:
+            member_ids.update(character.id for character in line.group.characters)
+    for row in moment.song_attribution_characters:
+        if row.group is not None:
+            member_ids.update(character.id for character in row.group.characters)
+    return member_ids
 
 
 def _character_name_patterns(names: list[str]) -> list[re.Pattern[str]]:
@@ -225,6 +279,9 @@ def moment_matches_character_filter(
 
     speaking = moment_speaking_character_ids(moment)
     if any(character_id in character_ids for character_id in speaking):
+        return True
+
+    if any(character_id in character_ids for character_id in _group_member_character_ids(moment)):
         return True
 
     if (

@@ -31,6 +31,7 @@ import type {
   ImportProfileResponse,
   ImportSuccessResponse,
   LoginRequest,
+  SpeakerKind,
   MomentBlockingResponse,
   MomentCostumeEventResponse,
   MomentEntranceResponse,
@@ -337,10 +338,14 @@ export const api = {
     productionId: number,
     file: File,
     profile?: ImportProfileDefinition,
+    speakerKinds?: Record<string, SpeakerKind>,
   ) {
     const formData = new FormData();
     formData.append("file", file);
     if (profile) formData.append("profile", JSON.stringify(profile));
+    if (speakerKinds) {
+      formData.append("speaker_kinds", JSON.stringify(speakerKinds));
+    }
     return request<ImportSuccessResponse>(`/productions/${productionId}/import`, {
       method: "POST",
       body: formData,
@@ -631,7 +636,11 @@ export const api = {
     productionId: number,
     momentId: number,
     lineId: number,
-    body: { character_id?: number; dialogue_text?: string },
+    body: {
+      character_id?: number | null;
+      group_id?: number | null;
+      dialogue_text?: string;
+    },
   ) {
     return request<MomentDetailResponse>(
       `/productions/${productionId}/moments/${momentId}/dialogue/${lineId}`,
@@ -646,6 +655,63 @@ export const api = {
   ) {
     return request<MomentDetailResponse>(
       `/productions/${productionId}/moments/${momentId}/stage-direction`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    );
+  },
+
+  replaceDialogueAttributions(
+    productionId: number,
+    momentId: number,
+    body: {
+      subjects: Array<{ character_id?: number | null; group_id?: number | null }>;
+      dialogue_text: string;
+    },
+  ) {
+    return request<MomentDetailResponse>(
+      `/productions/${productionId}/moments/${momentId}/dialogue-attributions`,
+      { method: "PUT", body: JSON.stringify(body) },
+    );
+  },
+
+  replaceLyricAttributions(
+    productionId: number,
+    momentId: number,
+    body: {
+      subjects: Array<{ character_id?: number | null; group_id?: number | null }>;
+      lyric_text: string;
+    },
+  ) {
+    return request<MomentDetailResponse>(
+      `/productions/${productionId}/moments/${momentId}/lyric-attributions`,
+      { method: "PUT", body: JSON.stringify(body) },
+    );
+  },
+
+  replaceSongAttributions(
+    productionId: number,
+    momentId: number,
+    body: {
+      subjects: Array<{ character_id?: number | null; group_id?: number | null }>;
+    },
+  ) {
+    return request<MomentDetailResponse>(
+      `/productions/${productionId}/moments/${momentId}/song-attributions`,
+      { method: "PUT", body: JSON.stringify(body) },
+    );
+  },
+
+  updateLyric(
+    productionId: number,
+    momentId: number,
+    lineId: number,
+    body: {
+      character_id?: number | null;
+      group_id?: number | null;
+      lyric_text?: string;
+    },
+  ) {
+    return request<MomentDetailResponse>(
+      `/productions/${productionId}/moments/${momentId}/lyrics/${lineId}`,
       { method: "PATCH", body: JSON.stringify(body) },
     );
   },

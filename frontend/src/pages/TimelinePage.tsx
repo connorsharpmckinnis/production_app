@@ -470,6 +470,7 @@ export default function TimelinePage() {
           section.moments,
           scene.myCharacterIds,
           scene.characters,
+          groups,
         );
         return {
           ...section,
@@ -482,6 +483,7 @@ export default function TimelinePage() {
     scene.momentSections,
     scene.myCharacterIds,
     scene.characters,
+    groups,
     effectiveRehearsePreset,
     rehearseToggles,
   ]);
@@ -1215,13 +1217,19 @@ export default function TimelinePage() {
           <TimelineMomentList
             sections={displaySections}
             characters={scene.characters}
+            groups={groups}
             selectedMomentId={scene.selectedMomentId}
             onSelectMoment={scene.setSelectedMomentId}
             isHighlighted={(moment) =>
               rehearseMode
                 ? rehearseToggles.highlightMyLines &&
-                  isMyMoment(moment, scene.myCharacterIds, scene.characters)
-                : isHighlightedMoment(moment, highlightCharacterIds, scene.characters)
+                  isMyMoment(moment, scene.myCharacterIds, scene.characters, groups)
+                : isHighlightedMoment(
+                    moment,
+                    highlightCharacterIds,
+                    scene.characters,
+                    groups,
+                  )
             }
             showPrepBadges={rehearseMode ? rehearseToggles.showPrepBadges : showPrepBadges}
             showSequenceNumbers={rehearseMode ? false : showSequenceNumbers}
@@ -1229,7 +1237,7 @@ export default function TimelinePage() {
             blurMyLines={rehearseMode ? rehearseToggles.blurMyLines : false}
             isMyLine={
               rehearseMode
-                ? (moment) => isMySpokenLine(moment, scene.myCharacterIds)
+                ? (moment) => isMySpokenLine(moment, scene.myCharacterIds, groups)
                 : undefined
             }
             showStructuralControls={!rehearseMode && showStructuralControls}
@@ -1330,6 +1338,7 @@ export default function TimelinePage() {
             : null
         }
         canEdit={canManagePreparation}
+        canEditScript={isAdmin}
         characters={scene.characters}
         castableUsers={scene.castableUsers}
         groups={scene.groups}

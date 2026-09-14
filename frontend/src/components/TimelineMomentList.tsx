@@ -33,6 +33,8 @@ export interface TimelineMomentListProps {
   /** Multi-scene sections with headers. Takes precedence over `moments` when provided. */
   sections?: TimelineSection[];
   characters: CharacterDetailResponse[];
+  /** Optional groups for resolving speaking_group_ids on dialogue/lyric rows. */
+  groups?: { id: number; name: string }[];
   selectedMomentId: number | null;
   onSelectMoment: (momentId: number) => void;
   isHighlighted: (moment: MomentSummary) => boolean;
@@ -79,18 +81,22 @@ function buildPrepBadgeDescriptors(moment: MomentSummary): PrepBadgeDescriptor[]
 function speakingCharacterName(
   moment: MomentSummary,
   characters: CharacterDetailResponse[],
+  groups: { id: number; name: string }[] = [],
 ): string | null {
   // Dialogue and lyrics share the same “who performs this line” column.
   // Attribution rows keep the singer name in the body (the attribution Moment itself).
-  if (
-    (moment.moment_type !== "dialogue" && moment.moment_type !== "lyric") ||
-    moment.speaking_character_ids.length === 0
-  ) {
+  if (moment.moment_type !== "dialogue" && moment.moment_type !== "lyric") {
     return null;
   }
-  const names = moment.speaking_character_ids
-    .map((id) => characters.find((item) => item.id === id)?.name)
-    .filter((name): name is string => Boolean(name));
+  const characterIds = moment.speaking_character_ids ?? [];
+  const groupIds = moment.speaking_group_ids ?? [];
+  if (characterIds.length === 0 && groupIds.length === 0) {
+    return null;
+  }
+  const names = [
+    ...characterIds.map((id) => characters.find((item) => item.id === id)?.name),
+    ...groupIds.map((id) => groups.find((item) => item.id === id)?.name),
+  ].filter((name): name is string => Boolean(name));
   if (names.length === 0) {
     return null;
   }
@@ -106,6 +112,7 @@ function MomentRow({
   sectionLength,
   sceneId,
   characters,
+  groups,
   selectedMomentId,
   onSelectMoment,
   isHighlighted,
@@ -130,6 +137,7 @@ function MomentRow({
   sectionLength: number;
   sceneId: number;
   characters: CharacterDetailResponse[];
+  groups: { id: number; name: string }[];
   selectedMomentId: number | null;
   onSelectMoment: (momentId: number) => void;
   isHighlighted: (moment: MomentSummary) => boolean;
@@ -149,7 +157,7 @@ function MomentRow({
   blurRevealMode: "hover" | "tap" | null;
   setBlurRevealMode: (mode: "hover" | "tap" | null) => void;
 }) {
-  const speaker = speakingCharacterName(moment, characters);
+  const speaker = speakingCharacterName(moment, characters, groups);
   const prepBadges = showPrepBadges ? buildPrepBadgeDescriptors(moment) : [];
   const hiddenPrepBadges = prepBadges.slice(MOBILE_VISIBLE_PREP_BADGES);
   const highlighted = isHighlighted(moment);
@@ -319,6 +327,7 @@ export default function TimelineMomentList({
   moments,
   sections,
   characters,
+  groups = [],
   selectedMomentId,
   onSelectMoment,
   isHighlighted,
@@ -435,6 +444,7 @@ export default function TimelineMomentList({
                 sectionLength={visibleMoments.length}
                 sceneId={section.sceneId}
                 characters={characters}
+                groups={groups}
                 selectedMomentId={selectedMomentId}
                 onSelectMoment={onSelectMoment}
                 isHighlighted={isHighlighted}

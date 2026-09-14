@@ -99,7 +99,8 @@ Seeded defaults for production capabilities (Admin always bypasses):
 
 | Capability | Admin | Active production Director | Active production Actor |
 | --- | --- | --- | --- |
-| Edit timeline and preparation data | Yes | Matrix-controlled | No by default |
+| Edit timeline preparation data (props, cues, blocking, catalogs) | Yes | Matrix-controlled | No by default |
+| Correct script content on Moments (type, parsed text, attributions) | Yes | No | No |
 | View general production content | Yes | Matrix-controlled | Yes, including before casting |
 | Cast actors to characters | Yes | Matrix-controlled | No |
 | Actor-filtered / “My lines” views | Yes | Available when relevant | Only after character assignment |
@@ -119,11 +120,12 @@ historical.
 ## Rules
 
 - **Import is Admin-only.** Directors prepare productions but cannot upload or re-import scripts.
+- **Script content correction is Admin-only.** Moment type, parsed text, stage-direction text, and dialogue / lyric / song-attribution subjects are Admin-gated (import imperfections are fixed in Moment Detail without re-import). Directors still edit preparation overlays (props, cues, blocking, costumes, set pieces, notes) and structural insert/delete/reorder.
 - **Actors are view-only on the Timeline** except for Notes and Bookmarks.
 - **User management is Admin-only.** Includes account creation, password resets, role assignment, and deactivation.
 - **Production role definitions are Admin-only.** Directors assign existing roles on People; they do not create custom roles.
 - **Act as user is Admin-only.** An Admin may switch their session to another active org user to verify that account’s view. The JWT carries an impersonator claim; nested act-as is blocked; a banner + **Return to admin** restores the original Admin session. Not a separate SuperAdmin role.
-- **Directors** can edit timeline and perform preparation work on existing productions. They cannot create, delete, or import productions, and cannot manage users.
+- **Directors** can edit timeline preparation work on existing productions. They cannot create, delete, or import productions, cannot correct script content fields, and cannot manage users.
 - **Casting data is private by capability.** Future casting notes and individual
   availability dates are visible only to Admins and active production members
   with the relevant Casting capability; being the subject of a note does not

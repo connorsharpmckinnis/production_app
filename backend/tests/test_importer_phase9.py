@@ -119,7 +119,8 @@ MS. ELEPHANT: Again.
         character.name
         for character in seeded_db.query(Character).order_by(Character.name)
     }
-    assert names == {"ALL", "ENSEMBLE", "MS. ELEPHANT", "ORDE-LEES"}
+    assert names == {"MS. ELEPHANT", "ORDE-LEES"}
+    assert result.groups_created == 0
 
 
 def test_punctuated_dialogue_speaker_can_be_song_performer(seeded_db, production):

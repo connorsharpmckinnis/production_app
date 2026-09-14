@@ -310,9 +310,8 @@ When `current_song` is set, classify the captured content:
 
 1. Pre-scan the script for character names using the same validated speaker-list
    parser used for dialogue.
-2. Always include built-in names `ALL` and `ENSEMBLE` (created as Character records on import for dialogue/lyric attribution; `ENSEMBLE` is reserved for a future Character Group). Catalog list APIs hide these builtins so they are not shown or cast as ordinary roles.
-3. An ALL CAPS line is `song_attribution` when every comma, ` & `, or lowercase
-   ` and `-separated segment matches a name from that set (or is a valid
+2. Always include built-in names `ALL` and `ENSEMBLE` as known singer labels during song classification. On commit they default to **Groups** (empty membership) unless the import wizard’s `speaker_kinds` map marks them as Characters. See [GROUP_IMPORTING.md](GROUP_IMPORTING.md). Catalog APIs no longer need to hide fake Character builtins for new imports.
+3. An ALL CAPS line is `song_attribution` when every comma, ` & `, or lowercase   ` and `-separated segment matches a name from that set (or is a valid
    parenthetical alternate — see below).
 4. Parenthetical splits such as `SHACKLETON (WILD)` are attribution when the
    primary name(s) are known; parenthetical names need only valid speaker
@@ -368,7 +367,10 @@ Stage directions may span multiple sentences in one paragraph = one Moment.
 - The same parser is used for dialogue, Character pre-scan, and song performer
   attribution.
 - MVP: keep all parentheticals inline (vocal cues and stage action alike).
-- Create/find **Character** records for each speaker.
+- Create/find **Character** or **Group** records for each speaker according to
+  the commit-time `speaker_kinds` map (defaults: `ALL` / `ENSEMBLE` → Group;
+  everything else → Character). Mixed labels on one Moment (e.g. `VERA & ENSEMBLE`)
+  produce one join row per subject.
 - Create **Moment** (`dialogue`) + **Dialogue** row(s).
 - Increment `sequence_number`.
 

@@ -39,16 +39,28 @@ class ActSummary(BaseModel):
 
 class DialogueLineResponse(BaseModel):
     id: int
-    character_id: int
-    character_name: str
+    character_id: int | None = None
+    character_name: str | None = None
+    group_id: int | None = None
+    group_name: str | None = None
     dialogue_text: str
 
 
 class LyricLineResponse(BaseModel):
     id: int
-    character_id: int
-    character_name: str
+    character_id: int | None = None
+    character_name: str | None = None
+    group_id: int | None = None
+    group_name: str | None = None
     lyric_text: str
+
+
+class SongAttributionSubjectResponse(BaseModel):
+    id: int
+    character_id: int | None = None
+    character_name: str | None = None
+    group_id: int | None = None
+    group_name: str | None = None
 
 
 class MomentSummary(BaseModel):
@@ -59,6 +71,7 @@ class MomentSummary(BaseModel):
     display_text: str
     song_id: int | None
     speaking_character_ids: list[int]
+    speaking_group_ids: list[int] = []
     has_props: bool
     has_cues: bool
     has_set_piece: bool
@@ -81,6 +94,7 @@ class MomentDetailResponse(BaseModel):
     song_title: str | None
     dialogue: list[DialogueLineResponse]
     lyrics: list[LyricLineResponse] = []
+    song_attribution: list[SongAttributionSubjectResponse] = []
     stage_direction: str | None
     props: list[MomentPropEventResponse]
     props_in_play: list[PropInPlayResponse]

@@ -232,7 +232,8 @@ Semantic action colors:
 | App Settings | Yes | Hidden | Hidden |
 | Reports | Yes | Yes | Hidden |
 | Songs / Props catalog edit | Yes | Yes | Hidden (read-only) |
-| Timeline content editing | Yes | Yes | Hidden |
+| Timeline script content editing (type, text, attributions) | Yes | Hidden | Hidden |
+| Timeline preparation editing (props, cues, blocking, etc.) | Yes | Yes | Hidden |
 | Structural editing (add/delete/reorder) | Yes | Yes | Hidden |
 | Timeline filters | All + song/prop/cue/mic/set/costume | All + song/prop/cue/mic/set/costume | All + song (no group/prep filters) |
 | Public notes on moments | Yes | Yes | Hidden (private only) |
