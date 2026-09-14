@@ -75,6 +75,9 @@ import type {
   ProductionMemberCandidateResponse,
   ProductionMemberResponse,
   ProductionRoleSummary,
+  ProductionRoleDetail,
+  ProductionRoleCreateRequest,
+  ProductionRoleUpdateRequest,
   ProductionRolePermissionResponse,
   ProductionRolePermissionUpdate,
   ProductionResponse,
@@ -921,6 +924,27 @@ export const api = {
   getProductionRolePermissions() {
     return request<ProductionRolePermissionResponse[]>(
       "/settings/production-role-permissions",
+    );
+  },
+
+  listProductionRoleDefinitions() {
+    return request<ProductionRoleDetail[]>("/settings/production-roles");
+  },
+
+  createProductionRole(body: ProductionRoleCreateRequest) {
+    return request<ProductionRoleDetail>("/settings/production-roles", {
+      method: "POST",
+      body: JSON.stringify(body),
+    });
+  },
+
+  updateProductionRole(roleCode: string, body: ProductionRoleUpdateRequest) {
+    return request<ProductionRoleDetail>(
+      `/settings/production-roles/${encodeURIComponent(roleCode)}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(body),
+      },
     );
   },
 

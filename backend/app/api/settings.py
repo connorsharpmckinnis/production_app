@@ -11,8 +11,11 @@ from app.schemas.overview_messages import (
     OverviewMessageDefaultsReplace,
 )
 from app.schemas.people import (
+    ProductionRoleCreateRequest,
+    ProductionRoleDetailResponse,
     ProductionRolePermissionResponse,
     ProductionRolePermissionsUpdate,
+    ProductionRoleUpdateRequest,
 )
 from app.schemas.settings import AppSettingsResponse, AppSettingsUpdate
 from app.services.about_page import get_about_image, get_about_page, store_about_image, update_about_markdown
@@ -25,6 +28,12 @@ from app.services.production_role_permissions import (
     ProductionRolePermissionError,
     list_production_role_permissions,
     update_production_role_permissions,
+)
+from app.services.production_roles import (
+    ProductionRoleError,
+    create_production_role,
+    list_production_role_definitions,
+    update_production_role,
 )
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -79,6 +88,72 @@ def replace_overview_message_defaults(
     db: Session = Depends(get_db),
 ) -> list[OverviewMessageDefaultResponse]:
     return replace_default_messages(db, body.messages)
+
+
+@router.get(
+    "/production-roles",
+    response_model=list[ProductionRoleDetailResponse],
+)
+def get_production_roles(
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> list[ProductionRoleDetailResponse]:
+    return list_production_role_definitions(db, include_inactive=True)
+
+
+@router.post(
+    "/production-roles",
+    response_model=ProductionRoleDetailResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+def create_production_role_definition(
+    body: ProductionRoleCreateRequest,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ProductionRoleDetailResponse:
+    try:
+        return create_production_role(
+            db,
+            name=body.name,
+            description=body.description,
+            code=body.code,
+            copy_from_role_code=body.copy_from_role_code,
+        )
+    except ProductionRoleError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
+
+
+@router.patch(
+    "/production-roles/{role_code}",
+    response_model=ProductionRoleDetailResponse,
+)
+def patch_production_role_definition(
+    role_code: str,
+    body: ProductionRoleUpdateRequest,
+    _admin: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> ProductionRoleDetailResponse:
+    if body.name is None and body.description is None and body.is_active is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="At least one field is required",
+        )
+    try:
+        return update_production_role(
+            db,
+            role_code,
+            name=body.name,
+            description=body.description,
+            is_active=body.is_active,
+        )
+    except ProductionRoleError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=str(exc),
+        ) from exc
 
 
 @router.get(

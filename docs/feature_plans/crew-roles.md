@@ -1,8 +1,8 @@
 # Feature plan — Crew roles (beyond Member / Director / Actor)
 
-**Status:** Roadmap (approved intent — build eventually; not yet phased)  
+**Status:** Partial ship — custom production role builder (2026-09-13); Stage Manager is created in-app, not seeded  
 **Created:** 2026-07-29  
-**Updated:** 2026-09-02  
+**Updated:** 2026-09-13  
 **Related:** [ROLES.md](../ROLES.md), [PROJECT.md](../PROJECT.md) future roles, [DATABASE.md](../DATABASE.md) production roles, [production-membership-and-casting-workspace.md](production-membership-and-casting-workspace.md) (shipped), [soft-pilot-ops.md](soft-pilot-ops.md), [print-and-call-sheets.md](print-and-call-sheets.md)
 
 ---
@@ -11,7 +11,7 @@
 
 Add **crew-shaped roles** so Stage Managers, lighting, sound, costumes, etc. get **appropriate access** without sharing the Director login or granting full Admin.
 
-**Primary motivating UX:** SM account can edit entrances/blocking, run call sheets, manage lav chart — but cannot import scripts or manage users.
+**Primary motivating UX:** Admin creates a Stage Manager role in Settings; Emmy assigns it on Scrooge People; SM accounts edit entrances/blocking, run call sheets, manage lav chart — but cannot import scripts or manage users.
 
 **Secondary motivating UX:** Sound can edit lav assignments; Costume can edit costumes/events; Lighting can edit cues — without full Timeline structure rights if you choose a narrow matrix.
 
@@ -36,6 +36,21 @@ this plan is about which crew roles to add and what defaults they get.
 
 ---
 
+## Shipped (2026-09-13)
+
+Admin App Settings now supports:
+
+- Creating org-wide custom production roles (immutable `code`, editable name/description)
+- Copying the current permission matrix from an existing role
+- Editing one role’s matrix at a time with collapsible resource groups
+- Soft-deactivating unused custom roles (system `member` / `director` / `actor` cannot be deactivated)
+- Assigning any active custom role on the People roster (Directors keep People manage by default)
+
+Stage Manager is **not** seeded. Create it in Settings as the pilot of the builder.
+Recommended defaults: copy from Director (see [ROLES.md](../ROLES.md)).
+
+---
+
 ## Product model (proposed)
 
 ### Role set (v1 candidates)
@@ -50,13 +65,7 @@ Keep global app roles simple; avoid exploding into 12 roles on day one.
 | **Actor** | View + notes/bookmarks + Rehearse (unchanged) |
 | **Crew** (generic) | View + edit **assigned domains** only |
 
-**Alternative (recommended if unsure):** don’t add many named roles yet — add **Director-equivalent** vs **domain permissions** flags:
-
-- `can_edit_lavs`, `can_edit_cues`, `can_edit_costumes`, `can_edit_props_sets`, `can_edit_timeline_structure`
-
-Assigned per user per production (or org-wide defaults).
-
-**Recommendation:** start with **one new role: Stage Manager** (copy Director minus import/user/production delete), plus optional domain toggles later for sound/lighting/costumes. Avoid six thin roles until a pilot asks for them.
+**Recommendation (resolved):** Admin-created named production roles (Stage Manager first via Settings), not per-production role catalogs and not Director-created roles.
 
 ---
 
@@ -65,12 +74,12 @@ Assigned per user per production (or org-wide defaults).
 | Action | SM |
 | ------ | --- |
 | View timeline / reports / packs / charts | Yes |
-| Edit moments content / structure (add/delete/reorder) | Yes (same as Director) **or** No — open question |
+| Edit moments content / structure (add/delete/reorder) | Yes (same as Director for pilot) |
 | E/E, blocking, notes | Yes |
 | Catalogs + Phase 14 events | Yes |
 | Lav chart | Yes |
-| Casting / groups | Yes (helpful for SM) or Director-only |
-| Import script / create production / users | No |
+| Casting / groups | Yes for pilot (copy Director); tighten later if needed |
+| Import script / create production / users | No (Admin-only) |
 | Org catalog manage | No |
 
 ---
@@ -80,59 +89,58 @@ Assigned per user per production (or org-wide defaults).
 | Area | Today |
 | ---- | ----- |
 | Organization role | Admin only via `app_roles` / `user_app_roles` |
-| Production-scoped roles | Shipped — `member`, `director`, `actor` via production memberships + Admin-editable permission matrix |
+| Production-scoped roles | Shipped — system `member` / `director` / `actor` plus Admin-created custom roles |
+| Role builder | Shipped — App Settings create + per-role matrix editor |
 | Docs | [ROLES.md](../ROLES.md); membership ship: [production-membership-and-casting-workspace.md](production-membership-and-casting-workspace.md) |
-
-Crew roles such as Stage Manager should add new production role definitions (and
-matrix defaults) on top of this model rather than reintroducing global app roles.
 
 ---
 
-## Explicitly out of scope (v1)
+## Explicitly out of scope (still)
 
 - Fine-grained per-moment ACLs
 - External SSO role sync
 - “Guest designer” time-boxed accounts (can be later)
 - Replacing Planning Center people directory
+- Per-production role definition catalogs
+- Directors creating custom roles
+- Announcement audience targeting for custom role names (still Admin/Director/Actor/Member only)
+- Named Lighting/Sound seeded roles (create via Settings when needed)
 
 ---
 
 ## Open questions
 
 1. **Named roles vs permission flags?**  
-   **Recommendation:** Stage Manager named role first; flags if a second crew type appears during pilot.
+   **Resolved for now:** named custom roles via Settings; domain flags only after a second crew type appears during pilot.
 2. **Can SM import?**  
    **Recommendation:** No — keep sacred script import Admin-only unless STP demands otherwise.
 3. **Production-scoped role assignment?**  
-   **Resolved for membership foundation:** production-scoped roles already ship
-   (`member` / `director` / `actor`). Stage Manager should be another production
-   role code on the same matrix, not a global `app_roles` row.
+   **Resolved:** production-scoped assignment; org-wide role definitions.
 4. **Lighting/Sound as roles or just Director?**  
-   **Recommendation:** defer named roles; use shared SM/Director until pain is real.
+   **Recommendation:** defer named roles; create via Settings when pain is real.
 
 ---
 
 ## Done when
 
-- At least one crew-shaped role (SM) exists with a written matrix in ROLES.md.
-- Soft pilot can avoid shared Director passwords for SM work.
-- Actor permissions unchanged.
-- Admin-only operations remain Admin-only.
+- [x] Admin can create a crew-shaped role (SM) in Settings with a written matrix in ROLES.md.
+- Soft pilot can avoid shared Director passwords for SM work (once Emmy assigns the role).
+- [x] Actor permissions unchanged.
+- [x] Admin-only operations remain Admin-only.
 
 ---
 
-## Suggested build sequence
+## Remaining follow-ups
 
-1. Decide SM matrix with owner; update ROLES.md.
-2. Backend permission checks + role seed.
-3. UI: hide forbidden actions; role labels in user admin.
-4. Production-scoped roles if global roles prove wrong.
-5. Domain toggles only after a real request.
+1. Emmy pilot: create Stage Manager in Settings (copy Director), add SM users, assign on Scrooge People.
+2. Extend announcement audience targeting beyond the fixed Title Case role set.
+3. Domain toggles / narrower SM matrix only after real pilot feedback.
+4. Named Lighting/Sound only if Settings-created roles prove insufficient.
 
 ---
 
 ## Risks / tradeoffs
 
-- Role explosion — resist until STP names the seats.
-- Half-hidden buttons vs hard API denials — **API must enforce**.
-- Production-scoped needs may force auth refactor — design flags early even if UI is global at first.
+- Role explosion — resist until STP names the seats; prefer Settings-created roles over seed churn.
+- Half-hidden buttons vs hard API denials — **API must enforce** (already capability-based).
+- Announcement targeting lag — SM-only members will not match Director/Actor/Member audience checkboxes until that follow-up ships.

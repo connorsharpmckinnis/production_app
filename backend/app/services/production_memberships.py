@@ -234,6 +234,13 @@ def _get_roles_by_code(
         raise ProductionRoleNotFoundError(
             f"Unknown production role code(s): {', '.join(missing)}"
         )
+    inactive = sorted(
+        code for code, role in roles_by_code.items() if not role.is_active
+    )
+    if inactive:
+        raise ProductionRoleNotFoundError(
+            f"Inactive production role code(s): {', '.join(inactive)}"
+        )
     return roles_by_code
 
 
@@ -344,7 +351,11 @@ def active_role_codes(
     membership = _resolve_membership(db, membership_or_production_id, user_id)
     if not membership.is_active:
         return set()
-    return {role.production_role.code for role in membership.membership_roles}
+    return {
+        role.production_role.code
+        for role in membership.membership_roles
+        if role.production_role.is_active
+    }
 
 
 def effective_permissions(
@@ -365,8 +376,13 @@ def effective_permissions(
             ProductionMembershipRole.production_role_id
             == ProductionRolePermission.production_role_id,
         )
+        .join(
+            ProductionRole,
+            ProductionRole.id == ProductionRolePermission.production_role_id,
+        )
         .filter(
             ProductionMembershipRole.membership_id == membership.id,
+            ProductionRole.is_active.is_(True),
             ProductionRolePermission.enabled.is_(True),
         )
         .all()

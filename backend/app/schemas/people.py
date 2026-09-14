@@ -15,6 +15,33 @@ class ProductionRoleResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class ProductionRoleDetailResponse(BaseModel):
+    code: str
+    name: str
+    description: str | None = None
+    is_active: bool
+    is_system: bool
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+class ProductionRoleCreateRequest(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    description: str | None = None
+    code: str | None = Field(default=None, max_length=64)
+    copy_from_role_code: str = Field(default="member", min_length=1, max_length=64)
+
+    model_config = ConfigDict(extra="forbid")
+
+
+class ProductionRoleUpdateRequest(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    description: str | None = None
+    is_active: bool | None = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class AssignedCharacterResponse(BaseModel):
     id: int
     name: str

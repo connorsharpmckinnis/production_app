@@ -20,7 +20,6 @@ from app.models import (
     MomentType,
     Organization,
     ProductionRole,
-    ProductionRolePermission,
     User,
     UserAppRole,
 )
@@ -174,34 +173,26 @@ def _seed_overview_message_defaults(db: Session) -> None:
 
 
 def _seed_production_roles(db: Session) -> None:
+    from app.services.production_roles import ensure_permission_rows_for_role
+
     for code, name, description in PRODUCTION_ROLE_DEFINITIONS:
         role = db.query(ProductionRole).filter(ProductionRole.code == code).first()
         if role is None:
-            role = ProductionRole(code=code, name=name, description=description)
+            role = ProductionRole(
+                code=code,
+                name=name,
+                description=description,
+                is_active=True,
+            )
             db.add(role)
             db.flush()
 
-        for resource in PRODUCTION_PERMISSION_RESOURCES:
-            enabled_actions = enabled_actions_for(code, resource)
-            for action in PERMISSION_ACTIONS:
-                existing = (
-                    db.query(ProductionRolePermission)
-                    .filter(
-                        ProductionRolePermission.production_role_id == role.id,
-                        ProductionRolePermission.resource == resource,
-                        ProductionRolePermission.action == action,
-                    )
-                    .first()
-                )
-                if existing is None:
-                    db.add(
-                        ProductionRolePermission(
-                            production_role_id=role.id,
-                            resource=resource,
-                            action=action,
-                            enabled=action in enabled_actions,
-                        )
-                    )
+        enabled_map = {
+            (resource, action): action in enabled_actions_for(code, resource)
+            for resource in PRODUCTION_PERMISSION_RESOURCES
+            for action in PERMISSION_ACTIONS
+        }
+        ensure_permission_rows_for_role(db, role, enabled_map)
     db.flush()
 
 

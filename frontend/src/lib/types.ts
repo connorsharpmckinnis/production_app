@@ -83,6 +83,27 @@ export interface ProductionRoleSummary {
   name: string;
 }
 
+export interface ProductionRoleDetail {
+  code: string;
+  name: string;
+  description: string | null;
+  is_active: boolean;
+  is_system: boolean;
+}
+
+export interface ProductionRoleCreateRequest {
+  name: string;
+  description?: string | null;
+  code?: string | null;
+  copy_from_role_code?: string;
+}
+
+export interface ProductionRoleUpdateRequest {
+  name?: string;
+  description?: string | null;
+  is_active?: boolean;
+}
+
 export interface AssignedCharacterSummary {
   id: number;
   name: string;
