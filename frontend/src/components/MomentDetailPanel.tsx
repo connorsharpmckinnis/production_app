@@ -314,7 +314,11 @@ function costumesPagePath(productionId: number, detail: MomentDetailResponse): s
 }
 
 export interface MomentDetailPanelHandle {
+  /** Save script drafts if dirty (used on sheet close). */
   flushPendingSaves: () => Promise<void>;
+  saveScript: () => Promise<void>;
+  discardScript: () => void;
+  isScriptDirty: () => boolean;
 }
 
 interface MomentDetailPanelProps {
@@ -338,6 +342,7 @@ interface MomentDetailPanelProps {
   onDetailUpdate: (detail: MomentDetailResponse) => void;
   onChanged: () => void | Promise<void>;
   momentBadgeClass: (type: string) => string;
+  onScriptDirtyChange?: (dirty: boolean) => void;
 }
 
 const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelProps>(
@@ -361,6 +366,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       onDetailUpdate,
       onChanged,
       momentBadgeClass,
+      onScriptDirtyChange,
     },
     ref,
   ) {
@@ -439,12 +445,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       groups.length,
     ]);
 
-    const isSongRelated =
-      detail.song_id != null ||
-      detail.moment_type === "song_header" ||
-      detail.moment_type === "song_attribution" ||
-      detail.moment_type === "lyric";
-
     const [noteContent, setNoteContent] = useState("");
     const [noteVisibility, setNoteVisibility] = useState<"public" | "private">("private");
     const [saving, setSaving] = useState(false);
@@ -465,18 +465,15 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     const [dialogueText, setDialogueText] = useState(
       () => detail.dialogue[0]?.dialogue_text ?? "",
     );
-    const [editingDialogue, setEditingDialogue] = useState(false);
 
     const [lyricSubjects, setLyricSubjects] = useState(() =>
       uniqueEncodedSubjects(detail.lyrics ?? []),
     );
     const [lyricText, setLyricText] = useState(() => detail.lyrics?.[0]?.lyric_text ?? "");
-    const [editingLyric, setEditingLyric] = useState(false);
 
     const [songSubjects, setSongSubjects] = useState(() =>
       uniqueEncodedSubjects(detail.song_attribution ?? []),
     );
-    const [editingSongAttribution, setEditingSongAttribution] = useState(false);
 
     const [attachPropId, setAttachPropId] = useState("");
     const [attachPropKind, setAttachPropKind] = useState<AssetEventKind>("on");
@@ -558,13 +555,66 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     const detailRef = useRef(detail);
     detailRef.current = detail;
 
-    const parsedDirty =
+    const draftMomentType =
+      momentTypes.find((t) => String(t.id) === String(selectedTypeId))?.name ??
+      detail.moment_type;
+
+    const isSongRelated =
+      Boolean(selectedSongId) ||
+      draftMomentType === "song_header" ||
+      draftMomentType === "song_attribution" ||
+      draftMomentType === "lyric";
+
+    const momentFieldsDirty =
       parsedText !== (detail.parsed_text ?? "") ||
       String(selectedTypeId) !==
         String(momentTypes.find((type) => type.name === detail.moment_type)?.id ?? "") ||
       selectedSongId !== (detail.song_id !== null ? String(detail.song_id) : "");
 
-    const stageDirty = stageDirectionText !== (detail.stage_direction ?? "");
+    const stageDirty =
+      draftMomentType === "stage_direction" &&
+      stageDirectionText !== (detail.stage_direction ?? "");
+
+    const dialogueDirty =
+      draftMomentType === "dialogue" &&
+      (!sameSubjectValues(dialogueSubjects, uniqueEncodedSubjects(detail.dialogue)) ||
+        ((dialogueSubjects.length > 0 || detail.dialogue.length > 0) &&
+          dialogueText.trim() !== (detail.dialogue[0]?.dialogue_text ?? "").trim()));
+
+    const lyricDirty =
+      draftMomentType === "lyric" &&
+      (!sameSubjectValues(lyricSubjects, uniqueEncodedSubjects(detail.lyrics ?? [])) ||
+        ((lyricSubjects.length > 0 || (detail.lyrics?.length ?? 0) > 0) &&
+          lyricText.trim() !== (detail.lyrics?.[0]?.lyric_text ?? "").trim()));
+
+    const songAttributionDirty =
+      draftMomentType === "song_attribution" &&
+      !sameSubjectValues(
+        songSubjects,
+        uniqueEncodedSubjects(detail.song_attribution ?? []),
+      );
+
+    const scriptDirty =
+      canEditScript &&
+      (momentFieldsDirty ||
+        stageDirty ||
+        dialogueDirty ||
+        lyricDirty ||
+        songAttributionDirty);
+
+    function resetScriptDraftsFromDetail(source: MomentDetailResponse) {
+      setParsedText(source.parsed_text ?? "");
+      setStageDirectionText(source.stage_direction ?? "");
+      setSelectedTypeId(
+        momentTypes.find((type) => type.name === source.moment_type)?.id ?? "",
+      );
+      setSelectedSongId(source.song_id !== null ? String(source.song_id) : "");
+      setDialogueSubjects(uniqueEncodedSubjects(source.dialogue));
+      setDialogueText(source.dialogue[0]?.dialogue_text ?? "");
+      setLyricSubjects(uniqueEncodedSubjects(source.lyrics ?? []));
+      setLyricText(source.lyrics?.[0]?.lyric_text ?? "");
+      setSongSubjects(uniqueEncodedSubjects(source.song_attribution ?? []));
+    }
 
     useEffect(() => {
       setParsedText(detail.parsed_text ?? "");
@@ -575,203 +625,162 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       setSelectedSongId(detail.song_id !== null ? String(detail.song_id) : "");
       setDialogueSubjects(uniqueEncodedSubjects(detail.dialogue));
       setDialogueText(detail.dialogue[0]?.dialogue_text ?? "");
-      if (detail.dialogue.length > 0) setEditingDialogue(false);
       setLyricSubjects(uniqueEncodedSubjects(detail.lyrics ?? []));
       setLyricText(detail.lyrics?.[0]?.lyric_text ?? "");
-      if ((detail.lyrics?.length ?? 0) > 0) setEditingLyric(false);
       setSongSubjects(uniqueEncodedSubjects(detail.song_attribution ?? []));
-      if ((detail.song_attribution?.length ?? 0) > 0) setEditingSongAttribution(false);
     }, [detail, momentTypes]);
 
-    async function saveMomentFields(forceTypeChange = false) {
-      if (!canEditScript || (!parsedDirty && !forceTypeChange)) return;
+    useEffect(() => {
+      onScriptDirtyChange?.(scriptDirty);
+    }, [scriptDirty, onScriptDirtyChange]);
+
+    async function saveScript(forceTypeChange = false) {
+      if (!canEditScript) return;
+
+      // Capture drafts before any await so mid-save detail sync cannot wipe them.
+      const captured = {
+        momentFieldsDirty,
+        stageDirty,
+        dialogueDirty,
+        lyricDirty,
+        songAttributionDirty,
+        scriptDirty,
+        draftMomentType,
+        parsedText,
+        selectedTypeId,
+        selectedSongId,
+        stageDirectionText,
+        dialogueSubjects: [...dialogueSubjects],
+        dialogueText,
+        lyricSubjects: [...lyricSubjects],
+        lyricText,
+        songSubjects: [...songSubjects],
+      };
+
+      if (!captured.scriptDirty && !forceTypeChange) return;
+
+      if (
+        captured.draftMomentType === "dialogue" &&
+        captured.dialogueSubjects.length > 0 &&
+        !captured.dialogueText.trim()
+      ) {
+        toast.error("Dialogue text is required");
+        return;
+      }
+      if (
+        captured.draftMomentType === "lyric" &&
+        captured.lyricSubjects.length > 0 &&
+        !captured.lyricText.trim()
+      ) {
+        toast.error("Lyric text is required");
+        return;
+      }
 
       setSaving(true);
+      let latest = detailRef.current;
       try {
-        const updated = await api.updateMoment(productionId, detail.id, {
-          moment_type_id: selectedTypeId ? Number(selectedTypeId) : undefined,
-          parsed_text: parsedText.trim() || null,
-          song_id: selectedSongId ? Number(selectedSongId) : null,
-          force_type_change: forceTypeChange || undefined,
-        });
-        onDetailUpdate(updated);
+        if (captured.momentFieldsDirty || forceTypeChange) {
+          try {
+            latest = await api.updateMoment(productionId, latest.id, {
+              moment_type_id: captured.selectedTypeId
+                ? Number(captured.selectedTypeId)
+                : undefined,
+              parsed_text: captured.parsedText.trim() || null,
+              song_id: captured.selectedSongId ? Number(captured.selectedSongId) : null,
+              force_type_change: forceTypeChange || undefined,
+            });
+            onDetailUpdate(latest);
+          } catch (err) {
+            if (err instanceof ApiError && err.status === 409) {
+              const proceed = await confirm({
+                title: "Change moment type?",
+                description: `${formatApiError(err, "Conflict")} Structured dialogue or stage direction data will be orphaned.`,
+                confirmLabel: "Change type",
+              });
+              if (proceed) {
+                await saveScript(true);
+                return;
+              }
+              return;
+            }
+            throw err;
+          }
+        }
+
+        if (
+          captured.draftMomentType === "stage_direction" &&
+          captured.stageDirty &&
+          (latest.stage_direction || captured.stageDirectionText.trim())
+        ) {
+          latest = await api.updateStageDirection(productionId, latest.id, {
+            direction_text: captured.stageDirectionText,
+          });
+          onDetailUpdate(latest);
+        }
+
+        if (captured.draftMomentType === "dialogue" && captured.dialogueDirty) {
+          const hadDialogue = (latest.dialogue?.length ?? 0) > 0;
+          if (captured.dialogueSubjects.length > 0 || hadDialogue) {
+            const text =
+              captured.dialogueText.trim() ||
+              latest.dialogue[0]?.dialogue_text ||
+              "";
+            latest = await api.replaceDialogueAttributions(productionId, latest.id, {
+              subjects: decodeAttributionSubjects(captured.dialogueSubjects),
+              dialogue_text: text,
+            });
+            onDetailUpdate(latest);
+          }
+        }
+
+        if (captured.draftMomentType === "lyric" && captured.lyricDirty) {
+          const hadLyrics = (latest.lyrics?.length ?? 0) > 0;
+          if (captured.lyricSubjects.length > 0 || hadLyrics) {
+            const text =
+              captured.lyricText.trim() || latest.lyrics?.[0]?.lyric_text || "";
+            latest = await api.replaceLyricAttributions(productionId, latest.id, {
+              subjects: decodeAttributionSubjects(captured.lyricSubjects),
+              lyric_text: text,
+            });
+            onDetailUpdate(latest);
+          }
+        }
+
+        if (
+          captured.draftMomentType === "song_attribution" &&
+          captured.songAttributionDirty
+        ) {
+          const hadSongAttribution = (latest.song_attribution?.length ?? 0) > 0;
+          if (captured.songSubjects.length > 0 || hadSongAttribution) {
+            latest = await api.replaceSongAttributions(productionId, latest.id, {
+              subjects: decodeAttributionSubjects(captured.songSubjects),
+            });
+            onDetailUpdate(latest);
+          }
+        }
+
         await onChanged();
         toast.success("Moment saved");
       } catch (err) {
-        if (err instanceof ApiError && err.status === 409) {
-          const proceed = await confirm({
-            title: "Change moment type?",
-            description: `${formatApiError(err, "Conflict")} Structured dialogue or stage direction data will be orphaned.`,
-            confirmLabel: "Change type",
-          });
-          if (proceed) {
-            await saveMomentFields(true);
-            return;
-          }
-        } else {
-          toast.error(formatApiError(err, "Failed to save moment"));
-        }
+        toast.error(formatApiError(err, "Failed to save moment"));
       } finally {
         setSaving(false);
       }
     }
 
-    async function saveStageDirection() {
-      if (!canEditScript || !stageDirty) return;
-      if (!detail.stage_direction && !stageDirectionText.trim()) return;
-
-      setSaving(true);
-      try {
-        const updated = await api.updateStageDirection(productionId, detail.id, {
-          direction_text: stageDirectionText,
-        });
-        onDetailUpdate(updated);
-        await onChanged();
-        toast.success("Stage direction saved");
-      } catch (err) {
-        toast.error(formatApiError(err, "Failed to save stage direction"));
-      } finally {
-        setSaving(false);
-      }
-    }
-
-    async function saveDialogueAttributions(
-      nextSubjects?: string[],
-      nextText?: string,
-      options?: { allowAdd?: boolean },
-    ) {
-      if (!canEditScript) return;
-
-      const subjects = nextSubjects ?? dialogueSubjects;
-      const text = (nextText ?? dialogueText).trim();
-      const hadSubjects = detail.dialogue.length > 0;
-      const isAddFlow = !hadSubjects;
-      const currentSubjects = uniqueEncodedSubjects(detail.dialogue);
-      const currentText = detail.dialogue[0]?.dialogue_text ?? "";
-      const textForApi = text || currentText;
-
-      if (isAddFlow && !options?.allowAdd) return;
-      if (subjects.length === 0 && !hadSubjects) return;
-      if (subjects.length > 0 && !textForApi) return;
-      if (subjects.length === 0 && !textForApi) return;
-
-      if (
-        sameSubjectValues(subjects, currentSubjects) &&
-        textForApi === currentText.trim()
-      ) {
-        return;
-      }
-
-      setSaving(true);
-      try {
-        const updated = await api.replaceDialogueAttributions(productionId, detail.id, {
-          subjects: decodeAttributionSubjects(subjects),
-          dialogue_text: textForApi,
-        });
-        onDetailUpdate(updated);
-        await onChanged();
-        setEditingDialogue(false);
-        toast.success(
-          subjects.length === 0 ? "Dialogue speakers cleared" : "Dialogue updated",
-        );
-      } catch (err) {
-        toast.error(formatApiError(err, "Failed to update dialogue"));
-      } finally {
-        setSaving(false);
-      }
-    }
-
-    async function saveLyricAttributions(
-      nextSubjects?: string[],
-      nextText?: string,
-      options?: { allowAdd?: boolean },
-    ) {
-      if (!canEditScript) return;
-
-      const subjects = nextSubjects ?? lyricSubjects;
-      const text = (nextText ?? lyricText).trim();
-      const hadSubjects = (detail.lyrics?.length ?? 0) > 0;
-      const isAddFlow = !hadSubjects;
-      const currentSubjects = uniqueEncodedSubjects(detail.lyrics ?? []);
-      const currentText = detail.lyrics?.[0]?.lyric_text ?? "";
-      const textForApi = text || currentText;
-
-      if (isAddFlow && !options?.allowAdd) return;
-      if (subjects.length === 0 && !hadSubjects) return;
-      if (subjects.length > 0 && !textForApi) return;
-      if (subjects.length === 0 && !textForApi) return;
-
-      if (
-        sameSubjectValues(subjects, currentSubjects) &&
-        textForApi === currentText.trim()
-      ) {
-        return;
-      }
-
-      setSaving(true);
-      try {
-        const updated = await api.replaceLyricAttributions(productionId, detail.id, {
-          subjects: decodeAttributionSubjects(subjects),
-          lyric_text: textForApi,
-        });
-        onDetailUpdate(updated);
-        await onChanged();
-        setEditingLyric(false);
-        toast.success(
-          subjects.length === 0 ? "Lyric singers cleared" : "Lyric updated",
-        );
-      } catch (err) {
-        toast.error(formatApiError(err, "Failed to update lyric"));
-      } finally {
-        setSaving(false);
-      }
-    }
-
-    async function saveSongAttributions(
-      nextSubjects?: string[],
-      options?: { allowAdd?: boolean },
-    ) {
-      if (!canEditScript) return;
-
-      const subjects = nextSubjects ?? songSubjects;
-      const hadSubjects = (detail.song_attribution?.length ?? 0) > 0;
-      const isAddFlow = !hadSubjects;
-
-      if (isAddFlow && !options?.allowAdd) return;
-      if (isAddFlow && subjects.length === 0) return;
-
-      const currentSubjects = uniqueEncodedSubjects(detail.song_attribution ?? []);
-      if (sameSubjectValues(subjects, currentSubjects)) return;
-
-      setSaving(true);
-      try {
-        const updated = await api.replaceSongAttributions(productionId, detail.id, {
-          subjects: decodeAttributionSubjects(subjects),
-        });
-        onDetailUpdate(updated);
-        await onChanged();
-        setEditingSongAttribution(false);
-        toast.success(
-          subjects.length === 0 ? "Song attribution cleared" : "Song attribution updated",
-        );
-      } catch (err) {
-        toast.error(formatApiError(err, "Failed to update song attribution"));
-      } finally {
-        setSaving(false);
-      }
+    function discardScript() {
+      resetScriptDraftsFromDetail(detailRef.current);
     }
 
     useImperativeHandle(ref, () => ({
       flushPendingSaves: async () => {
-        await saveMomentFields();
-        await saveStageDirection();
-        if (detail.dialogue.length > 0) {
-          await saveDialogueAttributions();
-        }
-        if ((detail.lyrics?.length ?? 0) > 0) {
-          await saveLyricAttributions();
-        }
+        await saveScript();
       },
+      saveScript: async () => {
+        await saveScript();
+      },
+      discardScript,
+      isScriptDirty: () => scriptDirty,
     }));
 
     async function handleBookmarkToggle() {
@@ -1283,8 +1292,9 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         </Button>
 
         {/* Primary script content — emphasized above imported metadata */}
-        {detail.moment_type === "stage_direction" &&
-          (detail.stage_direction || canEditScript) && (
+        {((canEditScript && draftMomentType === "stage_direction") ||
+          (!canEditScript && detail.moment_type === "stage_direction")) &&
+          (canEditScript || detail.stage_direction) && (
           <div className="rounded-md bg-muted/60 px-3 py-3">
             <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Stage direction
@@ -1293,7 +1303,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
               <Textarea
                 value={stageDirectionText}
                 onChange={(e) => setStageDirectionText(e.target.value)}
-                onBlur={() => void saveStageDirection()}
                 rows={1}
                 className="mt-2 min-h-[3rem] resize-none overflow-hidden whitespace-pre-wrap text-base italic leading-relaxed"
               />
@@ -1305,75 +1314,29 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           </div>
         )}
 
-        {detail.moment_type === "dialogue" && canEditScript && (
+        {canEditScript && draftMomentType === "dialogue" && (
           <div className="rounded-md bg-muted/60 px-3 py-3">
             <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Dialogue
             </h3>
-            {detail.dialogue.length === 0 && !editingDialogue ? (
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="mt-2"
+            <div className="mt-2 space-y-2">
+              <AttributionSubjectMultiSelect
+                characters={sortedCharacters}
+                groups={sortByName(groups)}
+                selectedValues={dialogueSubjects}
                 disabled={saving}
-                onClick={() => {
-                  if (!dialogueText.trim()) {
-                    setDialogueText(detail.parsed_text || detail.original_text || "");
-                  }
-                  setEditingDialogue(true);
-                }}
-              >
-                Add speaker
-              </Button>
-            ) : (
-              <div className="mt-2 space-y-2">
-                <AttributionSubjectMultiSelect
-                  characters={sortedCharacters}
-                  groups={sortByName(groups)}
-                  selectedValues={dialogueSubjects}
-                  disabled={saving}
-                  emptyLabel="Add speaker"
-                  ariaLabel="Select dialogue speakers"
-                  onChange={setDialogueSubjects}
-                  onClose={() => {
-                    if (detail.dialogue.length > 0) {
-                      void saveDialogueAttributions();
-                    }
-                  }}
-                />
-                <Textarea
-                  value={dialogueText}
-                  onChange={(e) => setDialogueText(e.target.value)}
-                  onBlur={() => {
-                    if (detail.dialogue.length > 0) {
-                      void saveDialogueAttributions();
-                    }
-                  }}
-                  rows={3}
-                  placeholder="Dialogue text"
-                  className="min-h-[4rem] resize-y whitespace-pre-wrap text-base leading-relaxed"
-                />
-                {detail.dialogue.length === 0 && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={
-                      saving ||
-                      dialogueSubjects.length === 0 ||
-                      !dialogueText.trim()
-                    }
-                    onClick={() =>
-                      void saveDialogueAttributions(dialogueSubjects, dialogueText, {
-                        allowAdd: true,
-                      })
-                    }
-                  >
-                    Save
-                  </Button>
-                )}
-              </div>
-            )}
+                emptyLabel="Add speaker"
+                ariaLabel="Select dialogue speakers"
+                onChange={setDialogueSubjects}
+              />
+              <Textarea
+                value={dialogueText}
+                onChange={(e) => setDialogueText(e.target.value)}
+                rows={3}
+                placeholder="Dialogue text"
+                className="min-h-[4rem] resize-y whitespace-pre-wrap text-base leading-relaxed"
+              />
+            </div>
           </div>
         )}
 
@@ -1405,79 +1368,29 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           </div>
         )}
 
-        {detail.moment_type === "lyric" && canEditScript && (
+        {canEditScript && draftMomentType === "lyric" && (
           <div className="rounded-md bg-muted/60 px-3 py-3">
             <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Lyric
             </h3>
-            {(detail.lyrics?.length ?? 0) === 0 && !editingLyric ? (
-              <div className="mt-2 space-y-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={saving}
-                  onClick={() => {
-                    if (!lyricText.trim()) {
-                      setLyricText(detail.parsed_text || detail.original_text || "");
-                    }
-                    setEditingLyric(true);
-                  }}
-                >
-                  Add singer
-                </Button>
-                {(detail.parsed_text || detail.original_text) && (
-                  <p className="whitespace-pre-wrap text-base leading-relaxed">
-                    {detail.parsed_text || detail.original_text}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div className="mt-2 space-y-2">
-                <AttributionSubjectMultiSelect
-                  characters={sortedCharacters}
-                  groups={sortByName(groups)}
-                  selectedValues={lyricSubjects}
-                  disabled={saving}
-                  emptyLabel="Add singer"
-                  ariaLabel="Select lyric singers"
-                  onChange={setLyricSubjects}
-                  onClose={() => {
-                    if ((detail.lyrics?.length ?? 0) > 0) {
-                      void saveLyricAttributions();
-                    }
-                  }}
-                />
-                <Textarea
-                  value={lyricText}
-                  onChange={(e) => setLyricText(e.target.value)}
-                  onBlur={() => {
-                    if ((detail.lyrics?.length ?? 0) > 0) {
-                      void saveLyricAttributions();
-                    }
-                  }}
-                  rows={3}
-                  placeholder="Lyric text"
-                  className="min-h-[4rem] resize-y whitespace-pre-wrap text-base leading-relaxed"
-                />
-                {(detail.lyrics?.length ?? 0) === 0 && (
-                  <Button
-                    type="button"
-                    size="sm"
-                    disabled={
-                      saving || lyricSubjects.length === 0 || !lyricText.trim()
-                    }
-                    onClick={() =>
-                      void saveLyricAttributions(lyricSubjects, lyricText, {
-                        allowAdd: true,
-                      })
-                    }
-                  >
-                    Save
-                  </Button>
-                )}
-              </div>
-            )}
+            <div className="mt-2 space-y-2">
+              <AttributionSubjectMultiSelect
+                characters={sortedCharacters}
+                groups={sortByName(groups)}
+                selectedValues={lyricSubjects}
+                disabled={saving}
+                emptyLabel="Add singer"
+                ariaLabel="Select lyric singers"
+                onChange={setLyricSubjects}
+              />
+              <Textarea
+                value={lyricText}
+                onChange={(e) => setLyricText(e.target.value)}
+                rows={3}
+                placeholder="Lyric text"
+                className="min-h-[4rem] resize-y whitespace-pre-wrap text-base leading-relaxed"
+              />
+            </div>
           </div>
         )}
 
@@ -1509,74 +1422,43 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           </div>
         )}
 
-        {detail.moment_type === "song_attribution" && canEditScript && (
+        {canEditScript && draftMomentType === "song_attribution" && (
           <div className="rounded-md bg-muted/60 px-3 py-3">
             <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Attribution
             </h3>
-            {(detail.song_attribution?.length ?? 0) === 0 &&
-            !editingSongAttribution ? (
-              <div className="mt-2 space-y-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={saving}
-                  onClick={() => setEditingSongAttribution(true)}
-                >
-                  Add attribution
-                </Button>
-                {(detail.parsed_text || detail.original_text) && (
-                  <p className="whitespace-pre-wrap text-base leading-relaxed">
-                    {detail.parsed_text || detail.original_text}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <div className="mt-2 space-y-2">
-                <AttributionSubjectMultiSelect
-                  characters={sortedCharacters}
-                  groups={sortByName(groups)}
-                  selectedValues={songSubjects}
-                  disabled={saving}
-                  emptyLabel="Add attribution"
-                  ariaLabel="Select song attribution subjects"
-                  onChange={(values) => {
-                    setSongSubjects(values);
-                    if ((detail.song_attribution?.length ?? 0) > 0) {
-                      // Persist immediately so clearing subjects works without waiting for close.
-                      void saveSongAttributions(values);
-                    }
-                  }}
-                  onClose={() => {
-                    if ((detail.song_attribution?.length ?? 0) > 0) {
-                      void saveSongAttributions();
-                    } else if (songSubjects.length > 0) {
-                      void saveSongAttributions(songSubjects, { allowAdd: true });
-                    }
-                  }}
-                />
-                {(detail.parsed_text || detail.original_text) && (
-                  <p className="whitespace-pre-wrap text-sm text-muted-foreground">
-                    {detail.parsed_text || detail.original_text}
-                  </p>
-                )}
-              </div>
-            )}
+            <div className="mt-2 space-y-2">
+              <AttributionSubjectMultiSelect
+                characters={sortedCharacters}
+                groups={sortByName(groups)}
+                selectedValues={songSubjects}
+                disabled={saving}
+                emptyLabel="Add attribution"
+                ariaLabel="Select song attribution subjects"
+                onChange={setSongSubjects}
+              />
+              {(detail.parsed_text || detail.original_text) && (
+                <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                  {detail.parsed_text || detail.original_text}
+                </p>
+              )}
+            </div>
           </div>
         )}
 
-        {(detail.moment_type === "song_header" ||
-          (detail.moment_type === "song_attribution" && !canEditScript) ||
-          (detail.moment_type === "lyric" &&
-            (detail.lyrics?.length ?? 0) === 0 &&
-            !canEditScript)) &&
+        {((canEditScript && draftMomentType === "song_header") ||
+          (!canEditScript &&
+            (detail.moment_type === "song_header" ||
+              detail.moment_type === "song_attribution" ||
+              (detail.moment_type === "lyric" &&
+                (detail.lyrics?.length ?? 0) === 0)))) &&
           (detail.parsed_text || detail.original_text) && (
             <div className="rounded-md bg-muted/60 px-3 py-3">
               <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-                {detail.moment_type === "lyric"
+                {(canEditScript ? draftMomentType : detail.moment_type) === "lyric"
                   ? "Lyric"
-                  : detail.moment_type === "song_header"
+                  : (canEditScript ? draftMomentType : detail.moment_type) ===
+                      "song_header"
                     ? "Song title"
                     : "Attribution"}
               </h3>
@@ -1606,10 +1488,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                     setSelectedSongId(value === NO_SONG_VALUE ? "" : value)
                   }
                 >
-                  <SelectTrigger
-                    className="w-full"
-                    onBlur={() => void saveMomentFields()}
-                  >
+                  <SelectTrigger className="w-full">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
@@ -1645,12 +1524,48 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                     <Label className="text-xs text-muted-foreground">Moment type</Label>
                     <Select
                       value={String(selectedTypeId)}
-                      onValueChange={(value) => setSelectedTypeId(value)}
+                      onValueChange={(value) => {
+                        setSelectedTypeId(value);
+                        const nextType = momentTypes.find(
+                          (type) => String(type.id) === String(value),
+                        )?.name;
+                        if (nextType === "dialogue") {
+                          if (!dialogueText.trim() && detail.dialogue.length === 0) {
+                            setDialogueText(
+                              lyricText.trim() ||
+                                detail.parsed_text ||
+                                detail.original_text ||
+                                "",
+                            );
+                          }
+                          if (
+                            dialogueSubjects.length === 0 &&
+                            lyricSubjects.length > 0 &&
+                            detail.dialogue.length === 0
+                          ) {
+                            setDialogueSubjects(lyricSubjects);
+                          }
+                        }
+                        if (nextType === "lyric") {
+                          if (!lyricText.trim() && (detail.lyrics?.length ?? 0) === 0) {
+                            setLyricText(
+                              dialogueText.trim() ||
+                                detail.parsed_text ||
+                                detail.original_text ||
+                                "",
+                            );
+                          }
+                          if (
+                            lyricSubjects.length === 0 &&
+                            dialogueSubjects.length > 0 &&
+                            (detail.lyrics?.length ?? 0) === 0
+                          ) {
+                            setLyricSubjects(dialogueSubjects);
+                          }
+                        }
+                      }}
                     >
-                      <SelectTrigger
-                        className="w-full"
-                        onBlur={() => void saveMomentFields()}
-                      >
+                      <SelectTrigger className="w-full">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
@@ -1668,7 +1583,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                     <Textarea
                       value={parsedText}
                       onChange={(e) => setParsedText(e.target.value)}
-                      onBlur={() => void saveMomentFields()}
                       rows={3}
                     />
                   </div>

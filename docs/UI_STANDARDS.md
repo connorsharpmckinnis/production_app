@@ -251,7 +251,7 @@ Semantic action colors:
 
 ## Slice 4 (Phase 4 — shipped)
 
-* Moment detail auto-save on blur; flush pending saves on panel close
+* Moment detail script fields draft in the panel; Save commits; flush (full script save) on panel close; attachments remain immediate CRUD
 * Parsed-data correction collapsed behind pencil toggle; global App Settings for original/parsed text visibility
 * Prose-like timeline rows with optional dialogue character column; song/lyric rows use a soft `moment-song` background tint for glanceability
 * Structural editing: insert (inline form), delete (confirm), move up/down
