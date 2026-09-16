@@ -599,9 +599,9 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       setAttachCostumeKind("on");
       setAttachCostumeId("");
       setAttachCostumeNotes("");
-      setAttachEntranceCharacterId("");
+      setAttachEntranceSubject("");
       setAttachEntranceNotes("");
-      setAttachExitCharacterId("");
+      setAttachExitSubject("");
       setAttachExitNotes("");
       setAttachBlockingCharacterId("");
       setAttachBlockingNotes("");
