@@ -15,9 +15,14 @@ export default function SceneSummaryStrip({
   sceneLabel,
   sceneEndMomentId,
 }: SceneSummaryStripProps) {
-  const { characters, songs, propMomentCount } = summary;
+  const { characters, songs, props, setPieces } = summary;
 
-  if (characters.length === 0 && songs.length === 0 && propMomentCount === 0) {
+  if (
+    characters.length === 0 &&
+    songs.length === 0 &&
+    props.length === 0 &&
+    setPieces.length === 0
+  ) {
     return null;
   }
 
@@ -60,10 +65,38 @@ export default function SceneSummaryStrip({
         </div>
       )}
 
-      {propMomentCount > 0 && (
-        <p className="text-xs text-muted-foreground">
-          Props used ({propMomentCount} moment{propMomentCount === 1 ? "" : "s"})
-        </p>
+      {props.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Props
+          </span>
+          {props.map((prop) => (
+            <ObjectLink
+              key={prop.id}
+              objectType="prop"
+              objectId={prop.id}
+              label={prop.name}
+              className="text-xs"
+            />
+          ))}
+        </div>
+      )}
+
+      {setPieces.length > 0 && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          <span className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Set pieces
+          </span>
+          {setPieces.map((piece) => (
+            <ObjectLink
+              key={piece.id}
+              objectType="set_piece"
+              objectId={piece.id}
+              label={piece.name}
+              className="text-xs"
+            />
+          ))}
+        </div>
       )}
     </div>
   );

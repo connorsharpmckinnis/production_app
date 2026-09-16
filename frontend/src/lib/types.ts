@@ -343,6 +343,8 @@ export interface MomentSummary {
   has_exit: boolean;
   has_blocking: boolean;
   on_stage_character_ids: number[];
+  prop_ids: number[];
+  set_piece_ids: number[];
 }
 
 export interface DialogueLineResponse {

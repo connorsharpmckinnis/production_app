@@ -8,7 +8,6 @@ import {
   LogOut,
   Move,
   Package,
-  Pencil,
   Shirt,
   Trash2,
   Zap,
@@ -393,6 +392,14 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         })),
       [characters],
     );
+    const onStageCharacterIds = useMemo(
+      () => new Set(detail.on_stage_characters.map((character) => character.id)),
+      [detail.on_stage_characters],
+    );
+    const exitCharacterOptions = useMemo(
+      () => characterOptions.filter((option) => onStageCharacterIds.has(Number(option.value))),
+      [characterOptions, onStageCharacterIds],
+    );
     const propOptions = useMemo(
       () => propsCatalog.map((prop) => ({ value: String(prop.id), label: prop.name })),
       [propsCatalog],
@@ -448,7 +455,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     const [noteContent, setNoteContent] = useState("");
     const [noteVisibility, setNoteVisibility] = useState<"public" | "private">("private");
     const [saving, setSaving] = useState(false);
-    const [showParsedEdit, setShowParsedEdit] = useState(false);
+    const [importedDataExpanded, setImportedDataExpanded] = useState(false);
 
     const [parsedText, setParsedText] = useState(detail.parsed_text ?? "");
     const [stageDirectionText, setStageDirectionText] = useState(detail.stage_direction ?? "");
@@ -1504,21 +1511,19 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             )}
 
             <div className="rounded-md border border-border p-3">
-              <div className="flex items-center justify-between gap-2">
+              <button
+                type="button"
+                onClick={() => setImportedDataExpanded((open) => !open)}
+                className="flex w-full items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-1 focus-visible:ring-ring"
+                aria-expanded={importedDataExpanded}
+              >
                 <h3 className="text-sm font-medium">Imported data</h3>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon-sm"
-                  onClick={() => setShowParsedEdit((open) => !open)}
-                  aria-label="Toggle imported data editor"
-                  title="Edit imported data"
-                >
-                  <Pencil />
-                </Button>
-              </div>
+                <span className="text-xs text-muted-foreground">
+                  {importedDataExpanded ? "▾" : "▸"}
+                </span>
+              </button>
 
-              {showParsedEdit && (
+              {importedDataExpanded && (
                 <div className="mt-3 space-y-3">
                   <div className="space-y-1">
                     <Label className="text-xs text-muted-foreground">Moment type</Label>
@@ -1885,19 +1890,29 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
             {addAttachmentType === "exit" && characters.length > 0 && (
               <form onSubmit={(e) => void handleAttachExit(e)} className="mt-3 space-y-2">
+                {exitCharacterOptions.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    No one is on stage at this moment yet.
+                  </p>
+                ) : (
                 <SearchableSelect
-                  options={characterOptions}
+                  options={exitCharacterOptions}
                   value={attachExitCharacterId}
                   onChange={setAttachExitCharacterId}
-                  placeholder="Select character…"
+                  placeholder="Select character on stage…"
                   clearLabel="Clear selection"
                 />
+                )}
                 <Input
                   value={attachExitNotes}
                   onChange={(e) => setAttachExitNotes(e.target.value)}
                   placeholder="Notes (optional)"
                 />
-                <Button type="submit" variant="outline" disabled={saving || !attachExitCharacterId}>
+                <Button
+                  type="submit"
+                  variant="outline"
+                  disabled={saving || !attachExitCharacterId || exitCharacterOptions.length === 0}
+                >
                   Add
                 </Button>
               </form>
@@ -2616,7 +2631,29 @@ function AssetEventRow({
   return (
     <li className="rounded-md border border-border p-2 text-sm">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
+        <div
+          className={cn(
+            "min-w-0 flex-1",
+            canEdit && !editing && "cursor-pointer rounded-sm outline-none focus-visible:ring-1 focus-visible:ring-ring",
+          )}
+          role={canEdit && !editing ? "button" : undefined}
+          tabIndex={canEdit && !editing ? 0 : undefined}
+          onClick={
+            canEdit && !editing
+              ? () => setEditing(true)
+              : undefined
+          }
+          onKeyDown={
+            canEdit && !editing
+              ? (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setEditing(true);
+                  }
+                }
+              : undefined
+          }
+        >
           <div className="flex flex-wrap items-center gap-2">
             <DetailObjectLabel
               label={event.assetName}
@@ -2654,6 +2691,7 @@ function AssetEventRow({
                 )}
                 className="underline underline-offset-2 hover:text-foreground"
                 aria-label={`Open start moment ${priorOnCode}`}
+                onClick={(e) => e.stopPropagation()}
               >
                 {priorOnCode}
               </Link>
@@ -2703,31 +2741,18 @@ function AssetEventRow({
           )}
         </div>
         {canEdit && !editing && (
-          <div className="flex shrink-0 items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              disabled={saving}
-              onClick={() => setEditing(true)}
-              aria-label={`Edit ${event.assetName} event`}
-              title="Edit"
-            >
-              <Pencil />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              disabled={saving}
-              onClick={() => onDetach(event.id)}
-              aria-label={`Remove ${event.assetName} event`}
-              title="Remove"
-              className="text-destructive hover:text-destructive"
-            >
-              <Trash2 />
-            </Button>
-          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            disabled={saving}
+            onClick={() => onDetach(event.id)}
+            aria-label={`Remove ${event.assetName} event`}
+            title="Remove"
+            className="shrink-0 text-destructive hover:text-destructive"
+          >
+            <Trash2 />
+          </Button>
         )}
       </div>
     </li>
@@ -2961,7 +2986,29 @@ function CostumeEventRow({
   return (
     <li className="rounded-md border border-border p-2 text-sm">
       <div className="flex items-start justify-between gap-3">
-        <div className="min-w-0 flex-1">
+        <div
+          className={cn(
+            "min-w-0 flex-1",
+            canEdit && !editing && "cursor-pointer rounded-sm outline-none focus-visible:ring-1 focus-visible:ring-ring",
+          )}
+          role={canEdit && !editing ? "button" : undefined}
+          tabIndex={canEdit && !editing ? 0 : undefined}
+          onClick={
+            canEdit && !editing
+              ? () => setEditing(true)
+              : undefined
+          }
+          onKeyDown={
+            canEdit && !editing
+              ? (e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    setEditing(true);
+                  }
+                }
+              : undefined
+          }
+        >
           <div className="flex flex-wrap items-center gap-2">
             <DetailObjectLabel
               label={event.character_name}
@@ -2998,6 +3045,7 @@ function CostumeEventRow({
                 )}
                 className="underline underline-offset-2 hover:text-foreground"
                 aria-label={`Open start moment ${priorOnCode}`}
+                onClick={(e) => e.stopPropagation()}
               >
                 {priorOnCode}
               </Link>
@@ -3057,31 +3105,18 @@ function CostumeEventRow({
           )}
         </div>
         {canEdit && !editing && (
-          <div className="flex shrink-0 items-center gap-1">
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              disabled={saving}
-              onClick={() => setEditing(true)}
-              aria-label={`Edit ${event.character_name} costume event`}
-              title="Edit"
-            >
-              <Pencil />
-            </Button>
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              disabled={saving}
-              onClick={() => onDetach(event.id)}
-              aria-label={`Remove ${event.character_name} costume event`}
-              title="Remove"
-              className="text-destructive hover:text-destructive"
-            >
-              <Trash2 />
-            </Button>
-          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            disabled={saving}
+            onClick={() => onDetach(event.id)}
+            aria-label={`Remove ${event.character_name} costume event`}
+            title="Remove"
+            className="shrink-0 text-destructive hover:text-destructive"
+          >
+            <Trash2 />
+          </Button>
         )}
       </div>
     </li>

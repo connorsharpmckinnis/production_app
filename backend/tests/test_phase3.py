@@ -265,6 +265,7 @@ def test_props_attach_and_detach(seeded_client: TestClient, db_session: Session)
     ).json()
     matched = next(item for item in summary if item["id"] == moment["id"])
     assert matched["has_props"] is True
+    assert matched["prop_ids"] == [prop_id]
 
     deleted = seeded_client.delete(
         f"/api/productions/{production_id}/moments/{moment['id']}/props/{moment_prop_id}",

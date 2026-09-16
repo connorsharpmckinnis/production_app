@@ -33,6 +33,8 @@ const moments: MomentSummary[] = [
     has_exit: false,
     has_blocking: false,
     on_stage_character_ids: [],
+    prop_ids: [],
+    set_piece_ids: [],
   },
   {
     id: 2,
@@ -50,6 +52,8 @@ const moments: MomentSummary[] = [
     has_exit: false,
     has_blocking: false,
     on_stage_character_ids: [],
+    prop_ids: [],
+    set_piece_ids: [],
   },
   {
     id: 3,
@@ -67,6 +71,8 @@ const moments: MomentSummary[] = [
     has_exit: false,
     has_blocking: false,
     on_stage_character_ids: [],
+    prop_ids: [],
+    set_piece_ids: [],
   },
 ];
 

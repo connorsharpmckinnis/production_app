@@ -733,6 +733,10 @@ def list_scene_moments(
             has_exit=len(moment.moment_exits) > 0,
             has_blocking=len(moment.moment_blocking) > 0,
             on_stage_character_ids=on_stage_by_moment.get(moment.id, []),
+            prop_ids=sorted({event.prop_id for event in moment.moment_prop_events}),
+            set_piece_ids=sorted(
+                {event.set_piece_id for event in moment.moment_set_piece_events}
+            ),
         )
         for moment in filtered
     ]
