@@ -163,7 +163,7 @@ def test_original_text_unchanged_after_patch(
     assert db_moment.original_text == original_text
 
 
-def test_moment_list_display_text_reflects_edits(
+def test_moment_list_display_text_reflects_derived_dialogue_edit(
     seeded_client: TestClient, db_session: Session
 ) -> None:
     production_id = _imported_production(seeded_client, db_session)
@@ -172,10 +172,15 @@ def test_moment_list_display_text_reflects_edits(
     scene_id = _first_scene_id(seeded_client, production_id, director_headers)
     moment = _first_dialogue_moment(seeded_client, production_id, scene_id, director_headers)
 
-    corrected = "Admin corrected parsing"
-    patched = seeded_client.patch(
+    detail = seeded_client.get(
         f"/api/productions/{production_id}/moments/{moment['id']}",
-        json={"parsed_text": corrected},
+        headers=director_headers,
+    ).json()
+    line = detail["dialogue"][0]
+    corrected = "Director corrected line for the timeline"
+    patched = seeded_client.patch(
+        f"/api/productions/{production_id}/moments/{moment['id']}/dialogue/{line['id']}",
+        json={"dialogue_text": corrected},
         headers=admin_headers,
     )
     assert patched.status_code == 200
@@ -185,7 +190,7 @@ def test_moment_list_display_text_reflects_edits(
         headers=director_headers,
     ).json()
     listed_moment = next(item for item in listed if item["id"] == moment["id"])
-    assert listed_moment["display_text"] == corrected
+    assert corrected in listed_moment["display_text"]
     assert listed_moment["original_text"] == moment["original_text"]
 
 

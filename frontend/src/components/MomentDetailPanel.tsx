@@ -1549,116 +1549,27 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           </div>
         )}
 
-        {canEditScript && (
-          <div className="space-y-3">
-            {isSongRelated && (
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">Linked song</Label>
-                <Select
-                  value={selectedSongId || NO_SONG_VALUE}
-                  onValueChange={(value) =>
-                    setSelectedSongId(value === NO_SONG_VALUE ? "" : value)
-                  }
-                >
-                  <SelectTrigger className="w-full">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={NO_SONG_VALUE}>None</SelectItem>
-                    {songs.map((song) => (
-                      <SelectItem key={song.id} value={String(song.id)}>
-                        {song.title}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <div className="rounded-md border border-border p-3">
-              <button
-                type="button"
-                onClick={() => setImportedDataExpanded((open) => !open)}
-                className="flex w-full items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-1 focus-visible:ring-ring"
-                aria-expanded={importedDataExpanded}
-              >
-                <h3 className="text-sm font-medium">Imported data</h3>
-                <span className="text-xs text-muted-foreground">
-                  {importedDataExpanded ? "▾" : "▸"}
-                </span>
-              </button>
-
-              {importedDataExpanded && (
-                <div className="mt-3 space-y-3">
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Moment type</Label>
-                    <Select
-                      value={String(selectedTypeId)}
-                      onValueChange={(value) => {
-                        setSelectedTypeId(value);
-                        const nextType = momentTypes.find(
-                          (type) => String(type.id) === String(value),
-                        )?.name;
-                        if (nextType === "dialogue") {
-                          if (!dialogueText.trim() && detail.dialogue.length === 0) {
-                            setDialogueText(
-                              lyricText.trim() ||
-                                detail.parsed_text ||
-                                detail.original_text ||
-                                "",
-                            );
-                          }
-                          if (
-                            dialogueSubjects.length === 0 &&
-                            lyricSubjects.length > 0 &&
-                            detail.dialogue.length === 0
-                          ) {
-                            setDialogueSubjects(lyricSubjects);
-                          }
-                        }
-                        if (nextType === "lyric") {
-                          if (!lyricText.trim() && (detail.lyrics?.length ?? 0) === 0) {
-                            setLyricText(
-                              dialogueText.trim() ||
-                                detail.parsed_text ||
-                                detail.original_text ||
-                                "",
-                            );
-                          }
-                          if (
-                            lyricSubjects.length === 0 &&
-                            dialogueSubjects.length > 0 &&
-                            (detail.lyrics?.length ?? 0) === 0
-                          ) {
-                            setLyricSubjects(dialogueSubjects);
-                          }
-                        }
-                      }}
-                    >
-                      <SelectTrigger className="w-full">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {momentTypes.map((type) => (
-                          <SelectItem key={type.id} value={String(type.id)}>
-                            {momentTypeLabel(type.name as MomentDetailResponse["moment_type"])}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <div className="space-y-1">
-                    <Label className="text-xs text-muted-foreground">Imported text</Label>
-                    <Textarea
-                      value={parsedText}
-                      onChange={(e) => setParsedText(e.target.value)}
-                      rows={3}
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
+        {canEditScript && isSongRelated && (
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Linked song</Label>
+            <Select
+              value={selectedSongId || NO_SONG_VALUE}
+              onValueChange={(value) =>
+                setSelectedSongId(value === NO_SONG_VALUE ? "" : value)
+              }
+            >
+              <SelectTrigger className="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={NO_SONG_VALUE}>None</SelectItem>
+                {songs.map((song) => (
+                  <SelectItem key={song.id} value={String(song.id)}>
+                    {song.title}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
         )}
 
@@ -2297,6 +2208,93 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             </Button>
           </form>
         </div>
+
+        {canEditScript && (
+          <div className="rounded-md border border-border p-3">
+            <button
+              type="button"
+              onClick={() => setImportedDataExpanded((open) => !open)}
+              className="flex w-full items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-1 focus-visible:ring-ring"
+              aria-expanded={importedDataExpanded}
+            >
+              <h3 className="text-sm font-medium">Imported data</h3>
+              <span className="text-xs text-muted-foreground">
+                {importedDataExpanded ? "▾" : "▸"}
+              </span>
+            </button>
+
+            {importedDataExpanded && (
+              <div className="mt-3 space-y-3">
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Moment type</Label>
+                  <Select
+                    value={String(selectedTypeId)}
+                    onValueChange={(value) => {
+                      setSelectedTypeId(value);
+                      const nextType = momentTypes.find(
+                        (type) => String(type.id) === String(value),
+                      )?.name;
+                      if (nextType === "dialogue") {
+                        if (!dialogueText.trim() && detail.dialogue.length === 0) {
+                          setDialogueText(
+                            lyricText.trim() ||
+                              detail.parsed_text ||
+                              detail.original_text ||
+                              "",
+                          );
+                        }
+                        if (
+                          dialogueSubjects.length === 0 &&
+                          lyricSubjects.length > 0 &&
+                          detail.dialogue.length === 0
+                        ) {
+                          setDialogueSubjects(lyricSubjects);
+                        }
+                      }
+                      if (nextType === "lyric") {
+                        if (!lyricText.trim() && (detail.lyrics?.length ?? 0) === 0) {
+                          setLyricText(
+                            dialogueText.trim() ||
+                              detail.parsed_text ||
+                              detail.original_text ||
+                              "",
+                          );
+                        }
+                        if (
+                          lyricSubjects.length === 0 &&
+                          dialogueSubjects.length > 0 &&
+                          (detail.lyrics?.length ?? 0) === 0
+                        ) {
+                          setLyricSubjects(dialogueSubjects);
+                        }
+                      }
+                    }}
+                  >
+                    <SelectTrigger className="w-full">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {momentTypes.map((type) => (
+                        <SelectItem key={type.id} value={String(type.id)}>
+                          {momentTypeLabel(type.name as MomentDetailResponse["moment_type"])}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="space-y-1">
+                  <Label className="text-xs text-muted-foreground">Imported text</Label>
+                  <Textarea
+                    value={parsedText}
+                    onChange={(e) => setParsedText(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
     );
   },

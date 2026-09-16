@@ -126,33 +126,49 @@ def load_scene_moments(db: Session, scene_id: int) -> list[Moment]:
     )
 
 
+def _attributed_line_display(
+    *,
+    character_name: str | None,
+    group_name: str | None,
+    text: str,
+) -> str:
+    subject = character_name or group_name
+    if subject:
+        return f"{subject}: {text}"
+    return text
+
+
 def moment_display_text(moment: Moment) -> str:
-    """Return the best text to show in timeline list rows after director edits."""
-    if moment.moment_type.name == "dialogue" and moment.dialogue_lines:
+    """Return derived script text for timeline rows; fall back to import metadata."""
+    type_name = moment.moment_type.name
+
+    if type_name == "stage_direction" and moment.stage_directions:
+        return moment.stage_directions[0].direction_text
+
+    if type_name == "dialogue" and moment.dialogue_lines:
         lines = sorted(moment.dialogue_lines, key=lambda line: line.id)
-
-        def _subject_name(line: Dialogue) -> str:
-            if line.character is not None:
-                return line.character.name
-            if line.group is not None:
-                return line.group.name
-            return "?"
-
-        line_based = "\n".join(
-            f"{_subject_name(line)}: {line.dialogue_text}" for line in lines
+        return "\n".join(
+            _attributed_line_display(
+                character_name=line.character.name if line.character else None,
+                group_name=line.group.name if line.group else None,
+                text=line.dialogue_text,
+            )
+            for line in lines
         )
-        # Importer stores dialogue body in parsed_text; prefer structured lines unless
-        # a director has replaced parsed_text with an explicit correction.
-        if moment.parsed_text and len(lines) == 1:
-            if moment.parsed_text != lines[0].dialogue_text:
-                return moment.parsed_text
-        return line_based
+
+    if type_name == "lyric" and moment.lyric_lines:
+        lines = sorted(moment.lyric_lines, key=lambda line: line.id)
+        return "\n".join(
+            _attributed_line_display(
+                character_name=line.character.name if line.character else None,
+                group_name=line.group.name if line.group else None,
+                text=line.lyric_text,
+            )
+            for line in lines
+        )
 
     if moment.parsed_text:
         return moment.parsed_text
-
-    if moment.moment_type.name == "stage_direction" and moment.stage_directions:
-        return moment.stage_directions[0].direction_text
 
     return moment.original_text
 
