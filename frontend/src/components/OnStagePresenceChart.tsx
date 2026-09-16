@@ -6,6 +6,7 @@ import {
   chartMinWidthPx,
   intervalWidthPercent,
   onStageBarColor,
+  onStageGroupBarColor,
   spinePercent,
 } from "@/lib/onStageChart";
 import { formatMomentCode, humanTimelinePath } from "@/lib/timelineDeepLinks";
@@ -19,10 +20,19 @@ import { cn } from "@/lib/utils";
 const LABEL_COL = "w-36";
 
 type HoverState = {
-  characterName: string;
+  subjectLabel: string;
   interval: OnStageChartInterval;
   x: number;
   y: number;
+};
+
+type PresenceRow = {
+  key: string;
+  label: string;
+  objectType: "character" | "group";
+  objectId: number;
+  intervals: OnStageChartInterval[];
+  barColor: string;
 };
 
 function momentLabel(ref: OnStageChartMomentRef): string {
@@ -68,19 +78,38 @@ export function OnStagePresenceChart({
 
   function showHover(
     point: { clientX: number; clientY: number },
-    characterName: string,
+    subjectLabel: string,
     interval: OnStageChartInterval,
   ) {
     cancelHide();
     const placed = tooltipPoint(point.clientX, point.clientY);
-    setHover({ characterName, interval, x: placed.x, y: placed.y });
+    setHover({ subjectLabel, interval, x: placed.x, y: placed.y });
   }
+
+  const presenceRows: PresenceRow[] = [
+    ...report.characters.map((row, index) => ({
+      key: `character-${row.character_id}`,
+      label: row.character_name,
+      objectType: "character" as const,
+      objectId: row.character_id,
+      intervals: row.intervals,
+      barColor: onStageBarColor(index),
+    })),
+    ...(report.groups ?? []).map((row, index) => ({
+      key: `group-${row.group_id}`,
+      label: row.group_name,
+      objectType: "group" as const,
+      objectId: row.group_id,
+      intervals: row.intervals,
+      barColor: onStageGroupBarColor(index),
+    })),
+  ];
 
   if (report.moment_count === 0) {
     return <p className="text-sm text-muted-foreground">No moments in this production yet.</p>;
   }
 
-  if (report.characters.length === 0) {
+  if (presenceRows.length === 0) {
     return (
       <p className="text-sm text-muted-foreground">
         No entrance or exit records. Add them on the Timeline to see who is on stage across the
@@ -95,9 +124,9 @@ export function OnStagePresenceChart({
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        Each thin bar is one on-stage stretch (entrance to exit). Presence resets at every scene,
-        same as the Timeline: a character who never exits is drawn only through the end of that
-        scene. Hover a bar for details; click to open the entrance moment.
+        Each thin bar is one on-stage stretch (entrance to exit) for a character or group. Presence
+        resets at every scene, same as the Timeline. Hover a bar for details; click to open the
+        entrance moment.
       </p>
       <div className="onstage-chart-scroll overflow-x-auto rounded-lg border border-border">
         <div style={{ minWidth }}>
@@ -155,80 +184,70 @@ export function OnStagePresenceChart({
               ))}
             </div>
           </div>
-          {report.characters.map((row, rowIndex) => {
-            const color = onStageBarColor(rowIndex);
-            return (
+          {presenceRows.map((row) => (
+            <div key={row.key} className="flex border-b border-border/70 last:border-b-0">
               <div
-                key={row.character_id}
-                className="flex border-b border-border/70 last:border-b-0"
+                className={cn(
+                  LABEL_COL,
+                  "sticky left-0 z-10 shrink-0 truncate border-r border-border bg-background px-2 py-0.5 text-xs font-medium",
+                )}
+                title={row.label}
               >
-                <div
-                  className={cn(
-                    LABEL_COL,
-                    "sticky left-0 z-10 shrink-0 truncate border-r border-border bg-background px-2 py-0.5 text-xs font-medium",
-                  )}
-                  title={row.character_name}
-                >
-                  <ObjectLink
-                    objectType="character"
-                    objectId={row.character_id}
-                    label={row.character_name}
-                    className="max-w-full px-1 py-0 text-xs"
-                  />
-                </div>
-                <div className="relative h-5 min-w-0 flex-1">
-                  {report.scenes.map((scene) => (
-                    <div
-                      key={`${row.character_id}-grid-${scene.scene_id}`}
-                      className="pointer-events-none absolute inset-y-0 border-l border-border/50"
-                      style={{
-                        left: `${spinePercent(scene.start_index, n)}%`,
-                        width: `${spinePercent(scene.moment_count, n)}%`,
-                      }}
-                    />
-                  ))}
-                  {row.intervals.map((interval) => (
-                    <Link
-                      key={`${row.character_id}-${interval.start_index}-${interval.end_index}`}
-                      to={humanTimelinePath(
-                        productionId,
-                        interval.entrance.act_number,
-                        interval.entrance.scene_number,
-                        interval.entrance.sequence_number,
-                      )}
-                      className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full outline-none hover:brightness-110 focus-visible:ring-1 focus-visible:ring-ring"
-                      style={{
-                        left: `${spinePercent(interval.start_index, n)}%`,
-                        width: `max(${intervalWidthPercent(interval.start_index, interval.end_index, n)}%, 3px)`,
-                        backgroundColor: color,
-                      }}
-                      aria-label={`${row.character_name} on stage from ${momentLabel(interval.entrance)}${
-                        interval.exit
-                          ? ` to ${momentLabel(interval.exit)}`
-                          : " through end of scene"
-                      }`}
-                      onMouseEnter={(event) =>
-                        showHover(event, row.character_name, interval)
-                      }
-                      onMouseMove={(event) =>
-                        showHover(event, row.character_name, interval)
-                      }
-                      onMouseLeave={scheduleHide}
-                      onFocus={(event) => {
-                        const box = event.currentTarget.getBoundingClientRect();
-                        showHover(
-                          { clientX: box.left, clientY: box.bottom },
-                          row.character_name,
-                          interval,
-                        );
-                      }}
-                      onBlur={scheduleHide}
-                    />
-                  ))}
-                </div>
+                <ObjectLink
+                  objectType={row.objectType}
+                  objectId={row.objectId}
+                  label={row.label}
+                  className="max-w-full px-1 py-0 text-xs"
+                />
               </div>
-            );
-          })}
+              <div className="relative h-5 min-w-0 flex-1">
+                {report.scenes.map((scene) => (
+                  <div
+                    key={`${row.key}-grid-${scene.scene_id}`}
+                    className="pointer-events-none absolute inset-y-0 border-l border-border/50"
+                    style={{
+                      left: `${spinePercent(scene.start_index, n)}%`,
+                      width: `${spinePercent(scene.moment_count, n)}%`,
+                    }}
+                  />
+                ))}
+                {row.intervals.map((interval) => (
+                  <Link
+                    key={`${row.key}-${interval.start_index}-${interval.end_index}`}
+                    to={humanTimelinePath(
+                      productionId,
+                      interval.entrance.act_number,
+                      interval.entrance.scene_number,
+                      interval.entrance.sequence_number,
+                    )}
+                    className="absolute top-1/2 h-1.5 -translate-y-1/2 rounded-full outline-none hover:brightness-110 focus-visible:ring-1 focus-visible:ring-ring"
+                    style={{
+                      left: `${spinePercent(interval.start_index, n)}%`,
+                      width: `max(${intervalWidthPercent(interval.start_index, interval.end_index, n)}%, 3px)`,
+                      backgroundColor: row.barColor,
+                    }}
+                    aria-label={`${row.label} on stage from ${momentLabel(interval.entrance)}${
+                      interval.exit
+                        ? ` to ${momentLabel(interval.exit)}`
+                        : " through end of scene"
+                    }`}
+                    onMouseEnter={(event) => showHover(event, row.label, interval)}
+                    onMouseMove={(event) => showHover(event, row.label, interval)}
+                    onMouseLeave={scheduleHide}
+                    onFocus={(event) => {
+                      const box = event.currentTarget.getBoundingClientRect();
+                      showHover(
+                        { clientX: box.left, clientY: box.bottom },
+                        row.label,
+                        interval,
+                      );
+                    }}
+                    onBlur={scheduleHide}
+                  />
+                ))}
+              </div>
+            </div>
+          ))}
         </div>
       </div>
       {hover &&
@@ -240,7 +259,7 @@ export function OnStagePresenceChart({
             onMouseEnter={cancelHide}
             onMouseLeave={scheduleHide}
           >
-            <p className="font-medium">{hover.characterName}</p>
+            <p className="font-medium">{hover.subjectLabel}</p>
             <p className="mt-1">
               Entrance: {momentLabel(hover.interval.entrance)}
               {hover.interval.entrance_notes ? ` — ${hover.interval.entrance_notes}` : ""}

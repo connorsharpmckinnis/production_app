@@ -110,6 +110,12 @@ class OnStageChartCharacterRow(BaseModel):
     intervals: list[OnStageChartInterval]
 
 
+class OnStageChartGroupRow(BaseModel):
+    group_id: int
+    group_name: str
+    intervals: list[OnStageChartInterval]
+
+
 class OnStageChartSceneBand(BaseModel):
     scene_id: int
     act_number: int
@@ -132,3 +138,4 @@ class OnStageChartReport(BaseModel):
     acts: list[OnStageChartActBand]
     scenes: list[OnStageChartSceneBand]
     characters: list[OnStageChartCharacterRow]
+    groups: list[OnStageChartGroupRow] = []

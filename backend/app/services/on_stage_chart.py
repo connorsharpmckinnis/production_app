@@ -8,14 +8,16 @@ exits. Intervals are compressed so the UI draws bars, not per-moment cells.
 from __future__ import annotations
 
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from app.models import Act, Character, Moment, MomentEntrance, MomentExit, Scene
+from app.models import Act, Character, Group, Moment, MomentEntrance, MomentExit, Scene
 from app.schemas.reports import (
     OnStageChartActBand,
     OnStageChartCharacterRow,
+    OnStageChartGroupRow,
     OnStageChartInterval,
     OnStageChartMomentRef,
     OnStageChartReport,
@@ -35,14 +37,15 @@ class ChartMoment:
     scene_number: int
     scene_title: str | None
     sequence_number: int
-    # (character_id, notes) in stable id order
-    entrances: tuple[tuple[int, str | None], ...]
-    exits: tuple[tuple[int, str | None], ...]
+    character_entrances: tuple[tuple[int, str | None], ...]
+    character_exits: tuple[tuple[int, str | None], ...]
+    group_entrances: tuple[tuple[int, str | None], ...]
+    group_exits: tuple[tuple[int, str | None], ...]
 
 
 @dataclass
 class _OpenInterval:
-    character_id: int
+    subject_id: int
     start_index: int
     entrance: OnStageChartMomentRef
     entrance_notes: str | None
@@ -58,14 +61,12 @@ def moment_ref(moment: ChartMoment) -> OnStageChartMomentRef:
     )
 
 
-def assemble_on_stage_chart(
+def _assemble_intervals(
     moments: list[ChartMoment],
-    character_names: dict[int, str],
-) -> OnStageChartReport:
-    """Turn an ordered moment spine into act/scene bands and presence bars."""
-    acts: list[OnStageChartActBand] = []
-    scenes: list[OnStageChartSceneBand] = []
-    open_by_character: dict[int, _OpenInterval] = {}
+    entrances_for_moment: Callable[[ChartMoment], tuple[tuple[int, str | None], ...]],
+    exits_for_moment: Callable[[ChartMoment], tuple[tuple[int, str | None], ...]],
+) -> dict[int, list[OnStageChartInterval]]:
+    open_by_subject: dict[int, _OpenInterval] = {}
     closed: dict[int, list[OnStageChartInterval]] = defaultdict(list)
 
     def close_interval(
@@ -77,7 +78,7 @@ def assemble_on_stage_chart(
     ) -> None:
         if end_index <= opened.start_index:
             end_index = opened.start_index + 1
-        closed[opened.character_id].append(
+        closed[opened.subject_id].append(
             OnStageChartInterval(
                 start_index=opened.start_index,
                 end_index=end_index,
@@ -90,18 +91,50 @@ def assemble_on_stage_chart(
         )
 
     def close_scene(end_index: int) -> None:
-        for opened in open_by_character.values():
+        for opened in open_by_subject.values():
             close_interval(opened, end_index, None, None, True)
-        open_by_character.clear()
+        open_by_subject.clear()
 
     previous_scene_id: int | None = None
-    previous_act_id: int | None = None
 
     for index, moment in enumerate(moments):
         if previous_scene_id is not None and moment.scene_id != previous_scene_id:
             close_scene(index)
         previous_scene_id = moment.scene_id
 
+        for subject_id, notes in entrances_for_moment(moment):
+            if subject_id in open_by_subject:
+                continue
+            open_by_subject[subject_id] = _OpenInterval(
+                subject_id=subject_id,
+                start_index=index,
+                entrance=moment_ref(moment),
+                entrance_notes=notes,
+            )
+
+        for subject_id, notes in exits_for_moment(moment):
+            opened = open_by_subject.pop(subject_id, None)
+            if opened is None:
+                continue
+            close_interval(opened, index, moment_ref(moment), notes, False)
+
+    if open_by_subject:
+        close_scene(len(moments))
+
+    return closed
+
+
+def assemble_on_stage_chart(
+    moments: list[ChartMoment],
+    character_names: dict[int, str],
+    group_names: dict[int, str],
+) -> OnStageChartReport:
+    """Turn an ordered moment spine into act/scene bands and presence bars."""
+    acts: list[OnStageChartActBand] = []
+    scenes: list[OnStageChartSceneBand] = []
+    previous_act_id: int | None = None
+
+    for index, moment in enumerate(moments):
         if not acts or previous_act_id != moment.act_id:
             acts.append(
                 OnStageChartActBand(
@@ -134,43 +167,49 @@ def assemble_on_stage_chart(
                 update={"moment_count": scenes[-1].moment_count + 1}
             )
 
-        for character_id, notes in moment.entrances:
-            if character_id in open_by_character:
-                continue
-            open_by_character[character_id] = _OpenInterval(
-                character_id=character_id,
-                start_index=index,
-                entrance=moment_ref(moment),
-                entrance_notes=notes,
-            )
+    character_closed = _assemble_intervals(
+        moments,
+        lambda moment: moment.character_entrances,
+        lambda moment: moment.character_exits,
+    )
+    group_closed = _assemble_intervals(
+        moments,
+        lambda moment: moment.group_entrances,
+        lambda moment: moment.group_exits,
+    )
 
-        for character_id, notes in moment.exits:
-            opened = open_by_character.pop(character_id, None)
-            if opened is None:
-                continue
-            close_interval(opened, index, moment_ref(moment), notes, False)
-
-    if open_by_character:
-        close_scene(len(moments))
-
-    rows: list[OnStageChartCharacterRow] = []
-    for character_id, intervals in closed.items():
+    character_rows: list[OnStageChartCharacterRow] = []
+    for character_id, intervals in character_closed.items():
         name = character_names.get(character_id, f"Character {character_id}")
         intervals.sort(key=lambda item: item.start_index)
-        rows.append(
+        character_rows.append(
             OnStageChartCharacterRow(
                 character_id=character_id,
                 character_name=name,
                 intervals=intervals,
             )
         )
-    rows.sort(key=lambda row: (row.character_name.lower(), row.character_id))
+    character_rows.sort(key=lambda row: (row.character_name.lower(), row.character_id))
+
+    group_rows: list[OnStageChartGroupRow] = []
+    for group_id, intervals in group_closed.items():
+        name = group_names.get(group_id, f"Group {group_id}")
+        intervals.sort(key=lambda item: item.start_index)
+        group_rows.append(
+            OnStageChartGroupRow(
+                group_id=group_id,
+                group_name=name,
+                intervals=intervals,
+            )
+        )
+    group_rows.sort(key=lambda row: (row.group_name.lower(), row.group_id))
 
     return OnStageChartReport(
         moment_count=len(moments),
         acts=acts,
         scenes=scenes,
-        characters=rows,
+        characters=character_rows,
+        groups=group_rows,
     )
 
 
@@ -211,6 +250,8 @@ def load_chart_moments(db: Session, production_id: int) -> list[ChartMoment]:
 
     chart_moments: list[ChartMoment] = []
     for moment, act, scene in timeline:
+        entrance_rows = entrances_by_moment[moment.id]
+        exit_rows = exits_by_moment[moment.id]
         chart_moments.append(
             ChartMoment(
                 moment_id=moment.id,
@@ -221,15 +262,25 @@ def load_chart_moments(db: Session, production_id: int) -> list[ChartMoment]:
                 scene_number=scene.number,
                 scene_title=scene.title,
                 sequence_number=moment.sequence_number,
-                entrances=tuple(
+                character_entrances=tuple(
                     (row.character_id, row.notes)
-                    for row in entrances_by_moment[moment.id]
+                    for row in entrance_rows
                     if row.character_id is not None
                 ),
-                exits=tuple(
+                character_exits=tuple(
                     (row.character_id, row.notes)
-                    for row in exits_by_moment[moment.id]
+                    for row in exit_rows
                     if row.character_id is not None
+                ),
+                group_entrances=tuple(
+                    (row.group_id, row.notes)
+                    for row in entrance_rows
+                    if row.group_id is not None
+                ),
+                group_exits=tuple(
+                    (row.group_id, row.notes)
+                    for row in exit_rows
+                    if row.group_id is not None
                 ),
             )
         )
@@ -240,11 +291,14 @@ def build_on_stage_chart(db: Session, production_id: int) -> OnStageChartReport:
     """Assemble the Reports on-stage chart for one production."""
     moments = load_chart_moments(db, production_id)
     character_ids: set[int] = set()
+    group_ids: set[int] = set()
     for moment in moments:
-        character_ids.update(character_id for character_id, _notes in moment.entrances)
-        character_ids.update(character_id for character_id, _notes in moment.exits)
+        character_ids.update(subject_id for subject_id, _notes in moment.character_entrances)
+        character_ids.update(subject_id for subject_id, _notes in moment.character_exits)
+        group_ids.update(subject_id for subject_id, _notes in moment.group_entrances)
+        group_ids.update(subject_id for subject_id, _notes in moment.group_exits)
 
-    names: dict[int, str] = {}
+    character_names: dict[int, str] = {}
     if character_ids:
         characters = (
             db.query(Character)
@@ -254,6 +308,15 @@ def build_on_stage_chart(db: Session, production_id: int) -> OnStageChartReport:
             )
             .all()
         )
-        names = {character.id: character.name for character in characters}
+        character_names = {character.id: character.name for character in characters}
 
-    return assemble_on_stage_chart(moments, names)
+    group_names: dict[int, str] = {}
+    if group_ids:
+        groups = (
+            db.query(Group)
+            .filter(Group.production_id == production_id, Group.id.in_(group_ids))
+            .all()
+        )
+        group_names = {group.id: group.name for group in groups}
+
+    return assemble_on_stage_chart(moments, character_names, group_names)

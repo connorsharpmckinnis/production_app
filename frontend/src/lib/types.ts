@@ -873,6 +873,12 @@ export interface OnStageChartCharacterRow {
   intervals: OnStageChartInterval[];
 }
 
+export interface OnStageChartGroupRow {
+  group_id: number;
+  group_name: string;
+  intervals: OnStageChartInterval[];
+}
+
 export interface OnStageChartSceneBand {
   scene_id: number;
   act_number: number;
@@ -895,6 +901,7 @@ export interface OnStageChartReport {
   acts: OnStageChartActBand[];
   scenes: OnStageChartSceneBand[];
   characters: OnStageChartCharacterRow[];
+  groups: OnStageChartGroupRow[];
 }
 
 export interface ProductionOverviewResponse {
