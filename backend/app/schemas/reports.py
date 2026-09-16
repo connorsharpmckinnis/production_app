@@ -56,8 +56,10 @@ class EntranceExitSheetRow(BaseModel):
     moment_id: int
     sequence_number: int
     movement_type: str
-    character_id: int
-    character_name: str
+    character_id: int | None = None
+    character_name: str | None = None
+    group_id: int | None = None
+    group_name: str | None = None
     notes: str | None
 
 

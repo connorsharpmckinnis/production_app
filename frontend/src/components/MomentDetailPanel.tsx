@@ -161,6 +161,53 @@ function buildPersonOptions(
   );
 }
 
+function buildCharacterGroupOptions(
+  characters: CharacterDetailResponse[],
+  groups: GroupResponse[],
+): SearchableSelectOption[] {
+  const characterOptions = characters.map((character) => ({
+    value: `character:${character.id}`,
+    label: character.name,
+    hint: "Character",
+    keywords: "character",
+  }));
+  const groupOptions = groups.map((group) => ({
+    value: `group:${group.id}`,
+    label: group.name,
+    hint: "Group",
+    keywords: "group",
+  }));
+  return [...characterOptions, ...groupOptions].sort((a, b) =>
+    a.label.localeCompare(b.label, undefined, { sensitivity: "base" }),
+  );
+}
+
+function decodeMovementSubject(value: string): {
+  characterId: number | null;
+  groupId: number | null;
+} {
+  if (value.startsWith("character:")) {
+    return {
+      characterId: Number(value.slice("character:".length)),
+      groupId: null,
+    };
+  }
+  if (value.startsWith("group:")) {
+    return {
+      characterId: null,
+      groupId: Number(value.slice("group:".length)),
+    };
+  }
+  return { characterId: null, groupId: null };
+}
+
+function movementRowLabel(row: {
+  character_name: string | null;
+  group_name: string | null;
+}): string {
+  return row.character_name ?? row.group_name ?? "Unknown";
+}
+
 function buildBlockingSubjectOptions(
   characters: CharacterDetailResponse[],
   users: CastableUserResponse[],
@@ -392,13 +439,27 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         })),
       [characters],
     );
-    const onStageCharacterIds = useMemo(
-      () => new Set(detail.on_stage_characters.map((character) => character.id)),
-      [detail.on_stage_characters],
+    const movementSubjectOptions = useMemo(
+      () => buildCharacterGroupOptions(sortByName(characters), sortByName(groups)),
+      [characters, groups],
     );
-    const exitCharacterOptions = useMemo(
-      () => characterOptions.filter((option) => onStageCharacterIds.has(Number(option.value))),
-      [characterOptions, onStageCharacterIds],
+    const onStageSubjectValues = useMemo(() => {
+      const values = new Set<string>();
+      for (const character of detail.on_stage_characters) {
+        values.add(`character:${character.id}`);
+      }
+      for (const group of detail.on_stage_groups ?? []) {
+        values.add(`group:${group.id}`);
+      }
+      return values;
+    }, [detail.on_stage_characters, detail.on_stage_groups]);
+    const entranceMovementOptions = useMemo(
+      () => movementSubjectOptions.filter((option) => !onStageSubjectValues.has(option.value)),
+      [movementSubjectOptions, onStageSubjectValues],
+    );
+    const exitMovementOptions = useMemo(
+      () => movementSubjectOptions.filter((option) => onStageSubjectValues.has(option.value)),
+      [movementSubjectOptions, onStageSubjectValues],
     );
     const propOptions = useMemo(
       () => propsCatalog.map((prop) => ({ value: String(prop.id), label: prop.name })),
@@ -434,7 +495,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       if (setPiecesCatalog.length > 0) available.add("set_piece");
       if (costumesCatalog.length > 0 && characters.length > 0) available.add("costume");
       if (cueCategories.length > 0) available.add("cue");
-      if (characters.length > 0) {
+      if (characters.length > 0 || groups.length > 0) {
         available.add("entrance");
         available.add("exit");
       }
@@ -503,9 +564,9 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     const [attachCostumeId, setAttachCostumeId] = useState("");
     const [attachCostumeNotes, setAttachCostumeNotes] = useState("");
 
-    const [attachEntranceCharacterId, setAttachEntranceCharacterId] = useState("");
+    const [attachEntranceSubject, setAttachEntranceSubject] = useState("");
     const [attachEntranceNotes, setAttachEntranceNotes] = useState("");
-    const [attachExitCharacterId, setAttachExitCharacterId] = useState("");
+    const [attachExitSubject, setAttachExitSubject] = useState("");
     const [attachExitNotes, setAttachExitNotes] = useState("");
     const [attachBlockingSubjectType, setAttachBlockingSubjectType] = useState<
       BlockingSubjectType | ""
@@ -1079,15 +1140,17 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
     async function handleAttachEntrance(event: React.FormEvent) {
       event.preventDefault();
-      if (!attachEntranceCharacterId) return;
+      if (!attachEntranceSubject) return;
+      const subject = decodeMovementSubject(attachEntranceSubject);
 
       setSaving(true);
       try {
         await api.attachMomentEntrance(productionId, detail.id, {
-          character_id: Number(attachEntranceCharacterId),
+          character_id: subject.characterId,
+          group_id: subject.groupId,
           notes: attachEntranceNotes.trim() || null,
         });
-        setAttachEntranceCharacterId("");
+        setAttachEntranceSubject("");
         setAttachEntranceNotes("");
         onChanged();
         toast.success("Entrance added");
@@ -1120,15 +1183,17 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
     async function handleAttachExit(event: React.FormEvent) {
       event.preventDefault();
-      if (!attachExitCharacterId) return;
+      if (!attachExitSubject) return;
+      const subject = decodeMovementSubject(attachExitSubject);
 
       setSaving(true);
       try {
         await api.attachMomentExit(productionId, detail.id, {
-          character_id: Number(attachExitCharacterId),
+          character_id: subject.characterId,
+          group_id: subject.groupId,
           notes: attachExitNotes.trim() || null,
         });
-        setAttachExitCharacterId("");
+        setAttachExitSubject("");
         setAttachExitNotes("");
         onChanged();
         toast.success("Exit added");
@@ -1868,38 +1933,52 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
               </form>
             )}
 
-            {addAttachmentType === "entrance" && characters.length > 0 && (
+            {addAttachmentType === "entrance" &&
+              (characters.length > 0 || groups.length > 0) && (
               <form onSubmit={(e) => void handleAttachEntrance(e)} className="mt-3 space-y-2">
-                <SearchableSelect
-                  options={characterOptions}
-                  value={attachEntranceCharacterId}
-                  onChange={setAttachEntranceCharacterId}
-                  placeholder="Select character…"
-                  clearLabel="Clear selection"
-                />
+                {entranceMovementOptions.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">
+                    Everyone listed is already on stage at this moment.
+                  </p>
+                ) : (
+                  <SearchableSelect
+                    options={entranceMovementOptions}
+                    value={attachEntranceSubject}
+                    onChange={setAttachEntranceSubject}
+                    placeholder="Select who is not on stage…"
+                    clearLabel="Clear selection"
+                  />
+                )}
                 <Input
                   value={attachEntranceNotes}
                   onChange={(e) => setAttachEntranceNotes(e.target.value)}
                   placeholder="Notes (optional)"
                 />
-                <Button type="submit" variant="outline" disabled={saving || !attachEntranceCharacterId}>
+                <Button
+                  type="submit"
+                  variant="outline"
+                  disabled={
+                    saving || !attachEntranceSubject || entranceMovementOptions.length === 0
+                  }
+                >
                   Add
                 </Button>
               </form>
             )}
 
-            {addAttachmentType === "exit" && characters.length > 0 && (
+            {addAttachmentType === "exit" &&
+              (characters.length > 0 || groups.length > 0) && (
               <form onSubmit={(e) => void handleAttachExit(e)} className="mt-3 space-y-2">
-                {exitCharacterOptions.length === 0 ? (
+                {exitMovementOptions.length === 0 ? (
                   <p className="text-xs text-muted-foreground">
-                    No one is on stage at this moment yet.
+                    No characters or groups are on stage at this moment yet.
                   </p>
                 ) : (
                 <SearchableSelect
-                  options={exitCharacterOptions}
-                  value={attachExitCharacterId}
-                  onChange={setAttachExitCharacterId}
-                  placeholder="Select character on stage…"
+                  options={exitMovementOptions}
+                  value={attachExitSubject}
+                  onChange={setAttachExitSubject}
+                  placeholder="Select who is on stage…"
                   clearLabel="Clear selection"
                 />
                 )}
@@ -1911,7 +1990,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                 <Button
                   type="submit"
                   variant="outline"
-                  disabled={saving || !attachExitCharacterId || exitCharacterOptions.length === 0}
+                  disabled={saving || !attachExitSubject || exitMovementOptions.length === 0}
                 >
                   Add
                 </Button>
@@ -2083,13 +2162,13 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           defaultExpanded={detail.entrances.length > 0}
           items={detail.entrances.map((entrance) => ({
             id: entrance.id,
-            label: entrance.character_name,
-            objectType: "character" as const,
-            objectId: entrance.character_id,
+            label: movementRowLabel(entrance),
+            objectType: entrance.group_id != null ? ("group" as const) : ("character" as const),
+            objectId: entrance.group_id ?? entrance.character_id,
             notes: entrance.notes ?? undefined,
           }))}
           onDetach={handleDetachEntrance}
-          catalogLength={characters.length}
+          catalogLength={characters.length + groups.length}
         />
 
         <AttachmentSection
@@ -2100,13 +2179,13 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           defaultExpanded={detail.exits.length > 0}
           items={detail.exits.map((exitRow) => ({
             id: exitRow.id,
-            label: exitRow.character_name,
-            objectType: "character" as const,
-            objectId: exitRow.character_id,
+            label: movementRowLabel(exitRow),
+            objectType: exitRow.group_id != null ? ("group" as const) : ("character" as const),
+            objectId: exitRow.group_id ?? exitRow.character_id,
             notes: exitRow.notes ?? undefined,
           }))}
           onDetach={handleDetachExit}
-          catalogLength={characters.length}
+          catalogLength={characters.length + groups.length}
         />
 
         <AttachmentSection

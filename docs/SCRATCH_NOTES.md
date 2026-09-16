@@ -85,6 +85,10 @@ announcement audience targeting still only knows Admin/Director/Actor/Member.
 
 
 
+## Timeline 2.0 / Moment detail — 2026-09-16
+
+- **Wish list (deferred):** Batch moment **attachment** adds/edits (props, cues, entrances/exits, blocking, notes, etc.) behind the same dirty Save bar as script fields (save on click or panel close) to cut API/DB round-trips. **Today:** script drafts batch-save; attachments still POST/PATCH immediately. Owner confirmed defer — implement only after pilot feedback.
+
 ## Done (Phase 2 close-out)
 
 - ~~Groups: add actors/users in UI~~ — shipped on Groups page

@@ -144,6 +144,61 @@ def test_entrance_exit_blocking_and_on_stage(
     assert any(moment["id"] == blocking_moment["id"] for moment in blocking_filtered)
 
 
+def test_group_entrance_exit_and_on_stage_groups(
+    seeded_client: TestClient, db_session: Session
+) -> None:
+    production_id = _imported_production(seeded_client, db_session)
+    director_headers = _login(seeded_client, "director", "director")
+    scene_id = _first_scene_id(seeded_client, production_id, director_headers)
+    moments = _scene_moments(seeded_client, production_id, scene_id, director_headers)
+    entrance_moment = moments[0]
+    exit_moment = moments[min(3, len(moments) - 1)]
+
+    group = seeded_client.post(
+        f"/api/productions/{production_id}/groups",
+        json={"name": "Ensemble", "description": "Full company"},
+        headers=director_headers,
+    )
+    assert group.status_code == 201
+    group_id = group.json()["id"]
+
+    entrance = seeded_client.post(
+        f"/api/productions/{production_id}/moments/{entrance_moment['id']}/entrances",
+        json={"group_id": group_id, "notes": "all on"},
+        headers=director_headers,
+    )
+    assert entrance.status_code == 201
+    assert entrance.json()["group_name"] == "Ensemble"
+
+    between_id = moments[min(1, len(moments) - 1)]["id"]
+    detail_between = seeded_client.get(
+        f"/api/productions/{production_id}/moments/{between_id}",
+        headers=director_headers,
+    ).json()
+    if (
+        entrance_moment["sequence_number"]
+        <= detail_between["sequence_number"]
+        < exit_moment["sequence_number"]
+    ):
+        assert "Ensemble" in [g["name"] for g in detail_between["on_stage_groups"]]
+
+    exit_resp = seeded_client.post(
+        f"/api/productions/{production_id}/moments/{exit_moment['id']}/exits",
+        json={"group_id": group_id},
+        headers=director_headers,
+    )
+    assert exit_resp.status_code == 201
+
+    crean_id = _character_id_by_name(seeded_client, production_id, "CREAN", director_headers)
+    char_entrance = seeded_client.post(
+        f"/api/productions/{production_id}/moments/{entrance_moment['id']}/entrances",
+        json={"character_id": crean_id},
+        headers=director_headers,
+    )
+    assert char_entrance.status_code == 201
+    assert char_entrance.json()["character_name"] == "CREAN"
+
+
 def test_actor_forbidden_on_stage_movement_mutations(
     seeded_client: TestClient, db_session: Session
 ) -> None:

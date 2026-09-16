@@ -224,9 +224,12 @@ def load_chart_moments(db: Session, production_id: int) -> list[ChartMoment]:
                 entrances=tuple(
                     (row.character_id, row.notes)
                     for row in entrances_by_moment[moment.id]
+                    if row.character_id is not None
                 ),
                 exits=tuple(
-                    (row.character_id, row.notes) for row in exits_by_moment[moment.id]
+                    (row.character_id, row.notes)
+                    for row in exits_by_moment[moment.id]
+                    if row.character_id is not None
                 ),
             )
         )

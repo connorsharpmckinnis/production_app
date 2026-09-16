@@ -322,8 +322,16 @@ export default function ReportsPage() {
                   {group.scene_title ? `: ${group.scene_title}` : ""}
                 </h3>
                 <ul className="mt-2 space-y-1 text-sm">
-                  {group.rows.map((row) => (
-                    <li key={`${row.moment_id}-${row.movement_type}-${row.character_id}`}>
+                  {group.rows.map((row) => {
+                    const subjectLabel =
+                      row.character_name ?? row.group_name ?? "Unknown";
+                    const subjectType =
+                      row.group_id != null ? "group" : "character";
+                    const subjectId = row.group_id ?? row.character_id;
+                    return (
+                    <li
+                      key={`${row.moment_id}-${row.movement_type}-${subjectType}-${subjectId}`}
+                    >
                       <MomentLink
                         actNumber={group.act_number}
                         sceneNumber={group.scene_number}
@@ -332,14 +340,19 @@ export default function ReportsPage() {
                         Moment {row.sequence_number}
                       </MomentLink>{" "}
                       — {row.movement_type}:{" "}
-                      <ObjectLink
-                        objectType="character"
-                        objectId={row.character_id}
-                        label={row.character_name}
-                      />
+                      {subjectId != null ? (
+                        <ObjectLink
+                          objectType={subjectType}
+                          objectId={subjectId}
+                          label={subjectLabel}
+                        />
+                      ) : (
+                        subjectLabel
+                      )}
                       {row.notes ? ` (${row.notes})` : ""}
                     </li>
-                  ))}
+                    );
+                  })}
                 </ul>
               </div>
             ))}

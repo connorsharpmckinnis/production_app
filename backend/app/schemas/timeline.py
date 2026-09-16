@@ -12,6 +12,7 @@ from app.schemas.stage_movements import (
     MomentEntranceResponse,
     MomentExitResponse,
     OnStageCharacterResponse,
+    OnStageGroupResponse,
 )
 
 
@@ -108,6 +109,7 @@ class MomentDetailResponse(BaseModel):
     exits: list[MomentExitResponse]
     blocking: list[MomentBlockingResponse]
     on_stage_characters: list[OnStageCharacterResponse]
+    on_stage_groups: list[OnStageGroupResponse]
     cues: list[CueResponse]
     notes: list[NoteResponse]
     is_bookmarked: bool
