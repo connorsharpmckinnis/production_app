@@ -18,6 +18,8 @@ function moment(partial: Partial<MomentSummary> & Pick<MomentSummary, "id" | "se
     has_exit: false,
     has_blocking: false,
     on_stage_character_ids: [],
+    prop_ids: [],
+    set_piece_ids: [],
     ...partial,
   };
 }

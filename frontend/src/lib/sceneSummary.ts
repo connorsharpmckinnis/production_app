@@ -1,4 +1,10 @@
-import type { CharacterDetailResponse, MomentSummary, SongDetailResponse } from "@/lib/types";
+import type {
+  CharacterDetailResponse,
+  MomentSummary,
+  PropResponse,
+  SetPieceResponse,
+  SongDetailResponse,
+} from "@/lib/types";
 
 export interface SceneSummaryCharacter {
   id: number;
@@ -10,10 +16,21 @@ export interface SceneSummarySong {
   title: string;
 }
 
+export interface SceneSummaryProp {
+  id: number;
+  name: string;
+}
+
+export interface SceneSummarySetPiece {
+  id: number;
+  name: string;
+}
+
 export interface SceneSummaryData {
   characters: SceneSummaryCharacter[];
   songs: SceneSummarySong[];
-  propMomentCount: number;
+  props: SceneSummaryProp[];
+  setPieces: SceneSummarySetPiece[];
 }
 
 /** Derive scene-level context from already-loaded moments and catalogs — no extra API call. */
@@ -21,10 +38,13 @@ export function deriveSceneSummary(
   moments: MomentSummary[],
   characters: CharacterDetailResponse[],
   songs: SongDetailResponse[],
+  props: PropResponse[],
+  setPieces: SetPieceResponse[],
 ): SceneSummaryData {
   const characterIds = new Set<number>();
   const songIds = new Set<number>();
-  let propMomentCount = 0;
+  const propIds = new Set<number>();
+  const setPieceIds = new Set<number>();
 
   for (const moment of moments) {
     for (const id of moment.speaking_character_ids) {
@@ -33,8 +53,11 @@ export function deriveSceneSummary(
     if (moment.song_id !== null) {
       songIds.add(moment.song_id);
     }
-    if (moment.has_props) {
-      propMomentCount += 1;
+    for (const id of moment.prop_ids ?? []) {
+      propIds.add(id);
+    }
+    for (const id of moment.set_piece_ids ?? []) {
+      setPieceIds.add(id);
     }
   }
 
@@ -48,9 +71,20 @@ export function deriveSceneSummary(
     .map((song) => ({ id: song.id, title: song.title }))
     .sort((a, b) => a.title.localeCompare(b.title));
 
+  const summaryProps = props
+    .filter((prop) => propIds.has(prop.id))
+    .map((prop) => ({ id: prop.id, name: prop.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  const summarySetPieces = setPieces
+    .filter((piece) => setPieceIds.has(piece.id))
+    .map((piece) => ({ id: piece.id, name: piece.name }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
   return {
     characters: summaryCharacters,
     songs: summarySongs,
-    propMomentCount,
+    props: summaryProps,
+    setPieces: summarySetPieces,
   };
 }

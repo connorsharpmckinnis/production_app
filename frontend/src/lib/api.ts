@@ -1389,7 +1389,11 @@ export const api = {
   attachMomentEntrance(
     productionId: number,
     momentId: number,
-    body: { character_id: number; notes?: string | null },
+    body: {
+      character_id?: number | null;
+      group_id?: number | null;
+      notes?: string | null;
+    },
   ) {
     return request<MomentEntranceResponse>(
       `/productions/${productionId}/moments/${momentId}/entrances`,
@@ -1407,7 +1411,11 @@ export const api = {
   attachMomentExit(
     productionId: number,
     momentId: number,
-    body: { character_id: number; notes?: string | null },
+    body: {
+      character_id?: number | null;
+      group_id?: number | null;
+      notes?: string | null;
+    },
   ) {
     return request<MomentExitResponse>(
       `/productions/${productionId}/moments/${momentId}/exits`,

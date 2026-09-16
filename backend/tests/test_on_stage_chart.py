@@ -31,6 +31,8 @@ def _moment(
     sequence_number: int = 1,
     entrances: tuple[tuple[int, str | None], ...] = (),
     exits: tuple[tuple[int, str | None], ...] = (),
+    group_entrances: tuple[tuple[int, str | None], ...] = (),
+    group_exits: tuple[tuple[int, str | None], ...] = (),
     scene_title: str | None = "Camp",
 ) -> ChartMoment:
     return ChartMoment(
@@ -42,17 +44,20 @@ def _moment(
         scene_number=scene_number,
         scene_title=scene_title,
         sequence_number=sequence_number,
-        entrances=entrances,
-        exits=exits,
+        character_entrances=entrances,
+        character_exits=exits,
+        group_entrances=group_entrances,
+        group_exits=group_exits,
     )
 
 
 def test_empty_spine_returns_empty_report() -> None:
-    report = assemble_on_stage_chart([], {})
+    report = assemble_on_stage_chart([], {}, {})
     assert report.moment_count == 0
     assert report.acts == []
     assert report.scenes == []
     assert report.characters == []
+    assert report.groups == []
 
 
 def test_enter_then_exit_builds_half_open_interval() -> None:
@@ -64,7 +69,7 @@ def test_enter_then_exit_builds_half_open_interval() -> None:
         _moment(13, sequence_number=4, exits=((7, None),)),
         _moment(14, sequence_number=5),
     ]
-    report = assemble_on_stage_chart(moments, {7: "CREAN"})
+    report = assemble_on_stage_chart(moments, {7: "CREAN"}, {})
     assert report.moment_count == 5
     assert len(report.characters) == 1
     row = report.characters[0]
@@ -86,7 +91,7 @@ def test_same_moment_enter_and_exit_is_one_moment_wide() -> None:
         _moment(2, sequence_number=2, entrances=((7, None),), exits=((7, "pop-on"),)),
         _moment(3, sequence_number=3),
     ]
-    report = assemble_on_stage_chart(moments, {7: "CREAN"})
+    report = assemble_on_stage_chart(moments, {7: "CREAN"}, {})
     interval = report.characters[0].intervals[0]
     assert interval.start_index == 1
     assert interval.end_index == 2
@@ -102,7 +107,7 @@ def test_missing_exit_closes_at_scene_boundary() -> None:
         _moment(3, scene_id=2, scene_number=2, sequence_number=1, scene_title="Later"),
         _moment(4, scene_id=2, scene_number=2, sequence_number=2, scene_title="Later"),
     ]
-    report = assemble_on_stage_chart(moments, {7: "CREAN"})
+    report = assemble_on_stage_chart(moments, {7: "CREAN"}, {})
     interval = report.characters[0].intervals[0]
     assert interval.start_index == 0
     assert interval.end_index == 2
@@ -120,7 +125,7 @@ def test_presence_does_not_carry_into_the_next_scene() -> None:
         _moment(3, scene_id=2, scene_number=2, sequence_number=1, scene_title="Later"),
         _moment(4, scene_id=2, scene_number=2, sequence_number=2, scene_title="Later"),
     ]
-    report = assemble_on_stage_chart(moments, {7: "CREAN"})
+    report = assemble_on_stage_chart(moments, {7: "CREAN"}, {})
     assert len(report.characters[0].intervals) == 1
     assert report.characters[0].intervals[0].end_index == 2
 
@@ -132,7 +137,7 @@ def test_reenter_after_exit_makes_a_second_interval() -> None:
         _moment(3, sequence_number=3, entrances=((7, None),)),
         _moment(4, sequence_number=4),
     ]
-    report = assemble_on_stage_chart(moments, {7: "CREAN"})
+    report = assemble_on_stage_chart(moments, {7: "CREAN"}, {})
     intervals = report.characters[0].intervals
     assert [(item.start_index, item.end_index) for item in intervals] == [(0, 1), (2, 4)]
     assert intervals[1].ends_at_scene_boundary is True
@@ -140,7 +145,7 @@ def test_reenter_after_exit_makes_a_second_interval() -> None:
 
 def test_unmatched_exit_is_ignored() -> None:
     moments = [_moment(1, sequence_number=1, exits=((7, None),))]
-    report = assemble_on_stage_chart(moments, {7: "CREAN"})
+    report = assemble_on_stage_chart(moments, {7: "CREAN"}, {})
     assert report.characters == []
 
 
@@ -150,18 +155,32 @@ def test_second_entrance_while_already_on_is_ignored() -> None:
         _moment(2, sequence_number=2, entrances=((7, "again"),)),
         _moment(3, sequence_number=3, exits=((7, None),)),
     ]
-    report = assemble_on_stage_chart(moments, {7: "CREAN"})
+    report = assemble_on_stage_chart(moments, {7: "CREAN"}, {})
     interval = report.characters[0].intervals[0]
     assert interval.start_index == 0
     assert interval.end_index == 2
     assert interval.entrance_notes == "first"
 
 
+def test_group_enter_then_exit_builds_group_row() -> None:
+    moments = [
+        _moment(10, sequence_number=1, group_entrances=((3, "ensemble on"),)),
+        _moment(11, sequence_number=2),
+        _moment(12, sequence_number=3, group_exits=((3, None),)),
+    ]
+    report = assemble_on_stage_chart(moments, {}, {3: "Ensemble"})
+    assert len(report.groups) == 1
+    row = report.groups[0]
+    assert row.group_name == "Ensemble"
+    assert row.intervals[0].start_index == 0
+    assert row.intervals[0].end_index == 2
+
+
 def test_rows_sort_by_character_name() -> None:
     moments = [
         _moment(1, sequence_number=1, entrances=((2, None), (1, None))),
     ]
-    report = assemble_on_stage_chart(moments, {1: "WORSLEY", 2: "CREAN"})
+    report = assemble_on_stage_chart(moments, {1: "WORSLEY", 2: "CREAN"}, {})
     assert [row.character_name for row in report.characters] == ["CREAN", "WORSLEY"]
 
 
@@ -179,7 +198,7 @@ def test_act_bands_span_their_scenes() -> None:
             scene_title="Act 2 open",
         ),
     ]
-    report = assemble_on_stage_chart(moments, {})
+    report = assemble_on_stage_chart(moments, {}, {})
     assert len(report.acts) == 2
     assert report.acts[0].moment_count == 2
     assert report.acts[1].start_index == 2

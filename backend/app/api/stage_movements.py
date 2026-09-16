@@ -11,6 +11,7 @@ from app.db.session import get_db
 from app.models import (
     Act,
     Character,
+    Group,
     Moment,
     MomentBlocking,
     MomentEntrance,
@@ -66,11 +67,63 @@ def _validate_character_in_production(
     return character
 
 
+def _validate_group_in_production(
+    db: Session,
+    production_id: int,
+    group_id: int,
+) -> Group:
+    group = (
+        db.query(Group)
+        .filter(Group.id == group_id, Group.production_id == production_id)
+        .first()
+    )
+    if group is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Group is not in this production",
+        )
+    return group
+
+
+def _validate_entrance_exit_subject(
+    db: Session,
+    production_id: int,
+    character_id: int | None,
+    group_id: int | None,
+) -> None:
+    subjects = [character_id is not None, group_id is not None]
+    if sum(subjects) != 1:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Movement must target exactly one of character or group",
+        )
+    if character_id is not None:
+        _validate_character_in_production(db, production_id, character_id)
+    if group_id is not None:
+        _validate_group_in_production(db, production_id, group_id)
+
+
+def _entrance_load_options():
+    return (
+        joinedload(MomentEntrance.character),
+        joinedload(MomentEntrance.group),
+    )
+
+
+def _exit_load_options():
+    return (
+        joinedload(MomentExit.character),
+        joinedload(MomentExit.group),
+    )
+
+
 def _entrance_response(entrance: MomentEntrance) -> MomentEntranceResponse:
     return MomentEntranceResponse(
         id=entrance.id,
         character_id=entrance.character_id,
-        character_name=entrance.character.name,
+        character_name=entrance.character.name if entrance.character else None,
+        group_id=entrance.group_id,
+        group_name=entrance.group.name if entrance.group else None,
         notes=entrance.notes,
     )
 
@@ -79,7 +132,9 @@ def _exit_response(exit_row: MomentExit) -> MomentExitResponse:
     return MomentExitResponse(
         id=exit_row.id,
         character_id=exit_row.character_id,
-        character_name=exit_row.character.name,
+        character_name=exit_row.character.name if exit_row.character else None,
+        group_id=exit_row.group_id,
+        group_name=exit_row.group.name if exit_row.group else None,
         notes=exit_row.notes,
     )
 
@@ -119,7 +174,7 @@ def list_moment_entrances(
     _get_moment_in_production_or_404(db, production_id, moment_id)
     entrances = (
         db.query(MomentEntrance)
-        .options(joinedload(MomentEntrance.character))
+        .options(*_entrance_load_options())
         .filter(MomentEntrance.moment_id == moment_id)
         .order_by(MomentEntrance.id)
         .all()
@@ -141,32 +196,47 @@ def attach_moment_entrance(
 ) -> MomentEntranceResponse:
     get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
-    _validate_character_in_production(db, production_id, body.character_id)
-
-    existing = (
-        db.query(MomentEntrance)
-        .filter(
-            MomentEntrance.moment_id == moment_id,
-            MomentEntrance.character_id == body.character_id,
-        )
-        .first()
+    _validate_entrance_exit_subject(
+        db, production_id, body.character_id, body.group_id,
     )
+
+    if body.character_id is not None:
+        existing = (
+            db.query(MomentEntrance)
+            .filter(
+                MomentEntrance.moment_id == moment_id,
+                MomentEntrance.character_id == body.character_id,
+            )
+            .first()
+        )
+        conflict_detail = "This character already has an entrance on this moment"
+    else:
+        existing = (
+            db.query(MomentEntrance)
+            .filter(
+                MomentEntrance.moment_id == moment_id,
+                MomentEntrance.group_id == body.group_id,
+            )
+            .first()
+        )
+        conflict_detail = "This group already has an entrance on this moment"
     if existing is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="This character already has an entrance on this moment",
+            detail=conflict_detail,
         )
 
     entrance = MomentEntrance(
         moment_id=moment_id,
         character_id=body.character_id,
+        group_id=body.group_id,
         notes=body.notes,
     )
     db.add(entrance)
     db.commit()
     entrance = (
         db.query(MomentEntrance)
-        .options(joinedload(MomentEntrance.character))
+        .options(*_entrance_load_options())
         .filter(MomentEntrance.id == entrance.id)
         .one()
     )
@@ -214,7 +284,7 @@ def list_moment_exits(
     _get_moment_in_production_or_404(db, production_id, moment_id)
     exits = (
         db.query(MomentExit)
-        .options(joinedload(MomentExit.character))
+        .options(*_exit_load_options())
         .filter(MomentExit.moment_id == moment_id)
         .order_by(MomentExit.id)
         .all()
@@ -236,32 +306,47 @@ def attach_moment_exit(
 ) -> MomentExitResponse:
     get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
-    _validate_character_in_production(db, production_id, body.character_id)
-
-    existing = (
-        db.query(MomentExit)
-        .filter(
-            MomentExit.moment_id == moment_id,
-            MomentExit.character_id == body.character_id,
-        )
-        .first()
+    _validate_entrance_exit_subject(
+        db, production_id, body.character_id, body.group_id,
     )
+
+    if body.character_id is not None:
+        existing = (
+            db.query(MomentExit)
+            .filter(
+                MomentExit.moment_id == moment_id,
+                MomentExit.character_id == body.character_id,
+            )
+            .first()
+        )
+        conflict_detail = "This character already has an exit on this moment"
+    else:
+        existing = (
+            db.query(MomentExit)
+            .filter(
+                MomentExit.moment_id == moment_id,
+                MomentExit.group_id == body.group_id,
+            )
+            .first()
+        )
+        conflict_detail = "This group already has an exit on this moment"
     if existing is not None:
         raise HTTPException(
             status_code=status.HTTP_409_CONFLICT,
-            detail="This character already has an exit on this moment",
+            detail=conflict_detail,
         )
 
     exit_row = MomentExit(
         moment_id=moment_id,
         character_id=body.character_id,
+        group_id=body.group_id,
         notes=body.notes,
     )
     db.add(exit_row)
     db.commit()
     exit_row = (
         db.query(MomentExit)
-        .options(joinedload(MomentExit.character))
+        .options(*_exit_load_options())
         .filter(MomentExit.id == exit_row.id)
         .one()
     )

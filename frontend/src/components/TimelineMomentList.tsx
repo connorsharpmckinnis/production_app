@@ -23,7 +23,8 @@ function sectionHasSummary(summary?: SceneSummaryData): boolean {
   return (
     summary.characters.length > 0 ||
     summary.songs.length > 0 ||
-    summary.propMomentCount > 0
+    summary.props.length > 0 ||
+    summary.setPieces.length > 0
   );
 }
 

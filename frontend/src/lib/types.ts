@@ -343,6 +343,8 @@ export interface MomentSummary {
   has_exit: boolean;
   has_blocking: boolean;
   on_stage_character_ids: number[];
+  prop_ids: number[];
+  set_piece_ids: number[];
 }
 
 export interface DialogueLineResponse {
@@ -500,17 +502,26 @@ export interface OnStageCharacterResponse {
   name: string;
 }
 
+export interface OnStageGroupResponse {
+  id: number;
+  name: string;
+}
+
 export interface MomentEntranceResponse {
   id: number;
-  character_id: number;
-  character_name: string;
+  character_id: number | null;
+  character_name: string | null;
+  group_id: number | null;
+  group_name: string | null;
   notes: string | null;
 }
 
 export interface MomentExitResponse {
   id: number;
-  character_id: number;
-  character_name: string;
+  character_id: number | null;
+  character_name: string | null;
+  group_id: number | null;
+  group_name: string | null;
   notes: string | null;
 }
 
@@ -547,6 +558,7 @@ export interface MomentDetailResponse {
   exits: MomentExitResponse[];
   blocking: MomentBlockingResponse[];
   on_stage_characters: OnStageCharacterResponse[];
+  on_stage_groups: OnStageGroupResponse[];
   cues: CueResponse[];
   notes: NoteResponse[];
   is_bookmarked: boolean;
@@ -807,8 +819,10 @@ export interface EntranceExitSheetRow {
   moment_id: number;
   sequence_number: number;
   movement_type: "entrance" | "exit";
-  character_id: number;
-  character_name: string;
+  character_id: number | null;
+  character_name: string | null;
+  group_id: number | null;
+  group_name: string | null;
   notes: string | null;
 }
 
@@ -859,6 +873,12 @@ export interface OnStageChartCharacterRow {
   intervals: OnStageChartInterval[];
 }
 
+export interface OnStageChartGroupRow {
+  group_id: number;
+  group_name: string;
+  intervals: OnStageChartInterval[];
+}
+
 export interface OnStageChartSceneBand {
   scene_id: number;
   act_number: number;
@@ -881,6 +901,7 @@ export interface OnStageChartReport {
   acts: OnStageChartActBand[];
   scenes: OnStageChartSceneBand[];
   characters: OnStageChartCharacterRow[];
+  groups: OnStageChartGroupRow[];
 }
 
 export interface ProductionOverviewResponse {

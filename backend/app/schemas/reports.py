@@ -56,8 +56,10 @@ class EntranceExitSheetRow(BaseModel):
     moment_id: int
     sequence_number: int
     movement_type: str
-    character_id: int
-    character_name: str
+    character_id: int | None = None
+    character_name: str | None = None
+    group_id: int | None = None
+    group_name: str | None = None
     notes: str | None
 
 
@@ -108,6 +110,12 @@ class OnStageChartCharacterRow(BaseModel):
     intervals: list[OnStageChartInterval]
 
 
+class OnStageChartGroupRow(BaseModel):
+    group_id: int
+    group_name: str
+    intervals: list[OnStageChartInterval]
+
+
 class OnStageChartSceneBand(BaseModel):
     scene_id: int
     act_number: int
@@ -130,3 +138,4 @@ class OnStageChartReport(BaseModel):
     acts: list[OnStageChartActBand]
     scenes: list[OnStageChartSceneBand]
     characters: list[OnStageChartCharacterRow]
+    groups: list[OnStageChartGroupRow] = []

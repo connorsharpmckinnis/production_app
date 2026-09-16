@@ -45,6 +45,7 @@ from app.schemas.stage_movements import (
     MomentEntranceResponse,
     MomentExitResponse,
     OnStageCharacterResponse,
+    OnStageGroupResponse,
 )
 from app.schemas.timeline import (
     ActSummary,
@@ -80,7 +81,11 @@ from app.services.asset_state import (
     group_set_piece_events_by_moment_id,
     load_production_moments_in_show_order,
 )
-from app.services.on_stage import compute_on_stage_ids_by_moment, on_stage_characters_for_moment
+from app.services.on_stage import (
+    compute_on_stage_ids_by_moment,
+    on_stage_characters_for_moment,
+    on_stage_groups_for_moment,
+)
 from app.services.moment_sequence import (
     move_moment_sequence,
     renumber_moments_after_delete,
@@ -496,7 +501,9 @@ def _moment_entrance_response(entrance: MomentEntrance) -> MomentEntranceRespons
     return MomentEntranceResponse(
         id=entrance.id,
         character_id=entrance.character_id,
-        character_name=entrance.character.name,
+        character_name=entrance.character.name if entrance.character else None,
+        group_id=entrance.group_id,
+        group_name=entrance.group.name if entrance.group else None,
         notes=entrance.notes,
     )
 
@@ -505,7 +512,9 @@ def _moment_exit_response(exit_row: MomentExit) -> MomentExitResponse:
     return MomentExitResponse(
         id=exit_row.id,
         character_id=exit_row.character_id,
-        character_name=exit_row.character.name,
+        character_name=exit_row.character.name if exit_row.character else None,
+        group_id=exit_row.group_id,
+        group_name=exit_row.group.name if exit_row.group else None,
         notes=exit_row.notes,
     )
 
@@ -733,6 +742,10 @@ def list_scene_moments(
             has_exit=len(moment.moment_exits) > 0,
             has_blocking=len(moment.moment_blocking) > 0,
             on_stage_character_ids=on_stage_by_moment.get(moment.id, []),
+            prop_ids=sorted({event.prop_id for event in moment.moment_prop_events}),
+            set_piece_ids=sorted(
+                {event.set_piece_id for event in moment.moment_set_piece_events}
+            ),
         )
         for moment in filtered
     ]
@@ -772,7 +785,9 @@ def get_moment_detail(
             joinedload(Moment.moment_costume_events).joinedload(MomentCostumeEvent.character),
             joinedload(Moment.moment_costume_events).joinedload(MomentCostumeEvent.costume),
             joinedload(Moment.moment_entrances).joinedload(MomentEntrance.character),
+            joinedload(Moment.moment_entrances).joinedload(MomentEntrance.group),
             joinedload(Moment.moment_exits).joinedload(MomentExit.character),
+            joinedload(Moment.moment_exits).joinedload(MomentExit.group),
             joinedload(Moment.moment_blocking).joinedload(MomentBlocking.character),
             joinedload(Moment.moment_blocking).joinedload(MomentBlocking.user),
             joinedload(Moment.moment_blocking).joinedload(MomentBlocking.group),
@@ -804,6 +819,7 @@ def get_moment_detail(
     )
 
     on_stage = on_stage_characters_for_moment(db, moment)
+    on_stage_groups = on_stage_groups_for_moment(db, moment)
 
     show_moments = load_production_moments_in_show_order(db, production_id)
     prop_events_by_moment = group_prop_events_by_moment_id(db, production_id)
@@ -938,6 +954,9 @@ def get_moment_detail(
         on_stage_characters=[
             OnStageCharacterResponse(id=character.id, name=character.name)
             for character in on_stage
+        ],
+        on_stage_groups=[
+            OnStageGroupResponse(id=group.id, name=group.name) for group in on_stage_groups
         ],
         cues=[_cue_response(cue) for cue in moment.cues],
         notes=[_note_response(note, user.id) for note in visible_notes],

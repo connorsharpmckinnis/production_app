@@ -163,7 +163,7 @@ export default function MomentDetailSheet({
             <DetailPanelSkeleton />
           )}
         </div>
-        {canEditScript && (
+        {canEditScript && scriptDirty && (
           <SheetFooter className="shrink-0 -mx-6 -mb-6 -mt-4 gap-2 border-t bg-background px-6 pt-4 pb-6 sm:flex-row sm:justify-end">
             <Button
               type="button"
