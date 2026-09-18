@@ -2,24 +2,30 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { TimelineSection } from "@/components/TimelineMomentList";
 import { useAuth } from "@/context/AuthContext";
 import { useProductionAccess } from "@/context/ProductionAccessContext";
+import {
+  useMomentDetail,
+  useMomentDetailCache,
+} from "@/hooks/queries/useMomentDetail";
+import {
+  useCharactersCatalog,
+  useCostumesCatalog,
+  useCueCategoriesCatalog,
+  useGroupsCatalog,
+  usePropsCatalog,
+  useSetPiecesCatalog,
+  useSongsCatalog,
+} from "@/hooks/queries/useProductionCatalogs";
 import { api, formatApiError } from "@/lib/api";
 import { deriveSceneSummary } from "@/lib/sceneSummary";
 import type {
   ActSummary,
   AppSettingsResponse,
   CastableUserResponse,
-  CharacterDetailResponse,
-  CostumeResponse,
-  CueCategoryResponse,
-  GroupResponse,
   MomentDetailResponse,
   MomentListFilters,
   MomentSummary,
   MomentTypeResponse,
-  PropResponse,
   SceneSummary,
-  SetPieceResponse,
-  SongDetailResponse,
 } from "@/lib/types";
 import { formatSceneSectionLabel, sortByName } from "@/lib/utils";
 
@@ -113,16 +119,25 @@ export function useTimelineScene({
     ),
   );
 
+  const charactersQuery = useCharactersCatalog(productionId);
+  const songsQuery = useSongsCatalog(productionId);
+  const propsQuery = usePropsCatalog(productionId);
+  const setPiecesQuery = useSetPiecesCatalog(productionId);
+  const costumesQuery = useCostumesCatalog(productionId);
+  const cueCategoriesQuery = useCueCategoriesCatalog(productionId);
+  const groupsQuery = useGroupsCatalog(productionId, canManagePreparation);
+
+  const characters = charactersQuery.data ?? [];
+  const songs = songsQuery.data ?? [];
+  const propsCatalog = propsQuery.data ?? [];
+  const setPiecesCatalog = setPiecesQuery.data ?? [];
+  const costumesCatalog = costumesQuery.data ?? [];
+  const cueCategories = cueCategoriesQuery.data ?? [];
+  const groups = groupsQuery.data ?? [];
+
   const [productionTitle, setProductionTitle] = useState<string | null>(null);
   const [acts, setActs] = useState<ActSummary[]>([]);
-  const [characters, setCharacters] = useState<CharacterDetailResponse[]>([]);
-  const [groups, setGroups] = useState<GroupResponse[]>([]);
   const [castableUsers, setCastableUsers] = useState<CastableUserResponse[]>([]);
-  const [songs, setSongs] = useState<SongDetailResponse[]>([]);
-  const [propsCatalog, setPropsCatalog] = useState<PropResponse[]>([]);
-  const [setPiecesCatalog, setSetPiecesCatalog] = useState<SetPieceResponse[]>([]);
-  const [costumesCatalog, setCostumesCatalog] = useState<CostumeResponse[]>([]);
-  const [cueCategories, setCueCategories] = useState<CueCategoryResponse[]>([]);
   const [momentTypes, setMomentTypes] = useState<MomentTypeResponse[]>([]);
   const [appSettings, setAppSettings] = useState<AppSettingsResponse>({
     show_original_text: true,
@@ -133,13 +148,31 @@ export function useTimelineScene({
   const [moments, setMoments] = useState<MomentSummary[]>([]);
   const [momentSections, setMomentSections] = useState<TimelineSection[]>([]);
   const [selectedMomentId, setSelectedMomentId] = useState<number | null>(null);
-  const [momentDetail, setMomentDetail] = useState<MomentDetailResponse | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [shellLoading, setShellLoading] = useState(true);
   const [momentsLoading, setMomentsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [momentsRefreshKey, setMomentsRefreshKey] = useState(0);
   const silentRefreshRef = useRef(false);
-  const catalogLoadIdRef = useRef(0);
+  const shellLoadIdRef = useRef(0);
+
+  const momentDetailQuery = useMomentDetail(productionId, selectedMomentId);
+  const momentCache = useMomentDetailCache(productionId);
+
+  // Only expose detail that matches the current selection (avoids stale flash).
+  const momentDetail: MomentDetailResponse | null =
+    selectedMomentId != null &&
+    momentDetailQuery.data != null &&
+    momentDetailQuery.data.id === selectedMomentId
+      ? momentDetailQuery.data
+      : null;
+
+  const setMomentDetail = useCallback(
+    (detail: MomentDetailResponse | null) => {
+      if (detail == null) return;
+      momentCache.setMomentDetail(detail);
+    },
+    [momentCache],
+  );
 
   const myCharacterIds = useMemo(() => {
     if (!user) return [];
@@ -191,74 +224,51 @@ export function useTimelineScene({
     return `${selectedSceneIds.length} scenes`;
   }, [acts, selectedSceneIds, selectedScene, selectedAct]);
 
+  const catalogsLoading =
+    charactersQuery.isLoading ||
+    songsQuery.isLoading ||
+    propsQuery.isLoading ||
+    setPiecesQuery.isLoading ||
+    costumesQuery.isLoading ||
+    cueCategoriesQuery.isLoading ||
+    (canManagePreparation && groupsQuery.isLoading);
+
+  const loading = shellLoading || catalogsLoading;
+
   useEffect(() => {
     setSelectedSceneIds([]);
     setSelectedMomentId(null);
-    setMomentDetail(null);
-    setLoading(true);
+    setShellLoading(true);
   }, [productionId]);
 
   useEffect(() => {
-    const loadId = ++catalogLoadIdRef.current;
+    const loadId = ++shellLoadIdRef.current;
     const requests: [
       ReturnType<typeof api.getProduction>,
       ReturnType<typeof api.listActs>,
-      ReturnType<typeof api.listCharacters>,
-      ReturnType<typeof api.listSongs>,
-      ReturnType<typeof api.listProps>,
-      ReturnType<typeof api.listSetPieces>,
-      ReturnType<typeof api.listCostumes>,
-      ReturnType<typeof api.listCueCategories>,
       ReturnType<typeof api.listMomentTypes>,
       ReturnType<typeof api.getAppSettings>,
-      Promise<GroupResponse[]>?,
       Promise<CastableUserResponse[]>?,
     ] = [
       api.getProduction(productionId),
       api.listActs(productionId),
-      api.listCharacters(productionId),
-      api.listSongs(productionId),
-      api.listProps(productionId),
-      api.listSetPieces(productionId),
-      api.listCostumes(productionId),
-      api.listCueCategories(productionId),
       api.listMomentTypes(),
       api.getAppSettings(),
     ];
     if (canManagePreparation) {
-      requests.push(api.listGroups(productionId));
       requests.push(api.listActiveUsers(productionId));
     }
 
     void Promise.all(requests)
       .then((results) => {
-        if (loadId !== catalogLoadIdRef.current) return;
+        if (loadId !== shellLoadIdRef.current) return;
 
-        const [
-          production,
-          actData,
-          characterData,
-          songData,
-          propData,
-          setPieceData,
-          costumeData,
-          categoryData,
-          typeData,
-          settingsData,
-          groupData,
-          castableUserData,
-        ] = results;
+        const [production, actData, typeData, settingsData, castableUserData] =
+          results;
         setProductionTitle(production.title);
         setActs(actData);
-        setCharacters(characterData);
-        setSongs(songData);
-        setPropsCatalog(propData);
-        setSetPiecesCatalog(setPieceData);
-        setCostumesCatalog(costumeData);
-        setCueCategories(categoryData);
         setMomentTypes(typeData);
         setAppSettings(settingsData);
-        setGroups(groupData ?? []);
         setCastableUsers(castableUserData ?? []);
         // Only seed the default multi-scene selection when nothing is selected yet.
         // Deep links (and the user) may already have narrowed to one scene; a later
@@ -276,18 +286,17 @@ export function useTimelineScene({
         });
       })
       .catch((err: unknown) => {
-        if (loadId !== catalogLoadIdRef.current) return;
+        if (loadId !== shellLoadIdRef.current) return;
         setError(formatApiError(err, "Failed to load timeline"));
       })
       .finally(() => {
-        if (loadId !== catalogLoadIdRef.current) return;
-        setLoading(false);
+        if (loadId !== shellLoadIdRef.current) return;
+        setShellLoading(false);
       });
   }, [productionId, canManagePreparation]);
 
   useEffect(() => {
     setSelectedMomentId(null);
-    setMomentDetail(null);
   }, [productionId, selectedSceneIds, momentFilters]);
 
   useEffect(() => {
@@ -368,20 +377,6 @@ export function useTimelineScene({
     setPiecesCatalog,
   ]);
 
-  useEffect(() => {
-    if (selectedMomentId === null) {
-      setMomentDetail(null);
-      return;
-    }
-
-    void api
-      .getMoment(productionId, selectedMomentId)
-      .then(setMomentDetail)
-      .catch((err: unknown) => {
-        setError(formatApiError(err, "Failed to load moment detail"));
-      });
-  }, [productionId, selectedMomentId]);
-
   const selectSceneById = useCallback(
     (sceneId: number): boolean => {
       if (!sceneLookup.has(sceneId)) return false;
@@ -404,8 +399,7 @@ export function useTimelineScene({
 
   async function refreshMomentDetail() {
     if (selectedMomentId === null) return;
-    const detail = await api.getMoment(productionId, selectedMomentId);
-    setMomentDetail(detail);
+    await momentCache.refreshMomentDetail(selectedMomentId);
   }
 
   function refreshMomentsList() {
@@ -417,6 +411,25 @@ export function useTimelineScene({
     () => moments.some((moment) => moment.has_entrance || moment.has_exit),
     [moments],
   );
+
+  const catalogQueryError =
+    charactersQuery.error ??
+    songsQuery.error ??
+    propsQuery.error ??
+    setPiecesQuery.error ??
+    costumesQuery.error ??
+    cueCategoriesQuery.error ??
+    (canManagePreparation ? groupsQuery.error : null);
+  const momentQueryError =
+    selectedMomentId != null ? momentDetailQuery.error : null;
+  const displayError =
+    error ??
+    (catalogQueryError != null
+      ? formatApiError(catalogQueryError, "Failed to load timeline catalogs")
+      : null) ??
+    (momentQueryError != null
+      ? formatApiError(momentQueryError, "Failed to load moment detail")
+      : null);
 
   return {
     productionTitle,
@@ -443,9 +456,10 @@ export function useTimelineScene({
     setSelectedMomentId,
     momentDetail,
     setMomentDetail,
+    removeMomentDetail: momentCache.removeMomentDetail,
     loading,
     momentsLoading,
-    error,
+    error: displayError,
     myCharacterIds,
     canManagePreparation,
     selectSceneById,

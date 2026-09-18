@@ -8,8 +8,11 @@ import { useRegisterObjectDetailPanel } from "@/components/object-detail/useRegi
 import { useObjectDetailInternal } from "@/context/ObjectDetailContext";
 import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
+import {
+  useCatalogWriteThrough,
+  useCharactersCatalog,
+} from "@/hooks/queries/useProductionCatalogs";
 import { api, formatApiError } from "@/lib/api";
-import type { CharacterDetailResponse } from "@/lib/types";
 import DetailPanelSkeleton from "@/components/DetailPanelSkeleton";
 
 interface CharacterDetailPanelProps {
@@ -35,37 +38,32 @@ export default function CharacterDetailPanel({
   const activeSceneLabel = sceneLabel ?? target?.sceneLabel;
   const activeSceneEndMomentId = sceneEndMomentId ?? target?.sceneEndMomentId;
 
-  const [character, setCharacter] = useState<CharacterDetailResponse | null>(null);
+  const catalogEnabled = productionId != null;
+  const {
+    data: list = [],
+    isLoading,
+    error: queryError,
+  } = useCharactersCatalog(productionId ?? 0, catalogEnabled);
+  const { setCharacter: writeCharacter } = useCatalogWriteThrough(productionId ?? 0);
+
+  const character = list.find((row) => row.id === characterId) ?? null;
   const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    if (productionId == null) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const list = await api.listCharacters(productionId);
-      const found = list.find((row) => row.id === characterId) ?? null;
-      if (!found) {
-        setCharacter(null);
-        setError("Character not found.");
-        return;
-      }
-      setCharacter(found);
-      setDescription(found.description ?? "");
-    } catch (err) {
-      setError(formatApiError(err, "Failed to load character"));
-      setCharacter(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [characterId, productionId]);
-
+  const characterReady = character != null;
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (character == null) return;
+    setDescription(character.description ?? "");
+    // Seed once the row appears for this characterId — avoid wiping edits on catalog refresh.
+  }, [characterId, characterReady]); // eslint-disable-line react-hooks/exhaustive-deps -- intentional
+
+  const loading = isLoading && character == null;
+  const error =
+    queryError != null
+      ? formatApiError(queryError, "Failed to load character")
+      : catalogEnabled && !isLoading && character == null
+        ? "Character not found."
+        : null;
 
   const dirty =
     character != null && (description.trim() || "") !== (character.description ?? "").trim();
@@ -77,7 +75,7 @@ export default function CharacterDetailPanel({
       const updated = await api.updateCharacter(productionId, character.id, {
         description: description.trim() || null,
       });
-      setCharacter(updated);
+      writeCharacter(updated);
       setDescription(updated.description ?? "");
       toast.success("Character saved");
     } catch (err) {
@@ -86,7 +84,7 @@ export default function CharacterDetailPanel({
     } finally {
       setSaving(false);
     }
-  }, [canUpdate, character, description, productionId, toast]);
+  }, [canUpdate, character, description, productionId, toast, writeCharacter]);
 
   const discard = useCallback(() => {
     if (character == null) return;
@@ -108,6 +106,14 @@ export default function CharacterDetailPanel({
 
   useRegisterObjectDetailPanel(controllers);
 
+  if (productionId == null) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>No production selected.</AlertDescription>
+      </Alert>
+    );
+  }
+
   if (loading) {
     return <DetailPanelSkeleton />;
   }
@@ -122,7 +128,7 @@ export default function CharacterDetailPanel({
 
   return (
     <div className="space-y-4">
-      {productionId != null && activeSceneId != null ? (
+      {activeSceneId != null ? (
         <CharacterSceneContext
           productionId={productionId}
           characterId={character.id}

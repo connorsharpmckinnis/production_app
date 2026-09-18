@@ -28,8 +28,10 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
+import { seedSongsCatalog } from "@/hooks/queries/useProductionCatalogs";
 import { api, formatApiError } from "@/lib/api";
 import type { SongDetailResponse } from "@/lib/types";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function SongsPage() {
   const { id } = useParams<{ id: string }>();
@@ -39,6 +41,7 @@ export default function SongsPage() {
     hasCapability("songs", action),
   );
   const toast = useToast();
+  const queryClient = useQueryClient();
 
   const [songs, setSongs] = useState<SongDetailResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -56,6 +59,7 @@ export default function SongsPage() {
     try {
       const songData = await api.listSongs(productionId);
       setSongs(songData);
+      seedSongsCatalog(queryClient, productionId, songData);
     } catch (err) {
       setError(formatApiError(err, "Failed to load songs"));
     } finally {

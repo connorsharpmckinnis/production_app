@@ -34,12 +34,17 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useConfirm } from "@/context/ConfirmContext";
+import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
+import {
+  seedCharactersCatalog,
+  seedCostumesCatalog,
+} from "@/hooks/queries/useProductionCatalogs";
 import { api, formatApiError } from "@/lib/api";
 import type { CostumeResponse } from "@/lib/types";
 import { sortByName } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function CostumesPage() {
   const { id } = useParams<{ id: string }>();
@@ -51,6 +56,7 @@ export default function CostumesPage() {
   );
   const confirm = useConfirm();
   const toast = useToast();
+  const queryClient = useQueryClient();
 
   const [characters, setCharacters] = useState<
     Awaited<ReturnType<typeof api.listCharacters>>
@@ -72,8 +78,11 @@ export default function CostumesPage() {
         api.listCharacters(productionId),
         api.listCostumes(productionId),
       ]);
-      setCharacters(sortByName(characterData));
+      const sortedCharacters = sortByName(characterData);
+      setCharacters(sortedCharacters);
       setCostumes(costumeData);
+      seedCharactersCatalog(queryClient, productionId, sortedCharacters);
+      seedCostumesCatalog(queryClient, productionId, costumeData);
     } catch (err) {
       setError(formatApiError(err, "Failed to load costumes"));
     } finally {

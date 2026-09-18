@@ -15,8 +15,12 @@ import { useRegisterObjectDetailPanel } from "@/components/object-detail/useRegi
 import { useObjectDetailInternal } from "@/context/ObjectDetailContext";
 import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
+import {
+  useMomentDetail,
+  useMomentDetailCache,
+} from "@/hooks/queries/useMomentDetail";
+import { useCueCategoriesCatalog } from "@/hooks/queries/useProductionCatalogs";
 import { api, formatApiError } from "@/lib/api";
-import type { CueCategoryResponse, CueResponse } from "@/lib/types";
 import DetailPanelSkeleton from "@/components/DetailPanelSkeleton";
 
 interface CueDetailPanelProps {
@@ -30,52 +34,49 @@ export default function CueDetailPanel({ cueId, momentId }: CueDetailPanelProps)
   const toast = useToast();
   const canUpdate = hasCapability("cues", "update");
 
-  const [cue, setCue] = useState<CueResponse | null>(null);
-  const [categories, setCategories] = useState<CueCategoryResponse[]>([]);
+  const queriesEnabled = productionId != null && momentId != null;
+  const {
+    data: moment,
+    isPending: momentPending,
+    error: momentError,
+  } = useMomentDetail(
+    productionId ?? 0,
+    queriesEnabled ? momentId! : null,
+  );
+  const {
+    data: categories = [],
+    isLoading: categoriesLoading,
+    error: categoriesError,
+  } = useCueCategoriesCatalog(productionId ?? 0, productionId != null);
+  const { setMomentDetail } = useMomentDetailCache(productionId ?? 0);
+
+  const cue = moment?.cues.find((row) => row.id === cueId) ?? null;
   const [categoryId, setCategoryId] = useState("");
   const [title, setTitle] = useState("");
   const [notes, setNotes] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    if (productionId == null) return;
-    if (momentId == null) {
-      setCue(null);
-      setError("This cue needs a moment context to open.");
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    setError(null);
-    try {
-      const [moment, categoryList] = await Promise.all([
-        api.getMoment(productionId, momentId),
-        api.listCueCategories(productionId),
-      ]);
-      const found = moment.cues.find((row) => row.id === cueId) ?? null;
-      setCategories(categoryList);
-      if (!found) {
-        setCue(null);
-        setError("Cue not found on this moment.");
-        return;
-      }
-      setCue(found);
-      setCategoryId(String(found.cue_category_id));
-      setTitle(found.title);
-      setNotes(found.notes ?? "");
-    } catch (err) {
-      setError(formatApiError(err, "Failed to load cue"));
-      setCue(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [cueId, momentId, productionId]);
-
+  const cueReady = cue != null;
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (cue == null) return;
+    setCategoryId(String(cue.cue_category_id));
+    setTitle(cue.title);
+    setNotes(cue.notes ?? "");
+  }, [cueId, cueReady]); // eslint-disable-line react-hooks/exhaustive-deps -- seed on open only
+
+  const loading =
+    momentId == null
+      ? false
+      : (momentPending && cue == null) || (categoriesLoading && categories.length === 0);
+  const queryError = momentError ?? categoriesError;
+  const error =
+    momentId == null
+      ? "This cue needs a moment context to open."
+      : queryError != null
+        ? formatApiError(queryError, "Failed to load cue")
+        : queriesEnabled && !momentPending && !categoriesLoading && cue == null
+          ? "Cue not found on this moment."
+          : null;
 
   const dirty =
     cue != null &&
@@ -100,7 +101,12 @@ export default function CueDetailPanel({ cueId, momentId }: CueDetailPanelProps)
         title: title.trim(),
         notes: notes.trim() || null,
       });
-      setCue(updated);
+      if (moment != null) {
+        setMomentDetail({
+          ...moment,
+          cues: moment.cues.map((row) => (row.id === updated.id ? updated : row)),
+        });
+      }
       setCategoryId(String(updated.cue_category_id));
       setTitle(updated.title);
       setNotes(updated.notes ?? "");
@@ -111,7 +117,18 @@ export default function CueDetailPanel({ cueId, momentId }: CueDetailPanelProps)
     } finally {
       setSaving(false);
     }
-  }, [canUpdate, categoryId, cue, momentId, notes, productionId, title, toast]);
+  }, [
+    canUpdate,
+    categoryId,
+    cue,
+    moment,
+    momentId,
+    notes,
+    productionId,
+    setMomentDetail,
+    title,
+    toast,
+  ]);
 
   const discard = useCallback(() => {
     if (cue == null) return;
@@ -132,6 +149,14 @@ export default function CueDetailPanel({ cueId, momentId }: CueDetailPanelProps)
   }, [canUpdate, cue, dirty, discard, save]);
 
   useRegisterObjectDetailPanel(controllers);
+
+  if (productionId == null) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>No production selected.</AlertDescription>
+      </Alert>
+    );
+  }
 
   if (loading) {
     return <DetailPanelSkeleton />;
