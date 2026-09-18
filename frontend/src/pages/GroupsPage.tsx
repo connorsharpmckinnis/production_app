@@ -19,12 +19,17 @@ import { Label } from "@/components/ui/label";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
+import {
+  seedCharactersCatalog,
+  seedGroupsCatalog,
+} from "@/hooks/queries/useProductionCatalogs";
 import { api, formatApiError } from "@/lib/api";
 import type {
   CastableUserResponse,
   CharacterDetailResponse,
   GroupResponse,
 } from "@/lib/types";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function GroupsPage() {
   const { id } = useParams<{ id: string }>();
@@ -41,6 +46,7 @@ export default function GroupsPage() {
   );
   const confirm = useConfirm();
   const toast = useToast();
+  const queryClient = useQueryClient();
 
   const [groups, setGroups] = useState<GroupResponse[]>([]);
   const [characters, setCharacters] = useState<CharacterDetailResponse[]>([]);
@@ -77,6 +83,8 @@ export default function GroupsPage() {
       setGroups(groupData);
       setCharacters(characterData);
       setCastableUsers(userData);
+      seedGroupsCatalog(queryClient, productionId, groupData);
+      seedCharactersCatalog(queryClient, productionId, characterData);
     } catch (err) {
       setError(formatApiError(err, "Failed to load groups"));
     } finally {

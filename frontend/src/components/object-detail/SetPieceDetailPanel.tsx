@@ -8,8 +8,11 @@ import { useRegisterObjectDetailPanel } from "@/components/object-detail/useRegi
 import { useObjectDetailInternal } from "@/context/ObjectDetailContext";
 import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
+import {
+  useCatalogWriteThrough,
+  useSetPiecesCatalog,
+} from "@/hooks/queries/useProductionCatalogs";
 import { api, formatApiError } from "@/lib/api";
-import type { SetPieceResponse } from "@/lib/types";
 import DetailPanelSkeleton from "@/components/DetailPanelSkeleton";
 
 interface SetPieceDetailPanelProps {
@@ -22,41 +25,35 @@ export default function SetPieceDetailPanel({ setPieceId }: SetPieceDetailPanelP
   const toast = useToast();
   const canUpdate = hasCapability("set_pieces", "update");
 
-  const [piece, setPiece] = useState<SetPieceResponse | null>(null);
+  const catalogEnabled = productionId != null;
+  const {
+    data: list = [],
+    isLoading,
+    error: queryError,
+  } = useSetPiecesCatalog(productionId ?? 0, catalogEnabled);
+  const { setSetPiece: writeSetPiece } = useCatalogWriteThrough(productionId ?? 0);
+
+  const piece = list.find((row) => row.id === setPieceId) ?? null;
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState(false);
   const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    if (productionId == null) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const list = await api.listSetPieces(productionId);
-      const found = list.find((row) => row.id === setPieceId) ?? null;
-      if (!found) {
-        setPiece(null);
-        setError("Set piece not found.");
-        return;
-      }
-      setPiece(found);
-      setName(found.name);
-      setMobile(found.mobile);
-      setDescription(found.description ?? "");
-    } catch (err) {
-      setError(formatApiError(err, "Failed to load set piece"));
-      setPiece(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [productionId, setPieceId]);
-
+  const pieceReady = piece != null;
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (piece == null) return;
+    setName(piece.name);
+    setMobile(piece.mobile);
+    setDescription(piece.description ?? "");
+  }, [setPieceId, pieceReady]); // eslint-disable-line react-hooks/exhaustive-deps -- seed on open only
+
+  const loading = isLoading && piece == null;
+  const error =
+    queryError != null
+      ? formatApiError(queryError, "Failed to load set piece")
+      : catalogEnabled && !isLoading && piece == null
+        ? "Set piece not found."
+        : null;
 
   const dirty =
     piece != null &&
@@ -77,7 +74,7 @@ export default function SetPieceDetailPanel({ setPieceId }: SetPieceDetailPanelP
         mobile,
         description: description.trim() || null,
       });
-      setPiece(updated);
+      writeSetPiece(updated);
       setName(updated.name);
       setMobile(updated.mobile);
       setDescription(updated.description ?? "");
@@ -88,7 +85,7 @@ export default function SetPieceDetailPanel({ setPieceId }: SetPieceDetailPanelP
     } finally {
       setSaving(false);
     }
-  }, [canUpdate, description, mobile, name, piece, productionId, toast]);
+  }, [canUpdate, description, mobile, name, piece, productionId, toast, writeSetPiece]);
 
   const discard = useCallback(() => {
     if (piece == null) return;
@@ -109,6 +106,14 @@ export default function SetPieceDetailPanel({ setPieceId }: SetPieceDetailPanelP
   }, [canUpdate, dirty, discard, piece, save]);
 
   useRegisterObjectDetailPanel(controllers);
+
+  if (productionId == null) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>No production selected.</AlertDescription>
+      </Alert>
+    );
+  }
 
   if (loading) {
     return <DetailPanelSkeleton />;

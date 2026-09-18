@@ -15,8 +15,12 @@ import { useRegisterObjectDetailPanel } from "@/components/object-detail/useRegi
 import { useObjectDetailInternal } from "@/context/ObjectDetailContext";
 import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
+import {
+  useCatalogWriteThrough,
+  useCharactersCatalog,
+  useCostumesCatalog,
+} from "@/hooks/queries/useProductionCatalogs";
 import { api, formatApiError } from "@/lib/api";
-import type { CharacterDetailResponse, CostumeResponse } from "@/lib/types";
 import { sortByName } from "@/lib/utils";
 import DetailPanelSkeleton from "@/components/DetailPanelSkeleton";
 
@@ -30,46 +34,43 @@ export default function CostumeDetailPanel({ costumeId }: CostumeDetailPanelProp
   const toast = useToast();
   const canUpdate = hasCapability("costumes", "update");
 
-  const [costume, setCostume] = useState<CostumeResponse | null>(null);
-  const [characters, setCharacters] = useState<CharacterDetailResponse[]>([]);
+  const catalogEnabled = productionId != null;
+  const {
+    data: costumeList = [],
+    isLoading: costumesLoading,
+    error: costumesError,
+  } = useCostumesCatalog(productionId ?? 0, catalogEnabled);
+  const {
+    data: characterList = [],
+    isLoading: charactersLoading,
+    error: charactersError,
+  } = useCharactersCatalog(productionId ?? 0, catalogEnabled);
+  const { setCostume: writeCostume } = useCatalogWriteThrough(productionId ?? 0);
+
+  const costume = costumeList.find((row) => row.id === costumeId) ?? null;
+  const characters = useMemo(() => sortByName(characterList), [characterList]);
   const [characterId, setCharacterId] = useState("");
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    if (productionId == null) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const [costumeList, characterList] = await Promise.all([
-        api.listCostumes(productionId),
-        api.listCharacters(productionId),
-      ]);
-      const found = costumeList.find((row) => row.id === costumeId) ?? null;
-      setCharacters(sortByName(characterList));
-      if (!found) {
-        setCostume(null);
-        setError("Costume not found.");
-        return;
-      }
-      setCostume(found);
-      setCharacterId(String(found.character_id));
-      setName(found.name);
-      setDescription(found.description ?? "");
-    } catch (err) {
-      setError(formatApiError(err, "Failed to load costume"));
-      setCostume(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [costumeId, productionId]);
-
+  const costumeReady = costume != null;
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (costume == null) return;
+    setCharacterId(String(costume.character_id));
+    setName(costume.name);
+    setDescription(costume.description ?? "");
+  }, [costumeId, costumeReady]); // eslint-disable-line react-hooks/exhaustive-deps -- seed on open only
+
+  const isLoading = costumesLoading || charactersLoading;
+  const loading = isLoading && costume == null;
+  const queryError = costumesError ?? charactersError;
+  const error =
+    queryError != null
+      ? formatApiError(queryError, "Failed to load costume")
+      : catalogEnabled && !isLoading && costume == null
+        ? "Costume not found."
+        : null;
 
   const dirty =
     costume != null &&
@@ -94,7 +95,7 @@ export default function CostumeDetailPanel({ costumeId }: CostumeDetailPanelProp
         name: name.trim(),
         description: description.trim() || null,
       });
-      setCostume(updated);
+      writeCostume(updated);
       setCharacterId(String(updated.character_id));
       setName(updated.name);
       setDescription(updated.description ?? "");
@@ -105,7 +106,7 @@ export default function CostumeDetailPanel({ costumeId }: CostumeDetailPanelProp
     } finally {
       setSaving(false);
     }
-  }, [canUpdate, characterId, costume, description, name, productionId, toast]);
+  }, [canUpdate, characterId, costume, description, name, productionId, toast, writeCostume]);
 
   const discard = useCallback(() => {
     if (costume == null) return;
@@ -126,6 +127,14 @@ export default function CostumeDetailPanel({ costumeId }: CostumeDetailPanelProp
   }, [canUpdate, costume, dirty, discard, save]);
 
   useRegisterObjectDetailPanel(controllers);
+
+  if (productionId == null) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>No production selected.</AlertDescription>
+      </Alert>
+    );
+  }
 
   if (loading) {
     return <DetailPanelSkeleton />;

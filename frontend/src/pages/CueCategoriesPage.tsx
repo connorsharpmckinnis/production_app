@@ -25,11 +25,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useConfirm } from "@/context/ConfirmContext";
+import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
+import { seedCueCategoriesCatalog } from "@/hooks/queries/useProductionCatalogs";
 import { api, formatApiError } from "@/lib/api";
 import type { CueCategoryResponse } from "@/lib/types";
+import { useQueryClient } from "@tanstack/react-query";
 
 const COMMON_CATEGORIES = ["Lighting", "Sound", "Music", "Projection", "FX"];
 
@@ -42,6 +44,7 @@ export default function CueCategoriesPage() {
   );
   const confirm = useConfirm();
   const toast = useToast();
+  const queryClient = useQueryClient();
 
   const [categories, setCategories] = useState<CueCategoryResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +60,7 @@ export default function CueCategoriesPage() {
     try {
       const categoryData = await api.listCueCategories(productionId);
       setCategories(categoryData);
+      seedCueCategoriesCatalog(queryClient, productionId, categoryData);
     } catch (err) {
       setError(formatApiError(err, "Failed to load cue categories"));
     } finally {

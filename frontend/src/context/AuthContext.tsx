@@ -8,7 +8,13 @@ import {
   type ReactNode,
 } from "react";
 import { api, clearToken, getToken, setToken } from "@/lib/api";
+import { queryClient } from "@/lib/queryClient";
 import type { GlobalRole, ImpersonationInfo, UserResponse } from "@/lib/types";
+
+function clearServerStateCache() {
+  // Drop authenticated production-scoped GETs on identity change.
+  queryClient.clear();
+}
 
 interface AuthContextValue {
   user: UserResponse | null;
@@ -43,6 +49,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } catch {
       clearToken();
       setUser(null);
+      clearServerStateCache();
     } finally {
       setLoading(false);
     }
@@ -53,6 +60,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [loadUser]);
 
   const login = useCallback(async (username: string, password: string) => {
+    clearServerStateCache();
     const tokenResponse = await api.login({ username, password });
     setToken(tokenResponse.access_token);
     const me = await api.me();
@@ -62,9 +70,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     clearToken();
     setUser(null);
+    clearServerStateCache();
   }, []);
 
   const actAs = useCallback(async (userId: number) => {
+    clearServerStateCache();
     const tokenResponse = await api.actAs({ user_id: userId });
     setToken(tokenResponse.access_token);
     const me = await api.me();
@@ -72,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const stopActAs = useCallback(async () => {
+    clearServerStateCache();
     const tokenResponse = await api.stopActAs();
     setToken(tokenResponse.access_token);
     const me = await api.me();

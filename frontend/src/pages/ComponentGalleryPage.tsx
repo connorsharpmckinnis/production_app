@@ -10,6 +10,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -36,6 +37,7 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { useConfirm } from "@/context/ConfirmContext";
 import { useTheme, type ThemePreference } from "@/context/ThemeContext";
 import { useToast } from "@/context/ToastContext";
 
@@ -73,6 +75,7 @@ function Section({
 
 export default function ComponentGalleryPage() {
   const toast = useToast();
+  const confirm = useConfirm();
   const { preference, setPreference } = useTheme();
   const [text, setText] = useState("");
   const [notes, setNotes] = useState("");
@@ -304,16 +307,23 @@ export default function ComponentGalleryPage() {
       </Section>
 
       <Section title="Dialog & Toast">
+        <p className="text-sm text-muted-foreground">
+          Modals center over a blurred backdrop and size to their content (scroll
+          only when content hits the viewport limit).
+        </p>
         <div className="flex flex-wrap gap-2">
           <Dialog>
             <DialogTrigger asChild>
               <Button type="button" variant="outline">
-                Open dialog
+                Short dialog
               </Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Sample dialog</DialogTitle>
+                <DialogDescription>
+                  Compact form — panel should hug this content, not fill the screen.
+                </DialogDescription>
               </DialogHeader>
               <div className="space-y-2 py-2">
                 <Label htmlFor="gallery-dialog-input">Name</Label>
@@ -327,6 +337,54 @@ export default function ComponentGalleryPage() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+
+          <Dialog>
+            <DialogTrigger asChild>
+              <Button type="button" variant="outline">
+                Tall scrolling dialog
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Long content</DialogTitle>
+                <DialogDescription>
+                  Enough copy to force scrolling inside the panel instead of
+                  stretching the whole page.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="space-y-3 py-1 text-sm text-muted-foreground">
+                {Array.from({ length: 18 }, (_, index) => (
+                  <p key={index}>
+                    Line {index + 1}: The show must go on — rehearsal notes,
+                    cue reminders, and prop tracking fill this sample body so
+                    you can check overflow behavior.
+                  </p>
+                ))}
+              </div>
+              <DialogFooter>
+                <Button type="button" variant="outline">
+                  Close
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+
+          <Button
+            type="button"
+            variant="outline"
+            onClick={() =>
+              void confirm({
+                title: "Delete this cue?",
+                description:
+                  "Confirm dialogs use the same centered, content-sized panel.",
+                confirmLabel: "Delete",
+                destructive: true,
+              })
+            }
+          >
+            Confirm dialog
+          </Button>
+
           <Button type="button" onClick={() => toast.message("Heads up", "Neutral toast")}>
             Toast
           </Button>

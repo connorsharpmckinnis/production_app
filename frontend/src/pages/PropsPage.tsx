@@ -26,11 +26,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useConfirm } from "@/context/ConfirmContext";
+import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
+import { seedPropsCatalog } from "@/hooks/queries/useProductionCatalogs";
 import { api, formatApiError } from "@/lib/api";
 import type { PropResponse } from "@/lib/types";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function PropsPage() {
   const { id } = useParams<{ id: string }>();
@@ -41,6 +43,7 @@ export default function PropsPage() {
   );
   const confirm = useConfirm();
   const toast = useToast();
+  const queryClient = useQueryClient();
 
   const [props, setProps] = useState<PropResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -57,6 +60,7 @@ export default function PropsPage() {
     try {
       const propData = await api.listProps(productionId);
       setProps(propData);
+      seedPropsCatalog(queryClient, productionId, propData);
     } catch (err) {
       setError(formatApiError(err, "Failed to load props"));
     } finally {

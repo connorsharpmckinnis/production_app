@@ -7,8 +7,11 @@ import { useRegisterObjectDetailPanel } from "@/components/object-detail/useRegi
 import { useObjectDetailInternal } from "@/context/ObjectDetailContext";
 import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
+import {
+  useCatalogWriteThrough,
+  useSongsCatalog,
+} from "@/hooks/queries/useProductionCatalogs";
 import { api, formatApiError } from "@/lib/api";
-import type { SongDetailResponse } from "@/lib/types";
 import DetailPanelSkeleton from "@/components/DetailPanelSkeleton";
 
 interface SongDetailPanelProps {
@@ -21,41 +24,35 @@ export default function SongDetailPanel({ songId }: SongDetailPanelProps) {
   const toast = useToast();
   const canUpdate = hasCapability("songs", "update");
 
-  const [song, setSong] = useState<SongDetailResponse | null>(null);
+  const catalogEnabled = productionId != null;
+  const {
+    data: list = [],
+    isLoading,
+    error: queryError,
+  } = useSongsCatalog(productionId ?? 0, catalogEnabled);
+  const { setSong: writeSong } = useCatalogWriteThrough(productionId ?? 0);
+
+  const song = list.find((row) => row.id === songId) ?? null;
   const [composer, setComposer] = useState("");
   const [lyricist, setLyricist] = useState("");
   const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    if (productionId == null) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const list = await api.listSongs(productionId);
-      const found = list.find((row) => row.id === songId) ?? null;
-      if (!found) {
-        setSong(null);
-        setError("Song not found.");
-        return;
-      }
-      setSong(found);
-      setComposer(found.composer ?? "");
-      setLyricist(found.lyricist ?? "");
-      setDescription(found.description ?? "");
-    } catch (err) {
-      setError(formatApiError(err, "Failed to load song"));
-      setSong(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [productionId, songId]);
-
+  const songReady = song != null;
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (song == null) return;
+    setComposer(song.composer ?? "");
+    setLyricist(song.lyricist ?? "");
+    setDescription(song.description ?? "");
+  }, [songId, songReady]); // eslint-disable-line react-hooks/exhaustive-deps -- seed on open only
+
+  const loading = isLoading && song == null;
+  const error =
+    queryError != null
+      ? formatApiError(queryError, "Failed to load song")
+      : catalogEnabled && !isLoading && song == null
+        ? "Song not found."
+        : null;
 
   const dirty =
     song != null &&
@@ -72,7 +69,7 @@ export default function SongDetailPanel({ songId }: SongDetailPanelProps) {
         lyricist: lyricist.trim() || null,
         description: description.trim() || null,
       });
-      setSong(updated);
+      writeSong(updated);
       setComposer(updated.composer ?? "");
       setLyricist(updated.lyricist ?? "");
       setDescription(updated.description ?? "");
@@ -83,7 +80,7 @@ export default function SongDetailPanel({ songId }: SongDetailPanelProps) {
     } finally {
       setSaving(false);
     }
-  }, [canUpdate, composer, description, lyricist, productionId, song, toast]);
+  }, [canUpdate, composer, description, lyricist, productionId, song, toast, writeSong]);
 
   const discard = useCallback(() => {
     if (song == null) return;
@@ -104,6 +101,14 @@ export default function SongDetailPanel({ songId }: SongDetailPanelProps) {
   }, [canUpdate, dirty, discard, save, song]);
 
   useRegisterObjectDetailPanel(controllers);
+
+  if (productionId == null) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>No production selected.</AlertDescription>
+      </Alert>
+    );
+  }
 
   if (loading) {
     return <DetailPanelSkeleton />;

@@ -28,11 +28,13 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
-import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useConfirm } from "@/context/ConfirmContext";
+import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
+import { seedSetPiecesCatalog } from "@/hooks/queries/useProductionCatalogs";
 import { api, formatApiError } from "@/lib/api";
 import type { SetPieceResponse } from "@/lib/types";
+import { useQueryClient } from "@tanstack/react-query";
 
 export default function SetPiecesPage() {
   const { id } = useParams<{ id: string }>();
@@ -43,6 +45,7 @@ export default function SetPiecesPage() {
   );
   const confirm = useConfirm();
   const toast = useToast();
+  const queryClient = useQueryClient();
 
   const [setPieces, setSetPieces] = useState<SetPieceResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -59,6 +62,7 @@ export default function SetPiecesPage() {
     try {
       const data = await api.listSetPieces(productionId);
       setSetPieces(data);
+      seedSetPiecesCatalog(queryClient, productionId, data);
     } catch (err) {
       setError(formatApiError(err, "Failed to load set pieces"));
     } finally {

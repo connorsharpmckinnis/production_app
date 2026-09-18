@@ -8,8 +8,12 @@ import { useRegisterObjectDetailPanel } from "@/components/object-detail/useRegi
 import { useObjectDetailInternal } from "@/context/ObjectDetailContext";
 import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
+import {
+  useCatalogWriteThrough,
+  useCharactersCatalog,
+  useGroupsCatalog,
+} from "@/hooks/queries/useProductionCatalogs";
 import { api, formatApiError } from "@/lib/api";
-import type { CharacterDetailResponse, GroupResponse } from "@/lib/types";
 import { sortByName } from "@/lib/utils";
 import DetailPanelSkeleton from "@/components/DetailPanelSkeleton";
 
@@ -23,44 +27,41 @@ export default function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
   const toast = useToast();
   const canUpdate = hasCapability("groups", "update");
 
-  const [group, setGroup] = useState<GroupResponse | null>(null);
-  const [characters, setCharacters] = useState<CharacterDetailResponse[]>([]);
+  const catalogEnabled = productionId != null;
+  const {
+    data: groupList = [],
+    isLoading: groupsLoading,
+    error: groupsError,
+  } = useGroupsCatalog(productionId ?? 0, catalogEnabled);
+  const {
+    data: characterList = [],
+    isLoading: charactersLoading,
+    error: charactersError,
+  } = useCharactersCatalog(productionId ?? 0, catalogEnabled);
+  const { setGroup: writeGroup } = useCatalogWriteThrough(productionId ?? 0);
+
+  const group = groupList.find((row) => row.id === groupId) ?? null;
+  const characters = useMemo(() => sortByName(characterList), [characterList]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    if (productionId == null) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const [groupList, characterList] = await Promise.all([
-        api.listGroups(productionId),
-        api.listCharacters(productionId),
-      ]);
-      const found = groupList.find((row) => row.id === groupId) ?? null;
-      setCharacters(sortByName(characterList));
-      if (!found) {
-        setGroup(null);
-        setError("Group not found.");
-        return;
-      }
-      setGroup(found);
-      setName(found.name);
-      setDescription(found.description ?? "");
-    } catch (err) {
-      setError(formatApiError(err, "Failed to load group"));
-      setGroup(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [groupId, productionId]);
-
+  const groupReady = group != null;
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (group == null) return;
+    setName(group.name);
+    setDescription(group.description ?? "");
+  }, [groupId, groupReady]); // eslint-disable-line react-hooks/exhaustive-deps -- seed on open only
+
+  const isLoading = groupsLoading || charactersLoading;
+  const loading = isLoading && group == null;
+  const queryError = groupsError ?? charactersError;
+  const error =
+    queryError != null
+      ? formatApiError(queryError, "Failed to load group")
+      : catalogEnabled && !isLoading && group == null
+        ? "Group not found."
+        : null;
 
   const dirty =
     group != null &&
@@ -79,7 +80,7 @@ export default function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
         name: name.trim(),
         description: description.trim() || null,
       });
-      setGroup(updated);
+      writeGroup(updated);
       setName(updated.name);
       setDescription(updated.description ?? "");
       toast.success("Group saved");
@@ -89,7 +90,7 @@ export default function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
     } finally {
       setSaving(false);
     }
-  }, [canUpdate, description, group, name, productionId, toast]);
+  }, [canUpdate, description, group, name, productionId, toast, writeGroup]);
 
   const discard = useCallback(() => {
     if (group == null) return;
@@ -114,6 +115,14 @@ export default function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
   }, [canUpdate, dirty, discard, group, save]);
 
   useRegisterObjectDetailPanel(controllers);
+
+  if (productionId == null) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>No production selected.</AlertDescription>
+      </Alert>
+    );
+  }
 
   if (loading) {
     return <DetailPanelSkeleton />;

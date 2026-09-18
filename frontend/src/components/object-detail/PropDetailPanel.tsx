@@ -7,8 +7,11 @@ import { useRegisterObjectDetailPanel } from "@/components/object-detail/useRegi
 import { useObjectDetailInternal } from "@/context/ObjectDetailContext";
 import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
+import {
+  useCatalogWriteThrough,
+  usePropsCatalog,
+} from "@/hooks/queries/useProductionCatalogs";
 import { api, formatApiError } from "@/lib/api";
-import type { PropResponse } from "@/lib/types";
 import DetailPanelSkeleton from "@/components/DetailPanelSkeleton";
 
 interface PropDetailPanelProps {
@@ -21,41 +24,35 @@ export default function PropDetailPanel({ propId }: PropDetailPanelProps) {
   const toast = useToast();
   const canUpdate = hasCapability("props", "update");
 
-  const [prop, setProp] = useState<PropResponse | null>(null);
+  const catalogEnabled = productionId != null;
+  const {
+    data: list = [],
+    isLoading,
+    error: queryError,
+  } = usePropsCatalog(productionId ?? 0, catalogEnabled);
+  const { setProp: writeProp } = useCatalogWriteThrough(productionId ?? 0);
+
+  const prop = list.find((row) => row.id === propId) ?? null;
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [notes, setNotes] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    if (productionId == null) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const list = await api.listProps(productionId);
-      const found = list.find((row) => row.id === propId) ?? null;
-      if (!found) {
-        setProp(null);
-        setError("Prop not found.");
-        return;
-      }
-      setProp(found);
-      setName(found.name);
-      setDescription(found.description ?? "");
-      setNotes(found.notes ?? "");
-    } catch (err) {
-      setError(formatApiError(err, "Failed to load prop"));
-      setProp(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [productionId, propId]);
-
+  const propReady = prop != null;
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (prop == null) return;
+    setName(prop.name);
+    setDescription(prop.description ?? "");
+    setNotes(prop.notes ?? "");
+  }, [propId, propReady]); // eslint-disable-line react-hooks/exhaustive-deps -- seed on open only
+
+  const loading = isLoading && prop == null;
+  const error =
+    queryError != null
+      ? formatApiError(queryError, "Failed to load prop")
+      : catalogEnabled && !isLoading && prop == null
+        ? "Prop not found."
+        : null;
 
   const dirty =
     prop != null &&
@@ -76,7 +73,7 @@ export default function PropDetailPanel({ propId }: PropDetailPanelProps) {
         description: description.trim() || null,
         notes: notes.trim() || null,
       });
-      setProp(updated);
+      writeProp(updated);
       setName(updated.name);
       setDescription(updated.description ?? "");
       setNotes(updated.notes ?? "");
@@ -87,7 +84,7 @@ export default function PropDetailPanel({ propId }: PropDetailPanelProps) {
     } finally {
       setSaving(false);
     }
-  }, [canUpdate, description, name, notes, productionId, prop, toast]);
+  }, [canUpdate, description, name, notes, productionId, prop, toast, writeProp]);
 
   const discard = useCallback(() => {
     if (prop == null) return;
@@ -108,6 +105,14 @@ export default function PropDetailPanel({ propId }: PropDetailPanelProps) {
   }, [canUpdate, dirty, discard, prop, save]);
 
   useRegisterObjectDetailPanel(controllers);
+
+  if (productionId == null) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>No production selected.</AlertDescription>
+      </Alert>
+    );
+  }
 
   if (loading) {
     return <DetailPanelSkeleton />;

@@ -81,7 +81,7 @@ See also [scene-summary-drill-down.md](../feature_plans/scene-summary-drill-down
 | URL sync (`?detail=`) | Share/refresh |
 | Migrate **Moment Detail** onto the same host | After host feels solid |
 | Lav **wire/pack** ObjectDetail | Lav chart owns that UX |
-| Hover-card “peek” | Click-open only in v1 |
+| Hover-card “peek” | **v1 shipped 2026-09-18** — Radix/shadcn `HoverCard` on `ObjectLink`; Character shows cast + short description; other catalog types get light fields; click still opens full sheet |
 | Clear Character description via `null` PATCH | Pre-existing API quirk (`description is not None`) |
 
 ---

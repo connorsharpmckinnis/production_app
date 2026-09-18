@@ -1,7 +1,8 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link } from "react-router-dom";
 import ObjectLink from "@/components/object-detail/ObjectLink";
 import { useProductionAccess } from "@/context/ProductionAccessContext";
+import { useMomentDetail } from "@/hooks/queries/useMomentDetail";
 import { api, formatApiError } from "@/lib/api";
 import { formatMomentCode, humanTimelinePath } from "@/lib/timelineDeepLinks";
 import type {
@@ -30,7 +31,7 @@ interface SceneMovement {
 /**
  * Scene-filtered extras for Character detail opened from a Timeline scene summary.
  * Entrances/exits use the entrance-exit report when available; end-of-scene holdings
- * come from getMoment on the last moment in the section.
+ * come from the shared moment detail query on the last moment in the section.
  */
 export default function CharacterSceneContext({
   productionId,
@@ -43,97 +44,93 @@ export default function CharacterSceneContext({
   const canReadReports = hasCapability("reports", "read");
   const canReadTimeline = hasCapability("timeline", "read");
 
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const momentQueryId =
+    canReadTimeline && sceneEndMomentId != null ? sceneEndMomentId : null;
+  const {
+    data: moment,
+    isPending: momentPending,
+    error: momentQueryError,
+  } = useMomentDetail(productionId, momentQueryId);
+
+  const [movementsLoading, setMovementsLoading] = useState(canReadReports);
+  const [movementsError, setMovementsError] = useState<string | null>(null);
   const [movements, setMovements] = useState<SceneMovement[]>([]);
-  const [propsHeld, setPropsHeld] = useState<PropInPlayResponse[]>([]);
-  const [setsHeld, setSetsHeld] = useState<SetPieceInPlayResponse[]>([]);
-  const [costumes, setCostumes] = useState<CostumeWearingResponse[]>([]);
-  const [onStage, setOnStage] = useState(false);
 
   useEffect(() => {
+    if (!canReadReports) {
+      setMovements([]);
+      setMovementsError(null);
+      setMovementsLoading(false);
+      return;
+    }
+
     let cancelled = false;
 
-    async function load() {
-      setLoading(true);
-      setError(null);
+    async function loadMovements() {
+      setMovementsLoading(true);
+      setMovementsError(null);
       try {
-        const movementPromise = canReadReports
-          ? api.getEntranceExitSheetReport(productionId).then((groups) => {
-              const group = groups.find((row) => row.scene_id === sceneId);
-              if (!group) return [] as SceneMovement[];
-              return group.rows
-                .filter((row) => row.character_id === characterId)
-                .map((row) => ({
-                  momentId: row.moment_id,
-                  sequenceNumber: row.sequence_number,
-                  actNumber: group.act_number,
-                  sceneNumber: group.scene_number,
-                  movementType: row.movement_type,
-                  notes: row.notes,
-                }));
-            })
-          : Promise.resolve([] as SceneMovement[]);
-
-        const momentPromise =
-          canReadTimeline && sceneEndMomentId != null
-            ? api.getMoment(productionId, sceneEndMomentId)
-            : Promise.resolve(null);
-
-        const [movementRows, moment] = await Promise.all([
-          movementPromise,
-          momentPromise,
-        ]);
-
+        const groups = await api.getEntranceExitSheetReport(productionId);
         if (cancelled) return;
-
-        setMovements(movementRows);
-        if (moment) {
-          setPropsHeld(
-            moment.props_in_play.filter((item) => item.character_id === characterId),
-          );
-          setSetsHeld(
-            moment.set_pieces_in_play.filter(
-              (item) => item.character_id === characterId,
-            ),
-          );
-          setCostumes(
-            moment.costumes_wearing.filter((item) => item.character_id === characterId),
-          );
-          setOnStage(
-            moment.on_stage_characters.some((item) => item.id === characterId),
-          );
-        } else {
-          setPropsHeld([]);
-          setSetsHeld([]);
-          setCostumes([]);
-          setOnStage(false);
-        }
+        const group = groups.find((row) => row.scene_id === sceneId);
+        const rows = group
+          ? group.rows
+              .filter((row) => row.character_id === characterId)
+              .map((row) => ({
+                momentId: row.moment_id,
+                sequenceNumber: row.sequence_number,
+                actNumber: group.act_number,
+                sceneNumber: group.scene_number,
+                movementType: row.movement_type,
+                notes: row.notes,
+              }))
+          : [];
+        setMovements(rows);
       } catch (err) {
         if (!cancelled) {
-          setError(formatApiError(err, "Failed to load scene context"));
+          setMovementsError(formatApiError(err, "Failed to load scene context"));
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) setMovementsLoading(false);
       }
     }
 
-    void load();
+    void loadMovements();
     return () => {
       cancelled = true;
     };
-  }, [
-    canReadReports,
-    canReadTimeline,
-    characterId,
-    productionId,
-    sceneEndMomentId,
-    sceneId,
-  ]);
+  }, [canReadReports, characterId, productionId, sceneId]);
+
+  const propsHeld = useMemo(
+    (): PropInPlayResponse[] =>
+      moment?.props_in_play.filter((item) => item.character_id === characterId) ?? [],
+    [characterId, moment],
+  );
+  const setsHeld = useMemo(
+    (): SetPieceInPlayResponse[] =>
+      moment?.set_pieces_in_play.filter((item) => item.character_id === characterId) ??
+      [],
+    [characterId, moment],
+  );
+  const costumes = useMemo(
+    (): CostumeWearingResponse[] =>
+      moment?.costumes_wearing.filter((item) => item.character_id === characterId) ?? [],
+    [characterId, moment],
+  );
+  const onStage =
+    moment?.on_stage_characters.some((item) => item.id === characterId) ?? false;
 
   if (!canReadReports && !canReadTimeline) {
     return null;
   }
+
+  const momentLoading = momentQueryId != null && momentPending && moment == null;
+  const loading = (canReadReports && movementsLoading) || momentLoading;
+  const error =
+    movementsError ??
+    (momentQueryError != null
+      ? formatApiError(momentQueryError, "Failed to load scene context")
+      : null);
 
   const heading = sceneLabel?.trim() ? `In ${sceneLabel}` : "In this scene";
 

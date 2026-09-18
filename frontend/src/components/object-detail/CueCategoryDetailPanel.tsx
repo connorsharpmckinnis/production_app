@@ -7,8 +7,11 @@ import { useRegisterObjectDetailPanel } from "@/components/object-detail/useRegi
 import { useObjectDetailInternal } from "@/context/ObjectDetailContext";
 import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
+import {
+  useCatalogWriteThrough,
+  useCueCategoriesCatalog,
+} from "@/hooks/queries/useProductionCatalogs";
 import { api, formatApiError } from "@/lib/api";
-import type { CueCategoryResponse } from "@/lib/types";
 import DetailPanelSkeleton from "@/components/DetailPanelSkeleton";
 
 interface CueCategoryDetailPanelProps {
@@ -23,39 +26,33 @@ export default function CueCategoryDetailPanel({
   const toast = useToast();
   const canUpdate = hasCapability("cue_categories", "update");
 
-  const [category, setCategory] = useState<CueCategoryResponse | null>(null);
+  const catalogEnabled = productionId != null;
+  const {
+    data: list = [],
+    isLoading,
+    error: queryError,
+  } = useCueCategoriesCatalog(productionId ?? 0, catalogEnabled);
+  const { setCueCategory: writeCueCategory } = useCatalogWriteThrough(productionId ?? 0);
+
+  const category = list.find((row) => row.id === categoryId) ?? null;
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
 
-  const load = useCallback(async () => {
-    if (productionId == null) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const list = await api.listCueCategories(productionId);
-      const found = list.find((row) => row.id === categoryId) ?? null;
-      if (!found) {
-        setCategory(null);
-        setError("Cue category not found.");
-        return;
-      }
-      setCategory(found);
-      setName(found.name);
-      setDescription(found.description ?? "");
-    } catch (err) {
-      setError(formatApiError(err, "Failed to load cue category"));
-      setCategory(null);
-    } finally {
-      setLoading(false);
-    }
-  }, [categoryId, productionId]);
-
+  const categoryReady = category != null;
   useEffect(() => {
-    void load();
-  }, [load]);
+    if (category == null) return;
+    setName(category.name);
+    setDescription(category.description ?? "");
+  }, [categoryId, categoryReady]); // eslint-disable-line react-hooks/exhaustive-deps -- seed on open only
+
+  const loading = isLoading && category == null;
+  const error =
+    queryError != null
+      ? formatApiError(queryError, "Failed to load cue category")
+      : catalogEnabled && !isLoading && category == null
+        ? "Cue category not found."
+        : null;
 
   const dirty =
     category != null &&
@@ -74,7 +71,7 @@ export default function CueCategoryDetailPanel({
         name: name.trim(),
         description: description.trim() || null,
       });
-      setCategory(updated);
+      writeCueCategory(updated);
       setName(updated.name);
       setDescription(updated.description ?? "");
       toast.success("Cue category saved");
@@ -84,7 +81,7 @@ export default function CueCategoryDetailPanel({
     } finally {
       setSaving(false);
     }
-  }, [canUpdate, category, description, name, productionId, toast]);
+  }, [canUpdate, category, description, name, productionId, toast, writeCueCategory]);
 
   const discard = useCallback(() => {
     if (category == null) return;
@@ -104,6 +101,14 @@ export default function CueCategoryDetailPanel({
   }, [canUpdate, category, dirty, discard, save]);
 
   useRegisterObjectDetailPanel(controllers);
+
+  if (productionId == null) {
+    return (
+      <Alert variant="destructive">
+        <AlertDescription>No production selected.</AlertDescription>
+      </Alert>
+    );
+  }
 
   if (loading) {
     return <DetailPanelSkeleton />;

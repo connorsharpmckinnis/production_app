@@ -1,3 +1,10 @@
+import { useProductionAccess } from "@/context/ProductionAccessContext";
+import { useToast } from "@/context/ToastContext";
+import { seedCharactersCatalog } from "@/hooks/queries/useProductionCatalogs";
+import { api, formatApiError } from "@/lib/api";
+import type { CastableUserResponse, CharacterDetailResponse } from "@/lib/types";
+import { sortByName } from "@/lib/utils";
+import { useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
@@ -22,11 +29,6 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useProductionAccess } from "@/context/ProductionAccessContext";
-import { useToast } from "@/context/ToastContext";
-import { api, formatApiError } from "@/lib/api";
-import type { CastableUserResponse, CharacterDetailResponse } from "@/lib/types";
-import { sortByName } from "@/lib/utils";
 
 const UNASSIGNED = "__unassigned__";
 
@@ -37,6 +39,7 @@ export default function CharactersPage() {
   const canCreateCharacters = hasCapability("characters", "create");
   const canCast = hasCapability("casting", "update");
   const toast = useToast();
+  const queryClient = useQueryClient();
 
   const [characters, setCharacters] = useState<CharacterDetailResponse[]>([]);
   const [castableUsers, setCastableUsers] = useState<CastableUserResponse[]>([]);
@@ -50,7 +53,9 @@ export default function CharactersPage() {
     setError(null);
     try {
       const characterData = await api.listCharacters(productionId);
-      setCharacters(sortByName(characterData));
+      const sorted = sortByName(characterData);
+      setCharacters(sorted);
+      seedCharactersCatalog(queryClient, productionId, sorted);
       if (canCast) {
         const users = await api.listCastableUsers(productionId);
         setCastableUsers(

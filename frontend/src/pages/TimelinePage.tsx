@@ -806,9 +806,9 @@ export default function TimelinePage() {
     setStructuralSaving(true);
     try {
       await api.deleteMoment(productionId, momentId);
+      scene.removeMomentDetail(momentId);
       if (scene.selectedMomentId === momentId) {
         scene.setSelectedMomentId(null);
-        scene.setMomentDetail(null);
       }
       scene.refreshMomentsList();
       toast.success("Moment deleted");
