@@ -1,13 +1,12 @@
-"""Derive on-stage character sets from entrance/exit sequence within a scene."""
+"""Derive on-stage character and group sets from entrance/exit sequence within a scene."""
 
 from sqlalchemy.orm import Session, joinedload
 
-from app.models import Character, Moment, MomentEntrance, MomentExit
+from app.models import Character, Group, Moment, MomentEntrance, MomentExit
 
 
-def on_stage_character_ids_for_moment(db: Session, moment: Moment) -> list[int]:
-    """Return character IDs on stage at this moment (after its entrances/exits)."""
-    scene_moments = (
+def _walk_scene_moments(db: Session, moment: Moment) -> list[Moment]:
+    return (
         db.query(Moment)
         .options(
             joinedload(Moment.moment_entrances),
@@ -18,12 +17,33 @@ def on_stage_character_ids_for_moment(db: Session, moment: Moment) -> list[int]:
         .all()
     )
 
+
+def on_stage_character_ids_for_moment(db: Session, moment: Moment) -> list[int]:
+    """Return character IDs on stage at this moment (after its entrances/exits)."""
     on_stage: set[int] = set()
-    for scene_moment in scene_moments:
+    for scene_moment in _walk_scene_moments(db, moment):
         for entrance in scene_moment.moment_entrances:
-            on_stage.add(entrance.character_id)
+            if entrance.character_id is not None:
+                on_stage.add(entrance.character_id)
         for exit_row in scene_moment.moment_exits:
-            on_stage.discard(exit_row.character_id)
+            if exit_row.character_id is not None:
+                on_stage.discard(exit_row.character_id)
+        if scene_moment.id == moment.id:
+            break
+
+    return sorted(on_stage)
+
+
+def on_stage_group_ids_for_moment(db: Session, moment: Moment) -> list[int]:
+    """Return group IDs on stage at this moment (after its entrances/exits)."""
+    on_stage: set[int] = set()
+    for scene_moment in _walk_scene_moments(db, moment):
+        for entrance in scene_moment.moment_entrances:
+            if entrance.group_id is not None:
+                on_stage.add(entrance.group_id)
+        for exit_row in scene_moment.moment_exits:
+            if exit_row.group_id is not None:
+                on_stage.discard(exit_row.group_id)
         if scene_moment.id == moment.id:
             break
 
@@ -36,13 +56,26 @@ def on_stage_characters_for_moment(db: Session, moment: Moment) -> list[Characte
     if not character_ids:
         return []
 
-    characters = (
+    return (
         db.query(Character)
         .filter(Character.id.in_(character_ids))
         .order_by(Character.name)
         .all()
     )
-    return characters
+
+
+def on_stage_groups_for_moment(db: Session, moment: Moment) -> list[Group]:
+    """Return Group rows on stage at this moment, sorted by name."""
+    group_ids = on_stage_group_ids_for_moment(db, moment)
+    if not group_ids:
+        return []
+
+    return (
+        db.query(Group)
+        .filter(Group.id.in_(group_ids))
+        .order_by(Group.name)
+        .all()
+    )
 
 
 def compute_on_stage_ids_by_moment(moments: list[Moment]) -> dict[int, list[int]]:
@@ -52,9 +85,11 @@ def compute_on_stage_ids_by_moment(moments: list[Moment]) -> dict[int, list[int]
 
     for moment in moments:
         for entrance in moment.moment_entrances:
-            on_stage.add(entrance.character_id)
+            if entrance.character_id is not None:
+                on_stage.add(entrance.character_id)
         for exit_row in moment.moment_exits:
-            on_stage.discard(exit_row.character_id)
+            if exit_row.character_id is not None:
+                on_stage.discard(exit_row.character_id)
         result[moment.id] = sorted(on_stage)
 
     return result

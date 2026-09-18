@@ -252,6 +252,7 @@ def entrance_exit_sheet(
         db.query(MomentEntrance)
         .options(
             joinedload(MomentEntrance.character),
+            joinedload(MomentEntrance.group),
             joinedload(MomentEntrance.moment).joinedload(Moment.scene).joinedload(Scene.act),
         )
         .join(Moment, MomentEntrance.moment_id == Moment.id)
@@ -264,6 +265,7 @@ def entrance_exit_sheet(
         db.query(MomentExit)
         .options(
             joinedload(MomentExit.character),
+            joinedload(MomentExit.group),
             joinedload(MomentExit.moment).joinedload(Moment.scene).joinedload(Scene.act),
         )
         .join(Moment, MomentExit.moment_id == Moment.id)
@@ -283,7 +285,9 @@ def entrance_exit_sheet(
                 sequence_number=moment.sequence_number,
                 movement_type="entrance",
                 character_id=entrance.character_id,
-                character_name=entrance.character.name,
+                character_name=entrance.character.name if entrance.character else None,
+                group_id=entrance.group_id,
+                group_name=entrance.group.name if entrance.group else None,
                 notes=entrance.notes,
             )
         )
@@ -296,7 +300,9 @@ def entrance_exit_sheet(
                 sequence_number=moment.sequence_number,
                 movement_type="exit",
                 character_id=exit_row.character_id,
-                character_name=exit_row.character.name,
+                character_name=exit_row.character.name if exit_row.character else None,
+                group_id=exit_row.group_id,
+                group_name=exit_row.group.name if exit_row.group else None,
                 notes=exit_row.notes,
             )
         )
@@ -306,7 +312,13 @@ def entrance_exit_sheet(
         scene_rows = rows_by_scene[scene.id]
         if not scene_rows:
             continue
-        scene_rows.sort(key=lambda row: (row.sequence_number, row.movement_type, row.character_name))
+        scene_rows.sort(
+            key=lambda row: (
+                row.sequence_number,
+                row.movement_type,
+                row.character_name or row.group_name or "",
+            )
+        )
         groups.append(
             EntranceExitSheetGroup(
                 scene_id=scene.id,

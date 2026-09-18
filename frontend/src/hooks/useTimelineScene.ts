@@ -329,7 +329,13 @@ export function useTimelineScene({
             sceneId: result.sceneId,
             label,
             moments: result.moments,
-            summary: deriveSceneSummary(result.moments, characters, songs),
+            summary: deriveSceneSummary(
+              result.moments,
+              characters,
+              songs,
+              propsCatalog,
+              setPiecesCatalog,
+            ),
           });
           flat.push(...result.moments);
         }
@@ -358,6 +364,8 @@ export function useTimelineScene({
     sceneLookup,
     characters,
     songs,
+    propsCatalog,
+    setPiecesCatalog,
   ]);
 
   useEffect(() => {

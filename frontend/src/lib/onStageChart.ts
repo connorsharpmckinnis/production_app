@@ -5,6 +5,12 @@ export function onStageBarColor(rowIndex: number): string {
   return `oklch(0.62 0.13 ${hue})`;
 }
 
+/** Slightly muted palette so group rows read distinct from character rows. */
+export function onStageGroupBarColor(rowIndex: number): string {
+  const hue = BAR_HUES[(rowIndex + 5) % BAR_HUES.length];
+  return `oklch(0.55 0.1 ${hue})`;
+}
+
 export function spinePercent(index: number, momentCount: number): number {
   if (momentCount <= 0) return 0;
   return (index / momentCount) * 100;

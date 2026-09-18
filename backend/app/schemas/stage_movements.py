@@ -6,27 +6,52 @@ class OnStageCharacterResponse(BaseModel):
     name: str
 
 
+class OnStageGroupResponse(BaseModel):
+    id: int
+    name: str
+
+
 class MomentEntranceCreate(BaseModel):
-    character_id: int
+    character_id: int | None = None
+    group_id: int | None = None
     notes: str | None = None
+
+    @model_validator(mode="after")
+    def _exactly_one_subject(self) -> "MomentEntranceCreate":
+        subjects = [self.character_id is not None, self.group_id is not None]
+        if sum(subjects) != 1:
+            raise ValueError("Entrance must target exactly one of character or group")
+        return self
 
 
 class MomentEntranceResponse(BaseModel):
     id: int
-    character_id: int
-    character_name: str
+    character_id: int | None
+    character_name: str | None
+    group_id: int | None
+    group_name: str | None
     notes: str | None
 
 
 class MomentExitCreate(BaseModel):
-    character_id: int
+    character_id: int | None = None
+    group_id: int | None = None
     notes: str | None = None
+
+    @model_validator(mode="after")
+    def _exactly_one_subject(self) -> "MomentExitCreate":
+        subjects = [self.character_id is not None, self.group_id is not None]
+        if sum(subjects) != 1:
+            raise ValueError("Exit must target exactly one of character or group")
+        return self
 
 
 class MomentExitResponse(BaseModel):
     id: int
-    character_id: int
-    character_name: str
+    character_id: int | None
+    character_name: str | None
+    group_id: int | None
+    group_name: str | None
     notes: str | None
 
 

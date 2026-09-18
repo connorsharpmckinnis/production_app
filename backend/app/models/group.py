@@ -27,6 +27,12 @@ class Group(Base):
         secondary="user_groups",
         back_populates="groups",
     )
+    moment_entrances: Mapped[list["MomentEntrance"]] = relationship(
+        back_populates="group",
+    )
+    moment_exits: Mapped[list["MomentExit"]] = relationship(
+        back_populates="group",
+    )
 
 
 class CharacterGroup(Base):
