@@ -2,9 +2,10 @@ from sqlalchemy import CheckConstraint, ForeignKey, String, Text, UniqueConstrai
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.models.prep_provenance import PrepProvenanceMixin
 
 
-class MomentCostumeEvent(Base):
+class MomentCostumeEvent(PrepProvenanceMixin, Base):
     """A costume change (wear/clear) for a character at a Moment (Phase 14 WP5).
 
     Thin sibling of MomentPropEvent / MomentSetPieceEvent: who is currently

@@ -10,15 +10,14 @@ NoteVisibility = Literal["public", "private"]
 class NoteCreate(BaseModel):
     moment_id: int | None = None
     character_id: int | None = None
-    visibility: NoteVisibility
+    rehearsal_id: int | None = None
+    visibility: NoteVisibility = "private"
     content: str = Field(min_length=1)
 
     @model_validator(mode="after")
-    def exactly_one_target(self) -> "NoteCreate":
-        has_moment = self.moment_id is not None
-        has_character = self.character_id is not None
-        if has_moment == has_character:
-            raise ValueError("Provide exactly one of moment_id or character_id")
+    def at_least_one_target(self) -> "NoteCreate":
+        if self.moment_id is None and self.character_id is None and self.rehearsal_id is None:
+            raise ValueError("Provide a moment_id, character_id, or rehearsal_id")
         return self
 
 
@@ -34,6 +33,10 @@ class NoteResponse(BaseModel):
     visibility: NoteVisibility
     moment_id: int | None
     character_id: int | None
+    rehearsal_id: int | None
     content: str
     created_at: datetime
+    updated_at: datetime | None = None
+    updated_by_display_name: str | None = None
     is_mine: bool
+    scene_id: int | None = None

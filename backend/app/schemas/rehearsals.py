@@ -160,6 +160,18 @@ class RehearsalNoteUpdate(BaseModel):
     content: str = Field(min_length=1)
 
 
+class RehearsalActivityItem(BaseModel):
+    kind: str
+    id: int
+    summary: str
+    status: str | None = None
+    visibility: str | None = None
+    created_at: datetime
+    created_by_display_name: str | None = None
+    moment_id: int | None = None
+    scene_id: int | None = None
+
+
 class SuggestedCallResponse(BaseModel):
     user_id: int
     display_name: str

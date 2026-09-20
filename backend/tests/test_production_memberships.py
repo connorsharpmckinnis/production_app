@@ -2,10 +2,7 @@ from sqlalchemy.exc import IntegrityError
 
 import pytest
 
-from app.db.production_role_defaults import (
-    PERMISSION_ACTIONS,
-    PRODUCTION_PERMISSION_RESOURCES,
-)
+from app.db.production_role_defaults import permission_pair_count
 from app.db.seed import seed_database
 from app.models import (
     AppRole,
@@ -222,7 +219,7 @@ def test_seed_production_roles_and_complete_permission_defaults(seeded_db):
     assert seeded_db.query(User).count() == 1
 
     assert seeded_db.query(ProductionRolePermission).count() == (
-        len(roles) * len(PRODUCTION_PERMISSION_RESOURCES) * len(PERMISSION_ACTIONS)
+        len(roles) * permission_pair_count()
     )
     member = next(role for role in roles if role.code == "member")
     member_people_read = (

@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import type { LucideIcon } from "lucide-react";
 import {
   Bookmark,
+  Check,
   Layers,
   LogIn,
   LogOut,
@@ -16,6 +17,8 @@ import AttributionSubjectMultiSelect, {
   decodeAttributionSubjects,
   encodeAttributionSubject,
 } from "@/components/AttributionSubjectMultiSelect";
+import AttributionInfo from "@/components/AttributionInfo";
+import NotesPanel from "@/components/notes/NotesPanel";
 import SearchableSelect from "@/components/SearchableSelect";
 import type { SearchableSelectOption } from "@/components/SearchableSelect";
 import ObjectLink from "@/components/object-detail/ObjectLink";
@@ -36,6 +39,7 @@ import {
   SheetTitle,
 } from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
+import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { api, ApiError, formatApiError } from "@/lib/api";
@@ -53,6 +57,7 @@ import type {
   MomentCostumeEventResponse,
   MomentDetailResponse,
   MomentTypeResponse,
+  PrepRecordFields,
   PropResponse,
   SetPieceResponse,
   SongDetailResponse,
@@ -398,7 +403,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       detail,
       canEdit,
       canEditScript,
-      canChooseVisibility,
       characters,
       castableUsers,
       groups,
@@ -418,6 +422,23 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
   ) {
     const confirm = useConfirm();
     const toast = useToast();
+    const { hasCapability } = useProductionAccess();
+    const canApprove = hasCapability("timeline", "approve");
+    const canPublishNotes = hasCapability("notes", "publish");
+    const canAttach =
+      canEdit || hasCapability("timeline", "suggest") || canApprove;
+
+    async function handleApprove(kind: string, id: number) {
+      try {
+        await api.approveAttachment(productionId, { kind, id });
+        await onChanged();
+        toast.success("Approved");
+      } catch (err) {
+        toast.error(formatApiError(err, "Failed to approve"));
+      }
+    }
+    const [saveAsSuggestion, setSaveAsSuggestion] = useState(false);
+    const attachmentStatus = canApprove && saveAsSuggestion ? "suggested" as const : undefined;
 
     const sortedCharacters = sortByName(characters);
     const sortedCastableUsers = [...castableUsers].sort((a, b) =>
@@ -513,8 +534,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       groups.length,
     ]);
 
-    const [noteContent, setNoteContent] = useState("");
-    const [noteVisibility, setNoteVisibility] = useState<"public" | "private">("private");
     const [saving, setSaving] = useState(false);
     const [importedDataExpanded, setImportedDataExpanded] = useState(false);
 
@@ -873,48 +892,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       }
     }
 
-    async function handleAddNote(event: React.FormEvent) {
-      event.preventDefault();
-      if (!noteContent.trim()) return;
-
-      setSaving(true);
-      try {
-        await api.createNote(productionId, {
-          moment_id: detail.id,
-          visibility: canChooseVisibility ? noteVisibility : "private",
-          content: noteContent.trim(),
-        });
-        setNoteContent("");
-        onChanged();
-        toast.success("Note added");
-      } catch (err) {
-        toast.error(formatApiError(err, "Failed to add note"));
-      } finally {
-        setSaving(false);
-      }
-    }
-
-    async function handleDeleteNote(noteId: number) {
-      const ok = await confirm({
-        title: "Delete this note?",
-        description: "This cannot be undone.",
-        confirmLabel: "Delete",
-        destructive: true,
-      });
-      if (!ok) return;
-
-      setSaving(true);
-      try {
-        await api.deleteNote(productionId, noteId);
-        onChanged();
-        toast.success("Note deleted");
-      } catch (err) {
-        toast.error(formatApiError(err, "Failed to delete note"));
-      } finally {
-        setSaving(false);
-      }
-    }
-
     async function handleAttachProp(event: React.FormEvent) {
       event.preventDefault();
       if (!attachPropId) return;
@@ -935,6 +912,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
               ? Number(attachPropUserId)
               : null,
           notes: attachPropNotes.trim() || null,
+          status: attachmentStatus,
         });
         setAttachPropId("");
         setAttachPropKind("on");
@@ -1015,6 +993,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
               ? Number(attachSetPieceUserId)
               : null,
           notes: attachSetPieceNotes.trim() || null,
+          status: attachmentStatus,
         });
         setAttachSetPieceId("");
         setAttachSetPieceKind("on");
@@ -1087,6 +1066,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           kind: attachCostumeKind,
           costume_id: attachCostumeId ? Number(attachCostumeId) : null,
           notes: attachCostumeNotes.trim() || null,
+          status: attachmentStatus,
         });
         setAttachCostumeCharacterId("");
         setAttachCostumeKind("on");
@@ -1149,6 +1129,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           character_id: subject.characterId,
           group_id: subject.groupId,
           notes: attachEntranceNotes.trim() || null,
+          status: attachmentStatus,
         });
         setAttachEntranceSubject("");
         setAttachEntranceNotes("");
@@ -1192,6 +1173,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           character_id: subject.characterId,
           group_id: subject.groupId,
           notes: attachExitNotes.trim() || null,
+          status: attachmentStatus,
         });
         setAttachExitSubject("");
         setAttachExitNotes("");
@@ -1243,6 +1225,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           group_id:
             attachBlockingSubjectType === "group" ? Number(attachBlockingGroupId) : null,
           notes: attachBlockingNotes.trim(),
+          status: attachmentStatus,
         });
         setAttachBlockingSubjectType("");
         setAttachBlockingCharacterId("");
@@ -1304,6 +1287,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           cue_category_id: Number(newCueCategoryId),
           title: newCueTitle.trim(),
           notes: newCueNotes.trim() || null,
+          status: attachmentStatus,
         });
         setNewCueTitle("");
         setNewCueNotes("");
@@ -1960,7 +1944,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         <AssetEventSection
           title="Props"
           emptyMessage="No prop events on this moment."
-          canEdit={canEdit}
+          canEdit={canAttach}
           saving={saving}
           productionId={productionId}
           defaultExpanded={detail.props.length > 0}
@@ -1979,6 +1963,11 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             priorOnActNumber: prop.prior_on_act_number ?? null,
             priorOnSceneNumber: prop.prior_on_scene_number ?? null,
             priorOnSequenceNumber: prop.prior_on_sequence_number ?? null,
+            ...prepDisplay(prop),
+            onApprove:
+              prop.status === "suggested" && canApprove
+                ? () => void handleApprove("prop_event", prop.id)
+                : undefined,
           }))}
           characters={sortedCharacters}
           castableUsers={sortedCastableUsers}
@@ -2007,7 +1996,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         <AssetEventSection
           title="Set pieces"
           emptyMessage="No set piece events on this moment."
-          canEdit={canEdit}
+          canEdit={canAttach}
           saving={saving}
           productionId={productionId}
           defaultExpanded={detail.set_pieces.length > 0}
@@ -2026,6 +2015,11 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             priorOnActNumber: piece.prior_on_act_number ?? null,
             priorOnSceneNumber: piece.prior_on_scene_number ?? null,
             priorOnSequenceNumber: piece.prior_on_sequence_number ?? null,
+            ...prepDisplay(piece),
+            onApprove:
+              piece.status === "suggested" && canApprove
+                ? () => void handleApprove("set_piece_event", piece.id)
+                : undefined,
           }))}
           characters={sortedCharacters}
           castableUsers={sortedCastableUsers}
@@ -2052,7 +2046,8 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         />
 
         <CostumeEventSection
-          canEdit={canEdit}
+          canEdit={canAttach}
+          canApprove={canApprove}
           saving={saving}
           productionId={productionId}
           defaultExpanded={detail.costume_events.length > 0}
@@ -2060,15 +2055,28 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           costumesCatalog={costumesCatalog}
           onUpdate={handleUpdateMomentCostume}
           onDetach={handleDetachCostume}
+          onApprove={(eventId) => void handleApprove("costume_event", eventId)}
           wearing={detail.costumes_wearing.filter(
             (item) => item.source_moment_id !== detail.id,
           )}
         />
 
+        {canApprove && (
+          <label className="flex items-center gap-2 border-t border-border pt-4 text-sm">
+            <input
+              type="checkbox"
+              checked={saveAsSuggestion}
+              onChange={(event) => setSaveAsSuggestion(event.target.checked)}
+            />
+            Save new actions as suggestions
+          </label>
+        )}
+
         <AttachmentSection
+          productionId={productionId}
           title="Entrances"
           emptyMessage="No entrances recorded."
-          canEdit={canEdit}
+          canEdit={canAttach}
           saving={saving}
           defaultExpanded={detail.entrances.length > 0}
           items={detail.entrances.map((entrance) => ({
@@ -2077,15 +2085,27 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             objectType: entrance.group_id != null ? ("group" as const) : ("character" as const),
             objectId: entrance.group_id ?? entrance.character_id,
             notes: entrance.notes ?? undefined,
+            status: entrance.status,
+            createdBy: entrance.created_by_display_name,
+            createdAt: entrance.created_at,
+            updatedBy: entrance.updated_by_display_name,
+            updatedAt: entrance.updated_at,
+            rehearsalId: entrance.rehearsal_id,
+            rehearsalLabel: entrance.rehearsal_label,
+            onApprove:
+              entrance.status === "suggested" && canApprove
+                ? () => void handleApprove("entrance", entrance.id)
+                : undefined,
           }))}
           onDetach={handleDetachEntrance}
           catalogLength={characters.length + groups.length}
         />
 
         <AttachmentSection
+          productionId={productionId}
           title="Exits"
           emptyMessage="No exits recorded."
-          canEdit={canEdit}
+          canEdit={canAttach}
           saving={saving}
           defaultExpanded={detail.exits.length > 0}
           items={detail.exits.map((exitRow) => ({
@@ -2094,15 +2114,27 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             objectType: exitRow.group_id != null ? ("group" as const) : ("character" as const),
             objectId: exitRow.group_id ?? exitRow.character_id,
             notes: exitRow.notes ?? undefined,
+            status: exitRow.status,
+            createdBy: exitRow.created_by_display_name,
+            createdAt: exitRow.created_at,
+            updatedBy: exitRow.updated_by_display_name,
+            updatedAt: exitRow.updated_at,
+            rehearsalId: exitRow.rehearsal_id,
+            rehearsalLabel: exitRow.rehearsal_label,
+            onApprove:
+              exitRow.status === "suggested" && canApprove
+                ? () => void handleApprove("exit", exitRow.id)
+                : undefined,
           }))}
           onDetach={handleDetachExit}
           catalogLength={characters.length + groups.length}
         />
 
         <AttachmentSection
+          productionId={productionId}
           title="Blocking"
           emptyMessage="No blocking notes."
-          canEdit={canEdit}
+          canEdit={canAttach}
           saving={saving}
           defaultExpanded={detail.blocking.length > 0}
           items={detail.blocking.map((row) => ({
@@ -2116,6 +2148,17 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                   : undefined,
             objectId: row.character_id ?? row.group_id,
             notes: row.notes ?? undefined,
+            status: row.status,
+            createdBy: row.created_by_display_name,
+            createdAt: row.created_at,
+            updatedBy: row.updated_by_display_name,
+            updatedAt: row.updated_at,
+            rehearsalId: row.rehearsal_id,
+            rehearsalLabel: row.rehearsal_label,
+            onApprove:
+              row.status === "suggested" && canApprove
+                ? () => void handleApprove("blocking", row.id)
+                : undefined,
             editableNotes: canEdit,
             onNotesBlur: (notes: string) => {
               if (notes.trim() !== (row.notes ?? "")) {
@@ -2128,9 +2171,10 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         />
 
         <AttachmentSection
+          productionId={productionId}
           title="Cues"
           emptyMessage="No cues attached."
-          canEdit={canEdit}
+          canEdit={canAttach}
           saving={saving}
           defaultExpanded={detail.cues.length > 0}
           items={detail.cues.map((cue) => ({
@@ -2141,72 +2185,29 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             momentId: detail.id,
             sublabel: cue.cue_category_name,
             notes: cue.notes ?? undefined,
+            status: cue.status,
+            createdBy: cue.created_by_display_name,
+            createdAt: cue.created_at,
+            updatedBy: cue.updated_by_display_name,
+            updatedAt: cue.updated_at,
+            rehearsalId: cue.rehearsal_id,
+            rehearsalLabel: cue.rehearsal_label,
+            onApprove:
+              cue.status === "suggested" && canApprove
+                ? () => void handleApprove("cue", cue.id)
+                : undefined,
           }))}
           onDetach={handleDeleteCue}
           catalogLength={cueCategories.length}
         />
 
         <div className="border-t border-border pt-4">
-          <h3 className="text-sm font-medium">Notes</h3>
-          {detail.notes.length === 0 ? (
-            <p className="mt-2 text-sm text-muted-foreground">No notes yet.</p>
-          ) : (
-            <ul className="mt-2 space-y-3">
-              {detail.notes.map((note) => (
-                <li key={note.id} className="rounded-md border border-border p-3 text-sm">
-                  <div className="flex items-center justify-between gap-2">
-                    <span className="font-medium">{note.author_display_name}</span>
-                    <div className="flex items-center gap-2">
-                      <Badge variant="secondary">
-                        {note.visibility === "public" ? "Visible to cast" : "Only me"}
-                      </Badge>
-                      {note.is_mine && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          disabled={saving}
-                          onClick={() => void handleDeleteNote(note.id)}
-                          aria-label="Delete note"
-                          title="Delete note"
-                          className="shrink-0 text-destructive hover:text-destructive"
-                        >
-                          <Trash2 />
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                  <p className="mt-1 whitespace-pre-wrap">{note.content}</p>
-                </li>
-              ))}
-            </ul>
-          )}
-
-          <form onSubmit={(e) => void handleAddNote(e)} className="mt-4 flex flex-col gap-3">
-            <Textarea
-              value={noteContent}
-              onChange={(e) => setNoteContent(e.target.value)}
-              placeholder="Add a note…"
-              rows={3}
-            />
-            {canChooseVisibility && (
-              <Select
-                value={noteVisibility}
-                onValueChange={(value) => setNoteVisibility(value as "public" | "private")}
-              >
-                <SelectTrigger className="w-fit">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="public">Visible to cast</SelectItem>
-                  <SelectItem value="private">Only me</SelectItem>
-                </SelectContent>
-              </Select>
-            )}
-            <Button type="submit" disabled={saving || !noteContent.trim()}>
-              Add note
-            </Button>
-          </form>
+          <NotesPanel
+            productionId={productionId}
+            momentId={detail.id}
+            canPublish={canPublishNotes}
+            canDeleteAny={hasCapability("notes", "delete") && canApprove}
+          />
         </div>
 
         {canEditScript && (
@@ -2301,6 +2302,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 );
 
 function AttachmentSection({
+  productionId,
   title,
   emptyMessage,
   canEdit,
@@ -2311,6 +2313,7 @@ function AttachmentSection({
   defaultExpanded = true,
   attachForm,
 }: {
+  productionId: number;
   title: string;
   emptyMessage: string;
   canEdit: boolean;
@@ -2323,6 +2326,14 @@ function AttachmentSection({
     momentId?: number;
     sublabel?: string;
     notes?: string;
+    status?: "suggested" | "official";
+    createdBy?: string | null;
+    createdAt?: string | null;
+    updatedBy?: string | null;
+    updatedAt?: string | null;
+    rehearsalId?: number | null;
+    rehearsalLabel?: string | null;
+    onApprove?: () => void;
     editableNotes?: boolean;
     onNotesBlur?: (notes: string) => void;
   }[];
@@ -2354,11 +2365,19 @@ function AttachmentSection({
           {items.length === 0 ? (
             <p className="mt-2 text-sm text-muted-foreground">{emptyMessage}</p>
           ) : (
-            <ul className="mt-2 space-y-2">
+            <ul className="mt-2 space-y-1.5">
               {items.map((item) => (
-                <li key={item.id} className="rounded-md border border-border p-2 text-sm">
-                  <div className="flex items-start justify-between gap-3">
-                    <div className="min-w-0">
+                <li
+                  key={item.id}
+                  className={cn(
+                    "rounded-md border px-2 py-1.5 text-sm",
+                    item.status === "suggested"
+                      ? "border-dashed border-amber-500"
+                      : "border-border",
+                  )}
+                >
+                  <div className="flex flex-wrap items-start gap-x-1 gap-y-1">
+                    <div className="min-w-0 flex-1 leading-snug">
                       <DetailObjectLabel
                         label={item.label}
                         objectType={item.objectType}
@@ -2368,20 +2387,41 @@ function AttachmentSection({
                       {item.sublabel && (
                         <span className="text-muted-foreground"> — {item.sublabel}</span>
                       )}
+                      {!item.editableNotes && item.notes ? (
+                        <span className="text-muted-foreground"> — {item.notes}</span>
+                      ) : null}
                       {item.editableNotes && canEdit ? (
-                        <Textarea
+                        <Input
                           defaultValue={item.notes}
                           disabled={saving}
                           onBlur={(e) => item.onNotesBlur?.(e.target.value)}
-                          className="mt-2"
-                          rows={2}
+                          className="mt-1 h-7"
+                          placeholder="Notes"
                         />
-                      ) : (
-                        item.notes && (
-                          <p className="mt-1 text-muted-foreground">{item.notes}</p>
-                        )
-                      )}
+                      ) : null}
                     </div>
+                    <AttributionInfo
+                      createdBy={item.createdBy}
+                      createdAt={item.createdAt}
+                      updatedBy={item.updatedBy}
+                      updatedAt={item.updatedAt}
+                      rehearsalId={item.rehearsalId}
+                      rehearsalLabel={item.rehearsalLabel}
+                      productionId={productionId}
+                    />
+                    {item.onApprove && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={item.onApprove}
+                        aria-label="Approve suggestion"
+                        title="Approve"
+                        className="shrink-0 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700"
+                      >
+                        <Check />
+                      </Button>
+                    )}
                     {canEdit && (
                       <Button
                         type="button"
@@ -2411,6 +2451,18 @@ function AttachmentSection({
   );
 }
 
+function prepDisplay(row: PrepRecordFields) {
+  return {
+    status: row.status,
+    createdBy: row.created_by_display_name,
+    createdAt: row.created_at,
+    updatedBy: row.updated_by_display_name,
+    updatedAt: row.updated_at,
+    rehearsalId: row.rehearsal_id,
+    rehearsalLabel: row.rehearsal_label,
+  };
+}
+
 interface AssetEventItem {
   id: number;
   assetName: string;
@@ -2425,6 +2477,14 @@ interface AssetEventItem {
   priorOnActNumber: number | null;
   priorOnSceneNumber: number | null;
   priorOnSequenceNumber: number | null;
+  status?: "suggested" | "official";
+  createdBy?: string | null;
+  createdAt?: string | null;
+  updatedBy?: string | null;
+  updatedAt?: string | null;
+  rehearsalId?: number | null;
+  rehearsalLabel?: string | null;
+  onApprove?: () => void;
 }
 
 interface AssetInPlayItem {
@@ -2590,7 +2650,7 @@ function AssetEventSection({
           {events.length === 0 ? (
             <p className="mt-2 text-sm text-muted-foreground">{emptyMessage}</p>
           ) : (
-            <ul className="mt-2 space-y-2">
+            <ul className="mt-2 space-y-1.5">
               {events.map((event) => (
                 <AssetEventRow
                   key={event.id}
@@ -2706,11 +2766,16 @@ function AssetEventRow({
   }
 
   return (
-    <li className="rounded-md border border-border p-2 text-sm">
-      <div className="flex items-start justify-between gap-3">
+    <li
+      className={cn(
+        "rounded-md border px-2 py-1.5 text-sm",
+        event.status === "suggested" ? "border-dashed border-amber-500" : "border-border",
+      )}
+    >
+      <div className="flex flex-wrap items-start gap-x-1 gap-y-1">
         <div
           className={cn(
-            "min-w-0 flex-1",
+            "min-w-0 flex-1 leading-snug",
             canEdit && !editing && "cursor-pointer rounded-sm outline-none focus-visible:ring-1 focus-visible:ring-ring",
           )}
           role={canEdit && !editing ? "button" : undefined}
@@ -2731,52 +2796,54 @@ function AssetEventRow({
               : undefined
           }
         >
-          <div className="flex flex-wrap items-center gap-2">
-            <DetailObjectLabel
-              label={event.assetName}
-              objectType={event.assetObjectType}
-              objectId={event.assetObjectId}
-            />
-            <Badge
-              variant={event.kind === "on" ? "default" : "secondary"}
-              className="uppercase"
-            >
-              {event.kind === "on" ? "On" : "Off"}
-            </Badge>
-          </div>
-          {personLabel && (
-            <p className="mt-1">
+          {!editing ? (
+            <>
               <DetailObjectLabel
-                label={personLabel}
-                objectType={event.character_id != null ? "character" : undefined}
-                objectId={event.character_id}
+                label={event.assetName}
+                objectType={event.assetObjectType}
+                objectId={event.assetObjectId}
               />
-            </p>
-          )}
-          {!editing && event.notes && (
-            <p className="mt-1 text-muted-foreground">{event.notes}</p>
-          )}
-          {!editing && priorOnCode != null && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Started{" "}
-              <Link
-                to={humanTimelinePath(
-                  productionId,
-                  event.priorOnActNumber!,
-                  event.priorOnSceneNumber!,
-                  event.priorOnSequenceNumber!,
-                )}
-                className="underline underline-offset-2 hover:text-foreground"
-                aria-label={`Open start moment ${priorOnCode}`}
-                onClick={(e) => e.stopPropagation()}
+              <Badge
+                variant={event.kind === "on" ? "default" : "secondary"}
+                className="ml-1.5 align-middle uppercase"
               >
-                {priorOnCode}
-              </Link>
-            </p>
-          )}
-
-          {editing && (
-            <div className="mt-2 space-y-2">
+                {event.kind === "on" ? "On" : "Off"}
+              </Badge>
+              {personLabel && (
+                <>
+                  <span className="text-muted-foreground"> — </span>
+                  <DetailObjectLabel
+                    label={personLabel}
+                    objectType={event.character_id != null ? "character" : undefined}
+                    objectId={event.character_id}
+                  />
+                </>
+              )}
+              {event.notes && (
+                <span className="text-muted-foreground"> — {event.notes}</span>
+              )}
+              {priorOnCode != null && (
+                <span className="text-xs text-muted-foreground">
+                  {" "}
+                  · Started{" "}
+                  <Link
+                    to={humanTimelinePath(
+                      productionId,
+                      event.priorOnActNumber!,
+                      event.priorOnSceneNumber!,
+                      event.priorOnSequenceNumber!,
+                    )}
+                    className="underline underline-offset-2 hover:text-foreground"
+                    aria-label={`Open start moment ${priorOnCode}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {priorOnCode}
+                  </Link>
+                </span>
+              )}
+            </>
+          ) : (
+            <div className="space-y-2">
               <KindToggle value={kind} onChange={setKind} />
               <SearchableSelect
                 options={buildPersonOptions(characters, castableUsers)}
@@ -2817,19 +2884,48 @@ function AssetEventRow({
             </div>
           )}
         </div>
-        {canEdit && !editing && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            disabled={saving}
-            onClick={() => onDetach(event.id)}
-            aria-label={`Remove ${event.assetName} event`}
-            title="Remove"
-            className="shrink-0 text-destructive hover:text-destructive"
-          >
-            <Trash2 />
-          </Button>
+        {!editing && (
+          <>
+            <AttributionInfo
+              createdBy={event.createdBy}
+              createdAt={event.createdAt}
+              updatedBy={event.updatedBy}
+              updatedAt={event.updatedAt}
+              rehearsalId={event.rehearsalId}
+              rehearsalLabel={event.rehearsalLabel}
+              productionId={productionId}
+            />
+            {event.onApprove && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  event.onApprove?.();
+                }}
+                aria-label="Approve suggestion"
+                title="Approve"
+                className="shrink-0 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700"
+              >
+                <Check />
+              </Button>
+            )}
+            {canEdit && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                disabled={saving}
+                onClick={() => onDetach(event.id)}
+                aria-label={`Remove ${event.assetName} event`}
+                title="Remove"
+                className="shrink-0 text-destructive hover:text-destructive"
+              >
+                <Trash2 />
+              </Button>
+            )}
+          </>
         )}
       </div>
     </li>
@@ -2838,16 +2934,19 @@ function AssetEventRow({
 
 function CostumeEventSection({
   canEdit,
+  canApprove,
   saving,
   productionId,
   events,
   costumesCatalog,
   onUpdate,
   onDetach,
+  onApprove,
   defaultExpanded = true,
   wearing,
 }: {
   canEdit: boolean;
+  canApprove: boolean;
   saving: boolean;
   productionId: number;
   events: MomentCostumeEventResponse[];
@@ -2857,6 +2956,7 @@ function CostumeEventSection({
     body: { kind: AssetEventKind; costume_id: number | null; notes: string | null },
   ) => void | Promise<void>;
   onDetach: (eventId: number) => void;
+  onApprove: (eventId: number) => void;
   defaultExpanded?: boolean;
   wearing: CostumeWearingResponse[];
 }) {
@@ -2966,7 +3066,7 @@ function CostumeEventSection({
               No costume events on this moment.
             </p>
           ) : (
-            <ul className="mt-2 space-y-2">
+            <ul className="mt-2 space-y-1.5">
               {events.map((event) => (
                 <CostumeEventRow
                   key={event.id}
@@ -2977,6 +3077,11 @@ function CostumeEventSection({
                   costumesCatalog={costumesCatalog}
                   onUpdate={onUpdate}
                   onDetach={onDetach}
+                  onApprove={
+                    canApprove && event.status === "suggested"
+                      ? () => onApprove(event.id)
+                      : undefined
+                  }
                 />
               ))}
             </ul>
@@ -3001,6 +3106,7 @@ function CostumeEventRow({
   costumesCatalog,
   onUpdate,
   onDetach,
+  onApprove,
 }: {
   event: MomentCostumeEventResponse;
   canEdit: boolean;
@@ -3012,6 +3118,7 @@ function CostumeEventRow({
     body: { kind: AssetEventKind; costume_id: number | null; notes: string | null },
   ) => void | Promise<void>;
   onDetach: (eventId: number) => void;
+  onApprove?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [kind, setKind] = useState<AssetEventKind>(event.kind);
@@ -3061,11 +3168,16 @@ function CostumeEventRow({
   }
 
   return (
-    <li className="rounded-md border border-border p-2 text-sm">
-      <div className="flex items-start justify-between gap-3">
+    <li
+      className={cn(
+        "rounded-md border px-2 py-1.5 text-sm",
+        event.status === "suggested" ? "border-dashed border-amber-500" : "border-border",
+      )}
+    >
+      <div className="flex flex-wrap items-start gap-x-1 gap-y-1">
         <div
           className={cn(
-            "min-w-0 flex-1",
+            "min-w-0 flex-1 leading-snug",
             canEdit && !editing && "cursor-pointer rounded-sm outline-none focus-visible:ring-1 focus-visible:ring-ring",
           )}
           role={canEdit && !editing ? "button" : undefined}
@@ -3086,51 +3198,56 @@ function CostumeEventRow({
               : undefined
           }
         >
-          <div className="flex flex-wrap items-center gap-2">
-            <DetailObjectLabel
-              label={event.character_name}
-              objectType="character"
-              objectId={event.character_id}
-            />
-            <Badge variant={event.kind === "on" ? "default" : "secondary"}>
-              {event.kind === "on" ? "Wear" : "Clear"}
-            </Badge>
-          </div>
-          {event.costume_name && event.costume_id != null ? (
-            <p className="mt-1">
+          {!editing ? (
+            <>
               <DetailObjectLabel
-                label={event.costume_name}
-                objectType="costume"
-                objectId={event.costume_id}
+                label={event.character_name}
+                objectType="character"
+                objectId={event.character_id}
               />
-            </p>
-          ) : event.costume_name ? (
-            <p className="text-muted-foreground">{event.costume_name}</p>
-          ) : null}
-          {!editing && event.notes && (
-            <p className="mt-1 text-muted-foreground">{event.notes}</p>
-          )}
-          {!editing && priorOnCode != null && (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Started{" "}
-              <Link
-                to={humanTimelinePath(
-                  productionId,
-                  event.prior_on_act_number!,
-                  event.prior_on_scene_number!,
-                  event.prior_on_sequence_number!,
-                )}
-                className="underline underline-offset-2 hover:text-foreground"
-                aria-label={`Open start moment ${priorOnCode}`}
-                onClick={(e) => e.stopPropagation()}
+              <Badge
+                variant={event.kind === "on" ? "default" : "secondary"}
+                className="ml-1.5 align-middle"
               >
-                {priorOnCode}
-              </Link>
-            </p>
-          )}
-
-          {editing && (
-            <div className="mt-2 space-y-2">
+                {event.kind === "on" ? "Wear" : "Clear"}
+              </Badge>
+              {event.costume_name && event.costume_id != null ? (
+                <>
+                  <span className="text-muted-foreground"> — </span>
+                  <DetailObjectLabel
+                    label={event.costume_name}
+                    objectType="costume"
+                    objectId={event.costume_id}
+                  />
+                </>
+              ) : event.costume_name ? (
+                <span className="text-muted-foreground"> — {event.costume_name}</span>
+              ) : null}
+              {event.notes && (
+                <span className="text-muted-foreground"> — {event.notes}</span>
+              )}
+              {priorOnCode != null && (
+                <span className="text-xs text-muted-foreground">
+                  {" "}
+                  · Started{" "}
+                  <Link
+                    to={humanTimelinePath(
+                      productionId,
+                      event.prior_on_act_number!,
+                      event.prior_on_scene_number!,
+                      event.prior_on_sequence_number!,
+                    )}
+                    className="underline underline-offset-2 hover:text-foreground"
+                    aria-label={`Open start moment ${priorOnCode}`}
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {priorOnCode}
+                  </Link>
+                </span>
+              )}
+            </>
+          ) : (
+            <div className="space-y-2">
               <KindToggle
                 value={kind}
                 onChange={(next) => {
@@ -3181,19 +3298,48 @@ function CostumeEventRow({
             </div>
           )}
         </div>
-        {canEdit && !editing && (
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            disabled={saving}
-            onClick={() => onDetach(event.id)}
-            aria-label={`Remove ${event.character_name} costume event`}
-            title="Remove"
-            className="shrink-0 text-destructive hover:text-destructive"
-          >
-            <Trash2 />
-          </Button>
+        {!editing && (
+          <>
+            <AttributionInfo
+              createdBy={event.created_by_display_name}
+              createdAt={event.created_at}
+              updatedBy={event.updated_by_display_name}
+              updatedAt={event.updated_at}
+              rehearsalId={event.rehearsal_id}
+              rehearsalLabel={event.rehearsal_label}
+              productionId={productionId}
+            />
+            {onApprove && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onApprove();
+                }}
+                aria-label="Approve suggestion"
+                title="Approve"
+                className="shrink-0 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700"
+              >
+                <Check />
+              </Button>
+            )}
+            {canEdit && (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                disabled={saving}
+                onClick={() => onDetach(event.id)}
+                aria-label={`Remove ${event.character_name} costume event`}
+                title="Remove"
+                className="shrink-0 text-destructive hover:text-destructive"
+              >
+                <Trash2 />
+              </Button>
+            )}
+          </>
         )}
       </div>
     </li>

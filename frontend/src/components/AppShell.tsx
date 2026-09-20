@@ -762,13 +762,13 @@ function AppShellInner() {
           </nav>
         </aside>
 
+        {/* Block layout, not flex: bottom padding on a flex scroll box is
+            dropped once the page is taller than the viewport. */}
         <main
           id="main-content"
-          className="flex min-h-0 min-w-0 flex-1 flex-col overflow-x-hidden overflow-y-auto px-3 pt-3 md:px-4 md:pt-4"
+          className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto px-3 pt-3 pb-10 md:px-4 md:pt-4 print:pb-0"
         >
-          <div className="flex min-h-0 min-w-0 flex-1 flex-col pb-6 md:pb-8">
-            <Outlet />
-          </div>
+          <Outlet />
         </main>
       </div>
 

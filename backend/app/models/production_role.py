@@ -62,7 +62,7 @@ class ProductionRolePermission(Base):
     __tablename__ = "production_role_permissions"
     __table_args__ = (
         CheckConstraint(
-            "action IN ('read', 'create', 'update', 'delete')",
+            "action IN ('read', 'create', 'update', 'delete', 'suggest', 'approve', 'publish')",
             name="ck_production_role_permissions_action",
         ),
         UniqueConstraint(

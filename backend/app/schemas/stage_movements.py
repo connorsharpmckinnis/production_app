@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field, model_validator
 
+from app.schemas.prep import OptionalAttachmentStatus, PrepRecordResponse
+
 
 class OnStageCharacterResponse(BaseModel):
     id: int
@@ -11,7 +13,7 @@ class OnStageGroupResponse(BaseModel):
     name: str
 
 
-class MomentEntranceCreate(BaseModel):
+class MomentEntranceCreate(OptionalAttachmentStatus):
     character_id: int | None = None
     group_id: int | None = None
     notes: str | None = None
@@ -24,7 +26,7 @@ class MomentEntranceCreate(BaseModel):
         return self
 
 
-class MomentEntranceResponse(BaseModel):
+class MomentEntranceResponse(PrepRecordResponse):
     id: int
     character_id: int | None
     character_name: str | None
@@ -33,7 +35,7 @@ class MomentEntranceResponse(BaseModel):
     notes: str | None
 
 
-class MomentExitCreate(BaseModel):
+class MomentExitCreate(OptionalAttachmentStatus):
     character_id: int | None = None
     group_id: int | None = None
     notes: str | None = None
@@ -46,7 +48,7 @@ class MomentExitCreate(BaseModel):
         return self
 
 
-class MomentExitResponse(BaseModel):
+class MomentExitResponse(PrepRecordResponse):
     id: int
     character_id: int | None
     character_name: str | None
@@ -55,7 +57,7 @@ class MomentExitResponse(BaseModel):
     notes: str | None
 
 
-class MomentBlockingCreate(BaseModel):
+class MomentBlockingCreate(OptionalAttachmentStatus):
     character_id: int | None = None
     user_id: int | None = None
     group_id: int | None = None
@@ -79,7 +81,7 @@ class MomentBlockingUpdate(BaseModel):
     notes: str = Field(min_length=1)
 
 
-class MomentBlockingResponse(BaseModel):
+class MomentBlockingResponse(PrepRecordResponse):
     id: int
     character_id: int | None
     character_name: str | None

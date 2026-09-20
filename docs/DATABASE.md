@@ -1162,27 +1162,33 @@ The human-readable `title` and `notes` fields are for display. The `payload` fie
 
 Purpose
 
-Moment or character annotations. Casting-specific notes are intentionally a
-separate future workflow; see [feature_plans/casting-and-auditions.md](feature_plans/casting-and-auditions.md).
+Unstructured annotations on a moment, a character, a rehearsal, or a moment captured
+during a rehearsal. Casting-specific notes are intentionally a separate future
+workflow; see [feature_plans/casting-and-auditions.md](feature_plans/casting-and-auditions.md).
 
 Fields
 
 * id
-* user_id
-* visibility
-* moment_id
-* character_id
+* user_id (author)
+* visibility (`public` | `private`)
+* moment_id (nullable)
+* character_id (nullable)
+* rehearsal_id (nullable, `ON DELETE CASCADE`)
 * content
 * created_at
+* updated_at
+* updated_by_user_id (nullable)
 
-**Current implementation:** exactly one of `moment_id` or `character_id` is
-required on create and is validated in the service/API layer. The current model
-does not yet include the broader nullable reference list shown in older schema
-drafts, nor a `production_id` column or `updated_at`.
+**Target:** at least one of `moment_id`, `character_id`, or `rehearsal_id`
+(`ck_notes_has_target`). A session note is `rehearsal_id` only. A moment note
+captured during a rehearsal sets both `moment_id` and `rehearsal_id`.
 
-**Visibility:** existing values are `public` and `private`; production-scoped
-casting notes are not represented by this table. Do not use a public/private
-Moment Note as a substitute for a casting evaluation record.
+**Visibility:** `public` requires `notes.publish` or Admin. Private notes are
+visible to the author and to Admin only. Director and Stage Manager do not see
+other people's private notes.
+
+**Migration:** `032_rehearsal_capture` copies former `rehearsal_notes` rows into
+this table as `visibility=public`, then drops `rehearsal_notes`.
 
 ---
 
@@ -1361,17 +1367,29 @@ Junctions
 
 # REHEARSAL_NOTES
 
-Purpose
+Dropped in migration `032_rehearsal_capture`. Session notes live in `notes`
+with `rehearsal_id` set and `moment_id` / `character_id` null. See `# NOTES`.
 
-Director notes scoped to a rehearsal session (separate from Moment notes).
+---
 
-Fields
+# Prep provenance (attachments)
 
-* id
-* rehearsal_id
-* author_user_id
-* content
+Migration `032_rehearsal_capture` adds the same columns to
+`moment_entrances`, `moment_exits`, `moment_blocking`, `moment_prop_events`,
+`moment_set_piece_events`, `moment_costume_events`, and `cues`:
+
+* status (`suggested` | `official`, default `official`)
+* created_by_user_id / updated_by_user_id (nullable)
 * created_at / updated_at
+* rehearsal_id (nullable, `ON DELETE SET NULL`)
+
+Existing rows backfill to `official` with null author and rehearsal. New rows
+stamp `rehearsal_id` when the save time falls in exactly one non-cancelled
+rehearsal's slot ± 1 hour. Open and complete status are ignored.
+
+`timeline.suggest` can create `suggested` rows. `timeline.approve` (or the
+legacy resource create permission) creates `official` by default and can
+Approve a suggestion. Approve does not change `rehearsal_id`.
 
 ---
 

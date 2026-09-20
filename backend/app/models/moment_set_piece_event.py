@@ -2,9 +2,10 @@ from sqlalchemy import CheckConstraint, ForeignKey, String, Text, UniqueConstrai
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.models.prep_provenance import PrepProvenanceMixin
 
 
-class MomentSetPieceEvent(Base):
+class MomentSetPieceEvent(PrepProvenanceMixin, Base):
     """An on/off change for a set piece at a Moment (Phase 14).
 
     Whether a set piece is currently in play — and who (if anyone) is
@@ -56,4 +57,4 @@ class MomentSetPieceEvent(Base):
     moment: Mapped["Moment"] = relationship(back_populates="moment_set_piece_events")
     set_piece: Mapped["SetPiece"] = relationship(back_populates="moment_events")
     character: Mapped["Character | None"] = relationship(back_populates="moment_set_piece_events")
-    user: Mapped["User | None"] = relationship()
+    user: Mapped["User | None"] = relationship(foreign_keys=[user_id])

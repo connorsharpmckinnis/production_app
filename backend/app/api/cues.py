@@ -6,7 +6,11 @@ from app.api.catalog_csv_routes import (
     catalog_template_response,
     read_catalog_upload,
 )
-from app.api.deps import get_accessible_production, require_production_capability
+from app.api.deps import (
+    get_accessible_production,
+    require_any_production_capability,
+    require_production_capability,
+)
 from app.db.session import get_db
 from app.models import Act, Cue, CueCategory, Moment, Scene, User
 from app.schemas.catalog_csv import CatalogImportResult
@@ -23,6 +27,7 @@ from app.services.catalog_csv import (
     CUE_CATEGORIES_COLUMNS,
     import_cue_categories_csv,
 )
+from app.services.prep_records import prep_fields, prepare_new_attachment
 
 router = APIRouter(prefix="/productions", tags=["cues"])
 
@@ -67,6 +72,7 @@ def _cue_response(cue: Cue) -> CueResponse:
         title=cue.title,
         notes=cue.notes,
         payload=cue.payload,
+        **prep_fields(cue),
     )
 
 
@@ -224,9 +230,16 @@ def create_moment_cue(
     production_id: int,
     moment_id: int,
     body: CueCreate,
-    _user: User = Depends(require_production_capability("cues", "create")),
+    user: User = Depends(
+        require_any_production_capability(
+            ("cues", "create"),
+            ("timeline", "suggest"),
+            ("timeline", "approve"),
+        )
+    ),
     db: Session = Depends(get_db),
 ) -> CueResponse:
+    production = get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     _get_cue_category_or_404(db, production_id, body.cue_category_id)
 
@@ -236,6 +249,9 @@ def create_moment_cue(
         title=body.title.strip(),
         notes=body.notes,
         payload=body.payload,
+    )
+    prepare_new_attachment(
+        db, production, user, cue, body.status, legacy_resource="cues",
     )
     db.add(cue)
     db.commit()

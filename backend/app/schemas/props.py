@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.schemas.prep import OptionalAttachmentStatus, PrepRecordResponse
+
 
 class PropCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
@@ -27,7 +29,7 @@ def _reject_both_character_and_user(character_id: int | None, user_id: int | Non
         raise ValueError("A prop event can have a character or a user, not both")
 
 
-class MomentPropEventCreate(BaseModel):
+class MomentPropEventCreate(OptionalAttachmentStatus):
     prop_id: int
     kind: Literal["on", "off"]
     character_id: int | None = None
@@ -58,7 +60,7 @@ class MomentPropEventUpdate(BaseModel):
         return self
 
 
-class MomentPropEventResponse(BaseModel):
+class MomentPropEventResponse(PrepRecordResponse):
     id: int
     prop_id: int
     prop_name: str

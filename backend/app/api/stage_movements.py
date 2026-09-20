@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import (
     get_accessible_production,
+    require_any_production_capability,
     require_production_capability,
     user_display_name,
     validate_blocking_subject,
@@ -28,8 +29,24 @@ from app.schemas.stage_movements import (
     MomentExitCreate,
     MomentExitResponse,
 )
+from app.services.prep_records import (
+    assert_can_delete_attachment,
+    prep_fields,
+    prepare_new_attachment,
+)
 
 router = APIRouter(prefix="/productions", tags=["stage-movements"])
+
+_TIMELINE_ATTACH = require_any_production_capability(
+    ("timeline", "create"),
+    ("timeline", "suggest"),
+    ("timeline", "approve"),
+)
+_TIMELINE_REMOVE = require_any_production_capability(
+    ("timeline", "delete"),
+    ("timeline", "suggest"),
+    ("timeline", "approve"),
+)
 
 
 def _get_moment_in_production_or_404(
@@ -117,7 +134,7 @@ def _exit_load_options():
     )
 
 
-def _entrance_response(entrance: MomentEntrance) -> MomentEntranceResponse:
+def _entrance_response(db: Session, entrance: MomentEntrance) -> MomentEntranceResponse:
     return MomentEntranceResponse(
         id=entrance.id,
         character_id=entrance.character_id,
@@ -125,10 +142,11 @@ def _entrance_response(entrance: MomentEntrance) -> MomentEntranceResponse:
         group_id=entrance.group_id,
         group_name=entrance.group.name if entrance.group else None,
         notes=entrance.notes,
+        **prep_fields(entrance),
     )
 
 
-def _exit_response(exit_row: MomentExit) -> MomentExitResponse:
+def _exit_response(db: Session, exit_row: MomentExit) -> MomentExitResponse:
     return MomentExitResponse(
         id=exit_row.id,
         character_id=exit_row.character_id,
@@ -136,6 +154,7 @@ def _exit_response(exit_row: MomentExit) -> MomentExitResponse:
         group_id=exit_row.group_id,
         group_name=exit_row.group.name if exit_row.group else None,
         notes=exit_row.notes,
+        **prep_fields(exit_row),
     )
 
 
@@ -147,7 +166,7 @@ def _blocking_load_options():
     )
 
 
-def _blocking_response(blocking: MomentBlocking) -> MomentBlockingResponse:
+def _blocking_response(db: Session, blocking: MomentBlocking) -> MomentBlockingResponse:
     return MomentBlockingResponse(
         id=blocking.id,
         character_id=blocking.character_id,
@@ -157,6 +176,7 @@ def _blocking_response(blocking: MomentBlocking) -> MomentBlockingResponse:
         group_id=blocking.group_id,
         group_name=blocking.group.name if blocking.group else None,
         notes=blocking.notes,
+        **prep_fields(blocking),
     )
 
 
@@ -179,7 +199,7 @@ def list_moment_entrances(
         .order_by(MomentEntrance.id)
         .all()
     )
-    return [_entrance_response(entrance) for entrance in entrances]
+    return [_entrance_response(db, entrance) for entrance in entrances]
 
 
 @router.post(
@@ -191,10 +211,10 @@ def attach_moment_entrance(
     production_id: int,
     moment_id: int,
     body: MomentEntranceCreate,
-    user: User = Depends(require_production_capability("timeline", "create")),
+    user: User = Depends(_TIMELINE_ATTACH),
     db: Session = Depends(get_db),
 ) -> MomentEntranceResponse:
-    get_accessible_production(db, user, production_id)
+    production = get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     _validate_entrance_exit_subject(
         db, production_id, body.character_id, body.group_id,
@@ -232,6 +252,9 @@ def attach_moment_entrance(
         group_id=body.group_id,
         notes=body.notes,
     )
+    prepare_new_attachment(
+        db, production, user, entrance, body.status, legacy_resource="timeline",
+    )
     db.add(entrance)
     db.commit()
     entrance = (
@@ -240,7 +263,7 @@ def attach_moment_entrance(
         .filter(MomentEntrance.id == entrance.id)
         .one()
     )
-    return _entrance_response(entrance)
+    return _entrance_response(db, entrance)
 
 
 @router.delete(
@@ -251,10 +274,10 @@ def detach_moment_entrance(
     production_id: int,
     moment_id: int,
     entrance_id: int,
-    user: User = Depends(require_production_capability("timeline", "delete")),
+    user: User = Depends(_TIMELINE_REMOVE),
     db: Session = Depends(get_db),
 ) -> None:
-    get_accessible_production(db, user, production_id)
+    production = get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     entrance = (
         db.query(MomentEntrance)
@@ -266,6 +289,9 @@ def detach_moment_entrance(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Entrance attachment not found",
         )
+    assert_can_delete_attachment(
+        db, user, production, entrance, legacy_resource="timeline",
+    )
     db.delete(entrance)
     db.commit()
 
@@ -289,7 +315,7 @@ def list_moment_exits(
         .order_by(MomentExit.id)
         .all()
     )
-    return [_exit_response(exit_row) for exit_row in exits]
+    return [_exit_response(db, exit_row) for exit_row in exits]
 
 
 @router.post(
@@ -301,10 +327,10 @@ def attach_moment_exit(
     production_id: int,
     moment_id: int,
     body: MomentExitCreate,
-    user: User = Depends(require_production_capability("timeline", "create")),
+    user: User = Depends(_TIMELINE_ATTACH),
     db: Session = Depends(get_db),
 ) -> MomentExitResponse:
-    get_accessible_production(db, user, production_id)
+    production = get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     _validate_entrance_exit_subject(
         db, production_id, body.character_id, body.group_id,
@@ -342,6 +368,9 @@ def attach_moment_exit(
         group_id=body.group_id,
         notes=body.notes,
     )
+    prepare_new_attachment(
+        db, production, user, exit_row, body.status, legacy_resource="timeline",
+    )
     db.add(exit_row)
     db.commit()
     exit_row = (
@@ -350,7 +379,7 @@ def attach_moment_exit(
         .filter(MomentExit.id == exit_row.id)
         .one()
     )
-    return _exit_response(exit_row)
+    return _exit_response(db, exit_row)
 
 
 @router.delete(
@@ -361,10 +390,10 @@ def detach_moment_exit(
     production_id: int,
     moment_id: int,
     exit_id: int,
-    user: User = Depends(require_production_capability("timeline", "delete")),
+    user: User = Depends(_TIMELINE_REMOVE),
     db: Session = Depends(get_db),
 ) -> None:
-    get_accessible_production(db, user, production_id)
+    production = get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     exit_row = (
         db.query(MomentExit)
@@ -376,6 +405,9 @@ def detach_moment_exit(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Exit attachment not found",
         )
+    assert_can_delete_attachment(
+        db, user, production, exit_row, legacy_resource="timeline",
+    )
     db.delete(exit_row)
     db.commit()
 
@@ -399,7 +431,7 @@ def list_moment_blocking(
         .order_by(MomentBlocking.id)
         .all()
     )
-    return [_blocking_response(row) for row in blocking_rows]
+    return [_blocking_response(db, row) for row in blocking_rows]
 
 
 @router.post(
@@ -411,10 +443,10 @@ def attach_moment_blocking(
     production_id: int,
     moment_id: int,
     body: MomentBlockingCreate,
-    user: User = Depends(require_production_capability("timeline", "create")),
+    user: User = Depends(_TIMELINE_ATTACH),
     db: Session = Depends(get_db),
 ) -> MomentBlockingResponse:
-    get_accessible_production(db, user, production_id)
+    production = get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     validate_blocking_subject(
         db,
@@ -450,6 +482,9 @@ def attach_moment_blocking(
         group_id=body.group_id,
         notes=body.notes.strip(),
     )
+    prepare_new_attachment(
+        db, production, user, blocking, body.status, legacy_resource="timeline",
+    )
     db.add(blocking)
     db.commit()
     blocking = (
@@ -458,7 +493,7 @@ def attach_moment_blocking(
         .filter(MomentBlocking.id == blocking.id)
         .one()
     )
-    return _blocking_response(blocking)
+    return _blocking_response(db, blocking)
 
 
 @router.patch(
@@ -494,7 +529,7 @@ def update_moment_blocking(
         .filter(MomentBlocking.id == blocking_id)
         .one()
     )
-    return _blocking_response(blocking)
+    return _blocking_response(db, blocking)
 
 
 @router.delete(
@@ -505,10 +540,10 @@ def detach_moment_blocking(
     production_id: int,
     moment_id: int,
     blocking_id: int,
-    user: User = Depends(require_production_capability("timeline", "delete")),
+    user: User = Depends(_TIMELINE_REMOVE),
     db: Session = Depends(get_db),
 ) -> None:
-    get_accessible_production(db, user, production_id)
+    production = get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     blocking = (
         db.query(MomentBlocking)
@@ -520,5 +555,8 @@ def detach_moment_blocking(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Blocking attachment not found",
         )
+    assert_can_delete_attachment(
+        db, user, production, blocking, legacy_resource="timeline",
+    )
     db.delete(blocking)
     db.commit()

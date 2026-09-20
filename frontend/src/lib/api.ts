@@ -58,6 +58,7 @@ import type {
   MyCallResponse,
   ProductionCreate,
   RehearsalCreate,
+  RehearsalActivityItem,
   RehearsalDetailResponse,
   RehearsalNoteCreate,
   RehearsalNoteResponse,
@@ -509,12 +510,45 @@ export const api = {
 
   createNote(
     productionId: number,
-    body: { moment_id?: number; character_id?: number; visibility: "public" | "private"; content: string },
+    body: {
+      moment_id?: number;
+      character_id?: number;
+      rehearsal_id?: number;
+      visibility: "public" | "private";
+      content: string;
+    },
   ) {
     return request<NoteResponse>(`/productions/${productionId}/notes`, {
       method: "POST",
       body: JSON.stringify(body),
     });
+  },
+
+  listNotes(
+    productionId: number,
+    params: {
+      momentId?: number;
+      characterId?: number;
+      rehearsalId?: number;
+      sessionOnly?: boolean;
+    },
+  ) {
+    const search = new URLSearchParams();
+    if (params.momentId != null) search.set("moment_id", String(params.momentId));
+    if (params.characterId != null) search.set("character_id", String(params.characterId));
+    if (params.rehearsalId != null) search.set("rehearsal_id", String(params.rehearsalId));
+    if (params.sessionOnly) search.set("session_only", "true");
+    return request<NoteResponse[]>(`/productions/${productionId}/notes?${search.toString()}`);
+  },
+
+  approveAttachment(
+    productionId: number,
+    body: { kind: string; id: number },
+  ) {
+    return request<{ kind: string; id: number; status: string }>(
+      `/productions/${productionId}/attachments/approve`,
+      { method: "POST", body: JSON.stringify(body) },
+    );
   },
 
   deleteNote(productionId: number, noteId: number) {
@@ -797,6 +831,7 @@ export const api = {
       character_id?: number | null;
       user_id?: number | null;
       notes?: string | null;
+      status?: "suggested" | "official";
     },
   ) {
     return request<MomentPropEventResponse>(
@@ -871,7 +906,7 @@ export const api = {
   createMomentCue(
     productionId: number,
     momentId: number,
-    body: { cue_category_id: number; title: string; notes?: string | null; payload?: Record<string, unknown> | null },
+    body: { cue_category_id: number; title: string; notes?: string | null; payload?: Record<string, unknown> | null; status?: "suggested" | "official" },
   ) {
     return request<CueResponse>(`/productions/${productionId}/moments/${momentId}/cues`, {
       method: "POST",
@@ -1164,6 +1199,7 @@ export const api = {
       kind: AssetEventKind;
       costume_id?: number | null;
       notes?: string | null;
+      status?: "suggested" | "official";
     },
   ) {
     return request<MomentCostumeEventResponse>(
@@ -1350,6 +1386,7 @@ export const api = {
       character_id?: number | null;
       user_id?: number | null;
       notes?: string | null;
+      status?: "suggested" | "official";
     },
   ) {
     return request<MomentSetPieceEventResponse>(
@@ -1393,6 +1430,7 @@ export const api = {
       character_id?: number | null;
       group_id?: number | null;
       notes?: string | null;
+      status?: "suggested" | "official";
     },
   ) {
     return request<MomentEntranceResponse>(
@@ -1415,6 +1453,7 @@ export const api = {
       character_id?: number | null;
       group_id?: number | null;
       notes?: string | null;
+      status?: "suggested" | "official";
     },
   ) {
     return request<MomentExitResponse>(
@@ -1438,6 +1477,7 @@ export const api = {
       user_id?: number | null;
       group_id?: number | null;
       notes: string;
+      status?: "suggested" | "official";
     },
   ) {
     return request<MomentBlockingResponse>(
@@ -1615,6 +1655,12 @@ export const api = {
         method: "PATCH",
         body: JSON.stringify(body),
       },
+    );
+  },
+
+  listRehearsalActivity(productionId: number, rehearsalId: number) {
+    return request<RehearsalActivityItem[]>(
+      `/productions/${productionId}/rehearsals/${rehearsalId}/activity`,
     );
   },
 

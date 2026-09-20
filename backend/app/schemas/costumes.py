@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.schemas.prep import OptionalAttachmentStatus, PrepRecordResponse
+
 
 class CostumeCreate(BaseModel):
     character_id: int
@@ -23,7 +25,7 @@ class CostumeResponse(BaseModel):
     description: str | None
 
 
-class MomentCostumeEventCreate(BaseModel):
+class MomentCostumeEventCreate(OptionalAttachmentStatus):
     character_id: int
     kind: Literal["on", "off"]
     costume_id: int | None = None
@@ -54,7 +56,7 @@ class MomentCostumeEventUpdate(BaseModel):
         return self
 
 
-class MomentCostumeEventResponse(BaseModel):
+class MomentCostumeEventResponse(PrepRecordResponse):
     id: int
     character_id: int
     character_name: str

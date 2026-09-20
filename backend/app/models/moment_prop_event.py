@@ -2,9 +2,10 @@ from sqlalchemy import CheckConstraint, ForeignKey, String, Text, UniqueConstrai
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.models.prep_provenance import PrepProvenanceMixin
 
 
-class MomentPropEvent(Base):
+class MomentPropEvent(PrepProvenanceMixin, Base):
     """An on/off change for a prop at a Moment (Phase 14).
 
     Whether a prop is currently in play — and who has it — is not stored
@@ -56,4 +57,4 @@ class MomentPropEvent(Base):
     moment: Mapped["Moment"] = relationship(back_populates="moment_prop_events")
     prop: Mapped["Prop"] = relationship(back_populates="moment_events")
     character: Mapped["Character | None"] = relationship(back_populates="moment_prop_events")
-    user: Mapped["User | None"] = relationship()
+    user: Mapped["User | None"] = relationship(foreign_keys=[user_id])

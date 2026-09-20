@@ -76,6 +76,7 @@ function buildPrepBadgeDescriptors(moment: MomentSummary): PrepBadgeDescriptor[]
   if (moment.has_entrance) badges.push({ label: "Entrance" });
   if (moment.has_exit) badges.push({ label: "Exit" });
   if (moment.has_blocking) badges.push({ label: "Blocking" });
+  if (moment.has_suggested) badges.push({ label: "Suggested" });
   return badges;
 }
 
@@ -269,7 +270,11 @@ function MomentRow({
           <Badge
             key={badge.label}
             variant="outline"
-            className={cn("text-xs", index >= MOBILE_VISIBLE_PREP_BADGES && "max-sm:hidden")}
+            className={cn(
+              "text-xs",
+              badge.label === "Suggested" && "border-amber-500 text-amber-700 dark:text-amber-300",
+              index >= MOBILE_VISIBLE_PREP_BADGES && "max-sm:hidden",
+            )}
           >
             {badge.label}
           </Badge>

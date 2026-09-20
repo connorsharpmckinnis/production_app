@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, UniqueConstraint, func
+from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -76,11 +76,6 @@ class Rehearsal(Base):
         back_populates="rehearsal",
         cascade="all, delete-orphan",
         order_by="RehearsalBlock.sort_order",
-    )
-    notes: Mapped[list["RehearsalNote"]] = relationship(
-        back_populates="rehearsal",
-        cascade="all, delete-orphan",
-        order_by="RehearsalNote.created_at",
     )
 
 
@@ -159,34 +154,3 @@ class RehearsalBlockCall(Base):
 
     block: Mapped["RehearsalBlock"] = relationship(back_populates="calls")
     user: Mapped["User"] = relationship()
-
-
-class RehearsalNote(Base):
-    __tablename__ = "rehearsal_notes"
-
-    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
-    rehearsal_id: Mapped[int] = mapped_column(
-        ForeignKey("rehearsals.id", ondelete="CASCADE"),
-        nullable=False,
-        index=True,
-    )
-    author_user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id"),
-        nullable=False,
-        index=True,
-    )
-    content: Mapped[str] = mapped_column(Text, nullable=False)
-    created_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False,
-    )
-    updated_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        onupdate=func.now(),
-        nullable=False,
-    )
-
-    rehearsal: Mapped["Rehearsal"] = relationship(back_populates="notes")
-    author: Mapped["User"] = relationship()

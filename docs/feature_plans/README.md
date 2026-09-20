@@ -39,6 +39,7 @@ When implementing, agents should read the matching plan here for goals, non-goal
 | Plan | Status | One-liner |
 | ---- | ------ | --------- |
 | [casting-and-auditions.md](casting-and-auditions.md) | Proposal | Casting workspace, private audition notes, per-person unavailable dates, and rehearsal conflict awareness |
+| [rehearsal-capture-and-approvals.md](rehearsal-capture-and-approvals.md) | Shipped | Rehearsal capture: one Note model, public toggle, suggested→official Timeline actions, rehearsal activity log |
 
 ## Approved roadmap (near / mid)
 

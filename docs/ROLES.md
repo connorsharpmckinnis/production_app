@@ -38,8 +38,17 @@ permissions on all **active** roles. Inactive custom roles cannot be newly assig
 do not contribute capabilities.
 
 The normalized matrix stores one row for every role/resource/action combination.
-Actions are `read`, `create`, `update`, and `delete`. These are the seeded
-resource keys:
+Core actions are `read`, `create`, `update`, and `delete` on every resource.
+Three extra actions exist only on the resources that use them:
+
+| Action | Resource | Meaning |
+| --- | --- | --- |
+| `suggest` | `timeline` | Create Moment attachments as `suggested` |
+| `approve` | `timeline` | Create official attachments and Approve suggestions |
+| `publish` | `notes` | Mark an unstructured note public |
+
+Settings shows Suggest and Approve only on Timeline, and Publish only on Notes.
+These are the seeded resource keys:
 
 `production`, `overview`, `timeline`, `characters`, `casting`, `groups`, `songs`,
 `props`, `costumes`, `set_pieces`, `lav_chart`, `cue_categories`, `cues`, `notes`,
@@ -50,7 +59,7 @@ resource keys:
 | --- | --- |
 | Member | `read` on every production resource; no create/update/delete |
 | Actor | Member reads plus CRUD for `notes` and `bookmarks`; no other writes |
-| Director | `read` everywhere; CRUD for preparation, catalog, rehearsal, announcement, casting, and `people` resources; `production.update`; no production create/delete |
+| Director | `read` everywhere; CRUD for preparation, catalog, rehearsal, announcement, casting, and `people` resources; `production.update`; `timeline.suggest`, `timeline.approve`, and `notes.publish`; no production create/delete |
 
 The exact rows remain Admin-editable in App Settings (select a role, then edit grouped
 resources). Admin changes apply on the next authorization check to every matching
@@ -74,7 +83,10 @@ builder:
 4. Optionally tighten later if Emmy’s SMs should not manage casting or people.
 
 Recommended starting point (same as Director’s current matrix): full prep/catalog/lav/
-rehearsal/people/casting CRUD; `production.update`; read elsewhere. That lets an SM run
+rehearsal/people/casting CRUD; `production.update`; `timeline.suggest`, `timeline.approve`,
+and `notes.publish` when the role was copied from Director after those rows
+existed. If Stage Manager was copied earlier, turn on `timeline.approve` (and
+`notes.publish` if they should publish notes) in Settings. That lets an SM run
 Scrooge day-to-day without sharing the Director login or receiving Admin.
 
 ## Legacy global roles

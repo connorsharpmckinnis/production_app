@@ -2,9 +2,10 @@ from sqlalchemy import CheckConstraint, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.models.prep_provenance import PrepProvenanceMixin
 
 
-class MomentEntrance(Base):
+class MomentEntrance(PrepProvenanceMixin, Base):
     __tablename__ = "moment_entrances"
     __table_args__ = (
         CheckConstraint(

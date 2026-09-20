@@ -342,6 +342,7 @@ export interface MomentSummary {
   has_entrance: boolean;
   has_exit: boolean;
   has_blocking: boolean;
+  has_suggested?: boolean;
   on_stage_character_ids: number[];
   prop_ids: number[];
   set_piece_ids: number[];
@@ -396,7 +397,7 @@ export interface PropResponse {
 
 export type AssetEventKind = "on" | "off";
 
-export interface MomentPropEventResponse {
+export interface MomentPropEventResponse extends PrepRecordFields {
   id: number;
   prop_id: number;
   prop_name: string;
@@ -439,13 +440,25 @@ export interface CueCategoryResponse {
   description: string | null;
 }
 
-export interface CueResponse {
+export interface CueResponse extends PrepRecordFields {
   id: number;
   cue_category_id: number;
   cue_category_name: string;
   title: string;
   notes: string | null;
   payload: Record<string, unknown> | null;
+}
+
+export interface PrepRecordFields {
+  status?: "suggested" | "official";
+  created_by_user_id?: number | null;
+  created_by_display_name?: string | null;
+  updated_by_user_id?: number | null;
+  updated_by_display_name?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  rehearsal_id?: number | null;
+  rehearsal_label?: string | null;
 }
 
 export interface NoteResponse {
@@ -457,10 +470,14 @@ export interface NoteResponse {
   character_id: number | null;
   content: string;
   created_at: string;
+  updated_at?: string | null;
+  updated_by_display_name?: string | null;
+  rehearsal_id?: number | null;
+  scene_id?: number | null;
   is_mine: boolean;
 }
 
-export interface MomentSetPieceEventResponse {
+export interface MomentSetPieceEventResponse extends PrepRecordFields {
   id: number;
   set_piece_id: number;
   set_piece_name: string;
@@ -507,7 +524,7 @@ export interface OnStageGroupResponse {
   name: string;
 }
 
-export interface MomentEntranceResponse {
+export interface MomentEntranceResponse extends PrepRecordFields {
   id: number;
   character_id: number | null;
   character_name: string | null;
@@ -516,7 +533,7 @@ export interface MomentEntranceResponse {
   notes: string | null;
 }
 
-export interface MomentExitResponse {
+export interface MomentExitResponse extends PrepRecordFields {
   id: number;
   character_id: number | null;
   character_name: string | null;
@@ -525,7 +542,7 @@ export interface MomentExitResponse {
   notes: string | null;
 }
 
-export interface MomentBlockingResponse {
+export interface MomentBlockingResponse extends PrepRecordFields {
   id: number;
   character_id: number | null;
   character_name: string | null;
@@ -731,7 +748,7 @@ export interface CostumeResponse {
   description: string | null;
 }
 
-export interface MomentCostumeEventResponse {
+export interface MomentCostumeEventResponse extends PrepRecordFields {
   id: number;
   character_id: number;
   character_name: string;
@@ -1140,6 +1157,18 @@ export interface RehearsalBlockResponse {
   scenes: RehearsalBlockSceneResponse[];
   calls: RehearsalBlockCallResponse[];
   double_book_user_ids: number[];
+}
+
+export interface RehearsalActivityItem {
+  kind: string;
+  id: number;
+  summary: string;
+  status?: string | null;
+  visibility?: string | null;
+  created_at: string;
+  created_by_display_name?: string | null;
+  moment_id?: number | null;
+  scene_id?: number | null;
 }
 
 export interface RehearsalNoteResponse {

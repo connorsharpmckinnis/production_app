@@ -7,10 +7,8 @@ from app.db.encouragement_defaults import (
     DEFAULT_MESSAGE_ROTATION_SECONDS,
 )
 from app.db.production_role_defaults import (
-    PERMISSION_ACTIONS,
     PRODUCTION_PERMISSION_RESOURCES,
     PRODUCTION_ROLE_DEFINITIONS,
-    enabled_actions_for,
 )
 from app.models import (
     AppOverviewMessageDefault,
@@ -173,8 +171,11 @@ def _seed_overview_message_defaults(db: Session) -> None:
 
 
 def _seed_production_roles(db: Session) -> None:
+    from app.db.production_role_defaults import actions_for_resource, enabled_actions_for
+    from app.models import ProductionRolePermission
     from app.services.production_roles import ensure_permission_rows_for_role
 
+    system_codes = {code for code, _name, _description in PRODUCTION_ROLE_DEFINITIONS}
     for code, name, description in PRODUCTION_ROLE_DEFINITIONS:
         role = db.query(ProductionRole).filter(ProductionRole.code == code).first()
         if role is None:
@@ -187,11 +188,34 @@ def _seed_production_roles(db: Session) -> None:
             db.add(role)
             db.flush()
 
-        enabled_map = {
-            (resource, action): action in enabled_actions_for(code, resource)
-            for resource in PRODUCTION_PERMISSION_RESOURCES
-            for action in PERMISSION_ACTIONS
-        }
+    for role in db.query(ProductionRole).all():
+        if role.code in system_codes:
+            enabled_map = {
+                (resource, action): action in enabled_actions_for(role.code, resource)
+                for resource in PRODUCTION_PERMISSION_RESOURCES
+                for action in actions_for_resource(resource)
+            }
+        else:
+            existing_enabled = {
+                (row.resource, row.action): row.enabled
+                for row in db.query(ProductionRolePermission)
+                .filter(ProductionRolePermission.production_role_id == role.id)
+                .all()
+            }
+            has_timeline_create = existing_enabled.get(("timeline", "create"), False)
+            has_notes_create = existing_enabled.get(("notes", "create"), False)
+            enabled_map = dict(existing_enabled)
+            for resource in PRODUCTION_PERMISSION_RESOURCES:
+                for action in actions_for_resource(resource):
+                    key = (resource, action)
+                    if key in enabled_map:
+                        continue
+                    if resource == "timeline" and action in {"suggest", "approve"}:
+                        enabled_map[key] = has_timeline_create
+                    elif resource == "notes" and action == "publish":
+                        enabled_map[key] = bool(has_notes_create and has_timeline_create)
+                    else:
+                        enabled_map[key] = False
         ensure_permission_rows_for_role(db, role, enabled_map)
     db.flush()
 

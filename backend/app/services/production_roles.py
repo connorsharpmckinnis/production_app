@@ -7,9 +7,9 @@ import re
 from sqlalchemy.orm import Session
 
 from app.db.production_role_defaults import (
-    PERMISSION_ACTIONS,
     PRODUCTION_PERMISSION_RESOURCES,
     PRODUCTION_ROLE_DEFINITIONS,
+    actions_for_resource,
 )
 from app.models import ProductionMembershipRole, ProductionRole, ProductionRolePermission
 from app.schemas.people import ProductionRoleDetailResponse
@@ -115,7 +115,7 @@ def ensure_permission_rows_for_role(
         )
     }
     for resource in PRODUCTION_PERMISSION_RESOURCES:
-        for action in PERMISSION_ACTIONS:
+        for action in actions_for_resource(resource):
             key = (resource, action)
             if key in existing:
                 continue

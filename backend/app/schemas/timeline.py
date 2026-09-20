@@ -80,6 +80,7 @@ class MomentSummary(BaseModel):
     has_entrance: bool
     has_exit: bool
     has_blocking: bool
+    has_suggested: bool = False
     on_stage_character_ids: list[int] = []
     prop_ids: list[int] = []
     set_piece_ids: list[int] = []

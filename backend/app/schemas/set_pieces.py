@@ -2,6 +2,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from app.schemas.prep import OptionalAttachmentStatus, PrepRecordResponse
+
 
 def _reject_both_character_and_user(character_id: int | None, user_id: int | None) -> None:
     if character_id is not None and user_id is not None:
@@ -27,7 +29,7 @@ class SetPieceResponse(BaseModel):
     description: str | None
 
 
-class MomentSetPieceEventCreate(BaseModel):
+class MomentSetPieceEventCreate(OptionalAttachmentStatus):
     set_piece_id: int
     kind: Literal["on", "off"]
     character_id: int | None = None
@@ -54,7 +56,7 @@ class MomentSetPieceEventUpdate(BaseModel):
         return self
 
 
-class MomentSetPieceEventResponse(BaseModel):
+class MomentSetPieceEventResponse(PrepRecordResponse):
     id: int
     set_piece_id: int
     set_piece_name: str

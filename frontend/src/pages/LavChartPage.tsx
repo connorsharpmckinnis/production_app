@@ -681,7 +681,7 @@ export default function LavChartPage() {
   const actNumbers = uniqueActNumbers(chart.scenes);
 
   return (
-    <div className="space-y-4 pb-8">
+    <div className="space-y-4">
       <div className="lav-print-hide space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>

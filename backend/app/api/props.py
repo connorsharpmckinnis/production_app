@@ -8,6 +8,7 @@ from app.api.catalog_csv_routes import (
 )
 from app.api.deps import (
     get_accessible_production,
+    require_any_production_capability,
     require_production_capability,
     user_display_name,
     validate_optional_person,
@@ -24,6 +25,7 @@ from app.schemas.props import (
     PropUpdate,
 )
 from app.services.catalog_csv import CatalogCsvError, PROPS_COLUMNS, import_props_csv
+from app.services.prep_records import prepare_new_attachment, prep_fields
 
 router = APIRouter(prefix="/productions", tags=["props"])
 
@@ -67,6 +69,7 @@ def _moment_prop_event_response(event: MomentPropEvent) -> MomentPropEventRespon
         user_id=event.user_id,
         user_display_name=user_display_name(event.user) if event.user else None,
         notes=event.notes,
+        **prep_fields(event),
     )
 
 
@@ -225,9 +228,16 @@ def create_moment_prop_event(
     production_id: int,
     moment_id: int,
     body: MomentPropEventCreate,
-    _user: User = Depends(require_production_capability("props", "create")),
+    user: User = Depends(
+        require_any_production_capability(
+            ("props", "create"),
+            ("timeline", "suggest"),
+            ("timeline", "approve"),
+        )
+    ),
     db: Session = Depends(get_db),
 ) -> MomentPropEventResponse:
+    production = get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     _get_prop_or_404(db, production_id, body.prop_id)
     validate_optional_person(db, production_id, body.character_id, body.user_id)
@@ -250,6 +260,9 @@ def create_moment_prop_event(
         character_id=body.character_id,
         user_id=body.user_id,
         notes=body.notes,
+    )
+    prepare_new_attachment(
+        db, production, user, event, body.status, legacy_resource="props",
     )
     db.add(event)
     db.commit()

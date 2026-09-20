@@ -1,10 +1,7 @@
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
-from app.db.production_role_defaults import (
-    PERMISSION_ACTIONS,
-    PRODUCTION_PERMISSION_RESOURCES,
-)
+from app.db.production_role_defaults import permission_pair_count
 from app.db.seed import seed_database
 from app.models import Production, ProductionRole, User
 from app.services.production_memberships import create_or_reactivate_membership
@@ -68,7 +65,7 @@ def test_admin_can_create_custom_role_and_assign_it(
     sm_rows = [
         row for row in matrix.json() if row["role_code"] == "stage_manager"
     ]
-    assert len(sm_rows) == len(PRODUCTION_PERMISSION_RESOURCES) * len(PERMISSION_ACTIONS)
+    assert len(sm_rows) == permission_pair_count()
     director_enabled = {
         (row["resource"], row["action"])
         for row in matrix.json()

@@ -206,7 +206,7 @@ function StaffOverview({
     overview.readiness_percent === null ? "—" : `${overview.readiness_percent}%`;
 
   return (
-    <div className="space-y-8 pb-10">
+    <div className="space-y-8">
       <header>
         <Link
           to="/productions"
@@ -319,7 +319,7 @@ function ActorOverview({
   peopleError: string | null;
 }) {
   return (
-    <div className="space-y-8 pb-10">
+    <div className="space-y-8">
       <header>
         <Link
           to="/productions"

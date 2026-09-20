@@ -153,6 +153,40 @@ def get_accessible_production(db: Session, user: User, production_id: int) -> Pr
     return production
 
 
+def require_any_production_capability(*pairs: tuple[str, str]):
+    """Allow the request when the user has any one of the resource/action pairs."""
+
+    def _require_any(
+        production_id: int,
+        user: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
+    ) -> User:
+        production = get_production_or_404(db, production_id)
+        if production.organization_id != user.organization_id:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Production not found",
+            )
+        membership = get_active_production_membership(db, user, production_id)
+        if membership is None and not user_has_role(user, "Admin"):
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Production not found",
+            )
+        if any(
+            user_has_production_capability(db, user, production, resource, action)
+            for resource, action in pairs
+        ):
+            return user
+        labels = ", ".join(f"{resource} {action}" for resource, action in pairs)
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"One of these is required: {labels}",
+        )
+
+    return _require_any
+
+
 def require_production_capability(resource: str, action: str):
     """Build a dependency for a capability on the route's production_id."""
 

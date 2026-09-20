@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Plus, Trash2 } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
+import NotesPanel from "@/components/notes/NotesPanel";
 import SceneMultiSelect from "@/components/SceneMultiSelect";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -16,7 +17,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useConfirm } from "@/context/ConfirmContext";
@@ -26,8 +26,8 @@ import type {
   ActSummary,
   CastableUserResponse,
   LocationResponse,
+  RehearsalActivityItem,
   RehearsalDetailResponse,
-  RehearsalNoteResponse,
   SceneRecommendationResponse,
   SuggestedCallResponse,
 } from "@/lib/types";
@@ -129,16 +129,8 @@ function canPublish(status: string): boolean {
   return status === "scheduled" || status === "planned" || status === "published";
 }
 
-function canOpen(status: string): boolean {
-  return status === "published" || status === "planned" || status === "in_progress";
-}
-
 function canComplete(status: string): boolean {
   return status === "in_progress" || status === "published" || status === "planned";
-}
-
-function notesAllowed(status: string): boolean {
-  return status === "in_progress" || status === "published" || status === "completed";
 }
 
 export default function RehearsalDetailPage() {
@@ -171,8 +163,6 @@ export default function RehearsalDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
-  const [noteContent, setNoteContent] = useState("");
-  const [noteSaving, setNoteSaving] = useState(false);
 
   const editable =
     canManagePreparation &&
@@ -381,46 +371,6 @@ export default function RehearsalDetailPage() {
     );
   }
 
-  async function handleAddNote(event: React.FormEvent) {
-    event.preventDefault();
-    if (!noteContent.trim()) return;
-    setNoteSaving(true);
-    try {
-      const note = await api.createRehearsalNote(productionId, rehearsalId, {
-        content: noteContent.trim(),
-      });
-      setRehearsal((prev) =>
-        prev ? { ...prev, notes: [...prev.notes, note] } : prev,
-      );
-      setNoteContent("");
-      toast.success("Note added");
-    } catch (err) {
-      toast.error(formatApiError(err, "Failed to add note"));
-    } finally {
-      setNoteSaving(false);
-    }
-  }
-
-  async function handleDeleteNote(note: RehearsalNoteResponse) {
-    const ok = await confirm({
-      title: "Delete this note?",
-      confirmLabel: "Delete",
-      destructive: true,
-    });
-    if (!ok) return;
-    try {
-      await api.deleteRehearsalNote(productionId, rehearsalId, note.id);
-      setRehearsal((prev) =>
-        prev
-          ? { ...prev, notes: prev.notes.filter((item) => item.id !== note.id) }
-          : prev,
-      );
-      toast.success("Note deleted");
-    } catch (err) {
-      toast.error(formatApiError(err, "Failed to delete note"));
-    }
-  }
-
   function toggleUser(blockKey: string, userId: number, checked: boolean) {
     setBlocks((prev) =>
       prev.map((block) => {
@@ -603,20 +553,6 @@ export default function RehearsalDetailPage() {
             }
           >
             Publish
-          </Button>
-        )}
-        {canOpen(rehearsal.status) && editable && (
-          <Button
-            type="button"
-            variant="outline"
-            disabled={actionBusy}
-            onClick={() =>
-              void runStatusAction("Opened", () =>
-                api.openRehearsal(productionId, rehearsalId),
-              )
-            }
-          >
-            Open
           </Button>
         )}
         {canComplete(rehearsal.status) && canManagePreparation && (
@@ -874,57 +810,95 @@ export default function RehearsalDetailPage() {
         </aside>
       </div>
 
-      {notesAllowed(rehearsal.status) && (
-        <section className="space-y-3">
-          <h2 className="text-lg font-medium">Notes</h2>
-          {rehearsal.notes.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No notes yet.</p>
-          ) : (
-            <ul className="space-y-2">
-              {rehearsal.notes.map((note) => {
-                const isMine = user?.id === note.author_user_id;
-                return (
-                  <li
-                    key={note.id}
-                    className="flex items-start justify-between gap-3 rounded-md border border-border px-3 py-2"
-                  >
-                    <div>
-                      <p className="text-sm whitespace-pre-wrap">{note.content}</p>
-                      <p className="mt-1 text-xs text-muted-foreground">
-                        {note.author_display_name} · {formatDateTime(note.created_at)}
-                      </p>
-                    </div>
-                    {isMine && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={() => void handleDeleteNote(note)}
-                        aria-label="Delete note"
-                        title="Delete"
-                      >
-                        <Trash2 />
-                      </Button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          <form onSubmit={(e) => void handleAddNote(e)} className="space-y-2">
-            <Label htmlFor="rehearsal-note">Add note</Label>
-            <Textarea
-              id="rehearsal-note"
-              value={noteContent}
-              onChange={(e) => setNoteContent(e.target.value)}
-              rows={3}
-              placeholder="Director notes for this rehearsal…"
-            />
-            <Button type="submit" disabled={noteSaving || !noteContent.trim()}>
-              {noteSaving ? "Saving…" : "Add note"}
-            </Button>
-          </form>
+      <section className="space-y-3">
+          <NotesPanel
+            productionId={productionId}
+            rehearsalId={rehearsal.id}
+            sessionOnly
+            canPublish={hasCapability("notes", "publish")}
+            title="Session notes"
+          />
+          <RehearsalActivityList
+            productionId={productionId}
+            rehearsalId={rehearsal.id}
+            canApprove={hasCapability("timeline", "approve")}
+          />
         </section>
+    </div>
+  );
+}
+
+function RehearsalActivityList({
+  productionId,
+  rehearsalId,
+  canApprove,
+}: {
+  productionId: number;
+  rehearsalId: number;
+  canApprove: boolean;
+}) {
+  const toast = useToast();
+  const [items, setItems] = useState<RehearsalActivityItem[]>([]);
+
+  const load = useCallback(async () => {
+    try {
+      const rows = await api.listRehearsalActivity(productionId, rehearsalId);
+      setItems(rows.filter((item) => item.kind !== "note" || item.moment_id != null));
+    } catch (err) {
+      toast.error(formatApiError(err, "Failed to load rehearsal activity"));
+    }
+  }, [productionId, rehearsalId, toast]);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  async function approve(item: RehearsalActivityItem) {
+    try {
+      await api.approveAttachment(productionId, { kind: item.kind, id: item.id });
+      await load();
+      toast.success("Approved");
+    } catch (err) {
+      toast.error(formatApiError(err, "Failed to approve"));
+    }
+  }
+
+  return (
+    <div className="space-y-2">
+      <h2 className="text-lg font-medium">What happened</h2>
+      {items.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Nothing captured for this rehearsal yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {items.map((item) => (
+            <li
+              key={`${item.kind}-${item.id}`}
+              className="flex items-start justify-between gap-3 rounded-md border border-border px-3 py-2 text-sm"
+            >
+              <div>
+                {item.moment_id != null && item.scene_id != null ? (
+                  <Link
+                    className="font-medium text-primary underline-offset-2 hover:underline"
+                    to={`/productions/${productionId}/timeline?scene=${item.scene_id}&moment=${item.moment_id}`}
+                  >
+                    {item.summary}
+                  </Link>
+                ) : (
+                  <p className="font-medium">{item.summary}</p>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  {item.created_by_display_name ?? "Someone"} · {formatDateTime(item.created_at)}
+                  {item.status === "suggested" ? " · Suggested" : ""}
+                </p>
+              </div>
+              {canApprove && item.status === "suggested" && (
+                <Button type="button" size="sm" variant="outline" onClick={() => void approve(item)}>
+                  Approve
+                </Button>
+              )}
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

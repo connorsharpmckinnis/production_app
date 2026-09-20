@@ -1,5 +1,7 @@
 from pydantic import BaseModel, Field
 
+from app.schemas.prep import OptionalAttachmentStatus, PrepRecordResponse
+
 
 class CueCategoryCreate(BaseModel):
     name: str = Field(min_length=1, max_length=255)
@@ -17,7 +19,7 @@ class CueCategoryResponse(BaseModel):
     description: str | None
 
 
-class CueCreate(BaseModel):
+class CueCreate(OptionalAttachmentStatus):
     cue_category_id: int
     title: str = Field(min_length=1, max_length=255)
     notes: str | None = None
@@ -31,7 +33,7 @@ class CueUpdate(BaseModel):
     payload: dict | None = None
 
 
-class CueResponse(BaseModel):
+class CueResponse(PrepRecordResponse):
     id: int
     cue_category_id: int
     cue_category_name: str

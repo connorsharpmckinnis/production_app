@@ -204,8 +204,12 @@ def test_plan_publish_my_call_and_complete(
     assert my_calls[0]["blocks"][0]["label"] == "Love scene"
 
     note = seeded_client.post(
-        f"/api/productions/{production_id}/rehearsals/{rehearsal_id}/notes",
-        json={"content": "Josh moves USL on that line"},
+        f"/api/productions/{production_id}/notes",
+        json={
+            "rehearsal_id": rehearsal_id,
+            "visibility": "private",
+            "content": "Josh moves USL on that line",
+        },
         headers=director,
     )
     assert note.status_code == 201
@@ -275,23 +279,36 @@ def test_rehearsal_notes_hidden_from_actors(
         headers=director,
     )
     seeded_client.post(
-        f"/api/productions/{production_id}/rehearsals/{rehearsal_id}/notes",
-        json={"content": "Director-only note"},
+        f"/api/productions/{production_id}/notes",
+        json={
+            "rehearsal_id": rehearsal_id,
+            "visibility": "private",
+            "content": "Director-only note",
+        },
         headers=director,
     )
 
-    actor_detail = seeded_client.get(
-        f"/api/productions/{production_id}/rehearsals/{rehearsal_id}",
+    actor_notes = seeded_client.get(
+        f"/api/productions/{production_id}/notes",
+        params={"rehearsal_id": rehearsal_id, "session_only": True},
         headers=actor,
     )
-    assert actor_detail.status_code == 200
-    assert actor_detail.json()["notes"] == []
+    assert actor_notes.status_code == 200
+    assert actor_notes.json() == []
 
-    director_detail = seeded_client.get(
-        f"/api/productions/{production_id}/rehearsals/{rehearsal_id}",
+    director_notes = seeded_client.get(
+        f"/api/productions/{production_id}/notes",
+        params={"rehearsal_id": rehearsal_id, "session_only": True},
         headers=director,
     )
-    assert len(director_detail.json()["notes"]) == 1
+    assert len(director_notes.json()) == 1
+
+    activity = seeded_client.get(
+        f"/api/productions/{production_id}/rehearsals/{rehearsal_id}/activity",
+        headers=director,
+    )
+    assert activity.status_code == 200
+    assert any(item["kind"] == "note" for item in activity.json())
 
 
 def test_actor_list_hides_plan_details_until_published(

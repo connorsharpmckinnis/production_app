@@ -87,7 +87,7 @@ export default function ComponentGalleryPage() {
   const [slowLoadKey, setSlowLoadKey] = useState(0);
 
   return (
-    <div className="mx-auto max-w-4xl space-y-6 pb-16">
+    <div className="mx-auto max-w-4xl space-y-6">
       <div>
         <Link to="/settings" className="text-sm text-muted-foreground hover:text-foreground">
           ← Settings

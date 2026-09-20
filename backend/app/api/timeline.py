@@ -7,6 +7,7 @@ from app.api.deps import (
     user_display_name,
 )
 from app.api.notes import notes_visible_to_user
+from app.services.prep_records import prep_fields
 from app.auth.dependencies import require_admin, require_authenticated
 from app.db.session import get_db
 from app.models import (
@@ -133,6 +134,9 @@ def _get_moment_in_production_or_404(
 
 
 def _note_response(note: Note, current_user_id: int) -> NoteResponse:
+    updated_by_name = None
+    if note.updated_by is not None and note.updated_by_user_id is not None:
+        updated_by_name = user_display_name(note.updated_by)
     return NoteResponse(
         id=note.id,
         user_id=note.user_id,
@@ -140,9 +144,13 @@ def _note_response(note: Note, current_user_id: int) -> NoteResponse:
         visibility=note.visibility,
         moment_id=note.moment_id,
         character_id=note.character_id,
+        rehearsal_id=note.rehearsal_id,
         content=note.content,
         created_at=note.created_at,
+        updated_at=note.updated_at,
+        updated_by_display_name=updated_by_name,
         is_mine=note.user_id == current_user_id,
+        scene_id=note.moment.scene_id if note.moment is not None else None,
     )
 
 
@@ -161,6 +169,7 @@ def _moment_prop_event_response(
         user_id=event.user_id,
         user_display_name=user_display_name(event.user) if event.user else None,
         notes=event.notes,
+        **prep_fields(event),
         **(prior_on or {}),
     )
 
@@ -180,6 +189,7 @@ def _moment_set_piece_event_response(
         user_id=event.user_id,
         user_display_name=user_display_name(event.user) if event.user else None,
         notes=event.notes,
+        **prep_fields(event),
         **(prior_on or {}),
     )
 
@@ -209,6 +219,7 @@ def _moment_costume_event_response(
         costume_id=event.costume_id,
         costume_name=event.costume.name if event.costume else None,
         notes=event.notes,
+        **prep_fields(event),
         **(prior_on or {}),
     )
 
@@ -505,6 +516,7 @@ def _moment_entrance_response(entrance: MomentEntrance) -> MomentEntranceRespons
         group_id=entrance.group_id,
         group_name=entrance.group.name if entrance.group else None,
         notes=entrance.notes,
+        **prep_fields(entrance),
     )
 
 
@@ -516,6 +528,7 @@ def _moment_exit_response(exit_row: MomentExit) -> MomentExitResponse:
         group_id=exit_row.group_id,
         group_name=exit_row.group.name if exit_row.group else None,
         notes=exit_row.notes,
+        **prep_fields(exit_row),
     )
 
 
@@ -529,6 +542,7 @@ def _moment_blocking_response(blocking: MomentBlocking) -> MomentBlockingRespons
         group_id=blocking.group_id,
         group_name=blocking.group.name if blocking.group else None,
         notes=blocking.notes,
+        **prep_fields(blocking),
     )
 
 
@@ -540,6 +554,7 @@ def _cue_response(cue: Cue) -> CueResponse:
         title=cue.title,
         notes=cue.notes,
         payload=cue.payload,
+        **prep_fields(cue),
     )
 
 
@@ -741,6 +756,18 @@ def list_scene_moments(
             has_entrance=len(moment.moment_entrances) > 0,
             has_exit=len(moment.moment_exits) > 0,
             has_blocking=len(moment.moment_blocking) > 0,
+            has_suggested=any(
+                getattr(row, "status", "official") == "suggested"
+                for row in (
+                    *moment.moment_entrances,
+                    *moment.moment_exits,
+                    *moment.moment_blocking,
+                    *moment.moment_prop_events,
+                    *moment.moment_set_piece_events,
+                    *moment.moment_costume_events,
+                    *moment.cues,
+                )
+            ),
             on_stage_character_ids=on_stage_by_moment.get(moment.id, []),
             prop_ids=sorted({event.prop_id for event in moment.moment_prop_events}),
             set_piece_ids=sorted(
@@ -810,7 +837,7 @@ def get_moment_detail(
     stage_direction = (
         moment.stage_directions[0].direction_text if moment.stage_directions else None
     )
-    visible_notes = notes_visible_to_user(moment.notes, user.id)
+    visible_notes = notes_visible_to_user(moment.notes, user)
     is_bookmarked = (
         db.query(Bookmark.id)
         .filter(Bookmark.user_id == user.id, Bookmark.moment_id == moment_id)

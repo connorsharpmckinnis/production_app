@@ -6,7 +6,11 @@ from app.api.catalog_csv_routes import (
     catalog_template_response,
     read_catalog_upload,
 )
-from app.api.deps import get_accessible_production, require_production_capability
+from app.api.deps import (
+    get_accessible_production,
+    require_any_production_capability,
+    require_production_capability,
+)
 from app.db.session import get_db
 from app.models import Act, Character, Costume, Moment, MomentCostumeEvent, Scene, User
 from app.schemas.catalog_csv import CatalogImportResult
@@ -19,6 +23,7 @@ from app.schemas.costumes import (
     MomentCostumeEventUpdate,
 )
 from app.services.catalog_csv import CatalogCsvError, COSTUMES_COLUMNS, import_costumes_csv
+from app.services.prep_records import prep_fields, prepare_new_attachment
 
 router = APIRouter(prefix="/productions", tags=["costumes"])
 
@@ -87,6 +92,7 @@ def _moment_costume_event_response(event: MomentCostumeEvent) -> MomentCostumeEv
         costume_id=event.costume_id,
         costume_name=event.costume.name if event.costume else None,
         notes=event.notes,
+        **prep_fields(event),
     )
 
 
@@ -233,9 +239,16 @@ def create_moment_costume_event(
     production_id: int,
     moment_id: int,
     body: MomentCostumeEventCreate,
-    _user: User = Depends(require_production_capability("costumes", "create")),
+    user: User = Depends(
+        require_any_production_capability(
+            ("costumes", "create"),
+            ("timeline", "suggest"),
+            ("timeline", "approve"),
+        )
+    ),
     db: Session = Depends(get_db),
 ) -> MomentCostumeEventResponse:
+    production = get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     _validate_character_in_production(db, production_id, body.character_id)
     if body.costume_id is not None:
@@ -261,6 +274,9 @@ def create_moment_costume_event(
         kind=body.kind,
         costume_id=body.costume_id,
         notes=body.notes,
+    )
+    prepare_new_attachment(
+        db, production, user, event, body.status, legacy_resource="costumes",
     )
     db.add(event)
     db.commit()

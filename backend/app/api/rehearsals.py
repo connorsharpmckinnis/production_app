@@ -23,21 +23,19 @@ from app.models.rehearsal import (
     Rehearsal,
     RehearsalBlock,
     RehearsalBlockCall,
-    RehearsalNote,
 )
 from app.schemas.rehearsals import (
     LocationCreate,
     LocationResponse,
     MyCallBlockResponse,
     MyCallResponse,
+    RehearsalActivityItem,
     RehearsalBlockCallResponse,
     RehearsalBlockResponse,
     RehearsalBlockSceneResponse,
     RehearsalCreate,
     RehearsalDetailResponse,
-    RehearsalNoteCreate,
     RehearsalNoteResponse,
-    RehearsalNoteUpdate,
     RehearsalPlanReplace,
     RehearsalStatusUpdate,
     RehearsalSummaryResponse,
@@ -50,6 +48,7 @@ from app.services.production_memberships import (
     get_membership,
     list_active_production_users,
 )
+from app.services.rehearsal_activity import rehearsal_activity
 from app.services.rehearsal_cast import (
     scene_recommendations,
     suggested_users_for_scenes,
@@ -103,7 +102,6 @@ def _get_rehearsal_or_404(
             selectinload(Rehearsal.blocks)
             .selectinload(RehearsalBlock.calls)
             .joinedload(RehearsalBlockCall.user),
-            selectinload(Rehearsal.notes).joinedload(RehearsalNote.author),
         )
         .filter(Rehearsal.id == rehearsal_id, Rehearsal.production_id == production_id)
         .first()
@@ -187,17 +185,6 @@ def _block_response(
     )
 
 
-def _note_response(note: RehearsalNote) -> RehearsalNoteResponse:
-    return RehearsalNoteResponse(
-        id=note.id,
-        author_user_id=note.author_user_id,
-        author_display_name=user_display_name(note.author),
-        content=note.content,
-        created_at=note.created_at,
-        updated_at=note.updated_at,
-    )
-
-
 def _detail_response(
     db: Session,
     rehearsal: Rehearsal,
@@ -220,8 +207,6 @@ def _detail_response(
         ]
 
     notes: list[RehearsalNoteResponse] = []
-    if is_mgr:
-        notes = [_note_response(n) for n in rehearsal.notes]
 
     return RehearsalDetailResponse(
         id=rehearsal.id,
@@ -787,103 +772,18 @@ def set_rehearsal_status(
     )
 
 
-# --- Notes ---
-
-
-@router.post(
-    "/{production_id}/rehearsals/{rehearsal_id}/notes",
-    response_model=RehearsalNoteResponse,
-    status_code=status.HTTP_201_CREATED,
+@router.get(
+    "/{production_id}/rehearsals/{rehearsal_id}/activity",
+    response_model=list[RehearsalActivityItem],
 )
-def create_rehearsal_note(
+def get_rehearsal_activity(
     production_id: int,
     rehearsal_id: int,
-    body: RehearsalNoteCreate,
-    user: User = Depends(require_production_capability("rehearsals", "create")),
+    user: User = Depends(require_production_capability("rehearsals", "read")),
     db: Session = Depends(get_db),
-) -> RehearsalNoteResponse:
+) -> list[RehearsalActivityItem]:
     rehearsal = _get_rehearsal_or_404(db, production_id, rehearsal_id)
-    note = RehearsalNote(
-        rehearsal_id=rehearsal.id,
-        author_user_id=user.id,
-        content=body.content.strip(),
-    )
-    db.add(note)
-    db.commit()
-    db.refresh(note)
-    note = (
-        db.query(RehearsalNote)
-        .options(joinedload(RehearsalNote.author))
-        .filter(RehearsalNote.id == note.id)
-        .one()
-    )
-    return _note_response(note)
-
-
-@router.patch(
-    "/{production_id}/rehearsals/{rehearsal_id}/notes/{note_id}",
-    response_model=RehearsalNoteResponse,
-)
-def update_rehearsal_note(
-    production_id: int,
-    rehearsal_id: int,
-    note_id: int,
-    body: RehearsalNoteUpdate,
-    user: User = Depends(require_production_capability("rehearsals", "update")),
-    db: Session = Depends(get_db),
-) -> RehearsalNoteResponse:
-    _get_rehearsal_or_404(db, production_id, rehearsal_id)
-    note = (
-        db.query(RehearsalNote)
-        .options(joinedload(RehearsalNote.author))
-        .filter(
-            RehearsalNote.id == note_id,
-            RehearsalNote.rehearsal_id == rehearsal_id,
-        )
-        .first()
-    )
-    if note is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
-    if note.author_user_id != user.id and not user_has_role(user, "Admin"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Can only edit your own notes",
-        )
-    note.content = body.content.strip()
-    db.commit()
-    db.refresh(note)
-    return _note_response(note)
-
-
-@router.delete(
-    "/{production_id}/rehearsals/{rehearsal_id}/notes/{note_id}",
-    status_code=status.HTTP_204_NO_CONTENT,
-)
-def delete_rehearsal_note(
-    production_id: int,
-    rehearsal_id: int,
-    note_id: int,
-    user: User = Depends(require_production_capability("rehearsals", "delete")),
-    db: Session = Depends(get_db),
-) -> None:
-    _get_rehearsal_or_404(db, production_id, rehearsal_id)
-    note = (
-        db.query(RehearsalNote)
-        .filter(
-            RehearsalNote.id == note_id,
-            RehearsalNote.rehearsal_id == rehearsal_id,
-        )
-        .first()
-    )
-    if note is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Note not found")
-    if note.author_user_id != user.id and not user_has_role(user, "Admin"):
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Can only delete your own notes",
-        )
-    db.delete(note)
-    db.commit()
+    return rehearsal_activity(db, rehearsal, user)
 
 
 @router.get(

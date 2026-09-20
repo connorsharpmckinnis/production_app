@@ -4,6 +4,21 @@ from collections.abc import Mapping
 
 PERMISSION_ACTIONS = ("read", "create", "update", "delete")
 
+# Extra actions exist only on the resources that use them. They are not part of
+# the CRUD grid for every resource.
+RESOURCE_EXTRA_ACTIONS: Mapping[str, tuple[str, ...]] = {
+    "timeline": ("suggest", "approve"),
+    "notes": ("publish",),
+}
+
+
+def actions_for_resource(resource: str) -> tuple[str, ...]:
+    return PERMISSION_ACTIONS + RESOURCE_EXTRA_ACTIONS.get(resource, ())
+
+
+def permission_pair_count() -> int:
+    return sum(len(actions_for_resource(resource)) for resource in PRODUCTION_PERMISSION_RESOURCES)
+
 PRODUCTION_ROLE_DEFINITIONS = (
     ("member", "Member", "General production participant"),
     ("director", "Director", "Production preparation and leadership"),
@@ -78,4 +93,9 @@ PRODUCTION_ROLE_ENABLED_ACTIONS: Mapping[str, Mapping[str, frozenset[str]]] = {
 def enabled_actions_for(role_code: str, resource: str) -> frozenset[str]:
     """Return the default enabled actions for one role/resource pair."""
 
-    return PRODUCTION_ROLE_ENABLED_ACTIONS[role_code][resource]
+    actions = set(PRODUCTION_ROLE_ENABLED_ACTIONS[role_code][resource])
+    if role_code == "director" and resource == "timeline":
+        actions.update({"suggest", "approve"})
+    if role_code == "director" and resource == "notes":
+        actions.add("publish")
+    return frozenset(actions)

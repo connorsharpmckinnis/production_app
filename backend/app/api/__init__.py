@@ -14,6 +14,7 @@ from app.api import (
     people,
     packs,
     productions,
+    prep_actions,
     props,
     rehearsals,
     reports,
@@ -32,6 +33,7 @@ api_router.include_router(settings.router)
 api_router.include_router(feedback.router)
 api_router.include_router(notifications.router)
 api_router.include_router(productions.router)
+api_router.include_router(prep_actions.router)
 api_router.include_router(import_profiles.router)
 api_router.include_router(timeline.router)
 api_router.include_router(timeline.lookup_router)

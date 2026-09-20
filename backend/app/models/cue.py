@@ -2,9 +2,10 @@ from sqlalchemy import ForeignKey, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.models.prep_provenance import PrepProvenanceMixin
 
 
-class Cue(Base):
+class Cue(PrepProvenanceMixin, Base):
     __tablename__ = "cues"
 
     id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)

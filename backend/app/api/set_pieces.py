@@ -8,6 +8,7 @@ from app.api.catalog_csv_routes import (
 )
 from app.api.deps import (
     get_accessible_production,
+    require_any_production_capability,
     require_production_capability,
     user_display_name,
     validate_optional_person,
@@ -24,6 +25,7 @@ from app.schemas.set_pieces import (
     SetPieceUpdate,
 )
 from app.services.catalog_csv import CatalogCsvError, SET_PIECES_COLUMNS, import_set_pieces_csv
+from app.services.prep_records import prep_fields, prepare_new_attachment
 
 router = APIRouter(prefix="/productions", tags=["set-pieces"])
 
@@ -67,6 +69,7 @@ def _moment_set_piece_event_response(event: MomentSetPieceEvent) -> MomentSetPie
         user_id=event.user_id,
         user_display_name=user_display_name(event.user) if event.user else None,
         notes=event.notes,
+        **prep_fields(event),
     )
 
 
@@ -229,9 +232,16 @@ def create_moment_set_piece_event(
     production_id: int,
     moment_id: int,
     body: MomentSetPieceEventCreate,
-    _user: User = Depends(require_production_capability("set_pieces", "create")),
+    user: User = Depends(
+        require_any_production_capability(
+            ("set_pieces", "create"),
+            ("timeline", "suggest"),
+            ("timeline", "approve"),
+        )
+    ),
     db: Session = Depends(get_db),
 ) -> MomentSetPieceEventResponse:
+    production = get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     _get_set_piece_or_404(db, production_id, body.set_piece_id)
     validate_optional_person(db, production_id, body.character_id, body.user_id)
@@ -257,6 +267,9 @@ def create_moment_set_piece_event(
         character_id=body.character_id,
         user_id=body.user_id,
         notes=body.notes,
+    )
+    prepare_new_attachment(
+        db, production, user, event, body.status, legacy_resource="set_pieces",
     )
     db.add(event)
     db.commit()

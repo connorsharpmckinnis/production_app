@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from app.db.production_role_defaults import (
     PERMISSION_ACTIONS,
     PRODUCTION_PERMISSION_RESOURCES,
+    RESOURCE_EXTRA_ACTIONS,
 )
 from app.models import ProductionRole, ProductionRolePermission
 from app.schemas.people import (
@@ -80,7 +81,9 @@ def update_production_role_permissions(
         )
 
     valid_resources = set(PRODUCTION_PERMISSION_RESOURCES)
-    valid_actions = set(PERMISSION_ACTIONS)
+    valid_actions = set(PERMISSION_ACTIONS) | {
+        action for actions in RESOURCE_EXTRA_ACTIONS.values() for action in actions
+    }
     seen_keys: set[tuple[str, str, str]] = set()
     for row in update_rows:
         key = (row.role_code, row.resource, row.action)
@@ -93,7 +96,10 @@ def update_production_role_permissions(
             raise ProductionRolePermissionError(
                 f"Unknown production permission resource: {row.resource}"
             )
-        if row.action not in valid_actions:
+        if row.action not in valid_actions or (
+            row.action not in PERMISSION_ACTIONS
+            and row.action not in RESOURCE_EXTRA_ACTIONS.get(row.resource, ())
+        ):
             raise ProductionRolePermissionError(
                 f"Unknown production permission action: {row.action}"
             )

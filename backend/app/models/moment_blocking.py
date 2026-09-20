@@ -2,9 +2,10 @@ from sqlalchemy import CheckConstraint, ForeignKey, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
+from app.models.prep_provenance import PrepProvenanceMixin
 
 
-class MomentBlocking(Base):
+class MomentBlocking(PrepProvenanceMixin, Base):
     __tablename__ = "moment_blocking"
     __table_args__ = (
         CheckConstraint(
@@ -55,5 +56,5 @@ class MomentBlocking(Base):
 
     moment: Mapped["Moment"] = relationship(back_populates="moment_blocking")
     character: Mapped["Character | None"] = relationship(back_populates="moment_blocking")
-    user: Mapped["User | None"] = relationship()
+    user: Mapped["User | None"] = relationship(foreign_keys=[user_id])
     group: Mapped["Group | None"] = relationship()

@@ -29,6 +29,14 @@ import { cn } from "@/lib/utils";
 
 const ACTIONS = ["read", "create", "update", "delete"] as const;
 
+const EXTRA_ACTIONS: Record<string, { action: string; label: string }[]> = {
+  timeline: [
+    { action: "suggest", label: "Suggest" },
+    { action: "approve", label: "Approve" },
+  ],
+  notes: [{ action: "publish", label: "Publish" }],
+};
+
 const RESOURCE_GROUPS: { id: string; label: string; resources: string[] }[] = [
   {
     id: "access",
@@ -579,6 +587,15 @@ export default function ProductionRolePermissionsSection({
                               <TableHead className="text-center">Create</TableHead>
                               <TableHead className="text-center">Update</TableHead>
                               <TableHead className="text-center">Delete</TableHead>
+                              {group.resources.some((resource) => resource === "timeline") && (
+                                <>
+                                  <TableHead className="text-center">Suggest</TableHead>
+                                  <TableHead className="text-center">Approve</TableHead>
+                                </>
+                              )}
+                              {group.resources.some((resource) => resource === "notes") && (
+                                <TableHead className="text-center">Publish</TableHead>
+                              )}
                             </TableRow>
                           </TableHeader>
                           <TableBody>
@@ -622,6 +639,46 @@ export default function ProductionRolePermissionsSection({
                                       </TableCell>
                                     );
                                   })}
+                                  {(EXTRA_ACTIONS[resource] ?? []).map((extra) => {
+                                    const permission = permissions.find(
+                                      (item) =>
+                                        item.role_code === selectedRoleCode &&
+                                        item.resource === resource &&
+                                        item.action === extra.action,
+                                    );
+                                    return (
+                                      <TableCell key={extra.action} className="text-center">
+                                        {permission ? (
+                                          <Checkbox
+                                            checked={permission.enabled}
+                                            disabled={
+                                              savingPermissions || !selectedRole.is_active
+                                            }
+                                            aria-label={`${row.role_name} ${resource} ${extra.action}`}
+                                            onCheckedChange={(checked) =>
+                                              togglePermission(
+                                                resource,
+                                                extra.action,
+                                                checked === true,
+                                              )
+                                            }
+                                          />
+                                        ) : (
+                                          <span className="text-muted-foreground">—</span>
+                                        )}
+                                      </TableCell>
+                                    );
+                                  })}
+                                  {group.resources.includes("timeline") &&
+                                    resource !== "timeline" && (
+                                      <>
+                                        <TableCell className="text-center text-muted-foreground">—</TableCell>
+                                        <TableCell className="text-center text-muted-foreground">—</TableCell>
+                                      </>
+                                    )}
+                                  {group.resources.includes("notes") && resource !== "notes" && (
+                                    <TableCell className="text-center text-muted-foreground">—</TableCell>
+                                  )}
                                 </TableRow>
                               );
                             })}
