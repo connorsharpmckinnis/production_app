@@ -1075,6 +1075,7 @@ See [feature_plans/rehearsal-management.md](feature_plans/rehearsal-management.m
 - Call planner (blocks, scenes, suggested cast, recommendations)
 - Soft publish + director call sheet + actor My call
 - Open rehearsal notes + complete increments `scenes.times_rehearsed`
+- **Rehearsal capture (2026-09-19):** unified notes (`rehearsal_id`), suggested→official Moment attachments, time-window stamp, rehearsal activity log — [rehearsal-capture-and-approvals.md](feature_plans/rehearsal-capture-and-approvals.md)
 
 **Still deferred:** actor availability forms, outbound email/SMS, attendance, Planning Center sync
 

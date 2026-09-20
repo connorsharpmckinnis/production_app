@@ -2,6 +2,10 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.auth.password import hash_password
+from app.db.production_role_defaults import (
+    PRODUCTION_ROLE_DEFINITIONS,
+    permission_pair_count,
+)
 from app.db.seed import seed_database
 from app.models import (
     Character,
@@ -300,7 +304,7 @@ def test_permission_matrix_is_admin_only_and_updates_effective_access(
     )
     assert matrix.status_code == 200
     rows = matrix.json()
-    assert len(rows) == 3 * 22 * 4
+    assert len(rows) == len(PRODUCTION_ROLE_DEFINITIONS) * permission_pair_count()
     assert rows[0]["role_code"] == "actor"
 
     update = client.put(
