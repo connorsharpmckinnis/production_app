@@ -257,7 +257,8 @@ function MomentRow({
           momentTextBlurClass(!!shouldBlur, revealed),
         )}
       >
-        {moment.moment_type === "dialogue" && speaker
+        {(moment.moment_type === "dialogue" || moment.moment_type === "lyric") &&
+        speaker
           ? moment.display_text.replace(/^[^:]+:\s*/, "")
           : moment.display_text}
       </span>

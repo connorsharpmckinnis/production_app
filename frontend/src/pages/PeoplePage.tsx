@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import EmptyState from "@/components/EmptyState";
@@ -8,13 +8,8 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import {
   Table,
   TableBody,
@@ -45,6 +40,175 @@ function sortedRoles(codes: string[], roles: ProductionRoleSummary[]): string[] 
     if (orderB != null) return 1;
     return a.localeCompare(b, undefined, { sensitivity: "base" });
   });
+}
+
+function CandidateMultiSelect({
+  candidates,
+  selectedIds,
+  onChange,
+  disabled = false,
+}: {
+  candidates: ProductionMemberCandidateResponse[];
+  selectedIds: number[];
+  onChange: (ids: number[]) => void;
+  disabled?: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const selectedSet = useMemo(() => new Set(selectedIds), [selectedIds]);
+  const searchLower = search.trim().toLowerCase();
+  const filtered = useMemo(() => {
+    if (!searchLower) return candidates;
+    return candidates.filter((candidate) => {
+      const haystack = `${candidate.display_name} ${candidate.email ?? ""}`.toLowerCase();
+      return haystack.includes(searchLower);
+    });
+  }, [candidates, searchLower]);
+
+  useEffect(() => {
+    if (disabled) setOpen(false);
+  }, [disabled]);
+
+  useEffect(() => {
+    if (open) {
+      searchInputRef.current?.focus();
+    } else {
+      setSearch("");
+    }
+  }, [open]);
+
+  const buttonLabel = (() => {
+    if (selectedIds.length === 0) return "Choose people…";
+    if (selectedIds.length === 1) {
+      return (
+        candidates.find((candidate) => candidate.user_id === selectedIds[0])
+          ?.display_name ?? "1 person"
+      );
+    }
+    return `${selectedIds.length} people selected`;
+  })();
+
+  function toggle(userId: number, checked: boolean | "indeterminate") {
+    if (checked === true) {
+      onChange([...new Set([...selectedIds, userId])]);
+    } else {
+      onChange(selectedIds.filter((id) => id !== userId));
+    }
+  }
+
+  function selectFiltered() {
+    onChange([
+      ...new Set([...selectedIds, ...filtered.map((candidate) => candidate.user_id)]),
+    ]);
+  }
+
+  function clearAll() {
+    onChange([]);
+  }
+
+  return (
+    <div className="relative max-w-md">
+      <Button
+        type="button"
+        variant="outline"
+        disabled={disabled}
+        onClick={() => setOpen((value) => !value)}
+        className="w-full justify-between font-normal"
+        aria-label="Choose people to add"
+        aria-expanded={open}
+        aria-haspopup="listbox"
+      >
+        <span className="truncate">{buttonLabel}</span>
+        <span className="ml-2 text-xs text-muted-foreground">
+          {open ? "Hide" : "Show"}
+        </span>
+      </Button>
+
+      {open && !disabled && (
+        <>
+          <button
+            type="button"
+            className="fixed inset-0 z-20 cursor-default"
+            aria-label="Close people picker"
+            onClick={() => setOpen(false)}
+          />
+          <div className="absolute top-full left-0 z-30 mt-1 w-full min-w-72 rounded-md border bg-popover p-2 text-popover-foreground shadow-md">
+            <Input
+              ref={searchInputRef}
+              type="search"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search by name or email…"
+              aria-label="Search people to add"
+              className="mb-2"
+            />
+            <div className="mb-2 flex gap-2 border-b border-border pb-2">
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                onClick={selectFiltered}
+                disabled={filtered.length === 0}
+                className="h-auto px-0 text-xs"
+              >
+                Select {searchLower ? "matches" : "all"}
+              </Button>
+              <Button
+                type="button"
+                variant="link"
+                size="sm"
+                onClick={clearAll}
+                disabled={selectedIds.length === 0}
+                className="h-auto px-0 text-xs text-muted-foreground hover:text-foreground"
+              >
+                Clear
+              </Button>
+            </div>
+            {filtered.length === 0 ? (
+              <p className="px-1 py-2 text-sm text-muted-foreground">
+                No people match your search.
+              </p>
+            ) : (
+              <ul className="max-h-56 space-y-1 overflow-y-auto">
+                {filtered.map((candidate) => {
+                  const checkboxId = `candidate-${candidate.user_id}`;
+                  return (
+                    <li key={candidate.user_id}>
+                      <Label
+                        htmlFor={checkboxId}
+                        className="flex cursor-pointer items-start gap-2 rounded-sm px-1 py-1 font-normal hover:bg-accent"
+                      >
+                        <Checkbox
+                          id={checkboxId}
+                          className="mt-0.5"
+                          checked={selectedSet.has(candidate.user_id)}
+                          onCheckedChange={(checked) =>
+                            toggle(candidate.user_id, checked)
+                          }
+                        />
+                        <span className="min-w-0">
+                          <span className="block truncate text-sm leading-snug">
+                            {candidate.display_name}
+                          </span>
+                          {candidate.email ? (
+                            <span className="block truncate text-xs text-muted-foreground">
+                              {candidate.email}
+                            </span>
+                          ) : null}
+                        </span>
+                      </Label>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
 }
 
 function RoleCheckboxes({
@@ -104,7 +268,7 @@ export default function PeoplePage() {
   const [roleRegistry, setRoleRegistry] = useState<ProductionRoleSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [selectedCandidate, setSelectedCandidate] = useState("");
+  const [selectedCandidateIds, setSelectedCandidateIds] = useState<number[]>([]);
   const [newRoles, setNewRoles] = useState(["member"]);
   const [editingUserId, setEditingUserId] = useState<number | null>(null);
   const [editingRoles, setEditingRoles] = useState<string[]>([]);
@@ -152,27 +316,54 @@ export default function PeoplePage() {
   }, [productionId, canCreate, canRead]);
 
   async function handleAdd() {
-    const userId = Number(selectedCandidate);
-    if (!userId || newRoles.length === 0) {
-      toast.error("Choose a person and at least one production role.");
+    if (selectedCandidateIds.length === 0 || newRoles.length === 0) {
+      toast.error("Choose at least one person and one production role.");
       return;
     }
 
-    setSavingKey(`add-${userId}`);
+    setSavingKey("add-bulk");
+    let added = 0;
+    const failures: string[] = [];
     try {
-      await api.addProductionPerson(productionId, {
-        user_id: userId,
-        role_codes: newRoles,
-      });
-      setSelectedCandidate("");
-      setNewRoles(["member"]);
-      toast.success("Person added to production");
-      await loadData();
-    } catch (err) {
-      toast.error(formatApiError(err, "Could not add production member."));
+      for (const userId of selectedCandidateIds) {
+        const candidate = candidates.find((row) => row.user_id === userId);
+        try {
+          await api.addProductionPerson(productionId, {
+            user_id: userId,
+            role_codes: newRoles,
+          });
+          added += 1;
+        } catch (err) {
+          const name = candidate?.display_name ?? `User ${userId}`;
+          failures.push(`${name}: ${formatApiError(err, "could not add")}`);
+        }
+      }
+
+      if (added > 0) {
+        setSelectedCandidateIds([]);
+        await loadData();
+      }
+
+      if (failures.length === 0) {
+        toast.success(
+          added === 1
+            ? "Person added to production"
+            : `${added} people added to production`,
+        );
+      } else if (added === 0) {
+        toast.error(failures[0] ?? "Could not add production members.");
+      } else {
+        toast.error(
+          `Added ${added}, but ${failures.length} failed. ${failures[0]}`,
+        );
+      }
     } finally {
       setSavingKey(null);
     }
+  }
+
+  function clearSelectedCandidates() {
+    setSelectedCandidateIds([]);
   }
 
   function startEditing(person: ProductionMemberResponse) {
@@ -263,45 +454,62 @@ export default function PeoplePage() {
       {canCreate && candidates.length > 0 && (
         <section className="space-y-4 rounded-lg border border-border bg-card p-4">
           <div>
-            <h2 className="text-sm font-medium">Add an existing user</h2>
+            <h2 className="text-sm font-medium">Add existing users</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Add someone from this organization and choose one or more production roles.
+              Select one or more people from this organization, then choose the
+              production roles to give all of them.
             </p>
           </div>
-          <div className="flex flex-col gap-4 lg:flex-row lg:items-end">
-            <div className="min-w-64 space-y-2">
-              <label htmlFor="candidate" className="text-sm font-medium">Person</label>
-              <Select value={selectedCandidate} onValueChange={setSelectedCandidate}>
-                <SelectTrigger id="candidate">
-                  <SelectValue placeholder="Choose a person" />
-                </SelectTrigger>
-                <SelectContent>
-                  {candidates.map((candidate) => (
-                    <SelectItem key={candidate.user_id} value={String(candidate.user_id)}>
-                      {candidate.display_name}{candidate.email ? ` — ${candidate.email}` : ""}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+
+          <div className="space-y-2">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span className="text-sm font-medium">People</span>
+              {selectedCandidateIds.length > 0 && (
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  disabled={savingKey != null}
+                  onClick={clearSelectedCandidates}
+                >
+                  Clear selection
+                </Button>
+              )}
             </div>
-            <div className="space-y-2">
-              <span className="text-sm font-medium">Production roles</span>
-              <RoleCheckboxes
-                selected={newRoles}
-                roles={roleRegistry}
-                onChange={setNewRoles}
-                disabled={savingKey != null}
-                idPrefix="new-role"
-              />
-            </div>
-            <Button
-              type="button"
-              disabled={!selectedCandidate || savingKey != null}
-              onClick={() => void handleAdd()}
-            >
-              {savingKey?.startsWith("add-") ? "Adding…" : "Add person"}
-            </Button>
+            <CandidateMultiSelect
+              candidates={candidates}
+              selectedIds={selectedCandidateIds}
+              onChange={setSelectedCandidateIds}
+              disabled={savingKey != null}
+            />
           </div>
+
+          <div className="space-y-2">
+            <span className="text-sm font-medium">Production roles</span>
+            <RoleCheckboxes
+              selected={newRoles}
+              roles={roleRegistry}
+              onChange={setNewRoles}
+              disabled={savingKey != null}
+              idPrefix="new-role"
+            />
+          </div>
+
+          <Button
+            type="button"
+            disabled={
+              selectedCandidateIds.length === 0 ||
+              newRoles.length === 0 ||
+              savingKey != null
+            }
+            onClick={() => void handleAdd()}
+          >
+            {savingKey === "add-bulk"
+              ? "Adding…"
+              : selectedCandidateIds.length <= 1
+                ? "Add person"
+                : `Add ${selectedCandidateIds.length} people`}
+          </Button>
         </section>
       )}
 
@@ -310,7 +518,7 @@ export default function PeoplePage() {
           title="No active members yet"
           description={
             canCreate
-              ? "Add an existing organization user to begin building the production roster."
+              ? "Add existing organization users to begin building the production roster."
               : "No active production members are available."
           }
         />

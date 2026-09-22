@@ -1,9 +1,30 @@
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
 class AssignedActorResponse(BaseModel):
     user_id: int
     display_name: str
+
+
+class CatalogReassignTarget(BaseModel):
+    type: Literal["character", "group"]
+    id: int
+
+
+class CatalogDeleteRequest(BaseModel):
+    """Optional body for DELETE character/group when reassignment is required."""
+
+    reassign_to: CatalogReassignTarget | None = None
+
+
+class CatalogDeleteImpactResponse(BaseModel):
+    reassignable: dict[str, int]
+    character_only_blockers: dict[str, int]
+    auto_removed: dict[str, int]
+    requires_reassignment: bool
+    can_delete_without_reassignment: bool
 
 
 class CharacterDetailResponse(BaseModel):

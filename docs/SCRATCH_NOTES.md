@@ -37,6 +37,10 @@ mode, concurrent-rehearsal picker, hide-suggestions-from-actors, tablet banner.
 
 ## Little Things
 
+- Moment subject pickers (entrance/exit/blocking): type an **actor name** to find
+  cast characters (`Character · Actor` hint + keywords). Entrances/exits can also
+  target a **User** directly (parallel on-stage track) for walk-ons with no role
+  name. Shipped 2026-09-22 with cast-user pilot roster approach.
 - The My Bookmarks experience is odd right now. It pops up a screen-wide banner-looking thing with the bookmarks listed there. Not a terrible instinct, but I think I'd like it to show in its own dedicated timeline-like view with '...'s between bookmarks to show it's not the whole timeline view. And then clicking on a bookmark will open it up in the 'main' timeline view. Or something like that. I'm not sure how I want bookmarks to work yet, so we'll leave it be for the time being and come back to it when I know how I want it to work. → **Wish list** (undecided)
 - ~~Editing the stuff in the Timeline view as an admin doesn't look quite right~~ — **Fixed 2026-07-10**: list now shows `display_text`; sheet stays open after save.
 - ~~Moment detail view should be changed to be more unified~~ — **Wish list / Phase 4 WP2**

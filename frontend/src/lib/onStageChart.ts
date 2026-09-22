@@ -11,6 +11,12 @@ export function onStageGroupBarColor(rowIndex: number): string {
   return `oklch(0.55 0.1 ${hue})`;
 }
 
+/** Separate hue offset so person (user) rows read distinct from characters/groups. */
+export function onStageUserBarColor(rowIndex: number): string {
+  const hue = BAR_HUES[(rowIndex + 9) % BAR_HUES.length];
+  return `oklch(0.58 0.11 ${hue})`;
+}
+
 export function spinePercent(index: number, momentCount: number): number {
   if (momentCount <= 0) return 0;
   return (index / momentCount) * 100;

@@ -138,7 +138,9 @@ def _rows_for_rehearsal(db: Session, model, rehearsal: Rehearsal, window_start, 
 def _load_options(model):
     options = [joinedload(model.moment).joinedload(Moment.scene).joinedload(Scene.act)]
     if model is MomentEntrance or model is MomentExit:
-        options.extend([joinedload(model.character), joinedload(model.group)])
+        options.extend(
+            [joinedload(model.character), joinedload(model.group), joinedload(model.user)]
+        )
     elif model is MomentBlocking:
         options.extend(
             [joinedload(model.character), joinedload(model.group), joinedload(model.user)]

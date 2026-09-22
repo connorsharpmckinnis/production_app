@@ -7,6 +7,7 @@ import {
   intervalWidthPercent,
   onStageBarColor,
   onStageGroupBarColor,
+  onStageUserBarColor,
   spinePercent,
 } from "@/lib/onStageChart";
 import { formatMomentCode, humanTimelinePath } from "@/lib/timelineDeepLinks";
@@ -29,7 +30,7 @@ type HoverState = {
 type PresenceRow = {
   key: string;
   label: string;
-  objectType: "character" | "group";
+  objectType: "character" | "group" | "person";
   objectId: number;
   intervals: OnStageChartInterval[];
   barColor: string;
@@ -102,6 +103,14 @@ export function OnStagePresenceChart({
       objectId: row.group_id,
       intervals: row.intervals,
       barColor: onStageGroupBarColor(index),
+    })),
+    ...(report.users ?? []).map((row, index) => ({
+      key: `user-${row.user_id}`,
+      label: row.user_display_name,
+      objectType: "person" as const,
+      objectId: row.user_id,
+      intervals: row.intervals,
+      barColor: onStageUserBarColor(index),
     })),
   ];
 

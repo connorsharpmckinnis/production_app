@@ -43,6 +43,7 @@ import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { api, ApiError, formatApiError } from "@/lib/api";
+import { characterOptionSearchMeta } from "@/lib/characterSearch";
 import type { ObjectDetailType } from "@/lib/objectDetail";
 import { formatMomentCode, humanTimelinePath } from "@/lib/timelineDeepLinks";
 import type {
@@ -149,12 +150,15 @@ function buildPersonOptions(
   characters: CharacterDetailResponse[],
   users: CastableUserResponse[],
 ): SearchableSelectOption[] {
-  const characterOptions = characters.map((character) => ({
-    value: `character:${character.id}`,
-    label: character.name,
-    hint: "Character",
-    keywords: "character",
-  }));
+  const characterOptions = characters.map((character) => {
+    const search = characterOptionSearchMeta(character);
+    return {
+      value: `character:${character.id}`,
+      label: character.name,
+      hint: search.hint,
+      keywords: search.keywords,
+    };
+  });
   const userOptions = users.map((user) => ({
     value: `user:${user.id}`,
     label: user.display_name,
@@ -166,54 +170,7 @@ function buildPersonOptions(
   );
 }
 
-function buildCharacterGroupOptions(
-  characters: CharacterDetailResponse[],
-  groups: GroupResponse[],
-): SearchableSelectOption[] {
-  const characterOptions = characters.map((character) => ({
-    value: `character:${character.id}`,
-    label: character.name,
-    hint: "Character",
-    keywords: "character",
-  }));
-  const groupOptions = groups.map((group) => ({
-    value: `group:${group.id}`,
-    label: group.name,
-    hint: "Group",
-    keywords: "group",
-  }));
-  return [...characterOptions, ...groupOptions].sort((a, b) =>
-    a.label.localeCompare(b.label, undefined, { sensitivity: "base" }),
-  );
-}
-
-function decodeMovementSubject(value: string): {
-  characterId: number | null;
-  groupId: number | null;
-} {
-  if (value.startsWith("character:")) {
-    return {
-      characterId: Number(value.slice("character:".length)),
-      groupId: null,
-    };
-  }
-  if (value.startsWith("group:")) {
-    return {
-      characterId: null,
-      groupId: Number(value.slice("group:".length)),
-    };
-  }
-  return { characterId: null, groupId: null };
-}
-
-function movementRowLabel(row: {
-  character_name: string | null;
-  group_name: string | null;
-}): string {
-  return row.character_name ?? row.group_name ?? "Unknown";
-}
-
-function buildBlockingSubjectOptions(
+function buildMovementSubjectOptions(
   characters: CharacterDetailResponse[],
   users: CastableUserResponse[],
   groups: GroupResponse[],
@@ -227,6 +184,70 @@ function buildBlockingSubjectOptions(
   return [...buildPersonOptions(characters, users), ...groupOptions].sort((a, b) =>
     a.label.localeCompare(b.label, undefined, { sensitivity: "base" }),
   );
+}
+
+function decodeMovementSubject(value: string): {
+  characterId: number | null;
+  userId: number | null;
+  groupId: number | null;
+} {
+  if (value.startsWith("character:")) {
+    return {
+      characterId: Number(value.slice("character:".length)),
+      userId: null,
+      groupId: null,
+    };
+  }
+  if (value.startsWith("user:")) {
+    return {
+      characterId: null,
+      userId: Number(value.slice("user:".length)),
+      groupId: null,
+    };
+  }
+  if (value.startsWith("group:")) {
+    return {
+      characterId: null,
+      userId: null,
+      groupId: Number(value.slice("group:".length)),
+    };
+  }
+  return { characterId: null, userId: null, groupId: null };
+}
+
+function movementRowLabel(row: {
+  character_name: string | null;
+  user_display_name?: string | null;
+  group_name: string | null;
+}): string {
+  return row.character_name ?? row.user_display_name ?? row.group_name ?? "Unknown";
+}
+
+function movementSubjectObject(
+  row: {
+    character_id: number | null;
+    user_id?: number | null;
+    group_id: number | null;
+  },
+): { objectType?: ObjectDetailType; objectId?: number | null } {
+  if (row.character_id != null) {
+    return { objectType: "character", objectId: row.character_id };
+  }
+  if (row.group_id != null) {
+    return { objectType: "group", objectId: row.group_id };
+  }
+  if (row.user_id != null) {
+    return { objectType: "person", objectId: row.user_id };
+  }
+  return {};
+}
+
+function buildBlockingSubjectOptions(
+  characters: CharacterDetailResponse[],
+  users: CastableUserResponse[],
+  groups: GroupResponse[],
+): SearchableSelectOption[] {
+  return buildMovementSubjectOptions(characters, users, groups);
 }
 
 function dialogueSpeakerLabel(line: {
@@ -454,15 +475,25 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     );
     const characterOptions = useMemo(
       () =>
-        sortByName(characters).map((character) => ({
-          value: String(character.id),
-          label: character.name,
-        })),
+        sortByName(characters).map((character) => {
+          const search = characterOptionSearchMeta(character);
+          return {
+            value: String(character.id),
+            label: character.name,
+            hint: search.hint,
+            keywords: search.keywords,
+          };
+        }),
       [characters],
     );
     const movementSubjectOptions = useMemo(
-      () => buildCharacterGroupOptions(sortByName(characters), sortByName(groups)),
-      [characters, groups],
+      () =>
+        buildMovementSubjectOptions(
+          sortByName(characters),
+          castableUsers,
+          sortByName(groups),
+        ),
+      [characters, castableUsers, groups],
     );
     const onStageSubjectValues = useMemo(() => {
       const values = new Set<string>();
@@ -472,8 +503,11 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       for (const group of detail.on_stage_groups ?? []) {
         values.add(`group:${group.id}`);
       }
+      for (const person of detail.on_stage_users ?? []) {
+        values.add(`user:${person.id}`);
+      }
       return values;
-    }, [detail.on_stage_characters, detail.on_stage_groups]);
+    }, [detail.on_stage_characters, detail.on_stage_groups, detail.on_stage_users]);
     const entranceMovementOptions = useMemo(
       () => movementSubjectOptions.filter((option) => !onStageSubjectValues.has(option.value)),
       [movementSubjectOptions, onStageSubjectValues],
@@ -516,7 +550,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       if (setPiecesCatalog.length > 0) available.add("set_piece");
       if (costumesCatalog.length > 0 && characters.length > 0) available.add("costume");
       if (cueCategories.length > 0) available.add("cue");
-      if (characters.length > 0 || groups.length > 0) {
+      if (characters.length > 0 || castableUsers.length > 0 || groups.length > 0) {
         available.add("entrance");
         available.add("exit");
       }
@@ -1127,6 +1161,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       try {
         await api.attachMomentEntrance(productionId, detail.id, {
           character_id: subject.characterId,
+          user_id: subject.userId,
           group_id: subject.groupId,
           notes: attachEntranceNotes.trim() || null,
           status: attachmentStatus,
@@ -1171,6 +1206,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       try {
         await api.attachMomentExit(productionId, detail.id, {
           character_id: subject.characterId,
+          user_id: subject.userId,
           group_id: subject.groupId,
           notes: attachExitNotes.trim() || null,
           status: attachmentStatus,
@@ -2079,11 +2115,13 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           canEdit={canAttach}
           saving={saving}
           defaultExpanded={detail.entrances.length > 0}
-          items={detail.entrances.map((entrance) => ({
+          items={detail.entrances.map((entrance) => {
+            const subject = movementSubjectObject(entrance);
+            return {
             id: entrance.id,
             label: movementRowLabel(entrance),
-            objectType: entrance.group_id != null ? ("group" as const) : ("character" as const),
-            objectId: entrance.group_id ?? entrance.character_id,
+            objectType: subject.objectType,
+            objectId: subject.objectId,
             notes: entrance.notes ?? undefined,
             status: entrance.status,
             createdBy: entrance.created_by_display_name,
@@ -2096,9 +2134,10 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
               entrance.status === "suggested" && canApprove
                 ? () => void handleApprove("entrance", entrance.id)
                 : undefined,
-          }))}
+          };
+          })}
           onDetach={handleDetachEntrance}
-          catalogLength={characters.length + groups.length}
+          catalogLength={characters.length + castableUsers.length + groups.length}
         />
 
         <AttachmentSection
@@ -2108,11 +2147,13 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           canEdit={canAttach}
           saving={saving}
           defaultExpanded={detail.exits.length > 0}
-          items={detail.exits.map((exitRow) => ({
+          items={detail.exits.map((exitRow) => {
+            const subject = movementSubjectObject(exitRow);
+            return {
             id: exitRow.id,
             label: movementRowLabel(exitRow),
-            objectType: exitRow.group_id != null ? ("group" as const) : ("character" as const),
-            objectId: exitRow.group_id ?? exitRow.character_id,
+            objectType: subject.objectType,
+            objectId: subject.objectId,
             notes: exitRow.notes ?? undefined,
             status: exitRow.status,
             createdBy: exitRow.created_by_display_name,
@@ -2125,9 +2166,10 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
               exitRow.status === "suggested" && canApprove
                 ? () => void handleApprove("exit", exitRow.id)
                 : undefined,
-          }))}
+          };
+          })}
           onDetach={handleDetachExit}
-          catalogLength={characters.length + groups.length}
+          catalogLength={characters.length + castableUsers.length + groups.length}
         />
 
         <AttachmentSection

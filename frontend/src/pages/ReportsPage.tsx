@@ -324,10 +324,20 @@ export default function ReportsPage() {
                 <ul className="mt-2 space-y-1 text-sm">
                   {group.rows.map((row) => {
                     const subjectLabel =
-                      row.character_name ?? row.group_name ?? "Unknown";
+                      row.character_name ??
+                      row.user_display_name ??
+                      row.group_name ??
+                      "Unknown";
                     const subjectType =
-                      row.group_id != null ? "group" : "character";
-                    const subjectId = row.group_id ?? row.character_id;
+                      row.character_id != null
+                        ? ("character" as const)
+                        : row.group_id != null
+                          ? ("group" as const)
+                          : row.user_id != null
+                            ? ("person" as const)
+                            : null;
+                    const subjectId =
+                      row.character_id ?? row.group_id ?? row.user_id ?? null;
                     return (
                     <li
                       key={`${row.moment_id}-${row.movement_type}-${subjectType}-${subjectId}`}
@@ -340,7 +350,7 @@ export default function ReportsPage() {
                         Moment {row.sequence_number}
                       </MomentLink>{" "}
                       — {row.movement_type}:{" "}
-                      {subjectId != null ? (
+                      {subjectType != null && subjectId != null ? (
                         <ObjectLink
                           objectType={subjectType}
                           objectId={subjectId}

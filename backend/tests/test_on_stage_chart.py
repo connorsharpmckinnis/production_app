@@ -33,6 +33,8 @@ def _moment(
     exits: tuple[tuple[int, str | None], ...] = (),
     group_entrances: tuple[tuple[int, str | None], ...] = (),
     group_exits: tuple[tuple[int, str | None], ...] = (),
+    user_entrances: tuple[tuple[int, str | None], ...] = (),
+    user_exits: tuple[tuple[int, str | None], ...] = (),
     scene_title: str | None = "Camp",
 ) -> ChartMoment:
     return ChartMoment(
@@ -48,6 +50,8 @@ def _moment(
         character_exits=exits,
         group_entrances=group_entrances,
         group_exits=group_exits,
+        user_entrances=user_entrances,
+        user_exits=user_exits,
     )
 
 

@@ -144,7 +144,8 @@ Timeline already uses Lucide icon buttons for structural actions, bookmark, deta
 - ~~Primary actions should consistently use the shared `Button` component (many pages still hand-roll Tailwind buttons).~~ **Done 2026-08-05:** Standard actions use `Button`; remaining native buttons are intentional custom controls.
 - Groups always shows the create form; other catalogs toggle `showAddForm` — pick one pattern. *(Catalogs now use Dialog; Groups still inline create.)*
 - Characters “Add character manually” styling differs from other “Add …” primaries.
-- Songs: no Delete in UI; Characters: limited rename/delete — decide intentional vs gap.
+- Songs: no Delete in UI.
+- ~~Characters: limited rename/delete — decide intentional vs gap.~~ **Done (delete 2026-09-22):** Characters and Groups support safe delete with optional reassignment of Moment subjects (Character↔Group). Character-only records (costumes, lav, etc.) remaps to another Character or block group reassignment. Character rename still not in API/UI.
 - Catalog breadcrumb always → Timeline; Overview as hub may be better. *(Now → Overview.)*
 
 ### Accessibility

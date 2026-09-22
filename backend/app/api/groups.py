@@ -5,10 +5,16 @@ from app.api.deps import require_production_capability
 from app.db.session import get_db
 from app.models import Character, Group, User
 from app.schemas.characters import (
+    CatalogDeleteImpactResponse,
+    CatalogDeleteRequest,
     GroupCreate,
     GroupMembershipUpdate,
     GroupResponse,
     GroupUpdate,
+)
+from app.services.catalog_subject_delete import (
+    delete_group as delete_group_safe,
+    group_delete_impact,
 )
 from app.services.production_memberships import list_active_production_users
 
@@ -23,6 +29,17 @@ def _group_response(group: Group) -> GroupResponse:
         character_ids=[character.id for character in group.characters],
         user_ids=[user.id for user in group.users],
     )
+
+
+def _get_group_or_404(db: Session, production_id: int, group_id: int) -> Group:
+    group = (
+        db.query(Group)
+        .filter(Group.id == group_id, Group.production_id == production_id)
+        .first()
+    )
+    if group is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
+    return group
 
 
 @router.get("/{production_id}/groups", response_model=list[GroupResponse])
@@ -96,22 +113,43 @@ def update_group(
     return _group_response(group)
 
 
-@router.delete("/{production_id}/groups/{group_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_group(
+@router.get(
+    "/{production_id}/groups/{group_id}/delete-impact",
+    response_model=CatalogDeleteImpactResponse,
+)
+def get_group_delete_impact(
     production_id: int,
     group_id: int,
     _user: User = Depends(require_production_capability("groups", "delete")),
     db: Session = Depends(get_db),
-) -> None:
-    group = (
-        db.query(Group)
-        .filter(Group.id == group_id, Group.production_id == production_id)
-        .first()
+) -> CatalogDeleteImpactResponse:
+    _get_group_or_404(db, production_id, group_id)
+    impact = group_delete_impact(db, group_id)
+    return CatalogDeleteImpactResponse(
+        reassignable=impact.reassignable,
+        character_only_blockers=impact.character_only_blockers,
+        auto_removed=impact.auto_removed,
+        requires_reassignment=impact.requires_reassignment,
+        can_delete_without_reassignment=impact.can_delete_without_reassignment,
     )
-    if group is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Group not found")
-    db.delete(group)
-    db.commit()
+
+
+@router.delete("/{production_id}/groups/{group_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_group(
+    production_id: int,
+    group_id: int,
+    body: CatalogDeleteRequest | None = None,
+    _user: User = Depends(require_production_capability("groups", "delete")),
+    db: Session = Depends(get_db),
+) -> None:
+    reassign = body.reassign_to if body else None
+    delete_group_safe(
+        db,
+        production_id,
+        group_id,
+        reassign_to_type=reassign.type if reassign else None,
+        reassign_to_id=reassign.id if reassign else None,
+    )
 
 
 @router.put("/{production_id}/groups/{group_id}/members", response_model=GroupResponse)

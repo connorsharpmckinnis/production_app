@@ -199,6 +199,55 @@ def test_group_entrance_exit_and_on_stage_groups(
     assert char_entrance.json()["character_name"] == "CREAN"
 
 
+def test_user_entrance_exit_and_on_stage_users(
+    seeded_client: TestClient, db_session: Session
+) -> None:
+    production_id = _imported_production(seeded_client, db_session)
+    director_headers = _login(seeded_client, "director", "director")
+    scene_id = _first_scene_id(seeded_client, production_id, director_headers)
+    moments = _scene_moments(seeded_client, production_id, scene_id, director_headers)
+    entrance_moment = moments[0]
+    exit_moment = moments[min(3, len(moments) - 1)]
+
+    actor = db_session.query(User).filter(User.username == "actor").one()
+
+    entrance = seeded_client.post(
+        f"/api/productions/{production_id}/moments/{entrance_moment['id']}/entrances",
+        json={"user_id": actor.id, "notes": "walk-on"},
+        headers=director_headers,
+    )
+    assert entrance.status_code == 201, entrance.text
+    assert entrance.json()["user_id"] == actor.id
+    assert entrance.json()["user_display_name"]
+    assert entrance.json()["character_id"] is None
+
+    between_id = moments[min(1, len(moments) - 1)]["id"]
+    detail_between = seeded_client.get(
+        f"/api/productions/{production_id}/moments/{between_id}",
+        headers=director_headers,
+    ).json()
+    if (
+        entrance_moment["sequence_number"]
+        <= detail_between["sequence_number"]
+        < exit_moment["sequence_number"]
+    ):
+        assert actor.id in [u["id"] for u in detail_between["on_stage_users"]]
+
+    exit_resp = seeded_client.post(
+        f"/api/productions/{production_id}/moments/{exit_moment['id']}/exits",
+        json={"user_id": actor.id},
+        headers=director_headers,
+    )
+    assert exit_resp.status_code == 201
+
+    dual = seeded_client.post(
+        f"/api/productions/{production_id}/moments/{entrance_moment['id']}/entrances",
+        json={"user_id": actor.id, "character_id": 1},
+        headers=director_headers,
+    )
+    assert dual.status_code == 422
+
+
 def test_actor_forbidden_on_stage_movement_mutations(
     seeded_client: TestClient, db_session: Session
 ) -> None:

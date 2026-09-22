@@ -921,16 +921,23 @@ Fields
 
 Purpose
 
-Record structured character entrances on moments (Phase 5).
+Record structured entrances on moments for a character, a user (e.g. an unnamed
+walk-on), or a group (Phase 5; group/user subjects added later).
 
 Fields
 
 * id
 * moment_id
-* character_id
+* character_id (nullable)
+* user_id (nullable)
+* group_id (nullable)
 * notes (nullable)
 
-**Decision:** Unique `(moment_id, character_id)` — one entrance row per character per moment.
+**Decision:** Exactly one of `character_id`, `user_id`, or `group_id` must be
+set (CHECK constraint). Unique per subject on a moment
+(`(moment_id, character_id)`, `(moment_id, user_id)`, `(moment_id, group_id)`).
+On-stage presence within a scene is derived from entrance/exit sequence (three
+parallel tracks for characters, groups, and users — not merged).
 
 ---
 
@@ -938,16 +945,19 @@ Fields
 
 Purpose
 
-Record structured character exits on moments (Phase 5).
+Record structured exits on moments for a character, a user, or a group
+(Phase 5; group/user subjects added later).
 
 Fields
 
 * id
 * moment_id
-* character_id
+* character_id (nullable)
+* user_id (nullable)
+* group_id (nullable)
 * notes (nullable)
 
-**Decision:** Unique `(moment_id, character_id)` — one exit row per character per moment.
+**Decision:** Same subject XOR and uniqueness rules as `MOMENT_ENTRANCES`.
 
 ---
 

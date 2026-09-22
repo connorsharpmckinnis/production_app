@@ -1,8 +1,8 @@
-"""Derive on-stage character and group sets from entrance/exit sequence within a scene."""
+"""Derive on-stage character, group, and user sets from entrance/exit sequence within a scene."""
 
 from sqlalchemy.orm import Session, joinedload
 
-from app.models import Character, Group, Moment, MomentEntrance, MomentExit
+from app.models import Character, Group, Moment, MomentEntrance, MomentExit, User
 
 
 def _walk_scene_moments(db: Session, moment: Moment) -> list[Moment]:
@@ -50,6 +50,22 @@ def on_stage_group_ids_for_moment(db: Session, moment: Moment) -> list[int]:
     return sorted(on_stage)
 
 
+def on_stage_user_ids_for_moment(db: Session, moment: Moment) -> list[int]:
+    """Return user IDs on stage at this moment (after its entrances/exits)."""
+    on_stage: set[int] = set()
+    for scene_moment in _walk_scene_moments(db, moment):
+        for entrance in scene_moment.moment_entrances:
+            if entrance.user_id is not None:
+                on_stage.add(entrance.user_id)
+        for exit_row in scene_moment.moment_exits:
+            if exit_row.user_id is not None:
+                on_stage.discard(exit_row.user_id)
+        if scene_moment.id == moment.id:
+            break
+
+    return sorted(on_stage)
+
+
 def on_stage_characters_for_moment(db: Session, moment: Moment) -> list[Character]:
     """Return Character rows on stage at this moment, sorted by name."""
     character_ids = on_stage_character_ids_for_moment(db, moment)
@@ -74,6 +90,20 @@ def on_stage_groups_for_moment(db: Session, moment: Moment) -> list[Group]:
         db.query(Group)
         .filter(Group.id.in_(group_ids))
         .order_by(Group.name)
+        .all()
+    )
+
+
+def on_stage_users_for_moment(db: Session, moment: Moment) -> list[User]:
+    """Return User rows on stage at this moment, sorted by name."""
+    user_ids = on_stage_user_ids_for_moment(db, moment)
+    if not user_ids:
+        return []
+
+    return (
+        db.query(User)
+        .filter(User.id.in_(user_ids))
+        .order_by(User.first_name, User.last_name, User.username)
         .all()
     )
 

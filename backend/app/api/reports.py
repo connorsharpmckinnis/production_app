@@ -252,6 +252,7 @@ def entrance_exit_sheet(
         db.query(MomentEntrance)
         .options(
             joinedload(MomentEntrance.character),
+            joinedload(MomentEntrance.user),
             joinedload(MomentEntrance.group),
             joinedload(MomentEntrance.moment).joinedload(Moment.scene).joinedload(Scene.act),
         )
@@ -265,6 +266,7 @@ def entrance_exit_sheet(
         db.query(MomentExit)
         .options(
             joinedload(MomentExit.character),
+            joinedload(MomentExit.user),
             joinedload(MomentExit.group),
             joinedload(MomentExit.moment).joinedload(Moment.scene).joinedload(Scene.act),
         )
@@ -286,6 +288,10 @@ def entrance_exit_sheet(
                 movement_type="entrance",
                 character_id=entrance.character_id,
                 character_name=entrance.character.name if entrance.character else None,
+                user_id=entrance.user_id,
+                user_display_name=(
+                    user_display_name(entrance.user) if entrance.user else None
+                ),
                 group_id=entrance.group_id,
                 group_name=entrance.group.name if entrance.group else None,
                 notes=entrance.notes,
@@ -301,6 +307,10 @@ def entrance_exit_sheet(
                 movement_type="exit",
                 character_id=exit_row.character_id,
                 character_name=exit_row.character.name if exit_row.character else None,
+                user_id=exit_row.user_id,
+                user_display_name=(
+                    user_display_name(exit_row.user) if exit_row.user else None
+                ),
                 group_id=exit_row.group_id,
                 group_name=exit_row.group.name if exit_row.group else None,
                 notes=exit_row.notes,
@@ -316,7 +326,7 @@ def entrance_exit_sheet(
             key=lambda row: (
                 row.sequence_number,
                 row.movement_type,
-                row.character_name or row.group_name or "",
+                row.character_name or row.user_display_name or row.group_name or "",
             )
         )
         groups.append(

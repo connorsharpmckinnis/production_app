@@ -11,7 +11,9 @@ import type {
   AssetEventKind,
   BookmarkResponse,
   CastableUserResponse,
+  CatalogDeleteImpact,
   CatalogImportResult,
+  CatalogReassignTarget,
   CharacterDetailResponse,
   CostumeChangeEntry,
   CostumeResponse,
@@ -441,6 +443,23 @@ export const api = {
     );
   },
 
+  getCharacterDeleteImpact(productionId: number, characterId: number) {
+    return request<CatalogDeleteImpact>(
+      `/productions/${productionId}/characters/${characterId}/delete-impact`,
+    );
+  },
+
+  deleteCharacter(
+    productionId: number,
+    characterId: number,
+    reassignTo?: CatalogReassignTarget | null,
+  ) {
+    return request<void>(`/productions/${productionId}/characters/${characterId}`, {
+      method: "DELETE",
+      body: reassignTo ? JSON.stringify({ reassign_to: reassignTo }) : undefined,
+    });
+  },
+
   castCharacter(productionId: number, characterId: number, userId: number | null) {
     return request<{ character_id: number; user_id: number | null; user_display_name: string | null }>(
       `/productions/${productionId}/characters/${characterId}/cast`,
@@ -595,10 +614,21 @@ export const api = {
     });
   },
 
-  deleteGroup(productionId: number, groupId: number) {
+  deleteGroup(
+    productionId: number,
+    groupId: number,
+    reassignTo?: CatalogReassignTarget | null,
+  ) {
     return request<void>(`/productions/${productionId}/groups/${groupId}`, {
       method: "DELETE",
+      body: reassignTo ? JSON.stringify({ reassign_to: reassignTo }) : undefined,
     });
+  },
+
+  getGroupDeleteImpact(productionId: number, groupId: number) {
+    return request<CatalogDeleteImpact>(
+      `/productions/${productionId}/groups/${groupId}/delete-impact`,
+    );
   },
 
   updateGroupMembers(
@@ -1428,6 +1458,7 @@ export const api = {
     momentId: number,
     body: {
       character_id?: number | null;
+      user_id?: number | null;
       group_id?: number | null;
       notes?: string | null;
       status?: "suggested" | "official";
@@ -1451,6 +1482,7 @@ export const api = {
     momentId: number,
     body: {
       character_id?: number | null;
+      user_id?: number | null;
       group_id?: number | null;
       notes?: string | null;
       status?: "suggested" | "official";

@@ -524,10 +524,17 @@ export interface OnStageGroupResponse {
   name: string;
 }
 
+export interface OnStageUserResponse {
+  id: number;
+  name: string;
+}
+
 export interface MomentEntranceResponse extends PrepRecordFields {
   id: number;
   character_id: number | null;
   character_name: string | null;
+  user_id: number | null;
+  user_display_name: string | null;
   group_id: number | null;
   group_name: string | null;
   notes: string | null;
@@ -537,6 +544,8 @@ export interface MomentExitResponse extends PrepRecordFields {
   id: number;
   character_id: number | null;
   character_name: string | null;
+  user_id: number | null;
+  user_display_name: string | null;
   group_id: number | null;
   group_name: string | null;
   notes: string | null;
@@ -576,6 +585,7 @@ export interface MomentDetailResponse {
   blocking: MomentBlockingResponse[];
   on_stage_characters: OnStageCharacterResponse[];
   on_stage_groups: OnStageGroupResponse[];
+  on_stage_users?: OnStageUserResponse[];
   cues: CueResponse[];
   notes: NoteResponse[];
   is_bookmarked: boolean;
@@ -838,6 +848,8 @@ export interface EntranceExitSheetRow {
   movement_type: "entrance" | "exit";
   character_id: number | null;
   character_name: string | null;
+  user_id?: number | null;
+  user_display_name?: string | null;
   group_id: number | null;
   group_name: string | null;
   notes: string | null;
@@ -896,6 +908,12 @@ export interface OnStageChartGroupRow {
   intervals: OnStageChartInterval[];
 }
 
+export interface OnStageChartUserRow {
+  user_id: number;
+  user_display_name: string;
+  intervals: OnStageChartInterval[];
+}
+
 export interface OnStageChartSceneBand {
   scene_id: number;
   act_number: number;
@@ -919,6 +937,7 @@ export interface OnStageChartReport {
   scenes: OnStageChartSceneBand[];
   characters: OnStageChartCharacterRow[];
   groups: OnStageChartGroupRow[];
+  users?: OnStageChartUserRow[];
 }
 
 export interface ProductionOverviewResponse {
@@ -973,6 +992,21 @@ export interface GroupResponse {
   description: string | null;
   character_ids: number[];
   user_ids: number[];
+}
+
+export type CatalogSubjectType = "character" | "group";
+
+export interface CatalogReassignTarget {
+  type: CatalogSubjectType;
+  id: number;
+}
+
+export interface CatalogDeleteImpact {
+  reassignable: Record<string, number>;
+  character_only_blockers: Record<string, number>;
+  auto_removed: Record<string, number>;
+  requires_reassignment: boolean;
+  can_delete_without_reassignment: boolean;
 }
 
 export interface MomentListFilters {

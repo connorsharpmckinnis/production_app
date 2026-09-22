@@ -27,6 +27,8 @@ from app.schemas.casting import (
 from app.schemas.catalog_csv import CatalogImportResult
 from app.schemas.characters import (
     AssignedActorResponse,
+    CatalogDeleteImpactResponse,
+    CatalogDeleteRequest,
     CharacterCreate,
     CharacterDetailResponse,
     CharacterUpdate,
@@ -35,6 +37,10 @@ from app.schemas.characters import (
     SongUpdate,
 )
 from app.services.catalog_csv import CatalogCsvError, SONGS_COLUMNS, import_songs_csv
+from app.services.catalog_subject_delete import (
+    character_delete_impact,
+    delete_character as delete_character_safe,
+)
 from app.services.importer.builtins import BUILTIN_CHARACTER_NAMES
 from app.services.production_memberships import (
     effective_cast_character_ids,
@@ -180,24 +186,43 @@ def update_character(
     )
 
 
-@router.delete("/{production_id}/characters/{character_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_character(
+@router.get(
+    "/{production_id}/characters/{character_id}/delete-impact",
+    response_model=CatalogDeleteImpactResponse,
+)
+def get_character_delete_impact(
     production_id: int,
     character_id: int,
     _user: User = Depends(require_production_capability("characters", "delete")),
     db: Session = Depends(get_db),
-) -> None:
-    character = _get_character_or_404(db, production_id, character_id)
-    has_dialogue = (
-        db.query(Dialogue.id).filter(Dialogue.character_id == character_id).first() is not None
+) -> CatalogDeleteImpactResponse:
+    _get_character_or_404(db, production_id, character_id)
+    impact = character_delete_impact(db, character_id)
+    return CatalogDeleteImpactResponse(
+        reassignable=impact.reassignable,
+        character_only_blockers=impact.character_only_blockers,
+        auto_removed=impact.auto_removed,
+        requires_reassignment=impact.requires_reassignment,
+        can_delete_without_reassignment=impact.can_delete_without_reassignment,
     )
-    if has_dialogue:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail="Cannot delete a character that has dialogue in the script",
-        )
-    db.delete(character)
-    db.commit()
+
+
+@router.delete("/{production_id}/characters/{character_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_character(
+    production_id: int,
+    character_id: int,
+    body: CatalogDeleteRequest | None = None,
+    _user: User = Depends(require_production_capability("characters", "delete")),
+    db: Session = Depends(get_db),
+) -> None:
+    reassign = body.reassign_to if body else None
+    delete_character_safe(
+        db,
+        production_id,
+        character_id,
+        reassign_to_type=reassign.type if reassign else None,
+        reassign_to_id=reassign.id if reassign else None,
+    )
 
 
 @router.get("/{production_id}/songs", response_model=list[SongDetailResponse])

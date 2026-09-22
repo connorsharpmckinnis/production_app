@@ -1,13 +1,21 @@
 import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
-import { seedCharactersCatalog } from "@/hooks/queries/useProductionCatalogs";
+import { seedCharactersCatalog, seedGroupsCatalog } from "@/hooks/queries/useProductionCatalogs";
 import { api, formatApiError } from "@/lib/api";
-import type { CastableUserResponse, CharacterDetailResponse } from "@/lib/types";
+import type {
+  CastableUserResponse,
+  CatalogDeleteImpact,
+  CatalogReassignTarget,
+  CharacterDetailResponse,
+  GroupResponse,
+} from "@/lib/types";
 import { sortByName } from "@/lib/utils";
 import { useQueryClient } from "@tanstack/react-query";
+import { Trash2 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
+import CatalogSubjectDeleteDialog from "@/components/CatalogSubjectDeleteDialog";
 import EmptyState from "@/components/EmptyState";
 import MobileListCard from "@/components/MobileListCard";
 import ObjectLink from "@/components/object-detail/ObjectLink";
@@ -37,11 +45,13 @@ export default function CharactersPage() {
   const productionId = Number(id);
   const { hasCapability } = useProductionAccess();
   const canCreateCharacters = hasCapability("characters", "create");
+  const canDeleteCharacters = hasCapability("characters", "delete");
   const canCast = hasCapability("casting", "update");
   const toast = useToast();
   const queryClient = useQueryClient();
 
   const [characters, setCharacters] = useState<CharacterDetailResponse[]>([]);
+  const [groups, setGroups] = useState<GroupResponse[]>([]);
   const [castableUsers, setCastableUsers] = useState<CastableUserResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -49,13 +59,25 @@ export default function CharactersPage() {
   const [newName, setNewName] = useState("");
   const [showAddForm, setShowAddForm] = useState(false);
 
+  const [deleteTarget, setDeleteTarget] = useState<CharacterDetailResponse | null>(null);
+  const [deleteImpact, setDeleteImpact] = useState<CatalogDeleteImpact | null>(null);
+  const [loadingImpact, setLoadingImpact] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
   async function loadData() {
     setError(null);
     try {
-      const characterData = await api.listCharacters(productionId);
+      const [characterData, groupData] = await Promise.all([
+        api.listCharacters(productionId),
+        canDeleteCharacters ? api.listGroups(productionId) : Promise.resolve([]),
+      ]);
       const sorted = sortByName(characterData);
       setCharacters(sorted);
+      setGroups(groupData);
       seedCharactersCatalog(queryClient, productionId, sorted);
+      if (canDeleteCharacters) {
+        seedGroupsCatalog(queryClient, productionId, groupData);
+      }
       if (canCast) {
         const users = await api.listCastableUsers(productionId);
         setCastableUsers(
@@ -73,7 +95,7 @@ export default function CharactersPage() {
 
   useEffect(() => {
     void loadData();
-  }, [productionId, canCast]);
+  }, [productionId, canCast, canDeleteCharacters]);
 
   async function handleCastChange(characterId: number, userId: string) {
     setSavingId(characterId);
@@ -104,6 +126,37 @@ export default function CharactersPage() {
       toast.error(formatApiError(err, "Failed to add character"));
     } finally {
       setSavingId(null);
+    }
+  }
+
+  async function openDeleteDialog(character: CharacterDetailResponse) {
+    setDeleteTarget(character);
+    setDeleteImpact(null);
+    setLoadingImpact(true);
+    try {
+      const impact = await api.getCharacterDeleteImpact(productionId, character.id);
+      setDeleteImpact(impact);
+    } catch (err) {
+      toast.error(formatApiError(err, "Failed to check character usage"));
+      setDeleteTarget(null);
+    } finally {
+      setLoadingImpact(false);
+    }
+  }
+
+  async function confirmDelete(reassignTo: CatalogReassignTarget | null) {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.deleteCharacter(productionId, deleteTarget.id, reassignTo);
+      toast.success("Character deleted");
+      setDeleteTarget(null);
+      setDeleteImpact(null);
+      await loadData();
+    } catch (err) {
+      toast.error(formatApiError(err, "Failed to delete character"));
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -166,16 +219,34 @@ export default function CharactersPage() {
           <ul className="space-y-2 md:hidden">
             {characters.map((character) => (
               <MobileListCard key={character.id}>
-                <p className="font-medium">
-                  <ObjectLink
-                    objectType="character"
-                    objectId={character.id}
-                    label={character.name}
-                  />
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  {character.scene_count} {character.scene_count === 1 ? "scene" : "scenes"}
-                </p>
+                <div className="flex items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium">
+                      <ObjectLink
+                        objectType="character"
+                        objectId={character.id}
+                        label={character.name}
+                      />
+                    </p>
+                    <p className="text-sm text-muted-foreground">
+                      {character.scene_count}{" "}
+                      {character.scene_count === 1 ? "scene" : "scenes"}
+                    </p>
+                  </div>
+                  {canDeleteCharacters && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => void openDeleteDialog(character)}
+                      aria-label={`Delete ${character.name}`}
+                      title="Delete"
+                      className="text-destructive hover:text-destructive"
+                    >
+                      <Trash2 />
+                    </Button>
+                  )}
+                </div>
                 {canCast ? (
                   <div className="pt-2">
                     <Select
@@ -216,6 +287,7 @@ export default function CharactersPage() {
                   ) : (
                     <TableHead>Actor</TableHead>
                   )}
+                  {canDeleteCharacters && <TableHead className="w-12" />}
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -228,7 +300,9 @@ export default function CharactersPage() {
                         label={character.name}
                       />
                     </TableCell>
-                    <TableCell className="text-muted-foreground">{character.scene_count}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {character.scene_count}
+                    </TableCell>
                     {canCast ? (
                       <TableCell>
                         <Select
@@ -254,6 +328,21 @@ export default function CharactersPage() {
                         {character.assigned_actor?.display_name ?? "—"}
                       </TableCell>
                     )}
+                    {canDeleteCharacters && (
+                      <TableCell>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          onClick={() => void openDeleteDialog(character)}
+                          aria-label={`Delete ${character.name}`}
+                          title="Delete"
+                          className="text-destructive hover:text-destructive"
+                        >
+                          <Trash2 />
+                        </Button>
+                      </TableCell>
+                    )}
                   </TableRow>
                 ))}
               </TableBody>
@@ -261,6 +350,25 @@ export default function CharactersPage() {
           </div>
         </>
       )}
+
+      <CatalogSubjectDeleteDialog
+        open={deleteTarget != null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+            setDeleteImpact(null);
+          }
+        }}
+        entityType="character"
+        entityName={deleteTarget?.name ?? ""}
+        impact={deleteImpact}
+        loadingImpact={loadingImpact}
+        characters={characters}
+        groups={groups}
+        excludeId={deleteTarget?.id ?? 0}
+        submitting={deleting}
+        onConfirm={(reassignTo) => void confirmDelete(reassignTo)}
+      />
     </div>
   );
 }

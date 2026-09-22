@@ -116,7 +116,7 @@ export default function RehearsalsPage() {
   const [editing, setEditing] = useState<RehearsalSummaryResponse | null>(null);
   const [startsAt, setStartsAt] = useState("");
   const [endsAt, setEndsAt] = useState("");
-  const [kind, setKind] = useState<RehearsalKind>("called");
+  const [kind, setKind] = useState<RehearsalKind>("all_call");
   const [title, setTitle] = useState("");
   const [locationId, setLocationId] = useState(NO_LOCATION);
   const [saving, setSaving] = useState(false);

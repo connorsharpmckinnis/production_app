@@ -13,7 +13,8 @@ from dataclasses import dataclass
 
 from sqlalchemy.orm import Session
 
-from app.models import Act, Character, Group, Moment, MomentEntrance, MomentExit, Scene
+from app.api.deps import user_display_name
+from app.models import Act, Character, Group, Moment, MomentEntrance, MomentExit, Scene, User
 from app.schemas.reports import (
     OnStageChartActBand,
     OnStageChartCharacterRow,
@@ -22,6 +23,7 @@ from app.schemas.reports import (
     OnStageChartMomentRef,
     OnStageChartReport,
     OnStageChartSceneBand,
+    OnStageChartUserRow,
 )
 
 
@@ -41,6 +43,8 @@ class ChartMoment:
     character_exits: tuple[tuple[int, str | None], ...]
     group_entrances: tuple[tuple[int, str | None], ...]
     group_exits: tuple[tuple[int, str | None], ...]
+    user_entrances: tuple[tuple[int, str | None], ...]
+    user_exits: tuple[tuple[int, str | None], ...]
 
 
 @dataclass
@@ -128,8 +132,10 @@ def assemble_on_stage_chart(
     moments: list[ChartMoment],
     character_names: dict[int, str],
     group_names: dict[int, str],
+    user_names: dict[int, str] | None = None,
 ) -> OnStageChartReport:
     """Turn an ordered moment spine into act/scene bands and presence bars."""
+    resolved_user_names = user_names or {}
     acts: list[OnStageChartActBand] = []
     scenes: list[OnStageChartSceneBand] = []
     previous_act_id: int | None = None
@@ -177,6 +183,11 @@ def assemble_on_stage_chart(
         lambda moment: moment.group_entrances,
         lambda moment: moment.group_exits,
     )
+    user_closed = _assemble_intervals(
+        moments,
+        lambda moment: moment.user_entrances,
+        lambda moment: moment.user_exits,
+    )
 
     character_rows: list[OnStageChartCharacterRow] = []
     for character_id, intervals in character_closed.items():
@@ -204,12 +215,26 @@ def assemble_on_stage_chart(
         )
     group_rows.sort(key=lambda row: (row.group_name.lower(), row.group_id))
 
+    user_rows: list[OnStageChartUserRow] = []
+    for user_id, intervals in user_closed.items():
+        name = resolved_user_names.get(user_id, f"User {user_id}")
+        intervals.sort(key=lambda item: item.start_index)
+        user_rows.append(
+            OnStageChartUserRow(
+                user_id=user_id,
+                user_display_name=name,
+                intervals=intervals,
+            )
+        )
+    user_rows.sort(key=lambda row: (row.user_display_name.lower(), row.user_id))
+
     return OnStageChartReport(
         moment_count=len(moments),
         acts=acts,
         scenes=scenes,
         characters=character_rows,
         groups=group_rows,
+        users=user_rows,
     )
 
 
@@ -282,6 +307,16 @@ def load_chart_moments(db: Session, production_id: int) -> list[ChartMoment]:
                     for row in exit_rows
                     if row.group_id is not None
                 ),
+                user_entrances=tuple(
+                    (row.user_id, row.notes)
+                    for row in entrance_rows
+                    if row.user_id is not None
+                ),
+                user_exits=tuple(
+                    (row.user_id, row.notes)
+                    for row in exit_rows
+                    if row.user_id is not None
+                ),
             )
         )
     return chart_moments
@@ -292,11 +327,14 @@ def build_on_stage_chart(db: Session, production_id: int) -> OnStageChartReport:
     moments = load_chart_moments(db, production_id)
     character_ids: set[int] = set()
     group_ids: set[int] = set()
+    user_ids: set[int] = set()
     for moment in moments:
         character_ids.update(subject_id for subject_id, _notes in moment.character_entrances)
         character_ids.update(subject_id for subject_id, _notes in moment.character_exits)
         group_ids.update(subject_id for subject_id, _notes in moment.group_entrances)
         group_ids.update(subject_id for subject_id, _notes in moment.group_exits)
+        user_ids.update(subject_id for subject_id, _notes in moment.user_entrances)
+        user_ids.update(subject_id for subject_id, _notes in moment.user_exits)
 
     character_names: dict[int, str] = {}
     if character_ids:
@@ -319,4 +357,9 @@ def build_on_stage_chart(db: Session, production_id: int) -> OnStageChartReport:
         )
         group_names = {group.id: group.name for group in groups}
 
-    return assemble_on_stage_chart(moments, character_names, group_names)
+    user_names: dict[int, str] = {}
+    if user_ids:
+        users = db.query(User).filter(User.id.in_(user_ids)).all()
+        user_names = {user.id: user_display_name(user) for user in users}
+
+    return assemble_on_stage_chart(moments, character_names, group_names, user_names)

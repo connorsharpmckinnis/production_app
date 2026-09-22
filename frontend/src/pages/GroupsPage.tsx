@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { Pencil, Trash2 } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
+import CatalogSubjectDeleteDialog from "@/components/CatalogSubjectDeleteDialog";
 import EmptyState from "@/components/EmptyState";
 import ObjectLink from "@/components/object-detail/ObjectLink";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -16,7 +17,6 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { useConfirm } from "@/context/ConfirmContext";
 import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
 import {
@@ -26,6 +26,8 @@ import {
 import { api, formatApiError } from "@/lib/api";
 import type {
   CastableUserResponse,
+  CatalogDeleteImpact,
+  CatalogReassignTarget,
   CharacterDetailResponse,
   GroupResponse,
 } from "@/lib/types";
@@ -44,7 +46,7 @@ export default function GroupsPage() {
   const canManageGroups = ["create", "update", "delete"].some((action) =>
     hasCapability("groups", action),
   );
-  const confirm = useConfirm();
+  const canDeleteGroups = hasCapability("groups", "delete");
   const toast = useToast();
   const queryClient = useQueryClient();
 
@@ -58,6 +60,11 @@ export default function GroupsPage() {
   const [selectedCharacterIds, setSelectedCharacterIds] = useState<number[]>([]);
   const [selectedUserIds, setSelectedUserIds] = useState<number[]>([]);
   const [memberSearch, setMemberSearch] = useState("");
+
+  const [deleteTarget, setDeleteTarget] = useState<GroupResponse | null>(null);
+  const [deleteImpact, setDeleteImpact] = useState<CatalogDeleteImpact | null>(null);
+  const [loadingImpact, setLoadingImpact] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const editingGroup = groups.find((group) => group.id === editingGroupId);
   const searchLower = memberSearch.trim().toLowerCase();
@@ -136,20 +143,34 @@ export default function GroupsPage() {
     }
   }
 
-  async function handleDeleteGroup(groupId: number) {
-    const ok = await confirm({
-      title: "Delete this group?",
-      confirmLabel: "Delete",
-      destructive: true,
-    });
-    if (!ok) return;
-
+  async function openDeleteDialog(group: GroupResponse) {
+    setDeleteTarget(group);
+    setDeleteImpact(null);
+    setLoadingImpact(true);
     try {
-      await api.deleteGroup(productionId, groupId);
+      const impact = await api.getGroupDeleteImpact(productionId, group.id);
+      setDeleteImpact(impact);
+    } catch (err) {
+      toast.error(formatApiError(err, "Failed to check group usage"));
+      setDeleteTarget(null);
+    } finally {
+      setLoadingImpact(false);
+    }
+  }
+
+  async function confirmDelete(reassignTo: CatalogReassignTarget | null) {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    try {
+      await api.deleteGroup(productionId, deleteTarget.id, reassignTo);
       toast.success("Group deleted");
+      setDeleteTarget(null);
+      setDeleteImpact(null);
       await loadData();
     } catch (err) {
       toast.error(formatApiError(err, "Failed to delete group"));
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -226,29 +247,33 @@ export default function GroupsPage() {
                     {group.user_ids.length === 1 ? "" : "s"}
                   </p>
                 </div>
-                {canManageGroups && <div className="flex gap-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => startEditing(group)}
-                    aria-label={`Edit members of ${group.name}`}
-                    title="Edit members"
-                  >
-                    <Pencil />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    onClick={() => void handleDeleteGroup(group.id)}
-                    aria-label={`Delete ${group.name}`}
-                    title="Delete"
-                    className="text-destructive hover:text-destructive"
-                  >
-                    <Trash2 />
-                  </Button>
-                </div>}
+                {canManageGroups && (
+                  <div className="flex gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => startEditing(group)}
+                      aria-label={`Edit members of ${group.name}`}
+                      title="Edit members"
+                    >
+                      <Pencil />
+                    </Button>
+                    {canDeleteGroups && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        onClick={() => void openDeleteDialog(group)}
+                        aria-label={`Delete ${group.name}`}
+                        title="Delete"
+                        className="text-destructive hover:text-destructive"
+                      >
+                        <Trash2 />
+                      </Button>
+                    )}
+                  </div>
+                )}
               </div>
             </div>
           ))}
@@ -256,94 +281,113 @@ export default function GroupsPage() {
       )}
 
       {canManageGroups && (
-      <Dialog open={editingGroupId !== null} onOpenChange={(open) => !open && closeMemberDialog()}>
-        <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
-          <DialogHeader>
-            <DialogTitle>
-              {editingGroup ? `Edit members — ${editingGroup.name}` : "Edit members"}
-            </DialogTitle>
-          </DialogHeader>
+        <Dialog open={editingGroupId !== null} onOpenChange={(open) => !open && closeMemberDialog()}>
+          <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-xl">
+            <DialogHeader>
+              <DialogTitle>
+                {editingGroup ? `Edit members — ${editingGroup.name}` : "Edit members"}
+              </DialogTitle>
+            </DialogHeader>
 
-          <div className="space-y-4">
-            <Input
-              type="search"
-              value={memberSearch}
-              onChange={(e) => setMemberSearch(e.target.value)}
-              placeholder="Search characters and actors…"
-            />
+            <div className="space-y-4">
+              <Input
+                type="search"
+                value={memberSearch}
+                onChange={(e) => setMemberSearch(e.target.value)}
+                placeholder="Search characters and actors…"
+              />
 
-            <div>
-              <p className="text-sm font-medium">Characters in this group</p>
-              {filteredCharacters.length === 0 ? (
-                <p className="mt-2 text-sm text-muted-foreground">
-                  {searchLower ? "No characters match your search." : "No characters available."}
+              <div>
+                <p className="text-sm font-medium">Characters in this group</p>
+                {filteredCharacters.length === 0 ? (
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {searchLower ? "No characters match your search." : "No characters available."}
+                  </p>
+                ) : (
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {filteredCharacters.map((character) => (
+                      <Label key={character.id} className="font-normal">
+                        <Checkbox
+                          checked={selectedCharacterIds.includes(character.id)}
+                          onCheckedChange={(checked) => {
+                            setSelectedCharacterIds((prev) =>
+                              checked === true
+                                ? [...prev, character.id]
+                                : prev.filter((id) => id !== character.id),
+                            );
+                          }}
+                        />
+                        {character.name}
+                      </Label>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div>
+                <p className="text-sm font-medium">Actors in this group</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Useful for ensemble members who are not cast to a specific character.
                 </p>
-              ) : (
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  {filteredCharacters.map((character) => (
-                    <Label key={character.id} className="font-normal">
-                      <Checkbox
-                        checked={selectedCharacterIds.includes(character.id)}
-                        onCheckedChange={(checked) => {
-                          setSelectedCharacterIds((prev) =>
-                            checked === true
-                              ? [...prev, character.id]
-                              : prev.filter((id) => id !== character.id),
-                          );
-                        }}
-                      />
-                      {character.name}
-                    </Label>
-                  ))}
-                </div>
-              )}
+                {castableUsers.length === 0 ? (
+                  <p className="mt-2 text-sm text-muted-foreground">No actor users available.</p>
+                ) : filteredUsers.length === 0 ? (
+                  <p className="mt-2 text-sm text-muted-foreground">No actors match your search.</p>
+                ) : (
+                  <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                    {filteredUsers.map((user) => (
+                      <Label key={user.id} className="font-normal">
+                        <Checkbox
+                          checked={selectedUserIds.includes(user.id)}
+                          onCheckedChange={(checked) => {
+                            setSelectedUserIds((prev) =>
+                              checked === true
+                                ? [...prev, user.id]
+                                : prev.filter((id) => id !== user.id),
+                            );
+                          }}
+                        />
+                        {user.display_name}
+                      </Label>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
 
-            <div>
-              <p className="text-sm font-medium">Actors in this group</p>
-              <p className="mt-1 text-xs text-muted-foreground">
-                Useful for ensemble members who are not cast to a specific character.
-              </p>
-              {castableUsers.length === 0 ? (
-                <p className="mt-2 text-sm text-muted-foreground">No actor users available.</p>
-              ) : filteredUsers.length === 0 ? (
-                <p className="mt-2 text-sm text-muted-foreground">No actors match your search.</p>
-              ) : (
-                <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                  {filteredUsers.map((user) => (
-                    <Label key={user.id} className="font-normal">
-                      <Checkbox
-                        checked={selectedUserIds.includes(user.id)}
-                        onCheckedChange={(checked) => {
-                          setSelectedUserIds((prev) =>
-                            checked === true
-                              ? [...prev, user.id]
-                              : prev.filter((id) => id !== user.id),
-                          );
-                        }}
-                      />
-                      {user.display_name}
-                    </Label>
-                  ))}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={closeMemberDialog}>
-              Cancel
-            </Button>
-            <Button
-              type="button"
-              onClick={() => editingGroupId && void saveMembership(editingGroupId)}
-            >
-              Save
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={closeMemberDialog}>
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                onClick={() => editingGroupId && void saveMembership(editingGroupId)}
+              >
+                Save
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       )}
+
+      <CatalogSubjectDeleteDialog
+        open={deleteTarget != null}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+            setDeleteImpact(null);
+          }
+        }}
+        entityType="group"
+        entityName={deleteTarget?.name ?? ""}
+        impact={deleteImpact}
+        loadingImpact={loadingImpact}
+        characters={characters}
+        groups={groups}
+        excludeId={deleteTarget?.id ?? 0}
+        submitting={deleting}
+        onConfirm={(reassignTo) => void confirmDelete(reassignTo)}
+      />
     </div>
   );
 }

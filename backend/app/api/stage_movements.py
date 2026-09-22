@@ -7,11 +7,11 @@ from app.api.deps import (
     require_production_capability,
     user_display_name,
     validate_blocking_subject,
+    validate_optional_person,
 )
 from app.db.session import get_db
 from app.models import (
     Act,
-    Character,
     Group,
     Moment,
     MomentBlocking,
@@ -66,24 +66,6 @@ def _get_moment_in_production_or_404(
     return moment
 
 
-def _validate_character_in_production(
-    db: Session,
-    production_id: int,
-    character_id: int,
-) -> Character:
-    character = (
-        db.query(Character)
-        .filter(Character.id == character_id, Character.production_id == production_id)
-        .first()
-    )
-    if character is None:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Character is not in this production",
-        )
-    return character
-
-
 def _validate_group_in_production(
     db: Session,
     production_id: int,
@@ -106,16 +88,20 @@ def _validate_entrance_exit_subject(
     db: Session,
     production_id: int,
     character_id: int | None,
+    user_id: int | None,
     group_id: int | None,
 ) -> None:
-    subjects = [character_id is not None, group_id is not None]
+    subjects = [
+        character_id is not None,
+        user_id is not None,
+        group_id is not None,
+    ]
     if sum(subjects) != 1:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Movement must target exactly one of character or group",
+            detail="Movement must target exactly one of character, user, or group",
         )
-    if character_id is not None:
-        _validate_character_in_production(db, production_id, character_id)
+    validate_optional_person(db, production_id, character_id, user_id)
     if group_id is not None:
         _validate_group_in_production(db, production_id, group_id)
 
@@ -123,6 +109,7 @@ def _validate_entrance_exit_subject(
 def _entrance_load_options():
     return (
         joinedload(MomentEntrance.character),
+        joinedload(MomentEntrance.user),
         joinedload(MomentEntrance.group),
     )
 
@@ -130,6 +117,7 @@ def _entrance_load_options():
 def _exit_load_options():
     return (
         joinedload(MomentExit.character),
+        joinedload(MomentExit.user),
         joinedload(MomentExit.group),
     )
 
@@ -139,6 +127,8 @@ def _entrance_response(db: Session, entrance: MomentEntrance) -> MomentEntranceR
         id=entrance.id,
         character_id=entrance.character_id,
         character_name=entrance.character.name if entrance.character else None,
+        user_id=entrance.user_id,
+        user_display_name=user_display_name(entrance.user) if entrance.user else None,
         group_id=entrance.group_id,
         group_name=entrance.group.name if entrance.group else None,
         notes=entrance.notes,
@@ -151,11 +141,47 @@ def _exit_response(db: Session, exit_row: MomentExit) -> MomentExitResponse:
         id=exit_row.id,
         character_id=exit_row.character_id,
         character_name=exit_row.character.name if exit_row.character else None,
+        user_id=exit_row.user_id,
+        user_display_name=user_display_name(exit_row.user) if exit_row.user else None,
         group_id=exit_row.group_id,
         group_name=exit_row.group.name if exit_row.group else None,
         notes=exit_row.notes,
         **prep_fields(exit_row),
     )
+
+
+def _movement_conflict(
+    db: Session,
+    model: type[MomentEntrance] | type[MomentExit],
+    moment_id: int,
+    character_id: int | None,
+    user_id: int | None,
+    group_id: int | None,
+    kind: str,
+) -> None:
+    if character_id is not None:
+        existing = (
+            db.query(model)
+            .filter(model.moment_id == moment_id, model.character_id == character_id)
+            .first()
+        )
+        detail = f"This character already has an {kind} on this moment"
+    elif user_id is not None:
+        existing = (
+            db.query(model)
+            .filter(model.moment_id == moment_id, model.user_id == user_id)
+            .first()
+        )
+        detail = f"This user already has an {kind} on this moment"
+    else:
+        existing = (
+            db.query(model)
+            .filter(model.moment_id == moment_id, model.group_id == group_id)
+            .first()
+        )
+        detail = f"This group already has an {kind} on this moment"
+    if existing is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
 
 
 def _blocking_load_options():
@@ -217,38 +243,26 @@ def attach_moment_entrance(
     production = get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     _validate_entrance_exit_subject(
-        db, production_id, body.character_id, body.group_id,
+        db,
+        production_id,
+        body.character_id,
+        body.user_id,
+        body.group_id,
     )
-
-    if body.character_id is not None:
-        existing = (
-            db.query(MomentEntrance)
-            .filter(
-                MomentEntrance.moment_id == moment_id,
-                MomentEntrance.character_id == body.character_id,
-            )
-            .first()
-        )
-        conflict_detail = "This character already has an entrance on this moment"
-    else:
-        existing = (
-            db.query(MomentEntrance)
-            .filter(
-                MomentEntrance.moment_id == moment_id,
-                MomentEntrance.group_id == body.group_id,
-            )
-            .first()
-        )
-        conflict_detail = "This group already has an entrance on this moment"
-    if existing is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=conflict_detail,
-        )
+    _movement_conflict(
+        db,
+        MomentEntrance,
+        moment_id,
+        body.character_id,
+        body.user_id,
+        body.group_id,
+        "entrance",
+    )
 
     entrance = MomentEntrance(
         moment_id=moment_id,
         character_id=body.character_id,
+        user_id=body.user_id,
         group_id=body.group_id,
         notes=body.notes,
     )
@@ -333,38 +347,26 @@ def attach_moment_exit(
     production = get_accessible_production(db, user, production_id)
     _get_moment_in_production_or_404(db, production_id, moment_id)
     _validate_entrance_exit_subject(
-        db, production_id, body.character_id, body.group_id,
+        db,
+        production_id,
+        body.character_id,
+        body.user_id,
+        body.group_id,
     )
-
-    if body.character_id is not None:
-        existing = (
-            db.query(MomentExit)
-            .filter(
-                MomentExit.moment_id == moment_id,
-                MomentExit.character_id == body.character_id,
-            )
-            .first()
-        )
-        conflict_detail = "This character already has an exit on this moment"
-    else:
-        existing = (
-            db.query(MomentExit)
-            .filter(
-                MomentExit.moment_id == moment_id,
-                MomentExit.group_id == body.group_id,
-            )
-            .first()
-        )
-        conflict_detail = "This group already has an exit on this moment"
-    if existing is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=conflict_detail,
-        )
+    _movement_conflict(
+        db,
+        MomentExit,
+        moment_id,
+        body.character_id,
+        body.user_id,
+        body.group_id,
+        "exit",
+    )
 
     exit_row = MomentExit(
         moment_id=moment_id,
         character_id=body.character_id,
+        user_id=body.user_id,
         group_id=body.group_id,
         notes=body.notes,
     )

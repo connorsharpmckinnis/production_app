@@ -9,14 +9,20 @@ class MomentEntrance(PrepProvenanceMixin, Base):
     __tablename__ = "moment_entrances"
     __table_args__ = (
         CheckConstraint(
-            "(character_id IS NOT NULL AND group_id IS NULL) OR "
-            "(character_id IS NULL AND group_id IS NOT NULL)",
-            name="ck_moment_entrances_character_xor_group",
+            "(character_id IS NOT NULL AND user_id IS NULL AND group_id IS NULL) OR "
+            "(character_id IS NULL AND user_id IS NOT NULL AND group_id IS NULL) OR "
+            "(character_id IS NULL AND user_id IS NULL AND group_id IS NOT NULL)",
+            name="ck_moment_entrances_exactly_one_subject",
         ),
         UniqueConstraint(
             "moment_id",
             "character_id",
             name="uq_moment_entrances_moment_id_character_id",
+        ),
+        UniqueConstraint(
+            "moment_id",
+            "user_id",
+            name="uq_moment_entrances_moment_id_user_id",
         ),
         UniqueConstraint(
             "moment_id",
@@ -36,6 +42,11 @@ class MomentEntrance(PrepProvenanceMixin, Base):
         nullable=True,
         index=True,
     )
+    user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id"),
+        nullable=True,
+        index=True,
+    )
     group_id: Mapped[int | None] = mapped_column(
         ForeignKey("groups.id"),
         nullable=True,
@@ -45,4 +56,5 @@ class MomentEntrance(PrepProvenanceMixin, Base):
 
     moment: Mapped["Moment"] = relationship(back_populates="moment_entrances")
     character: Mapped["Character | None"] = relationship(back_populates="moment_entrances")
+    user: Mapped["User | None"] = relationship(foreign_keys=[user_id])
     group: Mapped["Group | None"] = relationship(back_populates="moment_entrances")

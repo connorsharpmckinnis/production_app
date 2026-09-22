@@ -564,5 +564,6 @@ cd backend && uv run python scripts/smoke_test.py
 | 2026-07-10 | Production overview = counts + links; no progress dashboard              |
 | 2026-07-10 | UX polish explicitly out of scope for Phase 5                            |
 | 2026-07-10 | Rehearsals, tasks, performances, re-import deferred post-MVP             |
+| 2026-09-22 | Entrances/exits allow user subjects (like blocking); on-stage tracks users in parallel with characters/groups. Moment pickers search by cast actor name. |
 
 
