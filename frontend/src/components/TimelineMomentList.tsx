@@ -1,12 +1,33 @@
 import { Fragment, useEffect, useRef, useState, type RefObject } from "react";
-import { ChevronDown, ChevronUp, Plus, Trash2 } from "lucide-react";
+import {
+  ChevronDown,
+  ChevronUp,
+  Plus,
+  Trash2,
+} from "lucide-react";
 import SceneSummaryStrip from "@/components/SceneSummaryStrip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  domainIcon,
+  momentAttachmentChipClass,
+  type MomentAttachmentKind,
+} from "@/lib/domainIcons";
 import type { TimelineScrollAnchor } from "@/lib/timelinePrefsStorage";
-import { findFirstFullyVisibleAnchor } from "@/lib/timelineScrollAnchor";
+import {
+  findFirstFullyVisibleAnchor,
+  getSelectedMomentOffscreen,
+  scrollListToMomentCentered,
+  type SelectedMomentOffscreen,
+} from "@/lib/timelineScrollAnchor";
 import type { SceneSummaryData } from "@/lib/sceneSummary";
-import type { CharacterDetailResponse, MomentSummary } from "@/lib/types";
+import type {
+  CharacterDetailResponse,
+  MomentDetailResponse,
+  MomentSummary,
+  PropResponse,
+  SetPieceResponse,
+} from "@/lib/types";
 import { cn, momentTypeLabel } from "@/lib/utils";
 import { momentBadgeClass, momentHighlightRowClass, momentTextBlurClass } from "@/lib/momentStyles";
 
@@ -37,6 +58,10 @@ export interface TimelineMomentListProps {
   /** Optional groups for resolving speaking_group_ids on dialogue/lyric rows. */
   groups?: { id: number; name: string }[];
   selectedMomentId: number | null;
+  /** Loaded detail for the selected moment — upgrades gutter chips with names. */
+  selectedMomentDetail?: MomentDetailResponse | null;
+  propsCatalog?: PropResponse[];
+  setPiecesCatalog?: SetPieceResponse[];
   onSelectMoment: (momentId: number) => void;
   isHighlighted: (moment: MomentSummary) => boolean;
   showPrepBadges?: boolean;
@@ -61,23 +86,141 @@ export interface TimelineMomentListProps {
   onScrollAnchorChange?: (anchor: TimelineScrollAnchor | null) => void;
 }
 
-const MOBILE_VISIBLE_PREP_BADGES = 2;
-
-type PrepBadgeDescriptor = {
+type AttachmentChip = {
+  key: string;
+  kind: MomentAttachmentKind;
   label: string;
 };
 
-function buildPrepBadgeDescriptors(moment: MomentSummary): PrepBadgeDescriptor[] {
-  const badges: PrepBadgeDescriptor[] = [];
-  if (moment.has_props) badges.push({ label: "Prop" });
-  if (moment.has_cues) badges.push({ label: "Cue" });
-  if (moment.has_set_piece) badges.push({ label: "Set" });
-  if (moment.has_costume) badges.push({ label: "Costume" });
-  if (moment.has_entrance) badges.push({ label: "Entrance" });
-  if (moment.has_exit) badges.push({ label: "Exit" });
-  if (moment.has_blocking) badges.push({ label: "Blocking" });
-  if (moment.has_suggested) badges.push({ label: "Suggested" });
-  return badges;
+function subjectLabel(parts: {
+  character_name?: string | null;
+  user_display_name?: string | null;
+  group_name?: string | null;
+}): string | null {
+  return parts.character_name || parts.user_display_name || parts.group_name || null;
+}
+
+/** Named attachments from moment detail (preferred when selected). */
+function buildSelectedAttachmentChips(detail: MomentDetailResponse): AttachmentChip[] {
+  const chips: AttachmentChip[] = [];
+
+  for (const event of detail.props) {
+    const note = event.notes?.trim();
+    chips.push({
+      key: `prop-${event.id}`,
+      kind: "prop",
+      label: note || event.prop_name,
+    });
+  }
+
+  for (const event of detail.set_pieces) {
+    chips.push({
+      key: `set-${event.id}`,
+      kind: "set_piece",
+      label: event.set_piece_name,
+    });
+  }
+
+  for (const cue of detail.cues) {
+    const note = cue.notes?.trim();
+    chips.push({
+      key: `cue-${cue.id}`,
+      kind: "cue",
+      label: note ? `${cue.title} (${note})` : cue.title,
+    });
+  }
+
+  for (const item of detail.blocking) {
+    const who = subjectLabel(item);
+    const note = item.notes.trim();
+    chips.push({
+      key: `blocking-${item.id}`,
+      kind: "blocking",
+      label: who && note ? `${who}: ${note}` : note || who || "Blocking",
+    });
+  }
+
+  for (const item of detail.entrances) {
+    chips.push({
+      key: `entrance-${item.id}`,
+      kind: "entrance",
+      label: subjectLabel(item) || item.notes?.trim() || "Entrance",
+    });
+  }
+
+  for (const item of detail.exits) {
+    chips.push({
+      key: `exit-${item.id}`,
+      kind: "exit",
+      label: subjectLabel(item) || item.notes?.trim() || "Exit",
+    });
+  }
+
+  for (const item of detail.costume_events) {
+    chips.push({
+      key: `costume-${item.id}`,
+      kind: "costume",
+      label: item.costume_name || item.character_name || "Costume",
+    });
+  }
+
+  return chips;
+}
+
+/** Compact chips from list summary flags / ids (all rows when prep badges on). */
+function buildSummaryAttachmentChips(
+  moment: MomentSummary,
+  propsCatalog: PropResponse[],
+  setPiecesCatalog: SetPieceResponse[],
+): AttachmentChip[] {
+  const chips: AttachmentChip[] = [];
+
+  for (const propId of moment.prop_ids ?? []) {
+    const prop = propsCatalog.find((item) => item.id === propId);
+    chips.push({
+      key: `prop-${propId}`,
+      kind: "prop",
+      label: prop?.name ?? "Prop",
+    });
+  }
+  if ((moment.prop_ids ?? []).length === 0 && moment.has_props) {
+    chips.push({ key: "prop-flag", kind: "prop", label: "Prop" });
+  }
+
+  for (const setPieceId of moment.set_piece_ids ?? []) {
+    const setPiece = setPiecesCatalog.find((item) => item.id === setPieceId);
+    chips.push({
+      key: `set-${setPieceId}`,
+      kind: "set_piece",
+      label: setPiece?.name ?? "Set",
+    });
+  }
+  if ((moment.set_piece_ids ?? []).length === 0 && moment.has_set_piece) {
+    chips.push({ key: "set-flag", kind: "set_piece", label: "Set" });
+  }
+
+  if (moment.has_cues) {
+    chips.push({ key: "cue-flag", kind: "cue", label: "Cue" });
+  }
+  if (moment.has_blocking) {
+    chips.push({ key: "blocking-flag", kind: "blocking", label: "Blocking" });
+  }
+  if (moment.has_entrance) {
+    chips.push({ key: "entrance-flag", kind: "entrance", label: "Entrance" });
+  }
+  if (moment.has_exit) {
+    chips.push({ key: "exit-flag", kind: "exit", label: "Exit" });
+  }
+  if (moment.has_costume) {
+    chips.push({ key: "costume-flag", kind: "costume", label: "Costume" });
+  }
+
+  return chips;
+}
+
+function AttachmentChipIcon({ kind }: { kind: MomentAttachmentKind }) {
+  const Icon = domainIcon(kind);
+  return <Icon className="size-3.5 shrink-0" aria-hidden />;
 }
 
 function speakingCharacterName(
@@ -116,6 +259,9 @@ function MomentRow({
   characters,
   groups,
   selectedMomentId,
+  selectedMomentDetail,
+  propsCatalog,
+  setPiecesCatalog,
   onSelectMoment,
   isHighlighted,
   showPrepBadges,
@@ -141,6 +287,9 @@ function MomentRow({
   characters: CharacterDetailResponse[];
   groups: { id: number; name: string }[];
   selectedMomentId: number | null;
+  selectedMomentDetail?: MomentDetailResponse | null;
+  propsCatalog: PropResponse[];
+  setPiecesCatalog: SetPieceResponse[];
   onSelectMoment: (momentId: number) => void;
   isHighlighted: (moment: MomentSummary) => boolean;
   showPrepBadges: boolean;
@@ -160,12 +309,23 @@ function MomentRow({
   setBlurRevealMode: (mode: "hover" | "tap" | null) => void;
 }) {
   const speaker = speakingCharacterName(moment, characters, groups);
-  const prepBadges = showPrepBadges ? buildPrepBadgeDescriptors(moment) : [];
-  const hiddenPrepBadges = prepBadges.slice(MOBILE_VISIBLE_PREP_BADGES);
   const highlighted = isHighlighted(moment);
   const selected = selectedMomentId === moment.id;
   const shouldBlur = blurMyLines && isMyLine?.(moment);
   const revealed = revealedBlurLineId === moment.id;
+
+  const bodyText =
+    (moment.moment_type === "dialogue" || moment.moment_type === "lyric") && speaker
+      ? moment.display_text.replace(/^[^:]+:\s*/, "")
+      : moment.display_text;
+
+  const selectedDetail =
+    selected && selectedMomentDetail?.id === moment.id ? selectedMomentDetail : null;
+  const attachmentChips = showPrepBadges
+    ? selectedDetail
+      ? buildSelectedAttachmentChips(selectedDetail)
+      : buildSummaryAttachmentChips(moment, propsCatalog, setPiecesCatalog)
+    : [];
 
   function handleRowKeyDown(event: React.KeyboardEvent) {
     if (event.key === "Enter" || event.key === " ") {
@@ -237,64 +397,71 @@ function MomentRow({
         </div>
       )}
 
-      {showSequenceNumbers && (
-        <span className="w-8 shrink-0 self-start font-mono text-xs text-muted-foreground">
-          {moment.sequence_number}
-        </span>
-      )}
-      {speaker && (
-        <span
-          className="w-24 shrink-0 self-start truncate font-medium text-muted-foreground"
-          title={speaker}
-        >
-          {speaker}
-        </span>
-      )}
-      <span
-        className={cn(
-          "min-w-0 flex-1 self-stretch whitespace-pre-wrap break-words leading-relaxed",
-          moment.moment_type === "stage_direction" && "italic text-muted-foreground",
-          momentTextBlurClass(!!shouldBlur, revealed),
-        )}
-      >
-        {(moment.moment_type === "dialogue" || moment.moment_type === "lyric") &&
-        speaker
-          ? moment.display_text.replace(/^[^:]+:\s*/, "")
-          : moment.display_text}
-      </span>
-
+      {/* Script gutter: speaker + line number + prep chips (always when enabled) */}
       <div
-        className="flex max-w-full shrink-0 flex-wrap justify-end gap-1 self-start"
-        onClick={(event) => event.stopPropagation()}
-      >
-        {prepBadges.map((badge, index) => (
-          <Badge
-            key={badge.label}
-            variant="outline"
-            className={cn(
-              "text-xs",
-              badge.label === "Suggested" && "border-amber-500 text-amber-700 dark:text-amber-300",
-              index >= MOBILE_VISIBLE_PREP_BADGES && "max-sm:hidden",
-            )}
-          >
-            {badge.label}
-          </Badge>
-        ))}
-        {hiddenPrepBadges.length > 0 && (
-          <Badge
-            variant="outline"
-            className="text-xs sm:hidden"
-            title={hiddenPrepBadges.map((badge) => badge.label).join(", ")}
-          >
-            +{hiddenPrepBadges.length}
-          </Badge>
+        className={cn(
+          "flex shrink-0 flex-col gap-0.5 self-start",
+          showPrepBadges ? "w-[6.5rem] sm:w-32" : "w-[5.5rem] sm:w-28",
         )}
-        {showTypeBadge && (
+      >
+        {speaker && (
+          <span
+            className="truncate text-xs font-semibold tracking-wide text-foreground uppercase"
+            title={speaker}
+          >
+            {speaker}
+          </span>
+        )}
+        {showSequenceNumbers && (
+          <span className="font-mono text-[11px] text-muted-foreground">
+            L.{moment.sequence_number}
+          </span>
+        )}
+        {attachmentChips.length > 0 && (
+          <div
+            className="mt-0.5 flex flex-col gap-0.5"
+            onClick={(event) => event.stopPropagation()}
+          >
+            {attachmentChips.map((chip) => (
+              <span
+                key={chip.key}
+                className={cn(
+                  "inline-flex min-w-0 items-center gap-1 text-[10px] leading-tight font-medium",
+                    momentAttachmentChipClass(chip.kind),
+                )}
+                title={chip.label}
+              >
+                <AttachmentChipIcon kind={chip.kind} />
+                <span className="truncate">{chip.label}</span>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Script body */}
+      <div className="min-w-0 flex-1 self-stretch">
+        <p
+          className={cn(
+            "font-script whitespace-pre-wrap break-words text-[15px] leading-relaxed text-foreground",
+            moment.moment_type === "stage_direction" && "italic text-muted-foreground",
+            momentTextBlurClass(!!shouldBlur, revealed),
+          )}
+        >
+          {bodyText}
+        </p>
+      </div>
+
+      {showTypeBadge && (
+        <div
+          className="flex shrink-0 self-start"
+          onClick={(event) => event.stopPropagation()}
+        >
           <Badge className={cn("capitalize", momentBadgeClass(moment.moment_type))}>
             {momentTypeLabel(moment.moment_type)}
           </Badge>
-        )}
-      </div>
+        </div>
+      )}
 
       {showStructuralControls && (
         <div
@@ -336,6 +503,9 @@ export default function TimelineMomentList({
   characters,
   groups = [],
   selectedMomentId,
+  selectedMomentDetail = null,
+  propsCatalog = [],
+  setPiecesCatalog = [],
   onSelectMoment,
   isHighlighted,
   showPrepBadges = true,
@@ -358,8 +528,11 @@ export default function TimelineMomentList({
 }: TimelineMomentListProps) {
   const [revealedBlurLineId, setRevealedBlurLineId] = useState<number | null>(null);
   const [blurRevealMode, setBlurRevealMode] = useState<"hover" | "tap" | null>(null);
+  const [selectedOffscreen, setSelectedOffscreen] =
+    useState<SelectedMomentOffscreen>(null);
   const internalListRef = useRef<HTMLUListElement | null>(null);
   const anchorRafRef = useRef<number | null>(null);
+  const offscreenRafRef = useRef<number | null>(null);
 
   const resolvedSections: TimelineSection[] =
     sections && sections.length > 0
@@ -407,11 +580,70 @@ export default function TimelineMomentList({
     };
   }, [onScrollAnchorChange, resolvedSections]);
 
+  useEffect(() => {
+    const listEl = internalListRef.current;
+    if (!listEl || selectedMomentId == null) {
+      setSelectedOffscreen(null);
+      return;
+    }
+
+    const publish = () => {
+      offscreenRafRef.current = null;
+      setSelectedOffscreen(getSelectedMomentOffscreen(listEl, selectedMomentId));
+    };
+
+    const onScroll = () => {
+      if (offscreenRafRef.current != null) return;
+      offscreenRafRef.current = window.requestAnimationFrame(publish);
+    };
+
+    listEl.addEventListener("scroll", onScroll, { passive: true });
+    // Selection change or list rebuild may move the row without a scroll event.
+    publish();
+    const resizeObserver = new ResizeObserver(onScroll);
+    resizeObserver.observe(listEl);
+
+    return () => {
+      listEl.removeEventListener("scroll", onScroll);
+      resizeObserver.disconnect();
+      if (offscreenRafRef.current != null) {
+        window.cancelAnimationFrame(offscreenRafRef.current);
+        offscreenRafRef.current = null;
+      }
+    };
+  }, [selectedMomentId, resolvedSections]);
+
+  function scrollSelectedToCenter() {
+    const listEl = internalListRef.current;
+    if (!listEl || selectedMomentId == null) return;
+    scrollListToMomentCentered(listEl, selectedMomentId, "smooth");
+  }
+
   return (
-    <ul
-      ref={assignListRef}
-      className="min-h-0 flex-1 overflow-y-auto divide-y divide-border"
-    >
+    <div className="relative min-h-0 flex-1">
+      {selectedOffscreen === "above" && (
+        <button
+          type="button"
+          onClick={scrollSelectedToCenter}
+          className="absolute top-2 left-1/2 z-20 flex -translate-x-1/2 items-center justify-center rounded-full border-2 border-foreground/80 bg-background p-1.5 text-foreground/80 shadow-sm hover:bg-muted"
+          aria-label="Scroll to selected moment"
+          title="Scroll to selected moment"
+        >
+          <ChevronUp className="size-4" />
+        </button>
+      )}
+      {selectedOffscreen === "below" && (
+        <button
+          type="button"
+          onClick={scrollSelectedToCenter}
+          className="absolute bottom-2 left-1/2 z-20 flex -translate-x-1/2 items-center justify-center rounded-full border-2 border-foreground/80 bg-background p-1.5 text-foreground/80 shadow-sm hover:bg-muted"
+          aria-label="Scroll to selected moment"
+          title="Scroll to selected moment"
+        >
+          <ChevronDown className="size-4" />
+        </button>
+      )}
+      <ul ref={assignListRef} className="h-full min-h-0 overflow-y-auto">
       {resolvedSections.map((section) => (
         <Fragment key={section.sceneId || "flat"}>
           {showHeaders && section.label ? (
@@ -439,50 +671,55 @@ export default function TimelineMomentList({
             // like an empty "singer with no lyrics" line.
             .filter((moment) => moment.moment_type !== "song_attribution")
             .map((moment, index, visibleMoments) => (
-            <li
-              key={moment.id}
-              data-moment-id={moment.id}
-              data-scene-id={section.sceneId}
-              data-sequence-number={moment.sequence_number}
-            >
-              <MomentRow
-                moment={moment}
-                index={index}
-                sectionLength={visibleMoments.length}
-                sceneId={section.sceneId}
-                characters={characters}
-                groups={groups}
-                selectedMomentId={selectedMomentId}
-                onSelectMoment={onSelectMoment}
-                isHighlighted={isHighlighted}
-                showPrepBadges={showPrepBadges}
-                showSequenceNumbers={showSequenceNumbers}
-                showTypeBadge={showTypeBadge}
-                blurMyLines={blurMyLines}
-                isMyLine={isMyLine}
-                showStructuralControls={showStructuralControls}
-                structuralSaving={structuralSaving}
-                onMoveUp={onMoveUp}
-                onMoveDown={onMoveDown}
-                onInsertAfter={onInsertAfter}
-                onDelete={onDelete}
-                revealedBlurLineId={revealedBlurLineId}
-                setRevealedBlurLineId={setRevealedBlurLineId}
-                blurRevealMode={blurRevealMode}
-                setBlurRevealMode={setBlurRevealMode}
-              />
-              {insertFormSlot &&
-                insertAfterSequence === moment.sequence_number &&
-                insertSceneId === section.sceneId && (
-                  <div onClick={(event) => event.stopPropagation()}>
-                    {insertFormSlot(moment.sequence_number, section.sceneId)}
-                  </div>
-                )}
-            </li>
-          ))}
+              <li
+                key={moment.id}
+                data-moment-id={moment.id}
+                data-scene-id={section.sceneId}
+                data-sequence-number={moment.sequence_number}
+                className="px-1"
+              >
+                <MomentRow
+                  moment={moment}
+                  index={index}
+                  sectionLength={visibleMoments.length}
+                  sceneId={section.sceneId}
+                  characters={characters}
+                  groups={groups}
+                  selectedMomentId={selectedMomentId}
+                  selectedMomentDetail={selectedMomentDetail}
+                  propsCatalog={propsCatalog}
+                  setPiecesCatalog={setPiecesCatalog}
+                  onSelectMoment={onSelectMoment}
+                  isHighlighted={isHighlighted}
+                  showPrepBadges={showPrepBadges}
+                  showSequenceNumbers={showSequenceNumbers}
+                  showTypeBadge={showTypeBadge}
+                  blurMyLines={blurMyLines}
+                  isMyLine={isMyLine}
+                  showStructuralControls={showStructuralControls}
+                  structuralSaving={structuralSaving}
+                  onMoveUp={onMoveUp}
+                  onMoveDown={onMoveDown}
+                  onInsertAfter={onInsertAfter}
+                  onDelete={onDelete}
+                  revealedBlurLineId={revealedBlurLineId}
+                  setRevealedBlurLineId={setRevealedBlurLineId}
+                  blurRevealMode={blurRevealMode}
+                  setBlurRevealMode={setBlurRevealMode}
+                />
+                {insertFormSlot &&
+                  insertAfterSequence === moment.sequence_number &&
+                  insertSceneId === section.sceneId && (
+                    <div onClick={(event) => event.stopPropagation()}>
+                      {insertFormSlot(moment.sequence_number, section.sceneId)}
+                    </div>
+                  )}
+              </li>
+            ))}
         </Fragment>
       ))}
       {footerSlot}
     </ul>
+    </div>
   );
 }

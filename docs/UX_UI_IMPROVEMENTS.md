@@ -249,8 +249,9 @@ These are already captured in [PROJECT.md](PROJECT.md) and [SCRATCH_NOTES.md](SC
 
 Reuse these instead of inventing new ones:
 
-1. **Icon `Button` + `aria-label`** — Timeline structural actions, bookmark, detach.
-2. **Sheet** for moment detail (right desktop / bottom mobile) with pending-save flush.
+1. **Icon `Button` + `aria-label`** — Timeline structural actions, detach.
+2. **Moment inspector** — co-planar right column on desktop (≥1024px, no overlay); bottom `Sheet` on mobile; pending-save flush on close.
+2b. **Domain icons** — `frontend/src/lib/domainIcons.ts` (`domainIcon()`) for prep glyphs across Timeline, moment detail, and prep nav.
 3. **Add to moment** type picker → conditional sub-form.
 4. **Collapsible Advanced filters** + active count badge.
 5. **AttachmentSection** collapse + count — default collapsed when empty.

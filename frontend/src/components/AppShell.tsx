@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useParams } from "react-router-dom";
 import {
   ArrowLeft,
-  BrickWall,
   Calendar,
   ChartArea,
   ChevronRight,
@@ -10,20 +9,13 @@ import {
   FileUp,
   Info,
   LayoutDashboard,
-  Shapes,
-  Mic,
-  Music,
   PanelLeft,
   PanelLeftClose,
   Scroll,
   Settings,
-  Shirt,
-  Spotlight,
-  Swords,
   User,
   UserRoundCog,
   UsersRound,
-  VenetianMask,
   X,
   type LucideIcon,
 } from "lucide-react";
@@ -42,6 +34,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { ObjectDetailProvider } from "@/context/ObjectDetailContext";
+import { domainIcon } from "@/lib/domainIcons";
 import {
   ProductionAccessProvider,
   useProductionAccess,
@@ -277,7 +270,7 @@ function AppShellInner() {
         <SidebarNavLink
           to={`/productions/${productionId}/characters`}
           label="Characters"
-          icon={VenetianMask}
+          icon={domainIcon("character")}
           collapsed={navCollapsed}
           onNavigate={closeMobileNav}
         />
@@ -286,7 +279,7 @@ function AppShellInner() {
         <SidebarNavLink
           to={`/productions/${productionId}/songs`}
           label="Songs"
-          icon={Music}
+          icon={domainIcon("song")}
           collapsed={navCollapsed}
           onNavigate={closeMobileNav}
         />
@@ -295,7 +288,7 @@ function AppShellInner() {
         <SidebarNavLink
           to={`/productions/${productionId}/props`}
           label="Props"
-          icon={Swords}
+          icon={domainIcon("prop")}
           collapsed={navCollapsed}
           onNavigate={closeMobileNav}
         />
@@ -304,7 +297,7 @@ function AppShellInner() {
         <SidebarNavLink
           to={`/productions/${productionId}/costumes`}
           label="Costumes"
-          icon={Shirt}
+          icon={domainIcon("costume")}
           collapsed={navCollapsed}
           onNavigate={closeMobileNav}
         />
@@ -313,7 +306,7 @@ function AppShellInner() {
         <SidebarNavLink
           to={`/productions/${productionId}/lav-chart`}
           label="Lav chart"
-          icon={Mic}
+          icon={domainIcon("lav")}
           collapsed={navCollapsed}
           onNavigate={closeMobileNav}
         />
@@ -322,7 +315,7 @@ function AppShellInner() {
         <SidebarNavLink
           to={`/productions/${productionId}/set-pieces`}
           label="Set Pieces"
-          icon={BrickWall}
+          icon={domainIcon("set_piece")}
           collapsed={navCollapsed}
           onNavigate={closeMobileNav}
         />
@@ -333,7 +326,7 @@ function AppShellInner() {
             <SidebarNavLink
               to={`/productions/${productionId}/groups`}
               label="Groups"
-              icon={Shapes}
+              icon={domainIcon("group")}
               collapsed={navCollapsed}
               onNavigate={closeMobileNav}
             />
@@ -342,7 +335,7 @@ function AppShellInner() {
             <SidebarNavLink
               to={`/productions/${productionId}/cue-categories`}
               label="Cue Categories"
-              icon={Spotlight}
+              icon={domainIcon("cue")}
               collapsed={navCollapsed}
               onNavigate={closeMobileNav}
             />

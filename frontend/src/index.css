@@ -321,6 +321,8 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  /* Script body — printed-play feel; UI chrome stays system sans */
+  --font-script: "Libre Baskerville", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
 }
 
 body {

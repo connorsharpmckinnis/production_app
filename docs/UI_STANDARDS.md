@@ -1,6 +1,6 @@
 # UI Standards
 
-**Version:** 0.5 (capability-driven nav; People roster; 2026-09-02)
+**Version:** 0.7 (reader Timeline + co-planar inspector + domainIcons; 2026-09-23)
 
 Minimum UI conventions for the Theater App. Slice 1 covers import and read-only timeline; Slice 2 adds casting, filters, notes, and bookmarks; Slice 3 adds import-review editing, songs, props, and cues.
 
@@ -69,7 +69,7 @@ step links rather than only dumping into the Timeline.
 
 ### Timeline Review (read-only baseline)
 
-Moments listed in sequence order; click row → read-only detail in a `Sheet`.
+Moments listed in sequence order; click row → detail inspector (co-planar on desktop, `Sheet` on mobile).
 
 ---
 
@@ -108,28 +108,41 @@ Moments listed in sequence order; click row → read-only detail in a `Sheet`.
 
 **Moment list:**
 
-* Sequence number, truncated text, type badge.
-* Optional **Prop** / **Cue** outline badges when attachments exist.
+* Script-page gutter: character name (uppercase sans) + optional `L.{n}`; dialogue/stage direction body in **Libre Baskerville** (`font-script`). Stage directions leave the name blank (no “Dir.” label).
+* No per-row divider lines (script feel, not spreadsheet).
+* When **Prep badges** is on: domain-icon chips in the gutter for props/cues/entrances/exits/blocking/set/costume (`domainIcon()` from [domainIcons.ts](../frontend/src/lib/domainIcons.ts)). Selected rows upgrade chip labels from loaded moment detail when available.
+* Selected row: 2px outline only (layout-neutral reserved border). When the selected moment scrolls fully out of view, a matching chevron at the top or bottom of the list recenters it.
 * Highlighted rows (blue left border) for filtered character dialogue and referenced stage directions.
-* Click row → moment detail sheet.
+* Click row → moment inspector (desktop co-planar column; mobile bottom `Sheet`).
 * Scene summary strip: character/song names use **ObjectLink** chips (secondary + arrow icon) → object detail sheet. Dialogue speaker column stays plain text.
+* Compact toolbar (search + scene/character/advanced + **View** menu) lives in the Timeline middle column only so the inspector can use full height.
 
-**Moment detail sheet:**
+**Moment detail (inspector):**
 
-* Full **original text** (always read-only — sacred script).
-* **Bookmark** icon button (lucide `Bookmark`; filled when active).
+* **Desktop (≥1024px):** co-planar right column beside the Timeline — same hierarchy, no dimming overlay; Timeline stays scrollable.
+* **Mobile:** full-height bottom `Sheet`.
+* Close via header X or Escape; switching rows updates selection.
+* Does **not** repeat the line/lyric/direction already visible on the selected Timeline row (script edit fields still show for Admin).
 * **Notes** list + add form; Director/Admin can choose public/private visibility.
 * Catalog object names (entrances, props, etc.) use **ObjectLink** where the user has `read` — opens the shared object detail Sheet (not a new nav route).
+* Domain icons on attachment type picker and section headers come from the same `domainIcons` registry as Timeline chips and prep nav.
+* **Bookmark create/toggle on the inspector is deferred** (API + “My bookmarks” list remain; create UI TBD).
 
 **Object detail sheet (catalog / domain objects):**
 
-* Ephemeral right/bottom `Sheet` (same family as Moment Detail); one at a time; replace on another open after dirty guard.
+* Ephemeral right/bottom `Sheet` (same family as mobile Moment Detail); one at a time; replace on another open after dirty guard.
 * Explicit Save / Discard when `update` is allowed.
 * See [object-detail-pages.md](shipped_features/object-detail-pages.md).
 
+**Typography:**
+
+* UI chrome (nav, buttons, badges, character names, line numbers): system sans.
+* Script body (Timeline dialogue / lyrics / stage directions, and matching edit fields): Libre Baskerville via `font-script`.
+
 **Bookmarks (user menu):**
 
-* List of saved moments with production title and preview text.
+* List of saved moments with production title and preview text (deep-link to Timeline).
+* Create/remove from moment inspector deferred until interaction design is settled.
 * Deferred: dedicated timeline-like bookmarks view (see [PROJECT.md](PROJECT.md) Wish List).
 
 ---
@@ -192,10 +205,9 @@ Use shadcn/ui throughout ([DEVELOPMENT_GUIDE](../.agents/skills/DEVELOPMENT_GUID
 | Feedback / errors | `Alert` (`info`, `success`, `warning`, `destructive`) |
 | Timeline rows | scrollable list + custom row |
 | Moment type badge | `Badge` |
-| Prop/Cue/Mic/Set/Costume indicator | `Badge variant="outline"` |
-| Side panel | `Sheet` |
+| Prep / domain glyph | `domainIcon()` from `frontend/src/lib/domainIcons.ts` (Timeline chips, detail picker, prep nav) |
+| Side panel | Moment detail: co-planar column on desktop; `Sheet` on mobile. Catalog objects: `Sheet` |
 | Catalog object reference | `ObjectLink` (secondary chip + arrow) → object detail `Sheet` |
-| Bookmark toggle | `Button` (icon-sm) + lucide icon |
 | Navigation | sidebar `nav` links |
 | Toasts | `ToastProvider` / `useToast` |
 | Component review | Admin `/dev/ui` gallery |
@@ -243,8 +255,8 @@ Semantic action colors:
 
 ## Responsive Notes
 
-* Timeline filters stack on mobile; moment list scrolls independently.
-* Moment detail sheet slides from bottom on small screens, right side on large screens.
+* Timeline filters/toolbar stay in the middle column; moment list scrolls independently.
+* Moment inspector: co-planar right column on large screens; bottom `Sheet` on small screens.
 * Sidebar collapses to hamburger menu on small screens.
 
 ---

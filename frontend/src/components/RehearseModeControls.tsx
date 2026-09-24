@@ -30,7 +30,7 @@ export default function RehearseModeControls({
   className,
 }: RehearseModeControlsProps) {
   return (
-    <div className={cn("flex flex-col gap-1.5", className)}>
+    <div className={cn("flex flex-wrap items-center gap-1.5", className)}>
       <Select
         value={effectivePreset === "custom" ? "custom" : effectivePreset}
         onValueChange={(value) => {
@@ -38,7 +38,7 @@ export default function RehearseModeControls({
           onPresetChange(value as Exclude<RehearsePresetId, "custom">);
         }}
       >
-        <SelectTrigger className="w-fit" aria-label="Practice preset">
+        <SelectTrigger className="h-8 w-fit" aria-label="Practice preset">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
@@ -60,36 +60,36 @@ export default function RehearseModeControls({
         </SelectContent>
       </Select>
 
-      <div className="flex flex-wrap gap-x-3 gap-y-1.5 rounded-md border border-border bg-card px-3 py-2 text-sm">
-        <Label className="flex items-center gap-2 font-normal">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-md border border-border bg-card px-2.5 py-1 text-xs sm:text-sm">
+        <Label className="flex items-center gap-1.5 font-normal">
           <Checkbox
             checked={toggles.highlightMyLines}
             onCheckedChange={(value) => onToggleChange("highlightMyLines", value === true)}
           />
           Highlight my lines
         </Label>
-        <Label className="flex items-center gap-2 font-normal">
+        <Label className="flex items-center gap-1.5 font-normal">
           <Checkbox
             checked={toggles.showStageDirections}
             onCheckedChange={(value) => onToggleChange("showStageDirections", value === true)}
           />
-          Show stage directions
+          Stage directions
         </Label>
-        <Label className="flex items-center gap-2 font-normal">
+        <Label className="flex items-center gap-1.5 font-normal">
           <Checkbox
             checked={toggles.showLyricsAndSongs}
             onCheckedChange={(value) => onToggleChange("showLyricsAndSongs", value === true)}
           />
-          Show lyrics &amp; songs
+          Lyrics &amp; songs
         </Label>
-        <Label className="flex items-center gap-2 font-normal">
+        <Label className="flex items-center gap-1.5 font-normal">
           <Checkbox
             checked={toggles.showPrepBadges}
             onCheckedChange={(value) => onToggleChange("showPrepBadges", value === true)}
           />
-          Show prep badges
+          Prep badges
         </Label>
-        <Label className="flex items-center gap-2 font-normal">
+        <Label className="flex items-center gap-1.5 font-normal">
           <Checkbox
             checked={toggles.blurMyLines}
             onCheckedChange={(value) => onToggleChange("blurMyLines", value === true)}

@@ -74,7 +74,7 @@ export default function CharacterMultiSelect({
         size="sm"
         disabled={disabled}
         onClick={() => setOpen((value) => !value)}
-        className="font-normal"
+        className="h-8 font-normal"
         aria-label="Filter by character"
         aria-expanded={open}
         aria-haspopup="listbox"

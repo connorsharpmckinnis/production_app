@@ -68,7 +68,7 @@ export default function SceneMultiSelect({
         variant="outline"
         size="sm"
         onClick={() => setOpen((value) => !value)}
-        className="font-normal"
+        className="h-8 font-normal"
         aria-expanded={open}
         aria-haspopup="listbox"
       >

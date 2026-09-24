@@ -126,3 +126,43 @@ export function scrollListToMoment(
   listEl.scrollTop += rowRect.top - listRect.top - stickyOffset;
   return true;
 }
+
+/** Whether the selected moment row is fully above or below the list viewport. */
+export type SelectedMomentOffscreen = "above" | "below" | null;
+
+export function getSelectedMomentOffscreen(
+  listEl: HTMLElement,
+  momentId: number,
+): SelectedMomentOffscreen {
+  const row = listEl.querySelector<HTMLElement>(`[data-moment-id="${momentId}"]`);
+  if (!row) return null;
+  const listRect = listEl.getBoundingClientRect();
+  const viewTop = effectiveViewportTop(listEl);
+  const viewBottom = listRect.bottom;
+  const rect = row.getBoundingClientRect();
+  if (rect.bottom <= viewTop + 1) return "above";
+  if (rect.top >= viewBottom - 1) return "below";
+  return null;
+}
+
+/** Scroll so the moment sits roughly centered in the list viewport. */
+export function scrollListToMomentCentered(
+  listEl: HTMLElement,
+  momentId: number,
+  behavior: ScrollBehavior = "smooth",
+): boolean {
+  const row = listEl.querySelector<HTMLElement>(`[data-moment-id="${momentId}"]`);
+  if (!row) return false;
+  const listRect = listEl.getBoundingClientRect();
+  const rowRect = row.getBoundingClientRect();
+  const stickyOffset = effectiveViewportTop(listEl) - listRect.top;
+  const viewHeight = listRect.height - stickyOffset;
+  const delta =
+    rowRect.top -
+    listRect.top -
+    stickyOffset -
+    viewHeight / 2 +
+    rowRect.height / 2;
+  listEl.scrollTo({ top: listEl.scrollTop + delta, behavior });
+  return true;
+}

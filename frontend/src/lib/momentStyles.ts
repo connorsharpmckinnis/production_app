@@ -25,7 +25,8 @@ export function momentBadgeClass(type: string): string {
 
 /**
  * Timeline/rehearse row chrome.
- * Priority: character highlight > selected > song tint.
+ * Priority: character highlight left edge > selected outline > song tint.
+ * Selected uses a reserved transparent border so toggling does not shift layout.
  */
 export function momentHighlightRowClass(
   isHighlighted: boolean,
@@ -34,11 +35,12 @@ export function momentHighlightRowClass(
 ): string {
   const isSong = momentType != null && isSongMomentType(momentType);
   return cn(
-    "flex w-full min-h-[2.5rem] cursor-pointer items-stretch gap-2 px-3 py-2 text-left text-sm transition-colors",
+    "relative flex w-full min-h-[2.5rem] cursor-pointer items-stretch gap-3 rounded-md border-2 border-transparent px-3 py-2.5 text-left text-sm transition-colors",
     // Half-strength tint — glanceable like Excel zebra rows, not a highlighter.
-    isSong && "bg-moment-song/30",
-    isSelected && "bg-muted",
-    isHighlighted && "border-l-4 border-l-highlight bg-highlight-muted",
+    isSong && !isSelected && "bg-moment-song/30",
+    isSelected && "border-foreground/80 bg-background",
+    isHighlighted && !isSelected && "border-l-4 border-l-highlight bg-highlight-muted",
+    isHighlighted && isSelected && "border-l-highlight",
   );
 }
 

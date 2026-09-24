@@ -3,7 +3,7 @@
 **Status:** Shipped (v1 — 2026-09-02)  
 **Created:** 2026-09-02  
 **Shipped:** 2026-09-02  
-**Related:** [scene-summary-drill-down.md](../feature_plans/scene-summary-drill-down.md) (remaining Layer F follow-ons), [in-play-moment-deep-links.md](in-play-moment-deep-links.md), Moment Detail Sheet
+**Related:** [scene-summary-drill-down.md](../feature_plans/scene-summary-drill-down.md) (remaining Layer F follow-ons), [in-play-moment-deep-links.md](in-play-moment-deep-links.md), Moment Detail inspector (co-planar desktop / mobile Sheet)
 
 ---
 

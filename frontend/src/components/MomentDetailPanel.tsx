@@ -1,18 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import type { LucideIcon } from "lucide-react";
-import {
-  Bookmark,
-  Check,
-  Layers,
-  LogIn,
-  LogOut,
-  Move,
-  Package,
-  Shirt,
-  Trash2,
-  Zap,
-} from "lucide-react";
+import { Check, Trash2 } from "lucide-react";
 import AttributionSubjectMultiSelect, {
   decodeAttributionSubjects,
   encodeAttributionSubject,
@@ -33,17 +21,17 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  SheetDescription,
-  SheetHeader,
-  SheetTitle,
-} from "@/components/ui/sheet";
 import { Textarea } from "@/components/ui/textarea";
 import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { api, ApiError, formatApiError } from "@/lib/api";
 import { characterOptionSearchMeta } from "@/lib/characterSearch";
+import {
+  MOMENT_ATTACHMENT_OPTIONS,
+  domainIcon,
+  type MomentAttachmentKind,
+} from "@/lib/domainIcons";
 import type { ObjectDetailType } from "@/lib/objectDetail";
 import { formatMomentCode, humanTimelinePath } from "@/lib/timelineDeepLinks";
 import type {
@@ -353,29 +341,9 @@ function KindToggle({
   );
 }
 
-type AttachmentType =
-  | "prop"
-  | "cue"
-  | "set_piece"
-  | "costume"
-  | "entrance"
-  | "exit"
-  | "blocking";
+type AttachmentType = MomentAttachmentKind;
 
-const ATTACHMENT_TYPE_OPTIONS: {
-  value: AttachmentType;
-  label: string;
-  icon: LucideIcon;
-}[] = [
-  { value: "prop", label: "Prop", icon: Package },
-  { value: "set_piece", label: "Set", icon: Layers },
-  { value: "costume", label: "Costume", icon: Shirt },
-  { value: "cue", label: "Cue", icon: Zap },
-  { value: "entrance", label: "Entrance", icon: LogIn },
-  { value: "exit", label: "Exit", icon: LogOut },
-  { value: "blocking", label: "Blocking", icon: Move },
-];
-
+const ATTACHMENT_TYPE_OPTIONS = MOMENT_ATTACHMENT_OPTIONS;
 function costumesPagePath(productionId: number, detail: MomentDetailResponse): string {
   const params = new URLSearchParams();
   if (detail.dialogue.length === 1 && detail.dialogue[0].character_id != null) {
@@ -415,6 +383,11 @@ interface MomentDetailPanelProps {
   onChanged: () => void | Promise<void>;
   momentBadgeClass: (type: string) => string;
   onScriptDirtyChange?: (dirty: boolean) => void;
+  /**
+   * When true, hide read-only script blocks that already appear on the Timeline
+   * row (dialogue / lyric / stage direction / song text). Edit fields remain.
+   */
+  hideScriptPreview?: boolean;
 }
 
 const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelProps>(
@@ -438,6 +411,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       onChanged,
       momentBadgeClass,
       onScriptDirtyChange,
+      hideScriptPreview = false,
     },
     ref,
   ) {
@@ -904,28 +878,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       isScriptDirty: () => scriptDirty,
     }));
 
-    async function handleBookmarkToggle() {
-      setSaving(true);
-      try {
-        if (detail.is_bookmarked) {
-          const bookmarks = await api.listBookmarks(productionId);
-          const bookmark = bookmarks.find((item) => item.moment_id === detail.id);
-          if (bookmark) {
-            await api.deleteBookmark(bookmark.id);
-          }
-          toast.success("Bookmark removed");
-        } else {
-          await api.createBookmark(detail.id);
-          toast.success("Bookmark added");
-        }
-        onChanged();
-      } catch (err) {
-        toast.error(formatApiError(err, "Bookmark action failed"));
-      } finally {
-        setSaving(false);
-      }
-    }
-
     async function handleAttachProp(event: React.FormEvent) {
       event.preventDefault();
       if (!attachPropId) return;
@@ -1358,34 +1310,34 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
     return (
       <div className="space-y-4">
-        <SheetHeader className="p-0">
-          <SheetDescription>Moment #{detail.sequence_number}</SheetDescription>
+        {/* Plain header — panel is used both in Sheet and co-planar aside (no Dialog context). */}
+        <div className="space-y-1.5">
+          <p
+            className={cn(
+              "text-sm text-muted-foreground",
+              hideScriptPreview && "sr-only",
+            )}
+          >
+            Moment #{detail.sequence_number}
+          </p>
           <div className="flex items-center gap-2">
-            <SheetTitle className="sr-only">Moment {detail.sequence_number}</SheetTitle>
-            <Badge className={cn("capitalize", momentBadgeClass(detail.moment_type))}>
-              {momentTypeLabel(detail.moment_type)}
-            </Badge>
+            <h2 className="sr-only">Moment {detail.sequence_number}</h2>
+            {!hideScriptPreview && (
+              <Badge className={cn("capitalize", momentBadgeClass(detail.moment_type))}>
+                {momentTypeLabel(detail.moment_type)}
+              </Badge>
+            )}
             {saving && (
               <span className="text-xs text-muted-foreground">Saving…</span>
             )}
           </div>
-        </SheetHeader>
-
-        <Button
-          type="button"
-          variant={detail.is_bookmarked ? "default" : "outline"}
-          size="icon-sm"
-          disabled={saving}
-          onClick={() => void handleBookmarkToggle()}
-          aria-label={detail.is_bookmarked ? "Remove bookmark" : "Bookmark this moment"}
-          title={detail.is_bookmarked ? "Remove bookmark" : "Bookmark this moment"}
-        >
-          <Bookmark className={detail.is_bookmarked ? "fill-current" : undefined} />
-        </Button>
+        </div>
 
         {/* Primary script content — emphasized above imported metadata */}
         {((canEditScript && draftMomentType === "stage_direction") ||
-          (!canEditScript && detail.moment_type === "stage_direction")) &&
+          (!canEditScript &&
+            !hideScriptPreview &&
+            detail.moment_type === "stage_direction")) &&
           (canEditScript || detail.stage_direction) && (
           <div className="rounded-md bg-muted/60 px-3 py-3">
             <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
@@ -1396,10 +1348,10 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                 value={stageDirectionText}
                 onChange={(e) => setStageDirectionText(e.target.value)}
                 rows={1}
-                className="mt-2 min-h-[3rem] resize-none overflow-hidden whitespace-pre-wrap text-base italic leading-relaxed"
+                className="mt-2 min-h-[3rem] resize-none overflow-hidden font-script whitespace-pre-wrap text-base italic leading-relaxed"
               />
             ) : (
-              <p className="mt-1 whitespace-pre-wrap text-base italic leading-relaxed">
+              <p className="mt-1 font-script whitespace-pre-wrap text-base italic leading-relaxed">
                 {detail.stage_direction}
               </p>
             )}
@@ -1426,7 +1378,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                 onChange={(e) => setDialogueText(e.target.value)}
                 rows={3}
                 placeholder="Dialogue text"
-                className="min-h-[4rem] resize-y whitespace-pre-wrap text-base leading-relaxed"
+                className="min-h-[4rem] resize-y font-script whitespace-pre-wrap text-base leading-relaxed"
               />
             </div>
           </div>
@@ -1434,14 +1386,15 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
         {detail.moment_type !== "stage_direction" &&
           detail.dialogue.length > 0 &&
-          !canEditScript && (
+          !canEditScript &&
+          !hideScriptPreview && (
           <div className="rounded-md bg-muted/60 px-3 py-3">
             <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Dialogue
             </h3>
             <ul className="mt-2 space-y-2">
               {detail.dialogue.map((line) => (
-                <li key={line.id} className="text-base leading-relaxed">
+                <li key={line.id} className="font-script text-base leading-relaxed">
                   <DetailObjectLabel
                     label={dialogueSpeakerLabel(line)}
                     objectType={
@@ -1480,7 +1433,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                 onChange={(e) => setLyricText(e.target.value)}
                 rows={3}
                 placeholder="Lyric text"
-                className="min-h-[4rem] resize-y whitespace-pre-wrap text-base leading-relaxed"
+                className="min-h-[4rem] resize-y font-script whitespace-pre-wrap text-base leading-relaxed"
               />
             </div>
           </div>
@@ -1488,14 +1441,15 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
         {detail.moment_type === "lyric" &&
           (detail.lyrics?.length ?? 0) > 0 &&
-          !canEditScript && (
+          !canEditScript &&
+          !hideScriptPreview && (
           <div className="rounded-md bg-muted/60 px-3 py-3">
             <h3 className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
               Lyric
             </h3>
             <ul className="mt-2 space-y-2">
               {detail.lyrics.map((line) => (
-                <li key={line.id} className="text-base leading-relaxed">
+                <li key={line.id} className="font-script text-base leading-relaxed">
                   <DetailObjectLabel
                     label={dialogueSpeakerLabel(line)}
                     objectType={
@@ -1530,7 +1484,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                 onChange={setSongSubjects}
               />
               {(detail.parsed_text || detail.original_text) && (
-                <p className="whitespace-pre-wrap text-sm text-muted-foreground">
+                <p className="font-script whitespace-pre-wrap text-sm text-muted-foreground">
                   {detail.parsed_text || detail.original_text}
                 </p>
               )}
@@ -1539,7 +1493,8 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         )}
 
         {((canEditScript && draftMomentType === "song_header") ||
-          (!canEditScript &&
+          (!hideScriptPreview &&
+            !canEditScript &&
             (detail.moment_type === "song_header" ||
               detail.moment_type === "song_attribution" ||
               (detail.moment_type === "lyric" &&
@@ -1554,13 +1509,13 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                     ? "Song title"
                     : "Attribution"}
               </h3>
-              <p className="mt-1 whitespace-pre-wrap text-base leading-relaxed">
+              <p className="mt-1 font-script whitespace-pre-wrap text-base leading-relaxed">
                 {detail.parsed_text || detail.original_text}
               </p>
             </div>
           )}
 
-        {appSettings.show_original_text && (
+        {appSettings.show_original_text && !hideScriptPreview && (
           <div>
             <h3 className="text-sm font-medium">Original text</h3>
             <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
@@ -1593,7 +1548,10 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           </div>
         )}
 
-        {!canEditScript && appSettings.show_parsed_text && detail.parsed_text && (
+        {!canEditScript &&
+          !hideScriptPreview &&
+          appSettings.show_parsed_text &&
+          detail.parsed_text && (
           <div>
             <h3 className="text-sm font-medium">Imported text</h3>
             <p className="mt-1 whitespace-pre-wrap text-sm text-muted-foreground">
@@ -1979,6 +1937,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
         <AssetEventSection
           title="Props"
+          iconKind="prop"
           emptyMessage="No prop events on this moment."
           canEdit={canAttach}
           saving={saving}
@@ -2031,6 +1990,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
         <AssetEventSection
           title="Set pieces"
+          iconKind="set_piece"
           emptyMessage="No set piece events on this moment."
           canEdit={canAttach}
           saving={saving}
@@ -2111,6 +2071,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         <AttachmentSection
           productionId={productionId}
           title="Entrances"
+          iconKind="entrance"
           emptyMessage="No entrances recorded."
           canEdit={canAttach}
           saving={saving}
@@ -2143,6 +2104,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         <AttachmentSection
           productionId={productionId}
           title="Exits"
+          iconKind="exit"
           emptyMessage="No exits recorded."
           canEdit={canAttach}
           saving={saving}
@@ -2175,6 +2137,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         <AttachmentSection
           productionId={productionId}
           title="Blocking"
+          iconKind="blocking"
           emptyMessage="No blocking notes."
           canEdit={canAttach}
           saving={saving}
@@ -2215,6 +2178,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         <AttachmentSection
           productionId={productionId}
           title="Cues"
+          iconKind="cue"
           emptyMessage="No cues attached."
           canEdit={canAttach}
           saving={saving}
@@ -2346,6 +2310,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 function AttachmentSection({
   productionId,
   title,
+  iconKind,
   emptyMessage,
   canEdit,
   saving,
@@ -2357,6 +2322,8 @@ function AttachmentSection({
 }: {
   productionId: number;
   title: string;
+  /** When set, section header uses the shared domain icon. */
+  iconKind?: MomentAttachmentKind;
   emptyMessage: string;
   canEdit: boolean;
   saving: boolean;
@@ -2389,6 +2356,7 @@ function AttachmentSection({
     setExpanded(defaultExpanded);
   }, [defaultExpanded]);
   const hasContent = items.length > 0;
+  const Icon = iconKind ? domainIcon(iconKind) : null;
 
   return (
     <div className="border-t border-border pt-4">
@@ -2397,7 +2365,10 @@ function AttachmentSection({
         onClick={() => setExpanded((open) => !open)}
         className="flex w-full items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-1 focus-visible:ring-ring"
       >
-        <h3 className="text-sm font-medium">{title}</h3>
+        <h3 className="flex items-center gap-1.5 text-sm font-medium">
+          {Icon ? <Icon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden /> : null}
+          {title}
+        </h3>
         <span className="text-xs text-muted-foreground">
           {hasContent ? `${items.length}` : "—"} {expanded ? "▾" : "▸"}
         </span>
@@ -2547,6 +2518,7 @@ interface AssetInPlayItem {
 
 function AssetEventSection({
   title,
+  iconKind,
   emptyMessage,
   canEdit,
   saving,
@@ -2562,6 +2534,7 @@ function AssetEventSection({
   inPlay,
 }: {
   title: string;
+  iconKind?: MomentAttachmentKind;
   emptyMessage: string;
   canEdit: boolean;
   saving: boolean;
@@ -2591,6 +2564,7 @@ function AssetEventSection({
   useEffect(() => {
     if (expandSignal > 0) setExpanded(true);
   }, [expandSignal]);
+  const Icon = iconKind ? domainIcon(iconKind) : null;
 
   return (
     <div className="border-t border-border pt-4">
@@ -2599,7 +2573,10 @@ function AssetEventSection({
         onClick={() => setExpanded((open) => !open)}
         className="flex w-full items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-1 focus-visible:ring-ring"
       >
-        <h3 className="text-sm font-medium">{title}</h3>
+        <h3 className="flex items-center gap-1.5 text-sm font-medium">
+          {Icon ? <Icon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden /> : null}
+          {title}
+        </h3>
         <span className="text-xs text-muted-foreground">
           {events.length > 0 ? `${events.length}` : "—"} {expanded ? "▾" : "▸"}
         </span>
@@ -3007,6 +2984,8 @@ function CostumeEventSection({
     setExpanded(defaultExpanded);
   }, [defaultExpanded]);
 
+  const CostumeIcon = domainIcon("costume");
+
   return (
     <div className="border-t border-border pt-4">
       <button
@@ -3014,7 +2993,10 @@ function CostumeEventSection({
         onClick={() => setExpanded((open) => !open)}
         className="flex w-full items-center justify-between gap-2 rounded-md text-left outline-none focus-visible:ring-1 focus-visible:ring-ring"
       >
-        <h3 className="text-sm font-medium">Costumes</h3>
+        <h3 className="flex items-center gap-1.5 text-sm font-medium">
+          <CostumeIcon className="size-3.5 shrink-0 text-muted-foreground" aria-hidden />
+          Costumes
+        </h3>
         <span className="text-xs text-muted-foreground">
           {events.length > 0 ? `${events.length}` : "—"} {expanded ? "▾" : "▸"}
         </span>

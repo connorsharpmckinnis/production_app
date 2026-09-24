@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
-import { X } from "lucide-react";
+import { ChevronDown, X } from "lucide-react";
 import CharacterMultiSelect from "@/components/CharacterMultiSelect";
 import EmptyState from "@/components/EmptyState";
 import MomentDetailSheet from "@/components/MomentDetailSheet";
@@ -32,6 +32,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
+import { useIsLargeScreen } from "@/hooks/useIsLargeScreen";
 import { useIsMediumScreen } from "@/hooks/useIsMediumScreen";
 import { useTimelineScene } from "@/hooks/useTimelineScene";
 import { api, formatApiError } from "@/lib/api";
@@ -87,6 +88,7 @@ export default function TimelinePage() {
   const toast = useToast();
   const { isAdmin } = useAuth();
   const isMediumScreen = useIsMediumScreen();
+  const isLargeScreen = useIsLargeScreen();
   const pendingDeepLinkRef = useRef<PendingDeepLink | null>(null);
   const momentListRef = useRef<HTMLUListElement | null>(null);
   const latestAnchorRef = useRef<TimelineScrollAnchor | null>(null);
@@ -102,6 +104,7 @@ export default function TimelinePage() {
   const searchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [advancedOpen, setAdvancedOpen] = useState(false);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
+  const [viewOptionsOpen, setViewOptionsOpen] = useState(false);
   const [costumeOnly, setCostumeOnly] = useState(storedPrefs.costumeOnly);
   const [entranceOnly, setEntranceOnly] = useState(storedPrefs.entranceOnly);
   const [exitOnly, setExitOnly] = useState(storedPrefs.exitOnly);
@@ -871,68 +874,57 @@ export default function TimelinePage() {
   }
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-2">
-      <div className="flex shrink-0 flex-wrap items-baseline gap-x-3 gap-y-0.5">
-        <Link
-          to={`/productions/${productionId}`}
-          className="text-xs text-muted-foreground hover:text-foreground"
-        >
-          ← Overview
-        </Link>
-        <h1 className="text-xl font-semibold tracking-tight">
-          {scene.productionTitle ?? "Timeline"}
-        </h1>
-      </div>
-
-      {scene.error && (
-        <Alert variant="destructive" className="shrink-0">
-          <AlertDescription>{scene.error}</AlertDescription>
-        </Alert>
-      )}
-
-      <div className="flex min-w-0 shrink-0 flex-col gap-1.5">
-        <form
-          onSubmit={handleSearchSubmit}
-          className="flex min-w-0 items-center gap-1.5"
-        >
-          <Input
-            value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
-            placeholder="Search timeline…"
-            title="Filters combine with AND. Multiple characters within that filter are OR. Results update as you type."
-            aria-label="Search timeline"
-            className="min-w-0 flex-1"
-          />
-          {hasActiveFilters && (
-            <Button type="button" variant="outline" className="shrink-0" onClick={clearAllFilters}>
-              Clear filters
-            </Button>
-          )}
-        </form>
-
-        {/* Mobile: collapse scene / character / view options into one Filters sheet */}
-        <div className="flex flex-wrap items-center gap-2 md:hidden">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => setMobileFiltersOpen(true)}
+    <div className="flex h-full min-h-0 gap-0">
+      {/* Middle column: toolbar + timeline (detail sits as sibling for full height) */}
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1.5">
+        <div className="flex shrink-0 flex-wrap items-baseline gap-x-3 gap-y-0.5">
+          <Link
+            to={`/productions/${productionId}`}
+            className="text-xs text-muted-foreground hover:text-foreground"
           >
-            Filters
-            {mobileFilterBadgeCount > 0 ? ` (${mobileFilterBadgeCount})` : ""}
-          </Button>
-          <Label className="flex items-center gap-2 text-sm font-normal">
-            <Switch
-              checked={rehearseMode}
-              onCheckedChange={(value) => setRehearseMode(value)}
-              aria-label="Rehearse mode"
-            />
-            Rehearse
-          </Label>
+            ← Overview
+          </Link>
+          <h1 className="text-lg font-semibold tracking-tight">
+            {scene.productionTitle ?? "Timeline"}
+          </h1>
+          <p className="text-xs text-muted-foreground">{scene.selectionLabel}</p>
         </div>
 
-        {/* Desktop / tablet: keep filters inline */}
-        <div className="hidden flex-col gap-1.5 md:flex">
-          <div className="flex flex-col gap-1.5 sm:flex-row sm:flex-wrap sm:items-center">
+        {scene.error && (
+          <Alert variant="destructive" className="shrink-0">
+            <AlertDescription>{scene.error}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Compact single toolbar row */}
+        <div className="flex min-w-0 shrink-0 flex-wrap items-center gap-1.5">
+          <form
+            onSubmit={handleSearchSubmit}
+            className="flex w-full max-w-[14rem] min-w-[9rem] items-center sm:max-w-[16rem]"
+          >
+            <Input
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              placeholder="Search…"
+              title="Filters combine with AND. Multiple characters within that filter are OR. Results update as you type."
+              aria-label="Search timeline"
+              className="h-8 min-w-0 flex-1"
+            />
+          </form>
+
+          <div className="flex flex-wrap items-center gap-1.5 md:hidden">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setMobileFiltersOpen(true)}
+            >
+              Filters
+              {mobileFilterBadgeCount > 0 ? ` (${mobileFilterBadgeCount})` : ""}
+            </Button>
+          </div>
+
+          <div className="hidden flex-wrap items-center gap-1.5 md:flex">
             <SceneMultiSelect
               acts={scene.acts}
               selectedSceneIds={scene.selectedSceneIds}
@@ -955,52 +947,98 @@ export default function TimelinePage() {
                 <Button
                   type="button"
                   variant="outline"
+                  size="sm"
                   onClick={() => setAdvancedOpen((open) => !open)}
                 >
-                  Advanced filters
+                  Advanced
                   {advancedFilterCount > 0 ? ` (${advancedFilterCount})` : ""}
                 </Button>
               </>
             )}
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5 text-sm">
-            <Label className="flex items-center gap-2 font-normal">
-              <Switch
-                checked={rehearseMode}
-                onCheckedChange={(value) => setRehearseMode(value)}
-                aria-label="Rehearse mode"
-              />
-              Rehearse mode
-            </Label>
-            {!rehearseMode && canManagePreparation && (
-              <Label className="flex items-center gap-2 font-normal">
-                <Checkbox
-                  checked={editTimeline}
-                  onCheckedChange={(value) => setEditTimeline(value === true)}
-                />
-                Edit Timeline
-              </Label>
-            )}
-            {!rehearseMode && (
+          <div className="relative">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setViewOptionsOpen((open) => !open)}
+              aria-expanded={viewOptionsOpen}
+              aria-haspopup="menu"
+            >
+              View
+              <ChevronDown className="size-3.5 opacity-70" />
+            </Button>
+            {viewOptionsOpen && (
               <>
-                <Label className="flex items-center gap-2 font-normal">
-                  <Checkbox
-                    checked={showSequenceNumbers}
-                    onCheckedChange={(value) => setShowSequenceNumbers(value === true)}
-                  />
-                  Moment numbers
-                </Label>
-                <Label className="flex items-center gap-2 font-normal">
-                  <Checkbox
-                    checked={showPrepBadges}
-                    onCheckedChange={(value) => setShowPrepBadges(value === true)}
-                  />
-                  Prep badges
-                </Label>
+                <button
+                  type="button"
+                  className="fixed inset-0 z-20 cursor-default"
+                  aria-label="Close view options"
+                  onClick={() => setViewOptionsOpen(false)}
+                />
+                <div
+                  role="menu"
+                  className="absolute top-full right-0 z-30 mt-1 w-56 rounded-md border bg-popover p-3 text-popover-foreground shadow-md"
+                >
+                  <div className="flex flex-col gap-2.5 text-sm">
+                    <Label className="flex items-center gap-2 font-normal">
+                      <Switch
+                        checked={rehearseMode}
+                        onCheckedChange={(value) => {
+                          setRehearseMode(value);
+                          if (value) setViewOptionsOpen(false);
+                        }}
+                        aria-label="Rehearse mode"
+                      />
+                      Rehearse mode
+                    </Label>
+                    {!rehearseMode && canManagePreparation && (
+                      <Label className="flex items-center gap-2 font-normal">
+                        <Checkbox
+                          checked={editTimeline}
+                          onCheckedChange={(value) => setEditTimeline(value === true)}
+                        />
+                        Edit Timeline
+                      </Label>
+                    )}
+                    {!rehearseMode && (
+                      <>
+                        <Label className="flex items-center gap-2 font-normal">
+                          <Checkbox
+                            checked={showSequenceNumbers}
+                            onCheckedChange={(value) =>
+                              setShowSequenceNumbers(value === true)
+                            }
+                          />
+                          Moment numbers
+                        </Label>
+                        <Label className="flex items-center gap-2 font-normal">
+                          <Checkbox
+                            checked={showPrepBadges}
+                            onCheckedChange={(value) => setShowPrepBadges(value === true)}
+                          />
+                          Prep badges
+                        </Label>
+                      </>
+                    )}
+                  </div>
+                </div>
               </>
             )}
           </div>
+
+          {hasActiveFilters && (
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-8 px-2 text-xs text-muted-foreground"
+              onClick={clearAllFilters}
+            >
+              Clear
+            </Button>
+          )}
         </div>
 
         {rehearseMode && (
@@ -1009,6 +1047,7 @@ export default function TimelinePage() {
             toggles={rehearseToggles}
             onPresetChange={handleRehearsePresetChange}
             onToggleChange={handleRehearseToggleChange}
+            className="shrink-0"
           />
         )}
 
@@ -1100,6 +1139,14 @@ export default function TimelinePage() {
                       />
                       Prep badges
                     </Label>
+                    <Label className="flex items-center gap-2 font-normal">
+                      <Switch
+                        checked={rehearseMode}
+                        onCheckedChange={(value) => setRehearseMode(value)}
+                        aria-label="Rehearse mode"
+                      />
+                      Rehearse mode
+                    </Label>
                   </div>
 
                   <div className="space-y-2">
@@ -1143,7 +1190,7 @@ export default function TimelinePage() {
         </Sheet>
 
         {hasActiveFilters && activeFilterChips.length > 0 && !rehearseMode && (
-          <div className="flex flex-wrap items-center gap-2">
+          <div className="flex shrink-0 flex-wrap items-center gap-1.5">
             {activeFilterChips.map((chip) => (
               <Badge key={chip.key} variant="secondary" className="gap-1 pr-1">
                 {chip.label}
@@ -1170,11 +1217,8 @@ export default function TimelinePage() {
             </Button>
           </div>
         )}
-      </div>
 
-      <p className="shrink-0 text-xs font-medium text-muted-foreground">{scene.selectionLabel}</p>
-
-      <div className="flex min-h-[40dvh] flex-1 flex-col overflow-hidden rounded-lg border border-border sm:min-h-0">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-lg border border-border">
         {scene.momentsLoading ? (
           <div className="space-y-2 p-3">
             {Array.from({ length: 8 }).map((_, index) => (
@@ -1219,6 +1263,9 @@ export default function TimelinePage() {
             characters={scene.characters}
             groups={groups}
             selectedMomentId={scene.selectedMomentId}
+            selectedMomentDetail={scene.momentDetail}
+            propsCatalog={scene.propsCatalog}
+            setPiecesCatalog={scene.setPiecesCatalog}
             onSelectMoment={scene.setSelectedMomentId}
             isHighlighted={(moment) =>
               rehearseMode
@@ -1323,10 +1370,12 @@ export default function TimelinePage() {
             }
           />
         )}
+        </div>
       </div>
 
       <MomentDetailSheet
         productionId={productionId}
+        presentation={isLargeScreen ? "inline" : "overlay"}
         open={scene.selectedMomentId !== null}
         onOpenChange={(open) => {
           if (!open) scene.setSelectedMomentId(null);

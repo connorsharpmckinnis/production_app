@@ -77,6 +77,7 @@ mode, concurrent-rehearsal picker, hide-suggestions-from-actors, tablet banner.
   - Put the move up/down arrows, add-moment button, and delete-moment button behind an Edit Timeline button or something (admin-only problem I think)
   - Maybe don't display the moment number on the row so prominently? Or at all? 
   → **Fixed 2026-07-20**: reading mode default; Edit Timeline for Admin/Director; moment # / prep badges toggles for everyone
+  → **Extended 2026-09-23**: Libre Baskerville for script body; co-planar desktop inspector; selected-row attachment strip
 - Right now, songs and 'song attribution' aren't working quite right I don't think. I need each section to have an identified singer (like how dialogue has a speaker) that is associated to all the lyric lines below that name and until an empty line or a new character-name line breaks it up. May need to add a rule to the standard script to differentiate a character-name for the purpose of naming the singer vs being named in teh song. Also we'll need to make sure it can handle multi-singer splits like SHACKLETON (WILD) meaning 'all lyrics are Shackleton, except for the ones in parentheses' → **Fixed 2026-07-25 (Phase 11):** `lyric_lines` + `song_attribution_characters`; blank lines do not clear singers; `SHACKLETON (WILD)` links both Characters (segment-accurate ownership later). See [PHASE_11.md](PHASE_11.md).
 - I think I want to preserve formatting like italics in the Timeline view for stage directions and whatnot, just so we have higher parity/similarity with teh 'official' script document as-is → **Fixed 2026-07-20**: stage-direction rows render italic
 - Entering a blocking note auto-scrolls the Timeline back to the top of the page. Don't like that. → **Fixed 2026-07-20**: silent moments refresh keeps scroll position
@@ -103,6 +104,10 @@ mode, concurrent-rehearsal picker, hide-suggestions-from-actors, tablet banner.
 ## Timeline 2.0 / Moment detail — 2026-09-16
 
 - **Wish list (deferred):** Batch moment **attachment** adds/edits (props, cues, entrances/exits, blocking, notes, etc.) behind the same dirty Save bar as script fields (save on click or panel close) to cut API/DB round-trips. **Today:** script drafts batch-save; attachments still POST/PATCH immediately. Owner confirmed defer — implement only after pilot feedback.
+- ~~Classic reader Timeline polish (serif script body, no row dividers, selected-row outline + attachment strip, co-planar desktop inspector without dimming overlay)~~ — **Fixed 2026-09-23**.
+- ~~Compact Timeline chrome (single toolbar row + View menu; inspector full-height beside middle column; prep chips always-on in name gutter when Prep badges on; no “Dir.” label; layout-neutral selection border; scroll-back chevrons; no LINE SELECTED tab; inspector bookmark toggle deferred)~~ — **Fixed 2026-09-23**.
+- ~~Domain icons single source~~ — **Fixed 2026-09-23**: `frontend/src/lib/domainIcons.ts` (`DOMAIN_ICONS` / `domainIcon()`) for Timeline chips, moment detail picker + section headers, AppShell prep nav. Swap Lucide entries there to rebrand; extend `DomainIconKind` for new types.
+- **Deferred:** richer unselected-row cue titles without opening detail; bookmark create/toggle UI redesign; visual selection↔inspector bridge beyond scroll-back arrows.
 
 ## Done (Phase 2 close-out)
 
