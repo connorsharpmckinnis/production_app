@@ -1,72 +1,68 @@
 ---
 name: feature-closeout
 description: >-
-  Sync planning and status docs after shipping work: update phase docs, scratch
-  notes, UX backlog, README, and related status so finished items are not
+  Sync planning and status docs after shipping work: update phase docs, feature
+  plans, UX archive notes, README, and related status so finished items are not
   rediscovered. Use after completing a feature, polish pass, phase work package,
-  or when the user asks to acknowledge changes in scratch notes / mark phase
-  complete.
+  or when the user asks to acknowledge shipped work / mark phase complete.
 ---
 
 # Feature Closeout
 
-After meaningful work lands, update the human-facing status trail so the owner does not re-fix finished items.
+After meaningful work lands, update the human-facing status trail so the owner does not re-fix finished work.
 
 ## When to run
 
 Run at the end of:
 
 * A phase work package or phase completion
-* A scratch-notes polish pass
-* A UX/UI backlog batch
+* A UX/UI polish pass
 * Any change that alters "what's done" vs "what's next"
 
 Skip for tiny one-line fixes with no doc footprint, unless the owner asks.
 
 ## Closeout checklist
 
-Copy and complete:
-
 ```text
 Closeout:
 - [ ] Code matches the authorized scope (no silent extras)
 - [ ] Tests / manual checks for the touched workflow
-- [ ] Relevant phase doc status updated
-- [ ] Scratch notes acknowledged (fixed / deferred / wish)
-- [ ] UX backlog or wish list updated if items moved
+- [ ] Relevant phase doc / feature plan status updated
+- [ ] GitHub Issues closed or commented if this resolved tracked work
+- [ ] UX archive or wish list updated only if status actually changed
 - [ ] README / deploy / seed docs updated if operator steps changed
-- [ ] Open follow-ups listed for the owner
+- [ ] Open follow-ups listed for the owner (prefer Issues over new scratch prose)
 ```
 
 ## What to update (pick the ones that apply)
 
 | Doc | Update when |
 | --- | --- |
-| `docs/PHASE_*.md` | Work package or phase status changed |
-| `docs/SCRATCH_NOTES.md` | Owner notes were fixed, deferred, or clarified |
-| `docs/UX_UI_IMPROVEMENTS.md` | Backlog items shipped or re-tiered |
+| `docs/PHASE_*.md` / `docs/shipped_features/phases/` | Work package or phase status changed |
+| Matching `docs/feature_plans/*.md` | Plan status, deferred leftovers, or ship notes |
+| `docs/feature_plans/README.md` | Index status / which bucket a plan sits in |
+| GitHub Issues / milestones | Actionable open work (preferred over in-repo scratch) |
+| `docs/UX_UI_IMPROVEMENTS.md` | Only if correcting historical archive status |
 | `docs/PROJECT.md` | Wish list / roadmap intent changed |
 | `docs/DATABASE.md` | Schema or naming decisions changed |
 | `docs/UI_STANDARDS.md` | Interaction standards became normative |
 | `README.md` / `docs/DEPLOY.md` | Setup, ports, or operator steps changed |
 | `docs/DEMO_WALKTHROUGH.md` | Demo path changed |
 
-## Scratch notes protocol
+## Issue / follow-up protocol
 
-Owner uses scratch notes as a personal memory aid. When addressing items:
+Owner tracks actionable polish and bugs in **GitHub Issues**. When shipping:
 
-1. Mark fixed items clearly (strike-through + **Fixed YYYY-MM-DD** is the existing style).
-2. If too large for a quick fix, move or point to wish list / phase backlog instead of leaving it silently untouched.
-3. Do not delete unresolved ideas unless the owner asks; acknowledge and relocate them.
-
-Owner signal from past work: update scratch notes with acknowledgement of changes so they don't try to re-fix when they forget.
+1. Close or comment on matching Issues when the work lands.
+2. If leftover scope appears, file or update an Issue (or a short deferred note on the feature plan) — do not invent a new scratch file.
+3. Larger shaped ideas still get a feature plan when a ticket is not enough.
 
 ## Completion message
 
 Keep the wrap-up short:
 
 * What shipped
-* Docs updated
+* Docs / Issues updated
 * Anything deferred / still needs a decision
 * Suggested next step (one sentence) only if useful
 

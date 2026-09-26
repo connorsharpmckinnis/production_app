@@ -3,19 +3,21 @@
 **Created:** 2026-07-21  
 **Horizon:** Soft meeting window — later August (Emmy + Pam + others)  
 **Audience:** Connor (builder)  
-**Status:** Working plan — not a commitment to STP
+**Status:** Historical — meeting window passed. Keep for context; do not treat as live backlog.
+
+**Live tracking:** open work → **GitHub Issues** / milestones. Product intent → [PROJECT.md](PROJECT.md) and [feature_plans/](feature_plans/README.md).
 
 ---
 
-## Why this document exists
+## Why this document existed
 
-Emmy’s reply confirmed interest: she sees this as a real alternative to a **Stage Write** subscription she was already considering, and she’s excited about a **free pilot + support + customization** for STP. The group walkthrough is likely **later August**.
+Emmy’s reply confirmed interest: she sees this as a real alternative to a **Stage Write** subscription she was already considering, and she’s excited about a **free pilot + support + customization** for STP. The group walkthrough was aimed at **later August**.
 
-This doc answers: *What should I spend the next ~4–6 weeks on so that meeting goes well — and so a soft pilot afterward is credible?*
+This doc answered: *What should I spend the next ~4–6 weeks on so that meeting goes well — and so a soft pilot afterward is credible?*
 
-It consolidates open work from:
+It consolidated open work from (at the time):
 
-- [SCRATCH_NOTES.md](SCRATCH_NOTES.md)
+- Scratch notes (retired — use GitHub Issues)
 - [UX_UI_IMPROVEMENTS.md](UX_UI_IMPROVEMENTS.md)
 - [PROJECT.md](PROJECT.md) Wish List
 - [STP_PRODUCT_OVERVIEW.md](STP_PRODUCT_OVERVIEW.md)
@@ -25,7 +27,7 @@ It consolidates open work from:
 - In-app **About the App** (Admin-editable Markdown; default copy in [aboutContent.ts](../frontend/src/aboutContent.ts))
 - Competitive framing from the theater market landscape research (Stage Write / prep tools vs ops tools)
 
-…and adds priorities shaped by Emmy’s email and STP reality.
+…and added priorities shaped by Emmy’s email and STP reality.
 
 ---
 
@@ -318,7 +320,7 @@ Do not spend August-prep cycles here unless STP asks in the room:
 | Pilot path & STP ideas | [STP_PRODUCT_OVERVIEW.md](STP_PRODUCT_OVERVIEW.md), [STP_PITCH_LETTER.md](STP_PITCH_LETTER.md) |
 | Security bar           | [SECURITY_REVIEW.md](SECURITY_REVIEW.md), [PHASE_10.md](PHASE_10.md)                            |
 | Import bugs            | [PHASE_9.md](PHASE_9.md), [IMPORT_SPEC.md](IMPORT_SPEC.md), scratch footnotes/songs            |
-| UX leftovers           | [UX_UI_IMPROVEMENTS.md](UX_UI_IMPROVEMENTS.md), [SCRATCH_NOTES.md](SCRATCH_NOTES.md)           |
+| UX leftovers           | [UX_UI_IMPROVEMENTS.md](UX_UI_IMPROVEMENTS.md) (archive); open work → GitHub Issues |
 | Long-term product      | [PROJECT.md](PROJECT.md) Wish List, About Future State                                         |
 | Anti-scope             | README “What it won’t be”, Emmy email + Planning Center note                                   |
 | Competitive angle      | Stage Write comparison (Emmy email + market landscape research)                                |

@@ -1,16 +1,16 @@
 # Shipped feature plans
 
-Decision docs for features that **already shipped** (or shipped as a prototype) and no longer belong in [feature_plans/](../feature_plans/README.md).
+Decision docs for features that **already shipped** (or shipped as a prototype).
 
-Keep these for history, follow-ons, and “don’t rebuild this” context. Remaining work stays in the original plan’s deferred / Slice D+ sections, or in a new feature-plan file.
+Keep these for history and follow-ons. New ideas and remaining polish live in **GitHub Issues** (and milestones), not in scratch notes.
 
 | Plan | Shipped | One-liner |
 | ---- | ------- | --------- |
-| [object-detail-pages.md](object-detail-pages.md) | 2026-09-02 | Ephemeral object detail Sheet + ObjectLink; Character scene filter from summary chips |
-| [in-play-moment-deep-links.md](in-play-moment-deep-links.md) | 2026-07-30 (A+B); costumes 2026-08-13 | In-play source + next-change + OFF prior-on (props, set pieces, costumes). Sticky Timeline URL deferred. |
-| [lav-assignment-ux.md](lav-assignment-ux.md) | 2026-08-02 | Excel-competitive lav matrix: chrome, fill-row, taken filtering, locks |
-| [app-announcements.md](app-announcements.md) | Prototype 2026-07-29 | In-app announcements, banners/modals, bell inbox |
+| [object-detail-pages.md](object-detail-pages.md) | 2026-09-02 | Object detail Sheet + ObjectLink; Character scene filter from summary chips |
+| [in-play-moment-deep-links.md](in-play-moment-deep-links.md) | 2026-07-30; costumes 2026-08-13 | In-play source + next-change + OFF prior-on |
+| [lav-assignment-ux.md](lav-assignment-ux.md) | 2026-08-02 | Lav matrix chrome, fill-row, taken filtering, locks |
+| [app-announcements.md](app-announcements.md) | Prototype 2026-07-29 | Announcements, banners/modals, bell inbox |
 
-Live search and multi-select character filter were UX backlog items (not standalone plans). Status lives in [UX_UI_IMPROVEMENTS.md](../UX_UI_IMPROVEMENTS.md) and [PROJECT.md](../PROJECT.md) wish list.
+**Still under [feature_plans/](../feature_plans/README.md)** (shipped in place): rehearsal management (+ typed targets), rehearsal capture, production membership / People, group importing, on-stage chart prototype.
 
-Production membership / People / scoped roles shipped 2026-09-02 and currently live in place under [feature_plans/production-membership-and-casting-workspace.md](../feature_plans/production-membership-and-casting-workspace.md) (same pattern as rehearsal-management).
+Phase execution history: [phases/](phases/).

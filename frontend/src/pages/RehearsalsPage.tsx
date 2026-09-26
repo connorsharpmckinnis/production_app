@@ -304,14 +304,8 @@ export default function RehearsalsPage() {
                         {formatTime(block.starts_at)}–{formatTime(block.ends_at)}
                         {block.location_name ? ` · ${block.location_name}` : ""}
                         {block.label ? ` · ${block.label}` : ""}
-                        {block.scenes.length > 0
-                          ? ` · ${block.scenes
-                              .map((scene) =>
-                                scene.act_number != null
-                                  ? `${scene.act_number}.${scene.number}`
-                                  : `Sc ${scene.number}`,
-                              )
-                              .join(", ")}`
+                        {block.targets.length > 0
+                          ? ` · ${block.targets.map((target) => target.label).join(", ")}`
                           : ""}
                       </li>
                     ))}

@@ -59,7 +59,7 @@ Do **not** invent business rules, theater workflows, or schema meaning to fill g
 
 1. Solve the requested problem completely with the smallest change.
 2. Reuse existing components, APIs, and docs conventions.
-3. If a better-but-larger idea appears, record it (scratch notes, wish list, phase backlog) instead of building it now.
+3. If a better-but-larger idea appears, record it (GitHub Issue, wish list, or feature plan) instead of building it now.
 4. Do not turn polish requests into architecture rewrites unless asked.
 
 ## Tradeoff format
@@ -104,5 +104,5 @@ When a tool fails for auth, permissions, or environment reasons — especially `
 ## Related skills
 
 * [PLAN_THEN_BUILD](../PLAN_THEN_BUILD/SKILL.md) — plan/audit requests stay read-only until build is authorized
-* [FEATURE_CLOSEOUT](../FEATURE_CLOSEOUT/SKILL.md) — sync phase docs, scratch notes, and status after work
+* [FEATURE_CLOSEOUT](../FEATURE_CLOSEOUT/SKILL.md) — sync phase docs, feature plans, and Issues after work
 * [DEVELOPMENT_GUIDE](../DEVELOPMENT_GUIDE/SKILL.md) — product, code, and stack standards

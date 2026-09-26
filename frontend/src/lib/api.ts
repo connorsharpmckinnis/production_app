@@ -66,10 +66,10 @@ import type {
   RehearsalNoteResponse,
   RehearsalNoteUpdate,
   RehearsalPlanReplace,
+  RehearsalRecommendationResponse,
   RehearsalStatusUpdate,
   RehearsalSummaryResponse,
   RehearsalUpdate,
-  SceneRecommendationResponse,
   SuggestedCallResponse,
   ProductionOverviewMessageItem,
   ProductionOverviewMessageResponse,
@@ -1634,10 +1634,16 @@ export const api = {
     );
   },
 
-  suggestCalls(productionId: number, sceneIds: number[]) {
+  suggestCalls(
+    productionId: number,
+    opts: { sceneIds?: number[]; songIds?: number[] } = {},
+  ) {
     const params = new URLSearchParams();
-    for (const sceneId of sceneIds) {
+    for (const sceneId of opts.sceneIds ?? []) {
       params.append("scene_ids", String(sceneId));
+    }
+    for (const songId of opts.songIds ?? []) {
+      params.append("song_ids", String(songId));
     }
     const query = params.toString();
     return request<SuggestedCallResponse[]>(
@@ -1645,9 +1651,9 @@ export const api = {
     );
   },
 
-  listSceneRecommendations(productionId: number) {
-    return request<SceneRecommendationResponse[]>(
-      `/productions/${productionId}/rehearsals/scene-recommendations`,
+  listRehearsalRecommendations(productionId: number) {
+    return request<RehearsalRecommendationResponse[]>(
+      `/productions/${productionId}/rehearsals/recommendations`,
     );
   },
 

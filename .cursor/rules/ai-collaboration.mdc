@@ -33,7 +33,7 @@ When options matter, lead with a recommendation, then list viable alternatives w
 
 ## Docs stay in sync
 
-When work changes status (shipped, deferred, decided), update the relevant phase doc, scratch notes, README, or backlog so the owner does not rediscover finished work.
+When work changes status (shipped, deferred, decided), update the relevant phase doc, feature plan, README, or GitHub Issue so the owner does not rediscover finished work.
 
 ## Authorization boundaries
 

@@ -2,7 +2,13 @@ from datetime import datetime
 
 from pydantic import BaseModel, Field, field_validator, model_validator
 
-from app.models.rehearsal import REHEARSAL_KINDS, REHEARSAL_STATUSES
+from app.models.rehearsal import (
+    REHEARSAL_FOCUSES,
+    REHEARSAL_FOCUS_DIALOG,
+    REHEARSAL_KINDS,
+    REHEARSAL_SONG_FOCUSES,
+    REHEARSAL_STATUSES,
+)
 
 
 class LocationResponse(BaseModel):
@@ -18,12 +24,16 @@ class LocationCreate(BaseModel):
     sort_order: int = 0
 
 
-class RehearsalBlockSceneResponse(BaseModel):
-    id: int
-    number: int
-    title: str | None
+class RehearsalBlockTargetResponse(BaseModel):
+    focus: str
+    scene_id: int | None = None
+    song_id: int | None = None
+    scene_number: int | None = None
+    scene_title: str | None = None
     act_number: int | None = None
+    song_title: str | None = None
     times_rehearsed: int = 0
+    label: str
 
 
 class RehearsalBlockCallResponse(BaseModel):
@@ -40,7 +50,7 @@ class RehearsalBlockResponse(BaseModel):
     location_name: str | None
     label: str | None
     sort_order: int
-    scenes: list[RehearsalBlockSceneResponse]
+    targets: list[RehearsalBlockTargetResponse]
     calls: list[RehearsalBlockCallResponse]
     double_book_user_ids: list[int] = []
 
@@ -118,19 +128,51 @@ class RehearsalUpdate(BaseModel):
         return value
 
 
+class RehearsalBlockTargetWrite(BaseModel):
+    focus: str
+    scene_id: int | None = None
+    song_id: int | None = None
+
+    @field_validator("focus")
+    @classmethod
+    def validate_focus(cls, value: str) -> str:
+        if value not in REHEARSAL_FOCUSES:
+            raise ValueError(f"focus must be one of {REHEARSAL_FOCUSES}")
+        return value
+
+    @model_validator(mode="after")
+    def validate_refs(self) -> "RehearsalBlockTargetWrite":
+        if self.focus == REHEARSAL_FOCUS_DIALOG:
+            if self.scene_id is None or self.song_id is not None:
+                raise ValueError("dialog targets require scene_id and must not set song_id")
+        elif self.focus in REHEARSAL_SONG_FOCUSES:
+            if self.song_id is None or self.scene_id is not None:
+                raise ValueError(
+                    f"{self.focus} targets require song_id and must not set scene_id"
+                )
+        return self
+
+
 class RehearsalBlockWrite(BaseModel):
     starts_at: datetime
     ends_at: datetime
     location_id: int | None = None
     label: str | None = Field(default=None, max_length=255)
     sort_order: int = 0
+    targets: list[RehearsalBlockTargetWrite] = Field(default_factory=list)
+    # Legacy: treated as dialog targets when targets is empty.
     scene_ids: list[int] = Field(default_factory=list)
     user_ids: list[int] = Field(default_factory=list)
 
     @model_validator(mode="after")
-    def validate_times(self) -> "RehearsalBlockWrite":
+    def validate_times_and_targets(self) -> "RehearsalBlockWrite":
         if self.ends_at <= self.starts_at:
             raise ValueError("ends_at must be after starts_at")
+        if not self.targets and self.scene_ids:
+            self.targets = [
+                RehearsalBlockTargetWrite(focus=REHEARSAL_FOCUS_DIALOG, scene_id=sid)
+                for sid in self.scene_ids
+            ]
         return self
 
 
@@ -179,13 +221,16 @@ class SuggestedCallResponse(BaseModel):
     available: bool = True
 
 
-class SceneRecommendationResponse(BaseModel):
-    id: int
-    act_number: int
-    number: int
-    title: str | None
+class RehearsalRecommendationResponse(BaseModel):
+    focus: str
+    scene_id: int | None = None
+    song_id: int | None = None
+    act_number: int | None = None
+    number: int | None = None
+    title: str | None = None
     times_rehearsed: int
     last_rehearsed_at: datetime | None
+    label: str
 
 
 class MyCallBlockResponse(BaseModel):
@@ -194,7 +239,7 @@ class MyCallBlockResponse(BaseModel):
     ends_at: datetime
     location_name: str | None
     label: str | None
-    scenes: list[RehearsalBlockSceneResponse]
+    targets: list[RehearsalBlockTargetResponse]
 
 
 class MyCallResponse(BaseModel):

@@ -1,35 +1,25 @@
 # UX / UI Improvements Backlog
 
-**Purpose:** Candidate polish before sharing the app with the theater group for real-world consideration. This is a working inventory — not committed scope. Items come from owner scratch notes, the product wish list, phase docs, UI standards, and a pass over the current frontend.
+**Purpose:** Historical inventory of polish done for share-prep and early pilots. **Not** the live backlog anymore.
 
-**Last updated:** 2026-09-08
+**Open polish / bugs:** track in **GitHub Issues** (and milestones).
 
-**Related docs:** [SCRATCH_NOTES.md](SCRATCH_NOTES.md), [PROJECT.md](PROJECT.md) Wish List, [UI_STANDARDS.md](UI_STANDARDS.md), [PHASE_6.md](PHASE_6.md), [DEMO_WALKTHROUGH.md](DEMO_WALKTHROUGH.md), [PERFORMANCE.md](PERFORMANCE.md) (API/DB latency — separate from UI polish)
+**Last updated:** 2026-09-26
 
-**Progress (2026-07-12 share-prep passes):** Most **P0** and a large **P1** set shipped (dialogs for users/groups/catalogs, filter chips, reports TOC + clickable moments + print, import drag-drop, skeletons, localStorage presets, shell polish, DEMO_WALKTHROUGH). Remaining P1/P2 are thinner polish. See checkmarks below.
+**Related:** [PROJECT.md](PROJECT.md) Wish List, [feature_plans/](feature_plans/README.md), [UI_STANDARDS.md](UI_STANDARDS.md), [DEMO_WALKTHROUGH.md](DEMO_WALKTHROUGH.md)
 
-**Progress (2026-08-04):** WP0/WP1 design-system pass — expanded shadcn primitives, `/dev/ui` gallery, SearchableSelect/Toast polish, form/catalog migration.
-
-**Progress (2026-08-13):** Timeline + Rehearse live search (debounce ~275ms); Timeline multi-select character filter (OR). Prop/cue multi-select still open. **Owner-approved 2026-08-14.**
-
-**Progress (2026-08-26):** Admin-editable About page (Markdown + image upload); Settings layout aligned with other pages; main content bottom padding doubled.
-
-**Progress (2026-09-08):** Pre-meeting tight polish — actor Overview “Coming soon” → real Shortcuts (Rehearsals, Lav chart, Your lines); softened SlowLoadNotice + Reports “prototype” copy; Productions list uses MobileListCard on narrow viewports.
+**Progress highlights:** Most P0/P1 share-prep items shipped (2026-07 through 2026-09). Design-system pass, live search, character multi-select, About page, actor Overview shortcuts, Timeline reader polish. Remaining open items should be Issues, not checkboxes here.
 
 ---
 
-## How to use this list
+## How this file is used now
 
-Suggested priority for a first external share:
-
-| Tier | Meaning |
+| Tier (historical) | Meaning |
 | ---- | ------- |
-| **P0** | Credibility and safety — fix or strongly consider before showing anyone |
-| **P1** | Feels finished — high-impact polish that makes prep/rehearsal feel intentional |
-| **P2** | Nice polish — consistency, convenience, smaller wins |
-| **Wish** | Larger / undecided / post-share ideas — keep on the radar, don’t block a demo |
+| **P0–P2** | Past share-prep tiers — checkmarks below are archive |
+| **Wish** | Larger ideas — prefer a feature plan or GitHub Issue |
 
-Within each section, items are concrete enough to implement later without re-discovering them.
+Do not add new unchecked work here. File an Issue instead.
 
 ---
 
@@ -185,7 +175,7 @@ Timeline already uses Lucide icon buttons for structural actions, bookmark, deta
 
 ## Wish list — larger / undecided (don’t block a first share)
 
-These are already captured in [PROJECT.md](PROJECT.md) and [SCRATCH_NOTES.md](SCRATCH_NOTES.md); listed here so this file is one place to look.
+These are already captured in [PROJECT.md](PROJECT.md) and feature plans; listed here so this archive stays one place to look.
 
 ### Bookmarks redesign (owner undecided)
 - Dedicated timeline-like view with `…` gaps between non-adjacent moments.
@@ -285,4 +275,4 @@ If time is limited before the theater group sees it, do roughly this order:
 10. ~~DEMO_WALKTHROUGH + password / deploy expectations~~
 11. Optional remaining: catalog usage counts; multi-select prop/cue filters
 
-Everything in **Wish** can wait until after feedback from a real rehearsal pass — then update [SCRATCH_NOTES.md](SCRATCH_NOTES.md) with what actually hurt.
+Everything in **Wish** can wait until after feedback from a real rehearsal pass — then file GitHub Issues for what actually hurt.

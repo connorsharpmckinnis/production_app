@@ -15,6 +15,9 @@ from app.db.session import get_db
 from app.models import Location, Scene, User
 from app.models.rehearsal import (
     ACTOR_VISIBLE_STATUSES,
+    REHEARSAL_FOCUS_CHOREO,
+    REHEARSAL_FOCUS_DIALOG,
+    REHEARSAL_FOCUS_MUSIC,
     REHEARSAL_STATUS_COMPLETED,
     REHEARSAL_STATUS_IN_PROGRESS,
     REHEARSAL_STATUS_PLANNED,
@@ -23,6 +26,7 @@ from app.models.rehearsal import (
     Rehearsal,
     RehearsalBlock,
     RehearsalBlockCall,
+    RehearsalBlockTarget,
 )
 from app.schemas.rehearsals import (
     LocationCreate,
@@ -32,15 +36,15 @@ from app.schemas.rehearsals import (
     RehearsalActivityItem,
     RehearsalBlockCallResponse,
     RehearsalBlockResponse,
-    RehearsalBlockSceneResponse,
+    RehearsalBlockTargetResponse,
     RehearsalCreate,
     RehearsalDetailResponse,
     RehearsalNoteResponse,
     RehearsalPlanReplace,
+    RehearsalRecommendationResponse,
     RehearsalStatusUpdate,
     RehearsalSummaryResponse,
     RehearsalUpdate,
-    SceneRecommendationResponse,
     SuggestedCallResponse,
 )
 from app.services.production_memberships import (
@@ -50,9 +54,11 @@ from app.services.production_memberships import (
 )
 from app.services.rehearsal_activity import rehearsal_activity
 from app.services.rehearsal_cast import (
-    scene_recommendations,
-    suggested_users_for_scenes,
+    bump_rehearsal_progress,
+    rehearsal_recommendations,
+    suggested_users_for_targets,
     validate_scenes_in_production,
+    validate_songs_in_production,
 )
 
 router = APIRouter(prefix="/productions", tags=["rehearsals"])
@@ -97,8 +103,12 @@ def _get_rehearsal_or_404(
             joinedload(Rehearsal.location),
             selectinload(Rehearsal.blocks).joinedload(RehearsalBlock.location),
             selectinload(Rehearsal.blocks)
-            .selectinload(RehearsalBlock.scenes)
+            .selectinload(RehearsalBlock.targets)
+            .joinedload(RehearsalBlockTarget.scene)
             .joinedload(Scene.act),
+            selectinload(Rehearsal.blocks)
+            .selectinload(RehearsalBlock.targets)
+            .joinedload(RehearsalBlockTarget.song),
             selectinload(Rehearsal.blocks)
             .selectinload(RehearsalBlock.calls)
             .joinedload(RehearsalBlockCall.user),
@@ -147,14 +157,47 @@ def _overlapping_user_ids(
     return result
 
 
-def _block_scene_response(scene: Scene) -> RehearsalBlockSceneResponse:
-    act_number = scene.act.number if scene.act is not None else None
-    return RehearsalBlockSceneResponse(
-        id=scene.id,
-        number=scene.number,
-        title=scene.title,
-        act_number=act_number,
-        times_rehearsed=scene.times_rehearsed,
+def _target_response(target: RehearsalBlockTarget) -> RehearsalBlockTargetResponse:
+    if target.focus == REHEARSAL_FOCUS_DIALOG and target.scene is not None:
+        scene = target.scene
+        act_number = scene.act.number if scene.act is not None else None
+        base = (
+            f"{act_number}.{scene.number}"
+            if act_number is not None
+            else f"Sc {scene.number}"
+        )
+        title_bit = f" — {scene.title}" if scene.title else ""
+        return RehearsalBlockTargetResponse(
+            focus=target.focus,
+            scene_id=scene.id,
+            song_id=None,
+            scene_number=scene.number,
+            scene_title=scene.title,
+            act_number=act_number,
+            song_title=None,
+            times_rehearsed=scene.times_rehearsed or 0,
+            label=f"{base}{title_bit} · Dialog",
+        )
+
+    song = target.song
+    kind = "Music" if target.focus == REHEARSAL_FOCUS_MUSIC else "Choreo"
+    times = 0
+    if song is not None:
+        if target.focus == REHEARSAL_FOCUS_MUSIC:
+            times = song.times_music_rehearsed or 0
+        elif target.focus == REHEARSAL_FOCUS_CHOREO:
+            times = song.times_choreo_rehearsed or 0
+    title = song.title if song is not None else "Song"
+    return RehearsalBlockTargetResponse(
+        focus=target.focus,
+        scene_id=None,
+        song_id=song.id if song is not None else target.song_id,
+        scene_number=None,
+        scene_title=None,
+        act_number=None,
+        song_title=title,
+        times_rehearsed=times,
+        label=f"{title} · {kind}",
     )
 
 
@@ -163,6 +206,14 @@ def _block_response(
     double_book: set[int] | None = None,
     visible_user_ids: set[int] | None = None,
 ) -> RehearsalBlockResponse:
+    targets = sorted(
+        block.targets,
+        key=lambda t: (
+            0 if t.focus == REHEARSAL_FOCUS_DIALOG else 1 if t.focus == REHEARSAL_FOCUS_MUSIC else 2,
+            t.scene_id or 0,
+            t.song_id or 0,
+        ),
+    )
     return RehearsalBlockResponse(
         id=block.id,
         starts_at=block.starts_at,
@@ -171,7 +222,7 @@ def _block_response(
         location_name=block.location.name if block.location else None,
         label=block.label,
         sort_order=block.sort_order,
-        scenes=[_block_scene_response(s) for s in block.scenes],
+        targets=[_target_response(t) for t in targets],
         calls=[
             RehearsalBlockCallResponse(
                 user_id=c.user_id,
@@ -376,11 +427,14 @@ def create_rehearsal(
 def suggest_calls(
     production_id: int,
     scene_ids: list[int] = Query(default=[]),
+    song_ids: list[int] = Query(default=[]),
     user: User = Depends(require_production_capability("rehearsals", "read")),
     db: Session = Depends(get_db),
 ) -> list[SuggestedCallResponse]:
     get_production_or_404(db, production_id)
-    suggestions = suggested_users_for_scenes(db, production_id, scene_ids)
+    suggestions = suggested_users_for_targets(
+        db, production_id, scene_ids, song_ids
+    )
     return [
         SuggestedCallResponse(
             user_id=user.id,
@@ -393,27 +447,44 @@ def suggest_calls(
 
 
 @router.get(
+    "/{production_id}/rehearsals/recommendations",
+    response_model=list[RehearsalRecommendationResponse],
+)
+def list_rehearsal_recommendations(
+    production_id: int,
+    user: User = Depends(require_production_capability("rehearsals", "read")),
+    db: Session = Depends(get_db),
+) -> list[RehearsalRecommendationResponse]:
+    get_production_or_404(db, production_id)
+    rows = rehearsal_recommendations(db, production_id)
+    return [
+        RehearsalRecommendationResponse(
+            focus=row["focus"],
+            scene_id=row["scene_id"],
+            song_id=row["song_id"],
+            act_number=row["act_number"],
+            number=row["number"],
+            title=row["title"],
+            times_rehearsed=row["times_rehearsed"],
+            last_rehearsed_at=row["last_rehearsed_at"],
+            label=row["label"],
+        )
+        for row in rows
+    ]
+
+
+@router.get(
     "/{production_id}/rehearsals/scene-recommendations",
-    response_model=list[SceneRecommendationResponse],
+    response_model=list[RehearsalRecommendationResponse],
+    deprecated=True,
 )
 def list_scene_recommendations(
     production_id: int,
     user: User = Depends(require_production_capability("rehearsals", "read")),
     db: Session = Depends(get_db),
-) -> list[SceneRecommendationResponse]:
-    get_production_or_404(db, production_id)
-    scenes = scene_recommendations(db, production_id)
-    return [
-        SceneRecommendationResponse(
-            id=s.id,
-            act_number=s.act.number,
-            number=s.number,
-            title=s.title,
-            times_rehearsed=s.times_rehearsed,
-            last_rehearsed_at=s.last_rehearsed_at,
-        )
-        for s in scenes
-    ]
+) -> list[RehearsalRecommendationResponse]:
+    """Deprecated alias — prefer /rehearsals/recommendations."""
+    return list_rehearsal_recommendations(production_id, user, db)
 
 
 @router.get(
@@ -432,8 +503,12 @@ def list_my_calls(
             joinedload(Rehearsal.location),
             selectinload(Rehearsal.blocks).joinedload(RehearsalBlock.location),
             selectinload(Rehearsal.blocks)
-            .selectinload(RehearsalBlock.scenes)
+            .selectinload(RehearsalBlock.targets)
+            .joinedload(RehearsalBlockTarget.scene)
             .joinedload(Scene.act),
+            selectinload(Rehearsal.blocks)
+            .selectinload(RehearsalBlock.targets)
+            .joinedload(RehearsalBlockTarget.song),
             selectinload(Rehearsal.blocks).selectinload(RehearsalBlock.calls),
         )
         .filter(
@@ -455,7 +530,7 @@ def list_my_calls(
                         ends_at=block.ends_at,
                         location_name=block.location.name if block.location else None,
                         label=block.label,
-                        scenes=[_block_scene_response(s) for s in block.scenes],
+                        targets=[_target_response(t) for t in block.targets],
                     )
                 )
         if my_blocks or r.kind == "all_call":
@@ -467,7 +542,7 @@ def list_my_calls(
                         ends_at=r.ends_at,
                         location_name=r.location.name if r.location else None,
                         label="All call",
-                        scenes=[],
+                        targets=[],
                     )
                 ]
             if my_blocks:
@@ -574,9 +649,14 @@ def replace_rehearsal_plan(
     _ensure_writable(rehearsal)
 
     all_scene_ids: list[int] = []
+    all_song_ids: list[int] = []
     all_user_ids: set[int] = set()
     for block in body.blocks:
-        all_scene_ids.extend(block.scene_ids)
+        for target in block.targets:
+            if target.scene_id is not None:
+                all_scene_ids.append(target.scene_id)
+            if target.song_id is not None:
+                all_song_ids.append(target.song_id)
         all_user_ids.update(block.user_ids)
         if block.location_id is not None:
             _get_location_for_org_or_404(
@@ -585,6 +665,7 @@ def replace_rehearsal_plan(
 
     try:
         validate_scenes_in_production(db, production_id, list(set(all_scene_ids)))
+        validate_songs_in_production(db, production_id, list(set(all_song_ids)))
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
@@ -610,13 +691,6 @@ def replace_rehearsal_plan(
         db.delete(existing)
     db.flush()
 
-    scenes_by_id = {
-        s.id: s
-        for s in validate_scenes_in_production(
-            db, production_id, list(set(all_scene_ids))
-        )
-    }
-
     for idx, block_in in enumerate(body.blocks):
         block = RehearsalBlock(
             rehearsal_id=rehearsal.id,
@@ -628,7 +702,20 @@ def replace_rehearsal_plan(
         )
         db.add(block)
         db.flush()
-        block.scenes = [scenes_by_id[sid] for sid in block_in.scene_ids if sid in scenes_by_id]
+        seen: set[tuple[str, int | None, int | None]] = set()
+        for target_in in block_in.targets:
+            key = (target_in.focus, target_in.scene_id, target_in.song_id)
+            if key in seen:
+                continue
+            seen.add(key)
+            db.add(
+                RehearsalBlockTarget(
+                    block_id=block.id,
+                    focus=target_in.focus,
+                    scene_id=target_in.scene_id,
+                    song_id=target_in.song_id,
+                )
+            )
         for uid in block_in.user_ids:
             db.add(RehearsalBlockCall(block_id=block.id, user_id=uid))
 
@@ -731,15 +818,24 @@ def complete_rehearsal(
 
     now = datetime.now(timezone.utc)
     scene_ids: set[int] = set()
+    music_song_ids: set[int] = set()
+    choreo_song_ids: set[int] = set()
     for block in rehearsal.blocks:
-        for scene in block.scenes:
-            scene_ids.add(scene.id)
+        for target in block.targets:
+            if target.focus == REHEARSAL_FOCUS_DIALOG and target.scene_id is not None:
+                scene_ids.add(target.scene_id)
+            elif target.focus == REHEARSAL_FOCUS_MUSIC and target.song_id is not None:
+                music_song_ids.add(target.song_id)
+            elif target.focus == REHEARSAL_FOCUS_CHOREO and target.song_id is not None:
+                choreo_song_ids.add(target.song_id)
 
-    if scene_ids:
-        scenes = db.query(Scene).filter(Scene.id.in_(scene_ids)).all()
-        for scene in scenes:
-            scene.times_rehearsed = (scene.times_rehearsed or 0) + 1
-            scene.last_rehearsed_at = now
+    bump_rehearsal_progress(
+        db,
+        scene_ids=scene_ids,
+        music_song_ids=music_song_ids,
+        choreo_song_ids=choreo_song_ids,
+        when=now,
+    )
 
     rehearsal.status = REHEARSAL_STATUS_COMPLETED
     db.commit()

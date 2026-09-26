@@ -1,6 +1,14 @@
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, UniqueConstraint, func
+from sqlalchemy import (
+    CheckConstraint,
+    DateTime,
+    ForeignKey,
+    Integer,
+    String,
+    UniqueConstraint,
+    func,
+)
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
@@ -33,6 +41,17 @@ ACTOR_VISIBLE_STATUSES = (
     REHEARSAL_STATUS_IN_PROGRESS,
     REHEARSAL_STATUS_COMPLETED,
 )
+
+# Typed work focus for block targets
+REHEARSAL_FOCUS_DIALOG = "dialog"
+REHEARSAL_FOCUS_MUSIC = "music"
+REHEARSAL_FOCUS_CHOREO = "choreo"
+REHEARSAL_FOCUSES = (
+    REHEARSAL_FOCUS_DIALOG,
+    REHEARSAL_FOCUS_MUSIC,
+    REHEARSAL_FOCUS_CHOREO,
+)
+REHEARSAL_SONG_FOCUSES = (REHEARSAL_FOCUS_MUSIC, REHEARSAL_FOCUS_CHOREO)
 
 
 class Rehearsal(Base):
@@ -100,9 +119,9 @@ class RehearsalBlock(Base):
 
     rehearsal: Mapped["Rehearsal"] = relationship(back_populates="blocks")
     location: Mapped["Location | None"] = relationship(back_populates="blocks")
-    scenes: Mapped[list["Scene"]] = relationship(
-        secondary="rehearsal_block_scenes",
-        back_populates="rehearsal_blocks",
+    targets: Mapped[list["RehearsalBlockTarget"]] = relationship(
+        back_populates="block",
+        cascade="all, delete-orphan",
     )
     calls: Mapped[list["RehearsalBlockCall"]] = relationship(
         back_populates="block",
@@ -110,24 +129,43 @@ class RehearsalBlock(Base):
     )
 
 
-class RehearsalBlockScene(Base):
-    __tablename__ = "rehearsal_block_scenes"
+class RehearsalBlockTarget(Base):
+    """What a block rehearses: scene dialog, or a song as music/choreo."""
+
+    __tablename__ = "rehearsal_block_targets"
     __table_args__ = (
-        UniqueConstraint(
-            "block_id",
-            "scene_id",
-            name="uq_rehearsal_block_scenes_block_scene",
+        CheckConstraint(
+            "focus IN ('dialog', 'music', 'choreo')",
+            name="ck_rehearsal_block_targets_focus",
+        ),
+        CheckConstraint(
+            "(focus = 'dialog' AND scene_id IS NOT NULL AND song_id IS NULL) OR "
+            "(focus IN ('music', 'choreo') AND song_id IS NOT NULL AND scene_id IS NULL)",
+            name="ck_rehearsal_block_targets_focus_refs",
         ),
     )
 
+    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)
     block_id: Mapped[int] = mapped_column(
         ForeignKey("rehearsal_blocks.id", ondelete="CASCADE"),
-        primary_key=True,
+        nullable=False,
+        index=True,
     )
-    scene_id: Mapped[int] = mapped_column(
+    focus: Mapped[str] = mapped_column(String(16), nullable=False)
+    scene_id: Mapped[int | None] = mapped_column(
         ForeignKey("scenes.id", ondelete="CASCADE"),
-        primary_key=True,
+        nullable=True,
+        index=True,
     )
+    song_id: Mapped[int | None] = mapped_column(
+        ForeignKey("songs.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+
+    block: Mapped["RehearsalBlock"] = relationship(back_populates="targets")
+    scene: Mapped["Scene | None"] = relationship()
+    song: Mapped["Song | None"] = relationship()
 
 
 class RehearsalBlockCall(Base):

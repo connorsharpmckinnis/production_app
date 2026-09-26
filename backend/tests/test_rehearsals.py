@@ -174,6 +174,10 @@ def test_plan_publish_my_call_and_complete(
     assert plan.json()["status"] == "planned"
     assert len(plan.json()["blocks"]) == 1
     assert plan.json()["blocks"][0]["calls"][0]["user_id"] == actor_id
+    targets = plan.json()["blocks"][0]["targets"]
+    assert len(targets) == 1
+    assert targets[0]["focus"] == "dialog"
+    assert targets[0]["scene_id"] == scene_id
 
     suggestions = seeded_client.get(
         f"/api/productions/{production_id}/rehearsals/suggest-calls",
@@ -202,6 +206,7 @@ def test_plan_publish_my_call_and_complete(
     ).json()
     assert len(my_calls) == 1
     assert my_calls[0]["blocks"][0]["label"] == "Love scene"
+    assert my_calls[0]["blocks"][0]["targets"][0]["scene_id"] == scene_id
 
     note = seeded_client.post(
         f"/api/productions/{production_id}/notes",
@@ -251,10 +256,13 @@ def test_plan_publish_my_call_and_complete(
     assert blocked.status_code == 400
 
     recs = seeded_client.get(
-        f"/api/productions/{production_id}/rehearsals/scene-recommendations",
+        f"/api/productions/{production_id}/rehearsals/recommendations",
         headers=director,
     ).json()
-    assert recs[0]["id"] != scene_id or recs[0]["times_rehearsed"] >= 1
+    dialog_recs = [row for row in recs if row["focus"] == "dialog"]
+    assert dialog_recs
+    matched = next(row for row in dialog_recs if row["scene_id"] == scene_id)
+    assert matched["times_rehearsed"] >= 1
 
 
 def test_rehearsal_notes_hidden_from_actors(
@@ -412,3 +420,94 @@ def test_rehearsal_calls_require_active_members_and_hide_retained_calls(
         headers=director,
     )
     assert rejected.status_code == 400
+
+
+def test_plan_song_music_and_choreo_targets(
+    seeded_client: TestClient,
+    db_session: Session,
+) -> None:
+    from app.models import Song
+
+    production_id = _imported_production(seeded_client, db_session)
+    actor_id = _cast_actor(seeded_client, db_session, production_id)
+    director = _login(seeded_client, "director", "director")
+    starts, ends = _window()
+
+    songs = seeded_client.get(
+        f"/api/productions/{production_id}/songs",
+        headers=director,
+    ).json()
+    assert songs, "fixture should import songs"
+    song_id = songs[0]["id"]
+
+    create = seeded_client.post(
+        f"/api/productions/{production_id}/rehearsals",
+        json={"starts_at": starts, "ends_at": ends, "kind": "called"},
+        headers=director,
+    )
+    rehearsal_id = create.json()["id"]
+    block_end = (
+        datetime.fromisoformat(starts.replace("Z", "+00:00")) + timedelta(hours=1)
+    ).isoformat()
+
+    plan = seeded_client.put(
+        f"/api/productions/{production_id}/rehearsals/{rehearsal_id}/plan",
+        json={
+            "blocks": [
+                {
+                    "starts_at": starts,
+                    "ends_at": block_end,
+                    "label": "Music + choreo",
+                    "targets": [
+                        {"focus": "music", "song_id": song_id},
+                        {"focus": "choreo", "song_id": song_id},
+                    ],
+                    "user_ids": [actor_id],
+                }
+            ],
+            "mark_planned": True,
+        },
+        headers=director,
+    )
+    assert plan.status_code == 200, plan.text
+    targets = plan.json()["blocks"][0]["targets"]
+    focuses = {t["focus"] for t in targets}
+    assert focuses == {"music", "choreo"}
+
+    suggestions = seeded_client.get(
+        f"/api/productions/{production_id}/rehearsals/suggest-calls",
+        params=[("song_ids", song_id)],
+        headers=director,
+    )
+    assert suggestions.status_code == 200
+
+    seeded_client.post(
+        f"/api/productions/{production_id}/rehearsals/{rehearsal_id}/publish",
+        headers=director,
+    )
+    completed = seeded_client.post(
+        f"/api/productions/{production_id}/rehearsals/{rehearsal_id}/complete",
+        headers=director,
+    )
+    assert completed.status_code == 200
+
+    db_session.expire_all()
+    song = db_session.get(Song, song_id)
+    assert song is not None
+    assert song.times_music_rehearsed == 1
+    assert song.times_choreo_rehearsed == 1
+    assert song.last_music_rehearsed_at is not None
+    assert song.last_choreo_rehearsed_at is not None
+
+    recs = seeded_client.get(
+        f"/api/productions/{production_id}/rehearsals/recommendations",
+        headers=director,
+    ).json()
+    music = next(
+        row for row in recs if row["focus"] == "music" and row["song_id"] == song_id
+    )
+    choreo = next(
+        row for row in recs if row["focus"] == "choreo" and row["song_id"] == song_id
+    )
+    assert music["times_rehearsed"] == 1
+    assert choreo["times_rehearsed"] == 1

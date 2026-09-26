@@ -7,16 +7,6 @@ import { api, formatApiError } from "@/lib/api";
 import type { RehearsalDetailResponse } from "@/lib/types";
 import { formatDate, formatTime } from "@/lib/utils";
 
-function sceneLabel(scene: {
-  act_number: number | null;
-  number: number;
-  title: string | null;
-}): string {
-  const base =
-    scene.act_number != null ? `${scene.act_number}.${scene.number}` : `Scene ${scene.number}`;
-  return scene.title ? `${base} — ${scene.title}` : base;
-}
-
 export default function CallSheetPage() {
   const { id, rehearsalId: rehearsalIdParam } = useParams<{
     id: string;
@@ -132,13 +122,17 @@ export default function CallSheetPage() {
               </p>
               <div className="grid gap-4 sm:grid-cols-2">
                 <div>
-                  <h3 className="text-sm font-medium">Scenes</h3>
-                  {block.scenes.length === 0 ? (
+                  <h3 className="text-sm font-medium">Working on</h3>
+                  {block.targets.length === 0 ? (
                     <p className="text-sm text-muted-foreground">None listed</p>
                   ) : (
                     <ul className="mt-1 list-disc space-y-0.5 pl-5 text-sm">
-                      {block.scenes.map((scene) => (
-                        <li key={scene.id}>{sceneLabel(scene)}</li>
+                      {block.targets.map((target) => (
+                        <li
+                          key={`${target.focus}-${target.scene_id ?? "s"}-${target.song_id ?? "g"}`}
+                        >
+                          {target.label}
+                        </li>
                       ))}
                     </ul>
                   )}

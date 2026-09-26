@@ -36,7 +36,3 @@ class Scene(Base):
         back_populates="scene",
         cascade="all, delete-orphan",
     )
-    rehearsal_blocks: Mapped[list["RehearsalBlock"]] = relationship(
-        secondary="rehearsal_block_scenes",
-        back_populates="scenes",
-    )

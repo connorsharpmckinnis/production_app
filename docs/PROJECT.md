@@ -1166,11 +1166,13 @@ See [.agents/skills/DEVELOPMENT_GUIDE/SKILL.md](../.agents/skills/DEVELOPMENT_GU
 
 ## Wish List (post-MVP ideas)
 
-**Approved roadmap feature plans** (stronger than a wish-list bullet — intended to build eventually, not yet phased) live in [feature_plans/](feature_plans/README.md). Prefer those docs when shaping or implementing upcoming work.
+**Approved roadmap feature plans** (stronger than a wish-list bullet) live in [feature_plans/](feature_plans/README.md). **Open bugs and polish** live in **GitHub Issues** (and milestones).
 
 **Shipped prototype (2026-07-29):** In-app **Notifications** (header bell) + **Announcements** composers (org-wide in App Settings; production-scoped on Overview). Supports banners, Admin-only blocking modals, role targeting, CTAs, and a multi-kind feed ready for future @-mentions. Timeline CTAs use human deep links `?act=&scene=&moment=`. See [shipped_features/app-announcements.md](shipped_features/app-announcements.md). Email / Tasks / mentions UI still deferred.
 
 **Shipped (2026-09-02):** Production **membership**, production-scoped **roles**, **People** workspace, and Admin **permission matrix**. See [feature_plans/production-membership-and-casting-workspace.md](feature_plans/production-membership-and-casting-workspace.md). Future Casting workspace / conflict calendars remain in [casting-and-auditions.md](feature_plans/casting-and-auditions.md).
+
+**Shipped (2026-09):** Rehearsal management with typed targets — scene dialog, song music, song choreo — tracked separately. See [feature_plans/rehearsal-management.md](feature_plans/rehearsal-management.md).
 
 These bullets remain for lighter capture so good ideas are not lost:
 
@@ -1193,7 +1195,7 @@ These bullets remain for lighter capture so good ideas are not lost:
 - **Dense UI / form architecture review** — Eventually audit pages with large tables, matrices, or charts so draft form/dialog state does not live on the same React component as the heavy tree (Lav chart keystroke lag, 2026-09-04). Aim for consistent, reusable patterns that stay snappy for a long show’s worth of data. Details in [UX_UI_IMPROVEMENTS.md](UX_UI_IMPROVEMENTS.md) Wish list.
 - **Importer example-driven rules (click-to-build)** — Select words/spans on a PDF (or layout peek), label them (Character name, lyric, …); system proposes predicates from shared layout/style traits and highlights other matches for confirm/reject. “Inverted regex builder.” See [IMPORTER_2_0.md](IMPORTER_2_0.md) §17. Not started; LifeHouse hand-tuning first.
 
-See also [SCRATCH_NOTES.md](SCRATCH_NOTES.md) for transient owner notes.
+Prefer a **GitHub Issue** (and milestone) for anything actionable. Use a [feature plan](feature_plans/README.md) when the idea needs options and open questions before build.
 
 ---
 

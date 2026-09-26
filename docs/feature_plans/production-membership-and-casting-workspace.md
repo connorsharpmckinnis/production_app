@@ -432,7 +432,7 @@ dates). Membership WP0 in that plan is satisfied by this ship.
 
 Small polish that can land in a follow-up or with Casting:
 
-- Overview quick links omit People (roster section already links).
+- ~~Overview quick links omit People~~ — **Fixed 2026-09-26** (People + Rehearsals on Overview Quick links).
 - People page does not deep-link into Characters for assignment editing.
 - Groups and Rehearsal manual-call UIs still load castable Actor users only;
   backend accepts any active member.

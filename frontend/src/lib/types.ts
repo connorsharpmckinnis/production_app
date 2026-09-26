@@ -1166,12 +1166,24 @@ export interface LocationCreate {
   sort_order?: number;
 }
 
-export interface RehearsalBlockSceneResponse {
-  id: number;
-  number: number;
-  title: string | null;
+export type RehearsalFocus = "dialog" | "music" | "choreo";
+
+export interface RehearsalBlockTargetResponse {
+  focus: RehearsalFocus | string;
+  scene_id: number | null;
+  song_id: number | null;
+  scene_number: number | null;
+  scene_title: string | null;
   act_number: number | null;
+  song_title: string | null;
   times_rehearsed: number;
+  label: string;
+}
+
+export interface RehearsalBlockTargetWrite {
+  focus: RehearsalFocus | string;
+  scene_id?: number | null;
+  song_id?: number | null;
 }
 
 export interface RehearsalBlockCallResponse {
@@ -1188,7 +1200,7 @@ export interface RehearsalBlockResponse {
   location_name: string | null;
   label: string | null;
   sort_order: number;
-  scenes: RehearsalBlockSceneResponse[];
+  targets: RehearsalBlockTargetResponse[];
   calls: RehearsalBlockCallResponse[];
   double_book_user_ids: number[];
 }
@@ -1264,6 +1276,7 @@ export interface RehearsalBlockWrite {
   location_id?: number | null;
   label?: string | null;
   sort_order?: number;
+  targets?: RehearsalBlockTargetWrite[];
   scene_ids?: number[];
   user_ids?: number[];
 }
@@ -1292,13 +1305,16 @@ export interface SuggestedCallResponse {
   available: boolean;
 }
 
-export interface SceneRecommendationResponse {
-  id: number;
-  act_number: number;
-  number: number;
+export interface RehearsalRecommendationResponse {
+  focus: RehearsalFocus | string;
+  scene_id: number | null;
+  song_id: number | null;
+  act_number: number | null;
+  number: number | null;
   title: string | null;
   times_rehearsed: number;
   last_rehearsed_at: string | null;
+  label: string;
 }
 
 export interface MyCallBlockResponse {
@@ -1307,7 +1323,7 @@ export interface MyCallBlockResponse {
   ends_at: string;
   location_name: string | null;
   label: string | null;
-  scenes: RehearsalBlockSceneResponse[];
+  targets: RehearsalBlockTargetResponse[];
 }
 
 export interface MyCallResponse {

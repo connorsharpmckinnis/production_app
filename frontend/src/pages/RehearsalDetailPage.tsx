@@ -3,7 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { Plus, Trash2 } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
 import NotesPanel from "@/components/notes/NotesPanel";
-import SceneMultiSelect from "@/components/SceneMultiSelect";
+import RehearsalTargetPicker from "@/components/RehearsalTargetPicker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -27,8 +27,10 @@ import type {
   CastableUserResponse,
   LocationResponse,
   RehearsalActivityItem,
+  RehearsalBlockTargetWrite,
   RehearsalDetailResponse,
-  SceneRecommendationResponse,
+  RehearsalRecommendationResponse,
+  SongDetailResponse,
   SuggestedCallResponse,
 } from "@/lib/types";
 import {
@@ -54,10 +56,12 @@ type BlockDraft = {
   location_id: string;
   label: string;
   sort_order: number;
-  scene_ids: number[];
+  targets: RehearsalBlockTargetWrite[];
   user_ids: number[];
   double_book_user_ids: number[];
 };
+
+type RecommendationFilter = "all" | "dialog" | "music" | "choreo";
 
 function statusBadgeVariant(
   status: string,
@@ -86,14 +90,8 @@ function kindLabel(kind: string): string {
   return kind === "all_call" ? "All call" : "Called";
 }
 
-function sceneRefLabel(scene: {
-  act_number?: number | null;
-  number: number;
-  title: string | null;
-}): string {
-  const base =
-    scene.act_number != null ? `${scene.act_number}.${scene.number}` : `Sc ${scene.number}`;
-  return scene.title ? `${base} ${scene.title}` : base;
+function targetListLabel(targets: { label: string }[]): string {
+  return targets.map((target) => target.label).join(", ");
 }
 
 function blocksFromDetail(detail: RehearsalDetailResponse): BlockDraft[] {
@@ -104,7 +102,11 @@ function blocksFromDetail(detail: RehearsalDetailResponse): BlockDraft[] {
     location_id: block.location_id != null ? String(block.location_id) : NO_LOCATION,
     label: block.label ?? "",
     sort_order: block.sort_order ?? index,
-    scene_ids: block.scenes.map((scene) => scene.id),
+    targets: block.targets.map((target) => ({
+      focus: target.focus,
+      scene_id: target.scene_id,
+      song_id: target.song_id,
+    })),
     user_ids: block.calls.map((call) => call.user_id),
     double_book_user_ids: block.double_book_user_ids,
   }));
@@ -119,7 +121,7 @@ function emptyBlock(rehearsal: RehearsalDetailResponse, sortOrder: number): Bloc
       rehearsal.location_id != null ? String(rehearsal.location_id) : NO_LOCATION,
     label: "",
     sort_order: sortOrder,
-    scene_ids: [],
+    targets: [],
     user_ids: [],
     double_book_user_ids: [],
   };
@@ -151,11 +153,14 @@ export default function RehearsalDetailPage() {
   const [rehearsal, setRehearsal] = useState<RehearsalDetailResponse | null>(null);
   const [blocks, setBlocks] = useState<BlockDraft[]>([]);
   const [acts, setActs] = useState<ActSummary[]>([]);
+  const [songs, setSongs] = useState<SongDetailResponse[]>([]);
   const [locations, setLocations] = useState<LocationResponse[]>([]);
   const [castableUsers, setCastableUsers] = useState<CastableUserResponse[]>([]);
-  const [recommendations, setRecommendations] = useState<SceneRecommendationResponse[]>(
+  const [recommendations, setRecommendations] = useState<RehearsalRecommendationResponse[]>(
     [],
   );
+  const [recommendationFilter, setRecommendationFilter] =
+    useState<RecommendationFilter>("all");
   const [suggestionsByBlock, setSuggestionsByBlock] = useState<
     Record<string, SuggestedCallResponse[]>
   >({});
@@ -171,8 +176,22 @@ export default function RehearsalDetailPage() {
     rehearsal.status !== "cancelled";
 
   const loadSuggestions = useCallback(
-    async (blockKey: string, sceneIds: number[]) => {
-      if (!canManagePreparation || sceneIds.length === 0) {
+    async (blockKey: string, targets: RehearsalBlockTargetWrite[]) => {
+      const sceneIds = targets
+        .filter((target) => target.focus === "dialog" && target.scene_id != null)
+        .map((target) => target.scene_id as number);
+      const songIds = [
+        ...new Set(
+          targets
+            .filter(
+              (target) =>
+                (target.focus === "music" || target.focus === "choreo") &&
+                target.song_id != null,
+            )
+            .map((target) => target.song_id as number),
+        ),
+      ];
+      if (!canManagePreparation || (sceneIds.length === 0 && songIds.length === 0)) {
         setSuggestionsByBlock((prev) => {
           const next = { ...prev };
           delete next[blockKey];
@@ -181,7 +200,7 @@ export default function RehearsalDetailPage() {
         return;
       }
       try {
-        const suggestions = await api.suggestCalls(productionId, sceneIds);
+        const suggestions = await api.suggestCalls(productionId, { sceneIds, songIds });
         setSuggestionsByBlock((prev) => ({ ...prev, [blockKey]: suggestions }));
       } catch {
         // Soft failure — cast checkboxes still work from the full cast list.
@@ -195,21 +214,23 @@ export default function RehearsalDetailPage() {
     try {
       const detailPromise = api.getRehearsal(productionId, rehearsalId);
       const actsPromise = api.listActs(productionId);
+      const songsPromise = api.listSongs(productionId);
       const locationsPromise = api.listLocations(productionId);
 
       const directorExtras = canManagePreparation
         ? Promise.all([
             api.listCastableUsers(productionId),
-            api.listSceneRecommendations(productionId),
+            api.listRehearsalRecommendations(productionId),
           ])
         : Promise.resolve([[], []] as [
             CastableUserResponse[],
-            SceneRecommendationResponse[],
+            RehearsalRecommendationResponse[],
           ]);
 
-      const [detail, actData, locationData, [castUsers, sceneRecs]] = await Promise.all([
+      const [detail, actData, songData, locationData, [castUsers, recs]] = await Promise.all([
         detailPromise,
         actsPromise,
+        songsPromise,
         locationsPromise,
         directorExtras,
       ]);
@@ -217,15 +238,22 @@ export default function RehearsalDetailPage() {
       setRehearsal(detail);
       setBlocks(blocksFromDetail(detail));
       setActs(actData);
+      setSongs(songData);
       setLocations(locationData);
       setCastableUsers(castUsers);
-      setRecommendations(sceneRecs);
+      setRecommendations(recs);
 
       if (canManagePreparation) {
         for (const block of detail.blocks) {
-          const sceneIds = block.scenes.map((scene) => scene.id);
-          if (sceneIds.length > 0) {
-            void loadSuggestions(`block-${block.id}`, sceneIds);
+          if (block.targets.length > 0) {
+            void loadSuggestions(
+              `block-${block.id}`,
+              block.targets.map((target) => ({
+                focus: target.focus,
+                scene_id: target.scene_id,
+                song_id: target.song_id,
+              })),
+            );
           }
         }
       }
@@ -274,9 +302,9 @@ export default function RehearsalDetailPage() {
     );
   }
 
-  async function handleScenesChange(key: string, sceneIds: number[]) {
-    updateBlock(key, { scene_ids: sceneIds, user_ids: [] });
-    await loadSuggestions(key, sceneIds);
+  async function handleTargetsChange(key: string, targets: RehearsalBlockTargetWrite[]) {
+    updateBlock(key, { targets, user_ids: [] });
+    await loadSuggestions(key, targets);
   }
 
   function addBlock() {
@@ -319,7 +347,7 @@ export default function RehearsalDetailPage() {
           location_id: block.location_id === NO_LOCATION ? null : Number(block.location_id),
           label: block.label.trim() || null,
           sort_order: index,
-          scene_ids: block.scene_ids,
+          targets: block.targets,
           user_ids: block.user_ids,
         })),
         mark_planned: true,
@@ -334,6 +362,13 @@ export default function RehearsalDetailPage() {
           ? "Plan saved — some people are double-booked across overlapping blocks"
           : "Plan saved",
       );
+      if (canManagePreparation) {
+        try {
+          setRecommendations(await api.listRehearsalRecommendations(productionId));
+        } catch {
+          // Soft failure
+        }
+      }
     } catch (err) {
       toast.error(formatApiError(err, "Failed to save plan"));
     } finally {
@@ -362,13 +397,20 @@ export default function RehearsalDetailPage() {
     const ok = await confirm({
       title: "Complete this rehearsal?",
       description:
-        "Scene rehearsal counts will increase for scenes on this plan. This cannot be undone from the planner.",
+        "Rehearsal counts will increase for each dialog scene, song music, and song choreo on this plan. This cannot be undone from the planner.",
       confirmLabel: "Complete",
     });
     if (!ok) return;
     await runStatusAction("Rehearsal completed", () =>
       api.completeRehearsal(productionId, rehearsalId),
     );
+    if (canManagePreparation) {
+      try {
+        setRecommendations(await api.listRehearsalRecommendations(productionId));
+      } catch {
+        // Soft failure
+      }
+    }
   }
 
   function toggleUser(blockKey: string, userId: number, checked: boolean) {
@@ -494,10 +536,9 @@ export default function RehearsalDetailPage() {
                     {block.label && (
                       <p className="text-sm text-muted-foreground">{block.label}</p>
                     )}
-                    {block.scenes.length > 0 && (
+                    {block.targets.length > 0 && (
                       <p className="mt-1 text-sm">
-                        Scenes:{" "}
-                        {block.scenes.map((scene) => sceneRefLabel(scene)).join(", ")}
+                        Working: {targetListLabel(block.targets)}
                       </p>
                     )}
                   </li>
@@ -578,7 +619,7 @@ export default function RehearsalDetailPage() {
             <div>
               <h2 className="text-lg font-medium">Blocks</h2>
               <p className="text-sm text-muted-foreground">
-                Time blocks with scenes and who is called. Prefer 30-minute increments.
+                Time blocks with scenes/songs and who is called. Prefer 30-minute increments.
               </p>
             </div>
             {editable && (
@@ -681,7 +722,7 @@ export default function RehearsalDetailPage() {
                           id={`block-label-${block.key}`}
                           value={block.label}
                           disabled={!editable}
-                          placeholder="Optional (e.g. Music)"
+                          placeholder="Optional (e.g. Stumble-through)"
                           onChange={(e) =>
                             updateBlock(block.key, { label: e.target.value })
                           }
@@ -690,22 +731,16 @@ export default function RehearsalDetailPage() {
                     </div>
 
                     <div className="space-y-2">
-                      <Label>Scenes</Label>
-                      {editable ? (
-                        <SceneMultiSelect
-                          acts={acts}
-                          selectedSceneIds={block.scene_ids}
-                          onChange={(sceneIds) =>
-                            void handleScenesChange(block.key, sceneIds)
-                          }
-                        />
-                      ) : (
-                        <p className="text-sm text-muted-foreground">
-                          {block.scene_ids.length === 0
-                            ? "None"
-                            : `${block.scene_ids.length} selected`}
-                        </p>
-                      )}
+                      <Label>Working on</Label>
+                      <RehearsalTargetPicker
+                        acts={acts}
+                        songs={songs}
+                        selected={block.targets}
+                        disabled={!editable}
+                        onChange={(targets) =>
+                          void handleTargetsChange(block.key, targets)
+                        }
+                      />
                     </div>
 
                     <div className="space-y-2">
@@ -783,30 +818,66 @@ export default function RehearsalDetailPage() {
         </section>
 
         <aside className="space-y-3 lg:sticky lg:top-4 lg:self-start">
-          <h2 className="text-lg font-medium">Scene recommendations</h2>
-          <p className="text-sm text-muted-foreground">
-            Under-rehearsed scenes first.
-          </p>
-          {recommendations.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No scenes yet.</p>
-          ) : (
-            <ul className="max-h-96 space-y-2 overflow-y-auto text-sm">
-              {recommendations.map((scene) => (
-                <li key={scene.id} className="rounded-md border border-border px-2 py-1.5">
-                  <div className="font-medium">
-                    {scene.act_number}.{scene.number}
-                    {scene.title ? ` — ${scene.title}` : ""}
-                  </div>
-                  <div className="text-xs text-muted-foreground">
-                    Rehearsed {scene.times_rehearsed}×
-                    {scene.last_rehearsed_at
-                      ? ` · last ${formatDateTime(scene.last_rehearsed_at)}`
-                      : ""}
-                  </div>
-                </li>
-              ))}
-            </ul>
-          )}
+          <div>
+            <h2 className="text-lg font-medium">Recommendations</h2>
+            <p className="text-sm text-muted-foreground">
+              Least rehearsed first — dialog, music, and choreo.
+            </p>
+          </div>
+          <div className="flex flex-wrap gap-1">
+            {(
+              [
+                ["all", "All"],
+                ["dialog", "Dialog"],
+                ["music", "Music"],
+                ["choreo", "Choreo"],
+              ] as const
+            ).map(([value, label]) => (
+              <Button
+                key={value}
+                type="button"
+                size="sm"
+                variant={recommendationFilter === value ? "secondary" : "outline"}
+                className="h-7 px-2 text-xs"
+                onClick={() => setRecommendationFilter(value)}
+              >
+                {label}
+              </Button>
+            ))}
+          </div>
+          {(() => {
+            const filtered =
+              recommendationFilter === "all"
+                ? recommendations
+                : recommendations.filter((row) => row.focus === recommendationFilter);
+            if (filtered.length === 0) {
+              return (
+                <p className="text-sm text-muted-foreground">
+                  {recommendations.length === 0
+                    ? "No scenes or songs yet."
+                    : "Nothing in this filter."}
+                </p>
+              );
+            }
+            return (
+              <ul className="max-h-96 space-y-2 overflow-y-auto text-sm">
+                {filtered.map((row) => (
+                  <li
+                    key={`${row.focus}-${row.scene_id ?? "s"}-${row.song_id ?? "g"}`}
+                    className="rounded-md border border-border px-2 py-1.5"
+                  >
+                    <div className="font-medium">{row.label}</div>
+                    <div className="text-xs text-muted-foreground">
+                      Rehearsed {row.times_rehearsed}×
+                      {row.last_rehearsed_at
+                        ? ` · last ${formatDateTime(row.last_rehearsed_at)}`
+                        : ""}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            );
+          })()}
         </aside>
       </div>
 

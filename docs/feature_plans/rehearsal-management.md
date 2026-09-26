@@ -1,6 +1,6 @@
 # Feature plan — Rehearsal management
 
-**Status:** Shipped (Phases 15–18)  
+**Status:** Shipped (Phases 15–18) + typed targets (dialog / music / choreo, 2026-09-26)  
 **Created:** 2026-08-21  
 **Related:** [PHASE_15.md](../PHASE_15.md)–[PHASE_18.md](../PHASE_18.md), [print-and-call-sheets.md](print-and-call-sheets.md), [casting-and-auditions.md](casting-and-auditions.md), [scheduling-and-attendance.md](scheduling-and-attendance.md) (superseded), [email-notifications.md](email-notifications.md)
 
@@ -30,12 +30,12 @@ Pam walkthrough target: “this replaces the week-before call email and sticky-n
 | Topic | Default |
 | ----- | -------- |
 | Planner shape | Rehearsal → Blocks (time + optional location + work focus) |
-| Work focus | Scenes (multi-select) + optional free-text label |
-| Who is called | Suggested from casting ∩ scene presence (dialogue/lyrics/E&E), then edit |
+| Work focus | Typed targets: scene dialog, song music, song choreo (multi, mixed) + optional free-text label |
+| Who is called | Suggested from casting ∩ scene/song presence (dialogue/lyrics/E&E), then edit |
 | Locations | Org-level room catalog; blocks may override |
 | Soft publish | `scheduled` → `planned` → `published` → `in_progress` → `completed` |
 | Notes | Rehearsal-scoped (not Moment notes) |
-| Times rehearsed | Integer on Scene; increment on complete (once per rehearsal×scene) |
+| Times rehearsed | Dialog on Scene; music/choreo on Song; increment on complete (once per rehearsal×target) |
 | Nav | **Rehearsals** (distinct from **Rehearse** line practice) |
 
 ---
@@ -55,10 +55,11 @@ time ranges.
 - `locations` — organization_id, name, sort_order
 - `rehearsals` — production_id, starts_at, ends_at, kind (all_call|called), status, title, location_id
 - `rehearsal_blocks` — rehearsal_id, starts_at, ends_at, location_id, label, sort_order
-- `rehearsal_block_scenes` — block_id, scene_id
+- `rehearsal_block_targets` — block_id, focus (dialog|music|choreo), scene_id?, song_id?
 - `rehearsal_block_calls` — block_id, user_id
-- `rehearsal_notes` — rehearsal_id, author_user_id, content
-- `scenes.times_rehearsed`, `scenes.last_rehearsed_at`
+- Session notes — `notes.rehearsal_id` (see capture plan)
+- `scenes.times_rehearsed`, `scenes.last_rehearsed_at` (dialog)
+- `songs.times_music_rehearsed` / `times_choreo_rehearsed` (+ last_* timestamps)
 
 ---
 

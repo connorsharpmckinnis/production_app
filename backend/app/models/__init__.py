@@ -45,7 +45,7 @@ from app.models.rehearsal import (
     Rehearsal,
     RehearsalBlock,
     RehearsalBlockCall,
-    RehearsalBlockScene,
+    RehearsalBlockTarget,
 )
 from app.models.scene import Scene
 from app.models.set_piece import SetPiece
@@ -101,7 +101,7 @@ __all__ = [
     "Rehearsal",
     "RehearsalBlock",
     "RehearsalBlockCall",
-    "RehearsalBlockScene",
+    "RehearsalBlockTarget",
     "Scene",
     "SetPiece",
     "Song",

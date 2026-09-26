@@ -543,7 +543,7 @@ Fields
 * number
 * title
 * sort_order
-* times_rehearsed (int, default 0 — incremented when a rehearsal that included this scene is completed)
+* times_rehearsed (int, default 0 — dialog progress; incremented when a completed rehearsal included this scene as a dialog target)
 * last_rehearsed_at (nullable timestamptz)
 
 **Decision:** Unique `(act_id, number)` — one Scene N per Act.
@@ -835,6 +835,8 @@ Fields
 * composer
 * lyricist
 * description
+* times_music_rehearsed / last_music_rehearsed_at
+* times_choreo_rehearsed / last_choreo_rehearsed_at
 
 Derived
 
@@ -848,6 +850,9 @@ Characters
 mirroring dialogue→`dialogue` rows. Performer context comes from the latest
 `song_attribution` in the song block. Revisit post-MVP if song blocks need
 different treatment (for example segment-accurate parenthetical ownership).
+
+Music vs choreo rehearsal progress is tracked separately on the song row
+(migration `034_rehearsal_block_targets`).
 
 ---
 
@@ -1365,13 +1370,39 @@ Fields
 * rehearsal_id
 * starts_at / ends_at
 * location_id (optional)
-* label (optional free-text work focus)
-* sort_order
+* label (optional free-text work focus — not typed music/choreo)
 
 Junctions
 
-* `rehearsal_block_scenes` (block × scene)
+* `rehearsal_block_targets` (block × typed target — see below)
 * `rehearsal_block_calls` (block × user — explicit call list)
+
+---
+
+# REHEARSAL_BLOCK_TARGETS
+
+Purpose
+
+What a block is rehearsing, with work-type granularity.
+
+Fields
+
+* id
+* block_id
+* focus (`dialog` | `music` | `choreo`)
+* scene_id (required when focus = `dialog`)
+* song_id (required when focus = `music` or `choreo`)
+
+Rules
+
+* Scenes are dialog-only.
+* Songs can be music and/or choreo (separate rows if both).
+* Assigning a song does not auto-add its scenes.
+* On rehearsal complete: bump `scenes.times_rehearsed` for dialog targets,
+  `songs.times_music_rehearsed` / `times_choreo_rehearsed` for song targets
+  (once per distinct target per rehearsal).
+
+Migration: `034_rehearsal_block_targets` (replaces `rehearsal_block_scenes`).
 
 ---
 

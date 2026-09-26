@@ -173,6 +173,7 @@ export default function ProductionOverviewPage() {
       productionId={productionId}
       overview={overview}
       canManagePreparation={canManagePreparation}
+      canReadPeople={canReadPeople}
       isAdmin={isAdmin}
       onMessagesSaved={() => void loadOverview()}
       people={people}
@@ -186,6 +187,7 @@ function StaffOverview({
   productionId,
   overview,
   canManagePreparation,
+  canReadPeople,
   isAdmin,
   onMessagesSaved,
   people,
@@ -195,6 +197,7 @@ function StaffOverview({
   productionId: number;
   overview: ProductionOverviewResponse;
   canManagePreparation: boolean;
+  canReadPeople: boolean;
   isAdmin: boolean;
   onMessagesSaved: () => void;
   people: ProductionMemberResponse[];
@@ -288,8 +291,12 @@ function StaffOverview({
         <h2 className="mb-3 text-lg font-semibold tracking-tight">Quick links</h2>
         <div className="flex flex-wrap gap-2">
           <QuickLink to={`/productions/${productionId}/timeline`} label="Timeline" />
+          <QuickLink to={`/productions/${productionId}/rehearsals`} label="Rehearsals" />
           {isAdmin && needsImport && (
             <QuickLink to={`/productions/${productionId}/import`} label="Import script" />
+          )}
+          {canReadPeople && (
+            <QuickLink to={`/productions/${productionId}/people`} label="People" />
           )}
           <QuickLink to={`/productions/${productionId}/characters`} label="Characters" />
           <QuickLink to={`/productions/${productionId}/reports`} label="Reports" />

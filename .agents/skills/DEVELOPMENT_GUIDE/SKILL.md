@@ -365,7 +365,7 @@ Project-wide collaboration defaults live in:
 * `.cursor/rules/ai-collaboration.mdc` — always applied
 * [AI_COLLABORATION](../AI_COLLABORATION/SKILL.md) — ask-before-assuming, decision gate, scope, tradeoffs
 * [PLAN_THEN_BUILD](../PLAN_THEN_BUILD/SKILL.md) — plan/audit stays read-only until build is authorized
-* [FEATURE_CLOSEOUT](../FEATURE_CLOSEOUT/SKILL.md) — sync phase docs, scratch notes, and status after shipping
+* [FEATURE_CLOSEOUT](../FEATURE_CLOSEOUT/SKILL.md) — sync phase docs, feature plans, and Issues after shipping
 
 Core directive: ask any questions that still need deciding or clarifying before assuming.
 
@@ -382,7 +382,7 @@ When implementing features:
 6. Prefer the smallest change that fully solves the problem.
 7. Explain significant design decisions.
 8. Keep generated code understandable.
-9. After meaningful work, run feature closeout so docs and scratch notes stay accurate.
+9. After meaningful work, run feature closeout so docs and Issues stay accurate.
 
 Before introducing a new dependency, architectural pattern, database table, or API style, ask: "Does this match the existing project philosophy?"
 
