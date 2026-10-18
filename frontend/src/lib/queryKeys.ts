@@ -39,6 +39,8 @@ export const queryKeys = {
       [...queryKeys.catalog.all(productionId), "cueCategories"] as const,
     people: (productionId: number) =>
       [...queryKeys.catalog.all(productionId), "people"] as const,
+    castableUsers: (productionId: number) =>
+      [...queryKeys.catalog.all(productionId), "castableUsers"] as const,
     peopleRoles: (productionId: number) =>
       [...queryKeys.catalog.all(productionId), "peopleRoles"] as const,
   },

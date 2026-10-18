@@ -49,6 +49,9 @@ const AUTO_REMOVED_LABELS: Record<string, string> = {
   user_memberships: "actor memberships",
 };
 
+/** Radix Select cannot use an empty string value; keep the field always controlled. */
+const NO_TARGET = "__none__";
+
 function formatCountMap(
   counts: Record<string, number>,
   labels: Record<string, string>,
@@ -86,10 +89,10 @@ export default function CatalogSubjectDeleteDialog({
   submitting,
   onConfirm,
 }: CatalogSubjectDeleteDialogProps) {
-  const [targetKey, setTargetKey] = useState<string>("");
+  const [targetKey, setTargetKey] = useState<string>(NO_TARGET);
 
   useEffect(() => {
-    if (open) setTargetKey("");
+    if (open) setTargetKey(NO_TARGET);
   }, [open, excludeId]);
 
   const needsReassignment = Boolean(impact && !impact.can_delete_without_reassignment);
@@ -110,7 +113,7 @@ export default function CatalogSubjectDeleteDialog({
   );
 
   const parsedTarget: CatalogReassignTarget | null = useMemo(() => {
-    if (!targetKey) return null;
+    if (!targetKey || targetKey === NO_TARGET) return null;
     const [type, idText] = targetKey.split(":");
     const id = Number(idText);
     if ((type !== "character" && type !== "group") || !Number.isFinite(id)) return null;
@@ -199,7 +202,7 @@ export default function CatalogSubjectDeleteDialog({
                     ? "Reassign to character"
                     : "Reassign Moments to"}
                 </Label>
-                <Select value={targetKey || undefined} onValueChange={setTargetKey}>
+                <Select value={targetKey} onValueChange={setTargetKey}>
                   <SelectTrigger id="reassign-target" className="w-full">
                     <SelectValue
                       placeholder={
@@ -210,6 +213,11 @@ export default function CatalogSubjectDeleteDialog({
                     />
                   </SelectTrigger>
                   <SelectContent>
+                    <SelectItem value={NO_TARGET} disabled>
+                      {characterOnlyTargetsRequired
+                        ? "Choose a character…"
+                        : "Choose a character or group…"}
+                    </SelectItem>
                     {characterOptions.map((character) => (
                       <SelectItem
                         key={`character:${character.id}`}

@@ -24,6 +24,10 @@ import {
   seedGroupsCatalog,
 } from "@/hooks/queries/useProductionCatalogs";
 import { api, formatApiError } from "@/lib/api";
+import {
+  characterActorDisplayName,
+  characterWithActorLabel,
+} from "@/lib/characterSearch";
 import type {
   CastableUserResponse,
   CatalogDeleteImpact,
@@ -69,7 +73,11 @@ export default function GroupsPage() {
   const editingGroup = groups.find((group) => group.id === editingGroupId);
   const searchLower = memberSearch.trim().toLowerCase();
   const filteredCharacters = searchLower
-    ? characters.filter((character) => character.name.toLowerCase().includes(searchLower))
+    ? characters.filter((character) => {
+        if (character.name.toLowerCase().includes(searchLower)) return true;
+        const actorName = characterActorDisplayName(character);
+        return actorName != null && actorName.toLowerCase().includes(searchLower);
+      })
     : characters;
   const filteredUsers = searchLower
     ? castableUsers.filter((user) => user.display_name.toLowerCase().includes(searchLower))
@@ -317,7 +325,7 @@ export default function GroupsPage() {
                             );
                           }}
                         />
-                        {character.name}
+                        {characterWithActorLabel(character)}
                       </Label>
                     ))}
                   </div>

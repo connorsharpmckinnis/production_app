@@ -38,6 +38,7 @@ Authoritative product/schema docs win on conflict: [PROJECT.md](../PROJECT.md), 
 
 | Plan | Status | One-liner |
 | ---- | ------ | --------- |
+| [emmy-directors-feedback-sept-2026.md](emmy-directors-feedback-sept-2026.md) | Roadmap | Emmy/SM walkthrough backlog: Timeline edit, rehearsal builder, progress tracking (#182–#196) |
 | [print-and-call-sheets.md](print-and-call-sheets.md) | Roadmap | Call sheet polish + optional scene-select Reports shortcut |
 | [org-catalog-and-shop.md](org-catalog-and-shop.md) | Roadmap | Theater-wide catalog + check out / copy into a show |
 | [tech-week-chart-suite.md](tech-week-chart-suite.md) | Roadmap | Burn-down, break-time, set-change charts |

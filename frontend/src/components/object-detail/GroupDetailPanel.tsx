@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import ObjectLink from "@/components/object-detail/ObjectLink";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Input } from "@/components/ui/input";
@@ -14,6 +15,8 @@ import {
   useGroupsCatalog,
 } from "@/hooks/queries/useProductionCatalogs";
 import { api, formatApiError } from "@/lib/api";
+import { characterWithActorLabel } from "@/lib/characterSearch";
+import { queryKeys } from "@/lib/queryKeys";
 import { sortByName } from "@/lib/utils";
 import DetailPanelSkeleton from "@/components/DetailPanelSkeleton";
 
@@ -38,10 +41,23 @@ export default function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
     isLoading: charactersLoading,
     error: charactersError,
   } = useCharactersCatalog(productionId ?? 0, catalogEnabled);
+  const {
+    data: castableUsers = [],
+    isLoading: usersLoading,
+    error: usersError,
+  } = useQuery({
+    queryKey: queryKeys.catalog.castableUsers(productionId ?? 0),
+    queryFn: () => api.listCastableUsers(productionId ?? 0),
+    enabled: catalogEnabled,
+  });
   const { setGroup: writeGroup } = useCatalogWriteThrough(productionId ?? 0);
 
   const group = groupList.find((row) => row.id === groupId) ?? null;
   const characters = useMemo(() => sortByName(characterList), [characterList]);
+  const usersById = useMemo(() => {
+    const map = new Map(castableUsers.map((user) => [user.id, user]));
+    return map;
+  }, [castableUsers]);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [saving, setSaving] = useState(false);
@@ -53,9 +69,9 @@ export default function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
     setDescription(group.description ?? "");
   }, [groupId, groupReady]); // eslint-disable-line react-hooks/exhaustive-deps -- seed on open only
 
-  const isLoading = groupsLoading || charactersLoading;
+  const isLoading = groupsLoading || charactersLoading || usersLoading;
   const loading = isLoading && group == null;
-  const queryError = groupsError ?? charactersError;
+  const queryError = groupsError ?? charactersError ?? usersError;
   const error =
     queryError != null
       ? formatApiError(queryError, "Failed to load group")
@@ -102,6 +118,21 @@ export default function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
     if (group == null) return [];
     return characters.filter((character) => group.character_ids.includes(character.id));
   }, [characters, group]);
+
+  const memberUsers = useMemo(() => {
+    if (group == null) return [];
+    return [...group.user_ids]
+      .map((userId) => {
+        const user = usersById.get(userId);
+        return {
+          id: userId,
+          display_name: user?.display_name ?? `User #${userId}`,
+        };
+      })
+      .sort((a, b) =>
+        a.display_name.localeCompare(b.display_name, undefined, { sensitivity: "base" }),
+      );
+  }, [group, usersById]);
 
   const controllers = useMemo(() => {
     if (group == null) return null;
@@ -169,32 +200,51 @@ export default function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
         )}
       </div>
 
-      <div className="space-y-2">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
-          Members
-        </p>
-        {memberCharacters.length === 0 && group.user_ids.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No members yet.</p>
-        ) : (
-          <div className="flex flex-wrap gap-1.5">
-            {memberCharacters.map((character) => (
-              <ObjectLink
-                key={character.id}
-                objectType="character"
-                objectId={character.id}
-                label={character.name}
-                className="text-xs"
-              />
-            ))}
-            {group.user_ids.length > 0 && (
-              <p className="w-full text-xs text-muted-foreground">
-                {group.user_ids.length} uncast user
-                {group.user_ids.length === 1 ? "" : "s"} also in this group
-                (edit membership on the Groups page).
-              </p>
-            )}
-          </div>
-        )}
+      <div className="space-y-3">
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Characters
+          </p>
+          {memberCharacters.length === 0 ? (
+            <p className="text-sm text-muted-foreground">None</p>
+          ) : (
+            <ul className="space-y-1">
+              {memberCharacters.map((character) => (
+                <li key={character.id}>
+                  <ObjectLink
+                    objectType="character"
+                    objectId={character.id}
+                    label={characterWithActorLabel(character)}
+                    className="text-sm"
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <div className="space-y-1.5">
+          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            Actors
+          </p>
+          {memberUsers.length === 0 ? (
+            <p className="text-sm text-muted-foreground">None</p>
+          ) : (
+            <ul className="space-y-1">
+              {memberUsers.map((user) => (
+                <li key={user.id}>
+                  <ObjectLink
+                    objectType="person"
+                    objectId={user.id}
+                    label={user.display_name}
+                    className="text-sm"
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+
         <p className="text-xs text-muted-foreground">
           Membership is edited on the Groups catalog page.
         </p>
