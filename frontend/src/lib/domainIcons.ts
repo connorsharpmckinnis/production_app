@@ -107,7 +107,7 @@ export const MOMENT_ATTACHMENT_LABELS: Record<MomentAttachmentKind, string> = {
   blocking: "Blocking",
 };
 
-const ATTACHMENT_ORDER = [
+export const ALL_MOMENT_ATTACHMENT_KINDS = [
   "prop",
   "set_piece",
   "costume",
@@ -122,7 +122,7 @@ export const MOMENT_ATTACHMENT_OPTIONS: {
   value: MomentAttachmentKind;
   label: string;
   icon: LucideIcon;
-}[] = ATTACHMENT_ORDER.map((value) => ({
+}[] = ALL_MOMENT_ATTACHMENT_KINDS.map((value) => ({
   value,
   label: MOMENT_ATTACHMENT_LABELS[value],
   icon: DOMAIN_ICONS[value],

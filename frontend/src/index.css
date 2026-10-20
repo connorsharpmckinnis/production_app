@@ -369,6 +369,220 @@ body {
   border-bottom: 1px solid var(--border);
 }
 
+/* Call sheet: masthead + block tables (screen + print) */
+.call-sheet-masthead {
+  border-bottom: 2px solid var(--foreground);
+  padding-bottom: 0.85rem;
+}
+
+.call-sheet-kicker {
+  margin: 0;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.call-sheet-production {
+  margin: 0.35rem 0 0;
+  font-size: 0.875rem;
+  color: var(--muted-foreground);
+}
+
+.call-sheet-title {
+  margin: 0.15rem 0 0;
+  font-size: 1.75rem;
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+}
+
+.call-sheet-meta {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.65rem 1.25rem;
+  margin: 0.9rem 0 0;
+}
+
+@media (min-width: 640px) {
+  .call-sheet-meta {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.call-sheet-meta dt {
+  margin: 0;
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.call-sheet-meta dd {
+  margin: 0.1rem 0 0;
+  font-size: 0.95rem;
+  font-weight: 500;
+}
+
+.call-sheet-block {
+  border: 1px solid var(--border);
+  border-radius: 0.35rem;
+  padding: 0.85rem 1rem 1rem;
+  background: color-mix(in oklab, var(--muted) 35%, transparent);
+}
+
+.call-sheet-block-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.35rem 1rem;
+  margin-bottom: 0.65rem;
+  break-after: avoid;
+  page-break-after: avoid;
+}
+
+.call-sheet-block-heading h2 {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.45rem 0.75rem;
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.call-sheet-block-index {
+  letter-spacing: 0.02em;
+}
+
+.call-sheet-block-time {
+  font-variant-numeric: tabular-nums;
+  font-weight: 550;
+}
+
+.call-sheet-block-label {
+  margin: 0.2rem 0 0;
+  font-size: 0.9rem;
+  color: var(--foreground);
+}
+
+.call-sheet-block-place {
+  margin: 0;
+  font-size: 0.8rem;
+  color: var(--muted-foreground);
+}
+
+.call-sheet-notes {
+  margin: 0 0 0.75rem;
+  padding: 0.5rem 0.65rem;
+  border-left: 3px solid var(--border);
+  font-size: 0.875rem;
+  line-height: 1.4;
+  background: color-mix(in oklab, var(--background) 80%, transparent);
+}
+
+.call-sheet-block-body {
+  display: grid;
+  gap: 0.85rem;
+}
+
+@media (min-width: 768px) {
+  .call-sheet-block-body {
+    grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+    gap: 1.25rem;
+  }
+}
+
+.call-sheet-section-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.7rem;
+  font-weight: 650;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.call-sheet-section-count {
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.call-sheet-empty {
+  margin: 0;
+  font-size: 0.85rem;
+  color: var(--muted-foreground);
+}
+
+.call-sheet-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.call-sheet-table th,
+.call-sheet-table td {
+  border-bottom: 1px solid var(--border);
+  padding: 0.3rem 0.4rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+.call-sheet-table th {
+  font-size: 0.65rem;
+  font-weight: 650;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+
+.call-sheet-table tr:last-child td {
+  border-bottom: none;
+}
+
+.call-sheet-focus {
+  width: 4.5rem;
+  white-space: nowrap;
+  color: var(--muted-foreground);
+}
+
+.call-sheet-called {
+  column-count: 2;
+  column-gap: 1.5rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  font-size: 0.85rem;
+}
+
+@media (min-width: 640px) {
+  .call-sheet-called {
+    column-count: 3;
+  }
+}
+
+@media (min-width: 1024px) {
+  .call-sheet-called {
+    column-count: 4;
+  }
+}
+
+.call-sheet-called-item {
+  break-inside: avoid;
+  page-break-inside: avoid;
+  padding: 0.12rem 0;
+}
+
+.call-sheet-footer {
+  margin-top: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--muted-foreground);
+}
+
 @media print {
   .app-shell-header,
   .app-shell-sidebar,
@@ -410,6 +624,73 @@ body {
   .lav-chart-table td {
     border: 1px solid #ccc;
     padding: 0.2rem 0.35rem;
+  }
+
+  .call-sheet {
+    font-size: 10pt;
+  }
+
+  .call-sheet-masthead {
+    border-bottom-width: 1.5pt;
+    padding-bottom: 0.5rem;
+  }
+
+  .call-sheet-title {
+    font-size: 16pt;
+  }
+
+  .call-sheet-meta {
+    gap: 0.4rem 0.75rem;
+  }
+
+  .call-sheet-meta dd {
+    font-size: 10pt;
+  }
+
+  .call-sheet-block {
+    break-inside: auto;
+    page-break-inside: auto;
+    margin-bottom: 0.55rem;
+    padding: 0.45rem 0.55rem 0.55rem;
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .call-sheet-block-heading h2 {
+    font-size: 11pt;
+  }
+
+  .call-sheet-block-body {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 0.75rem;
+  }
+
+  .call-sheet-table {
+    font-size: 9pt;
+  }
+
+  .call-sheet-table th,
+  .call-sheet-table td {
+    border-bottom-color: #ccc;
+    padding: 0.15rem 0.25rem;
+  }
+
+  .call-sheet-called {
+    column-count: 4;
+    column-gap: 0.75rem;
+    font-size: 9pt;
+    line-height: 1.25;
+  }
+
+  .call-sheet-notes {
+    font-size: 9pt;
+    padding: 0.25rem 0.4rem;
+    background: transparent;
+  }
+
+  .call-sheet-footer {
+    margin-top: 0.75rem;
+    break-before: avoid;
   }
 
   a {

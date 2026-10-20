@@ -76,6 +76,7 @@ Existing report types to polish: props, cues, entrances/exits, blocking, lav mat
 | Area | Today |
 | ---- | ----- |
 | Reports | Production-scoped lists; some print CSS |
+| Director call sheet (Phase 17) | Plan-driven page + browser print; masthead meta, per-block Working on table + multi-column Called list |
 | Scene multi-select for reports | Not a call-sheet builder |
 | Phase 14 | Can answer “in play” / events in range |
 | Casting | Character → user for display names |

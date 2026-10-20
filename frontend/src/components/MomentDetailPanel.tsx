@@ -1,6 +1,6 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Check, Trash2 } from "lucide-react";
+import { Check, Pencil, Trash2 } from "lucide-react";
 import AttributionSubjectMultiSelect, {
   decodeAttributionSubjects,
   encodeAttributionSubject,
@@ -9,6 +9,8 @@ import AttributionInfo from "@/components/AttributionInfo";
 import NotesPanel from "@/components/notes/NotesPanel";
 import SearchableSelect from "@/components/SearchableSelect";
 import type { SearchableSelectOption } from "@/components/SearchableSelect";
+import SubjectMultiSelect from "@/components/SubjectMultiSelect";
+import type { SubjectMultiSelectOption } from "@/components/SubjectMultiSelect";
 import ObjectLink from "@/components/object-detail/ObjectLink";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -33,6 +35,7 @@ import {
   type MomentAttachmentKind,
 } from "@/lib/domainIcons";
 import type { ObjectDetailType } from "@/lib/objectDetail";
+import { decodeSubjectRef, encodeSubjectRef } from "@/lib/subjectRefs";
 import { formatMomentCode, humanTimelinePath } from "@/lib/timelineDeepLinks";
 import type {
   AppSettingsResponse,
@@ -179,28 +182,42 @@ function decodeMovementSubject(value: string): {
   userId: number | null;
   groupId: number | null;
 } {
-  if (value.startsWith("character:")) {
-    return {
-      characterId: Number(value.slice("character:".length)),
-      userId: null,
-      groupId: null,
-    };
-  }
-  if (value.startsWith("user:")) {
-    return {
-      characterId: null,
-      userId: Number(value.slice("user:".length)),
-      groupId: null,
-    };
-  }
-  if (value.startsWith("group:")) {
-    return {
-      characterId: null,
-      userId: null,
-      groupId: Number(value.slice("group:".length)),
-    };
-  }
-  return { characterId: null, userId: null, groupId: null };
+  return decodeSubjectRef(value);
+}
+
+function annotateOnStageMovementOptions(
+  options: SearchableSelectOption[],
+  onStageSubjectValues: Set<string>,
+  preferOnStageFirst: boolean,
+): SearchableSelectOption[] {
+  const annotated = options.map((option) => {
+    const onStage = onStageSubjectValues.has(option.value);
+    const onStageHint = onStage ? "On stage" : undefined;
+    const hint = [option.hint, onStageHint].filter(Boolean).join(" · ") || undefined;
+    return { ...option, hint };
+  });
+  return annotated.sort((a, b) => {
+    const aOn = onStageSubjectValues.has(a.value) ? 1 : 0;
+    const bOn = onStageSubjectValues.has(b.value) ? 1 : 0;
+    if (aOn !== bOn) {
+      return preferOnStageFirst ? bOn - aOn : aOn - bOn;
+    }
+    return a.label.localeCompare(b.label, undefined, { sensitivity: "base" });
+  });
+}
+
+function toSubjectMultiOptions(
+  options: SearchableSelectOption[],
+  onStageSubjectValues: Set<string>,
+): SubjectMultiSelectOption[] {
+  return options.map((option) => ({
+    value: option.value,
+    label: option.label,
+    hint: option.hint,
+    optionClassName: onStageSubjectValues.has(option.value)
+      ? "bg-emerald-500/10"
+      : undefined,
+  }));
 }
 
 function movementRowLabel(row: {
@@ -483,12 +500,30 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       return values;
     }, [detail.on_stage_characters, detail.on_stage_groups, detail.on_stage_users]);
     const entranceMovementOptions = useMemo(
-      () => movementSubjectOptions.filter((option) => !onStageSubjectValues.has(option.value)),
+      () =>
+        annotateOnStageMovementOptions(
+          movementSubjectOptions,
+          onStageSubjectValues,
+          false,
+        ),
       [movementSubjectOptions, onStageSubjectValues],
     );
     const exitMovementOptions = useMemo(
-      () => movementSubjectOptions.filter((option) => onStageSubjectValues.has(option.value)),
+      () =>
+        annotateOnStageMovementOptions(
+          movementSubjectOptions,
+          onStageSubjectValues,
+          true,
+        ),
       [movementSubjectOptions, onStageSubjectValues],
+    );
+    const entranceMultiOptions = useMemo(
+      () => toSubjectMultiOptions(entranceMovementOptions, onStageSubjectValues),
+      [entranceMovementOptions, onStageSubjectValues],
+    );
+    const exitMultiOptions = useMemo(
+      () => toSubjectMultiOptions(exitMovementOptions, onStageSubjectValues),
+      [exitMovementOptions, onStageSubjectValues],
     );
     const propOptions = useMemo(
       () => propsCatalog.map((prop) => ({ value: String(prop.id), label: prop.name })),
@@ -591,9 +626,9 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     const [attachCostumeId, setAttachCostumeId] = useState("");
     const [attachCostumeNotes, setAttachCostumeNotes] = useState("");
 
-    const [attachEntranceSubject, setAttachEntranceSubject] = useState("");
+    const [attachEntranceSubjects, setAttachEntranceSubjects] = useState<string[]>([]);
     const [attachEntranceNotes, setAttachEntranceNotes] = useState("");
-    const [attachExitSubject, setAttachExitSubject] = useState("");
+    const [attachExitSubjects, setAttachExitSubjects] = useState<string[]>([]);
     const [attachExitNotes, setAttachExitNotes] = useState("");
     const [attachBlockingSubjectType, setAttachBlockingSubjectType] = useState<
       BlockingSubjectType | ""
@@ -626,9 +661,9 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       setAttachCostumeKind("on");
       setAttachCostumeId("");
       setAttachCostumeNotes("");
-      setAttachEntranceSubject("");
+      setAttachEntranceSubjects([]);
       setAttachEntranceNotes("");
-      setAttachExitSubject("");
+      setAttachExitSubjects([]);
       setAttachExitNotes("");
       setAttachBlockingCharacterId("");
       setAttachBlockingNotes("");
@@ -1106,24 +1141,68 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
     async function handleAttachEntrance(event: React.FormEvent) {
       event.preventDefault();
-      if (!attachEntranceSubject) return;
-      const subject = decodeMovementSubject(attachEntranceSubject);
+      if (attachEntranceSubjects.length === 0) return;
+      const notes = attachEntranceNotes.trim() || null;
 
       setSaving(true);
+      let added = 0;
+      let skipped = 0;
       try {
-        await api.attachMomentEntrance(productionId, detail.id, {
+        for (const value of attachEntranceSubjects) {
+          const subject = decodeMovementSubject(value);
+          try {
+            await api.attachMomentEntrance(productionId, detail.id, {
+              character_id: subject.characterId,
+              user_id: subject.userId,
+              group_id: subject.groupId,
+              notes,
+              status: attachmentStatus,
+            });
+            added += 1;
+          } catch (err) {
+            if (err instanceof ApiError && err.status === 409) {
+              skipped += 1;
+              continue;
+            }
+            throw err;
+          }
+        }
+        setAttachEntranceSubjects([]);
+        setAttachEntranceNotes("");
+        await onChanged();
+        if (added > 0 && skipped > 0) {
+          toast.success(`Added ${added} entrance${added === 1 ? "" : "s"} (${skipped} already present)`);
+        } else if (added > 0) {
+          toast.success(added === 1 ? "Entrance added" : `${added} entrances added`);
+        } else if (skipped > 0) {
+          toast.error("Those subjects already have entrances on this moment");
+        }
+      } catch (err) {
+        toast.error(formatApiError(err, "Failed to attach entrance"));
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function handleUpdateEntrance(
+      entranceId: number,
+      subjectValue: string,
+      notes: string,
+    ) {
+      const subject = decodeMovementSubject(subjectValue);
+      setSaving(true);
+      try {
+        await api.updateMomentEntrance(productionId, detail.id, entranceId, {
           character_id: subject.characterId,
           user_id: subject.userId,
           group_id: subject.groupId,
-          notes: attachEntranceNotes.trim() || null,
-          status: attachmentStatus,
+          notes: notes.trim() || null,
         });
-        setAttachEntranceSubject("");
-        setAttachEntranceNotes("");
-        onChanged();
-        toast.success("Entrance added");
+        await onChanged();
+        toast.success("Entrance updated");
       } catch (err) {
-        toast.error(formatApiError(err, "Failed to attach entrance"));
+        toast.error(formatApiError(err, "Failed to update entrance"));
+        throw err;
       } finally {
         setSaving(false);
       }
@@ -1151,24 +1230,64 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 
     async function handleAttachExit(event: React.FormEvent) {
       event.preventDefault();
-      if (!attachExitSubject) return;
-      const subject = decodeMovementSubject(attachExitSubject);
+      if (attachExitSubjects.length === 0) return;
+      const notes = attachExitNotes.trim() || null;
 
       setSaving(true);
+      let added = 0;
+      let skipped = 0;
       try {
-        await api.attachMomentExit(productionId, detail.id, {
+        for (const value of attachExitSubjects) {
+          const subject = decodeMovementSubject(value);
+          try {
+            await api.attachMomentExit(productionId, detail.id, {
+              character_id: subject.characterId,
+              user_id: subject.userId,
+              group_id: subject.groupId,
+              notes,
+              status: attachmentStatus,
+            });
+            added += 1;
+          } catch (err) {
+            if (err instanceof ApiError && err.status === 409) {
+              skipped += 1;
+              continue;
+            }
+            throw err;
+          }
+        }
+        setAttachExitSubjects([]);
+        setAttachExitNotes("");
+        await onChanged();
+        if (added > 0 && skipped > 0) {
+          toast.success(`Added ${added} exit${added === 1 ? "" : "s"} (${skipped} already present)`);
+        } else if (added > 0) {
+          toast.success(added === 1 ? "Exit added" : `${added} exits added`);
+        } else if (skipped > 0) {
+          toast.error("Those subjects already have exits on this moment");
+        }
+      } catch (err) {
+        toast.error(formatApiError(err, "Failed to attach exit"));
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    async function handleUpdateExit(exitId: number, subjectValue: string, notes: string) {
+      const subject = decodeMovementSubject(subjectValue);
+      setSaving(true);
+      try {
+        await api.updateMomentExit(productionId, detail.id, exitId, {
           character_id: subject.characterId,
           user_id: subject.userId,
           group_id: subject.groupId,
-          notes: attachExitNotes.trim() || null,
-          status: attachmentStatus,
+          notes: notes.trim() || null,
         });
-        setAttachExitSubject("");
-        setAttachExitNotes("");
-        onChanged();
-        toast.success("Exit added");
+        await onChanged();
+        toast.success("Exit updated");
       } catch (err) {
-        toast.error(formatApiError(err, "Failed to attach exit"));
+        toast.error(formatApiError(err, "Failed to update exit"));
+        throw err;
       } finally {
         setSaving(false);
       }
@@ -1823,65 +1942,66 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             )}
 
             {addAttachmentType === "entrance" &&
-              (characters.length > 0 || groups.length > 0) && (
+              (characters.length > 0 || castableUsers.length > 0 || groups.length > 0) && (
               <form onSubmit={(e) => void handleAttachEntrance(e)} className="mt-3 space-y-2">
-                {entranceMovementOptions.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    Everyone listed is already on stage at this moment.
-                  </p>
-                ) : (
-                  <SearchableSelect
-                    options={entranceMovementOptions}
-                    value={attachEntranceSubject}
-                    onChange={setAttachEntranceSubject}
-                    placeholder="Select who is not on stage…"
-                    clearLabel="Clear selection"
-                  />
-                )}
+                <p className="text-xs text-muted-foreground">
+                  Green tint / “On stage” means they already appear on stage at this moment.
+                </p>
+                <SubjectMultiSelect
+                  options={entranceMultiOptions}
+                  selectedValues={attachEntranceSubjects}
+                  onChange={setAttachEntranceSubjects}
+                  disabled={saving}
+                  emptyLabel="Select who enters…"
+                  ariaLabel="Select entrance subjects"
+                  emptyMessage="No characters, users, or groups available"
+                />
                 <Input
                   value={attachEntranceNotes}
                   onChange={(e) => setAttachEntranceNotes(e.target.value)}
-                  placeholder="Notes (optional)"
+                  placeholder="Notes (optional, applied to all)"
                 />
                 <Button
                   type="submit"
                   variant="outline"
-                  disabled={
-                    saving || !attachEntranceSubject || entranceMovementOptions.length === 0
-                  }
+                  disabled={saving || attachEntranceSubjects.length === 0}
                 >
-                  Add
+                  {attachEntranceSubjects.length > 1
+                    ? `Add ${attachEntranceSubjects.length} entrances`
+                    : "Add"}
                 </Button>
               </form>
             )}
 
             {addAttachmentType === "exit" &&
-              (characters.length > 0 || groups.length > 0) && (
+              (characters.length > 0 || castableUsers.length > 0 || groups.length > 0) && (
               <form onSubmit={(e) => void handleAttachExit(e)} className="mt-3 space-y-2">
-                {exitMovementOptions.length === 0 ? (
-                  <p className="text-xs text-muted-foreground">
-                    No characters or groups are on stage at this moment yet.
-                  </p>
-                ) : (
-                <SearchableSelect
-                  options={exitMovementOptions}
-                  value={attachExitSubject}
-                  onChange={setAttachExitSubject}
-                  placeholder="Select who is on stage…"
-                  clearLabel="Clear selection"
+                <p className="text-xs text-muted-foreground">
+                  On-stage subjects are listed first. You can still assign an exit before an
+                  entrance.
+                </p>
+                <SubjectMultiSelect
+                  options={exitMultiOptions}
+                  selectedValues={attachExitSubjects}
+                  onChange={setAttachExitSubjects}
+                  disabled={saving}
+                  emptyLabel="Select who exits…"
+                  ariaLabel="Select exit subjects"
+                  emptyMessage="No characters, users, or groups available"
                 />
-                )}
                 <Input
                   value={attachExitNotes}
                   onChange={(e) => setAttachExitNotes(e.target.value)}
-                  placeholder="Notes (optional)"
+                  placeholder="Notes (optional, applied to all)"
                 />
                 <Button
                   type="submit"
                   variant="outline"
-                  disabled={saving || !attachExitSubject || exitMovementOptions.length === 0}
+                  disabled={saving || attachExitSubjects.length === 0}
                 >
-                  Add
+                  {attachExitSubjects.length > 1
+                    ? `Add ${attachExitSubjects.length} exits`
+                    : "Add"}
                 </Button>
               </form>
             )}
@@ -2078,24 +2198,40 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           defaultExpanded={detail.entrances.length > 0}
           items={detail.entrances.map((entrance) => {
             const subject = movementSubjectObject(entrance);
+            const subjectValue = encodeSubjectRef({
+              character_id: entrance.character_id,
+              user_id: entrance.user_id,
+              group_id: entrance.group_id,
+            });
+            const onStage = onStageSubjectValues.has(subjectValue);
             return {
-            id: entrance.id,
-            label: movementRowLabel(entrance),
-            objectType: subject.objectType,
-            objectId: subject.objectId,
-            notes: entrance.notes ?? undefined,
-            status: entrance.status,
-            createdBy: entrance.created_by_display_name,
-            createdAt: entrance.created_at,
-            updatedBy: entrance.updated_by_display_name,
-            updatedAt: entrance.updated_at,
-            rehearsalId: entrance.rehearsal_id,
-            rehearsalLabel: entrance.rehearsal_label,
-            onApprove:
-              entrance.status === "suggested" && canApprove
-                ? () => void handleApprove("entrance", entrance.id)
+              id: entrance.id,
+              label: movementRowLabel(entrance),
+              objectType: subject.objectType,
+              objectId: subject.objectId,
+              notes: entrance.notes ?? undefined,
+              status: entrance.status,
+              createdBy: entrance.created_by_display_name,
+              createdAt: entrance.created_at,
+              updatedBy: entrance.updated_by_display_name,
+              updatedAt: entrance.updated_at,
+              rehearsalId: entrance.rehearsal_id,
+              rehearsalLabel: entrance.rehearsal_label,
+              rowClassName: onStage ? "bg-emerald-500/10" : undefined,
+              onApprove:
+                entrance.status === "suggested" && canApprove
+                  ? () => void handleApprove("entrance", entrance.id)
+                  : undefined,
+              subjectEdit: canEdit
+                ? {
+                    subjectValue,
+                    options: entranceMovementOptions,
+                    notesOptional: true,
+                    onSave: (nextSubject, notes) =>
+                      handleUpdateEntrance(entrance.id, nextSubject, notes),
+                  }
                 : undefined,
-          };
+            };
           })}
           onDetach={handleDetachEntrance}
           catalogLength={characters.length + castableUsers.length + groups.length}
@@ -2111,24 +2247,40 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           defaultExpanded={detail.exits.length > 0}
           items={detail.exits.map((exitRow) => {
             const subject = movementSubjectObject(exitRow);
+            const subjectValue = encodeSubjectRef({
+              character_id: exitRow.character_id,
+              user_id: exitRow.user_id,
+              group_id: exitRow.group_id,
+            });
+            const onStage = onStageSubjectValues.has(subjectValue);
             return {
-            id: exitRow.id,
-            label: movementRowLabel(exitRow),
-            objectType: subject.objectType,
-            objectId: subject.objectId,
-            notes: exitRow.notes ?? undefined,
-            status: exitRow.status,
-            createdBy: exitRow.created_by_display_name,
-            createdAt: exitRow.created_at,
-            updatedBy: exitRow.updated_by_display_name,
-            updatedAt: exitRow.updated_at,
-            rehearsalId: exitRow.rehearsal_id,
-            rehearsalLabel: exitRow.rehearsal_label,
-            onApprove:
-              exitRow.status === "suggested" && canApprove
-                ? () => void handleApprove("exit", exitRow.id)
+              id: exitRow.id,
+              label: movementRowLabel(exitRow),
+              objectType: subject.objectType,
+              objectId: subject.objectId,
+              notes: exitRow.notes ?? undefined,
+              status: exitRow.status,
+              createdBy: exitRow.created_by_display_name,
+              createdAt: exitRow.created_at,
+              updatedBy: exitRow.updated_by_display_name,
+              updatedAt: exitRow.updated_at,
+              rehearsalId: exitRow.rehearsal_id,
+              rehearsalLabel: exitRow.rehearsal_label,
+              rowClassName: onStage ? "bg-emerald-500/10" : undefined,
+              onApprove:
+                exitRow.status === "suggested" && canApprove
+                  ? () => void handleApprove("exit", exitRow.id)
+                  : undefined,
+              subjectEdit: canEdit
+                ? {
+                    subjectValue,
+                    options: exitMovementOptions,
+                    notesOptional: true,
+                    onSave: (nextSubject, notes) =>
+                      handleUpdateExit(exitRow.id, nextSubject, notes),
+                  }
                 : undefined,
-          };
+            };
           })}
           onDetach={handleDetachExit}
           catalogLength={characters.length + castableUsers.length + groups.length}
@@ -2345,6 +2497,13 @@ function AttachmentSection({
     onApprove?: () => void;
     editableNotes?: boolean;
     onNotesBlur?: (notes: string) => void;
+    rowClassName?: string;
+    subjectEdit?: {
+      subjectValue: string;
+      options: SearchableSelectOption[];
+      notesOptional?: boolean;
+      onSave: (subjectValue: string, notes: string) => void | Promise<void>;
+    };
   }[];
   onDetach: (id: number) => void;
   catalogLength: number;
@@ -2352,6 +2511,7 @@ function AttachmentSection({
   attachForm?: React.ReactNode;
 }) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const [editingId, setEditingId] = useState<number | null>(null);
   useEffect(() => {
     setExpanded(defaultExpanded);
   }, [defaultExpanded]);
@@ -2379,7 +2539,9 @@ function AttachmentSection({
             <p className="mt-2 text-sm text-muted-foreground">{emptyMessage}</p>
           ) : (
             <ul className="mt-2 space-y-1.5">
-              {items.map((item) => (
+              {items.map((item) => {
+                const editing = editingId === item.id && item.subjectEdit != null;
+                return (
                 <li
                   key={item.id}
                   className={cn(
@@ -2387,6 +2549,7 @@ function AttachmentSection({
                     item.status === "suggested"
                       ? "border-dashed border-amber-500"
                       : "border-border",
+                    item.rowClassName,
                   )}
                 >
                   <div className="flex flex-wrap items-start gap-x-1 gap-y-1">
@@ -2400,16 +2563,31 @@ function AttachmentSection({
                       {item.sublabel && (
                         <span className="text-muted-foreground"> — {item.sublabel}</span>
                       )}
-                      {!item.editableNotes && item.notes ? (
+                      {!editing && !item.editableNotes && item.notes ? (
                         <span className="text-muted-foreground"> — {item.notes}</span>
                       ) : null}
-                      {item.editableNotes && canEdit ? (
+                      {!editing && item.editableNotes && canEdit ? (
                         <Input
                           defaultValue={item.notes}
                           disabled={saving}
                           onBlur={(e) => item.onNotesBlur?.(e.target.value)}
                           className="mt-1 h-7"
                           placeholder="Notes"
+                        />
+                      ) : null}
+                      {editing && item.subjectEdit ? (
+                        <AttachmentSubjectEditor
+                          key={`${item.id}-${item.subjectEdit.subjectValue}`}
+                          options={item.subjectEdit.options}
+                          initialSubject={item.subjectEdit.subjectValue}
+                          initialNotes={item.notes ?? ""}
+                          notesOptional={item.subjectEdit.notesOptional}
+                          saving={saving}
+                          onCancel={() => setEditingId(null)}
+                          onSave={async (subjectValue, notes) => {
+                            await item.subjectEdit?.onSave(subjectValue, notes);
+                            setEditingId(null);
+                          }}
                         />
                       ) : null}
                     </div>
@@ -2435,6 +2613,20 @@ function AttachmentSection({
                         <Check />
                       </Button>
                     )}
+                    {canEdit && item.subjectEdit && !editing && (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        disabled={saving}
+                        onClick={() => setEditingId(item.id)}
+                        aria-label={`Edit ${title.toLowerCase()}`}
+                        title={`Edit ${title.toLowerCase()}`}
+                        className="shrink-0"
+                      >
+                        <Pencil />
+                      </Button>
+                    )}
                     {canEdit && (
                       <Button
                         type="button"
@@ -2451,7 +2643,8 @@ function AttachmentSection({
                     )}
                   </div>
                 </li>
-              ))}
+                );
+              })}
             </ul>
           )}
 
@@ -2460,6 +2653,70 @@ function AttachmentSection({
           )}
         </>
       )}
+    </div>
+  );
+}
+
+function AttachmentSubjectEditor({
+  options,
+  initialSubject,
+  initialNotes,
+  notesOptional = true,
+  saving,
+  onSave,
+  onCancel,
+}: {
+  options: SearchableSelectOption[];
+  initialSubject: string;
+  initialNotes: string;
+  notesOptional?: boolean;
+  saving: boolean;
+  onSave: (subjectValue: string, notes: string) => void | Promise<void>;
+  onCancel: () => void;
+}) {
+  const [subjectValue, setSubjectValue] = useState(initialSubject);
+  const [notes, setNotes] = useState(initialNotes);
+
+  return (
+    <div className="mt-2 space-y-2">
+      <SearchableSelect
+        options={options}
+        value={subjectValue}
+        onChange={setSubjectValue}
+        placeholder="Select subject…"
+        disabled={saving}
+      />
+      <Input
+        value={notes}
+        onChange={(event) => setNotes(event.target.value)}
+        disabled={saving}
+        placeholder={notesOptional ? "Notes (optional)" : "Notes"}
+        className="h-8"
+      />
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          disabled={
+            saving ||
+            !subjectValue ||
+            (!notesOptional && !notes.trim())
+          }
+          onClick={() => void onSave(subjectValue, notes)}
+        >
+          Save
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={saving}
+          onClick={onCancel}
+        >
+          Cancel
+        </Button>
+      </div>
     </div>
   );
 }

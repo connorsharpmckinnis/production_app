@@ -1,5 +1,10 @@
 /** Persist Timeline reading prefs, filters, and scroll anchor per production. */
 
+import {
+  ALL_MOMENT_ATTACHMENT_KINDS,
+  type MomentAttachmentKind,
+} from "@/lib/domainIcons";
+
 export const timelinePrefsStorageKey = (productionId: number) =>
   `timeline-prefs-${productionId}`;
 
@@ -12,6 +17,8 @@ export interface TimelineScrollAnchor {
 
 export interface StoredTimelinePrefs {
   showPrepBadges: boolean;
+  /** Which prep chip kinds to show when prep badges are on. */
+  prepBadgeKinds: MomentAttachmentKind[];
   showSequenceNumbers: boolean;
   searchInput: string;
   selectedCharacterIds: number[];
@@ -31,6 +38,7 @@ export interface StoredTimelinePrefs {
 
 export const DEFAULT_TIMELINE_PREFS: StoredTimelinePrefs = {
   showPrepBadges: false,
+  prepBadgeKinds: [...ALL_MOMENT_ATTACHMENT_KINDS],
   showSequenceNumbers: false,
   searchInput: "",
   selectedCharacterIds: [],
@@ -47,6 +55,23 @@ export const DEFAULT_TIMELINE_PREFS: StoredTimelinePrefs = {
   selectedSceneIds: null,
   anchor: null,
 };
+
+const KIND_SET = new Set<string>(ALL_MOMENT_ATTACHMENT_KINDS);
+
+function parsePrepBadgeKinds(
+  raw: unknown,
+  showPrepBadges: boolean,
+): MomentAttachmentKind[] {
+  if (Array.isArray(raw)) {
+    const kinds = raw.filter(
+      (item): item is MomentAttachmentKind =>
+        typeof item === "string" && KIND_SET.has(item),
+    );
+    if (kinds.length > 0) return kinds;
+  }
+  // Legacy prefs: master toggle on with no kinds list → show all.
+  return showPrepBadges ? [...ALL_MOMENT_ATTACHMENT_KINDS] : [];
+}
 
 function parseAnchor(raw: unknown): TimelineScrollAnchor | null {
   if (!raw || typeof raw !== "object") return null;
@@ -76,8 +101,10 @@ export function loadTimelinePrefs(productionId: number): StoredTimelinePrefs | n
   if (!raw) return null;
   try {
     const parsed = JSON.parse(raw) as Partial<StoredTimelinePrefs>;
+    const showPrepBadges = Boolean(parsed.showPrepBadges);
     return {
-      showPrepBadges: Boolean(parsed.showPrepBadges),
+      showPrepBadges,
+      prepBadgeKinds: parsePrepBadgeKinds(parsed.prepBadgeKinds, showPrepBadges),
       showSequenceNumbers: Boolean(parsed.showSequenceNumbers),
       searchInput: typeof parsed.searchInput === "string" ? parsed.searchInput : "",
       selectedCharacterIds: parseNumberArray(parsed.selectedCharacterIds),

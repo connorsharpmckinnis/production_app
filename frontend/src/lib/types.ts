@@ -1186,6 +1186,11 @@ export interface RehearsalBlockTargetWrite {
   song_id?: number | null;
 }
 
+export interface RehearsalCompleteRequest {
+  /** When set (including []), only these targets bump counters. Omit for legacy all-plan bump. */
+  worked_on?: RehearsalBlockTargetWrite[] | null;
+}
+
 export interface RehearsalBlockCallResponse {
   user_id: number;
   display_name: string;
@@ -1199,6 +1204,7 @@ export interface RehearsalBlockResponse {
   location_id: number | null;
   location_name: string | null;
   label: string | null;
+  notes: string | null;
   sort_order: number;
   targets: RehearsalBlockTargetResponse[];
   calls: RehearsalBlockCallResponse[];
@@ -1275,6 +1281,7 @@ export interface RehearsalBlockWrite {
   ends_at: string;
   location_id?: number | null;
   label?: string | null;
+  notes?: string | null;
   sort_order?: number;
   targets?: RehearsalBlockTargetWrite[];
   scene_ids?: number[];
@@ -1323,6 +1330,7 @@ export interface MyCallBlockResponse {
   ends_at: string;
   location_name: string | null;
   label: string | null;
+  notes: string | null;
   targets: RehearsalBlockTargetResponse[];
 }
 

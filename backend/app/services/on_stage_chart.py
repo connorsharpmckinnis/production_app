@@ -1,8 +1,10 @@
 """Build on-stage presence intervals for the Reports chart prototype.
 
-Presence follows the same scene-scoped rules as ``on_stage.py``: the on-stage
-set starts empty at every scene, and a moment applies all entrances before all
-exits. Intervals are compressed so the UI draws bars, not per-moment cells.
+Within an act, presence carries across scenes until an exit (or the act ends).
+Timeline who's-on-stage (``on_stage.py``) remains scene-scoped for prep UX; this
+chart is show-wide and closes open bars at act boundaries when no exit is
+recorded. A moment applies all entrances before all exits. Intervals are
+compressed so the UI draws bars, not per-moment cells.
 """
 
 from __future__ import annotations
@@ -94,17 +96,18 @@ def _assemble_intervals(
             )
         )
 
-    def close_scene(end_index: int) -> None:
+    def close_open_at_boundary(end_index: int) -> None:
+        """Close intervals that never got an exit (act boundary or end of show)."""
         for opened in open_by_subject.values():
             close_interval(opened, end_index, None, None, True)
         open_by_subject.clear()
 
-    previous_scene_id: int | None = None
+    previous_act_id: int | None = None
 
     for index, moment in enumerate(moments):
-        if previous_scene_id is not None and moment.scene_id != previous_scene_id:
-            close_scene(index)
-        previous_scene_id = moment.scene_id
+        if previous_act_id is not None and moment.act_id != previous_act_id:
+            close_open_at_boundary(index)
+        previous_act_id = moment.act_id
 
         for subject_id, notes in entrances_for_moment(moment):
             if subject_id in open_by_subject:
@@ -123,7 +126,7 @@ def _assemble_intervals(
             close_interval(opened, index, moment_ref(moment), notes, False)
 
     if open_by_subject:
-        close_scene(len(moments))
+        close_open_at_boundary(len(moments))
 
     return closed
 

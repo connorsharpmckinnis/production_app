@@ -133,9 +133,9 @@ export function OnStagePresenceChart({
   return (
     <div className="space-y-3">
       <p className="text-sm text-muted-foreground">
-        Each thin bar is one on-stage stretch (entrance to exit) for a character or group. Presence
-        resets at every scene, same as the Timeline. Hover a bar for details; click to open the
-        entrance moment.
+        Each thin bar is one on-stage stretch (entrance to exit) for a character or group. Bars
+        continue across scenes within an act when no exit is recorded, then close at the act
+        boundary. Hover a bar for details; click to open the entrance moment.
       </p>
       <div className="onstage-chart-scroll overflow-x-auto rounded-lg border border-border">
         <div style={{ minWidth }}>
@@ -279,7 +279,7 @@ export function OnStagePresenceChart({
                 {hover.interval.exit_notes ? ` — ${hover.interval.exit_notes}` : ""}
               </p>
             ) : (
-              <p>Exit: end of scene (no recorded exit)</p>
+              <p>Exit: end of act (no recorded exit)</p>
             )}
           </div>,
           document.body,

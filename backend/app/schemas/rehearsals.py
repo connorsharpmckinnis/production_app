@@ -49,6 +49,7 @@ class RehearsalBlockResponse(BaseModel):
     location_id: int | None
     location_name: str | None
     label: str | None
+    notes: str | None = None
     sort_order: int
     targets: list[RehearsalBlockTargetResponse]
     calls: list[RehearsalBlockCallResponse]
@@ -158,6 +159,7 @@ class RehearsalBlockWrite(BaseModel):
     ends_at: datetime
     location_id: int | None = None
     label: str | None = Field(default=None, max_length=255)
+    notes: str | None = None
     sort_order: int = 0
     targets: list[RehearsalBlockTargetWrite] = Field(default_factory=list)
     # Legacy: treated as dialog targets when targets is empty.
@@ -192,6 +194,17 @@ class RehearsalStatusUpdate(BaseModel):
         if value not in REHEARSAL_STATUSES:
             raise ValueError(f"status must be one of {REHEARSAL_STATUSES}")
         return value
+
+
+class RehearsalCompleteRequest(BaseModel):
+    """Confirm which plan targets (or extras) were actually worked on.
+
+    When ``worked_on`` is omitted (null), counters bump for every target on the
+    saved plan (legacy behavior). When provided — including an empty list —
+    only those targets are bumped; the plan itself is left unchanged.
+    """
+
+    worked_on: list[RehearsalBlockTargetWrite] | None = None
 
 
 class RehearsalNoteCreate(BaseModel):
@@ -239,6 +252,7 @@ class MyCallBlockResponse(BaseModel):
     ends_at: datetime
     location_name: str | None
     label: str | None
+    notes: str | None = None
     targets: list[RehearsalBlockTargetResponse]
 
 

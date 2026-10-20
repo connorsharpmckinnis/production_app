@@ -30,14 +30,14 @@ We already derive on-stage presence per moment (`on_stage.py`). The prototype **
 | ----- | -------- | --- |
 | Placement | New **Reports** section (`#report-on-stage-chart`), Directors/Admins only, same as other reports | Matches “try it next to Entrances & exits”; no new nav item |
 | Time axis | **Equal width per moment** (flattened timeline index). Act bands on top, scene numbers under them | Shows enter/exit *inside* a scene; scene-column occupancy would hide mid-scene exits |
-| Presence rules | **Same as Timeline:** scene-scoped; entrances then exits on a moment; presence does **not** carry across a scene break | One source of truth; a character still on at scene end is drawn through the last moment of that scene only |
+| Presence rules | **Chart (2026-10):** carry across scenes within an act until exit or act end. Timeline who’s-on-stage stays scene-scoped for prep UX | Matches director feedback (#190); chart is show-wide, Timeline prep stays scene-local |
 | Rows | Characters with at least one entrance or exit, sorted by name | Empty rows would clutter a concept test |
 | Chart library | **None** — HTML/CSS bars | Project has no chart dependency; avoid framework cost for a maybe-keep view |
 | Markers | No costume / prop / mic icons | Prove presence first; icons are the suite’s later overlay |
 | Print | Inherit Reports print; do not special-case landscape yet | Screen evaluation first |
 | Duration | No wall-clock time | Moments have no duration field |
 
-**Scene-break behavior (call this out in the UI):** if CREAN enters in Scene 1 and never exits, the bar ends at the last moment of Scene 1. Scene 2 starts empty unless they enter again. That is existing Phase 5 / Phase 14 policy, not a chart invention.
+**Act-boundary behavior (UI copy):** if CREAN enters in Scene 1 and never exits, the bar continues through later scenes in the same act and closes at the act boundary (or end of show). Timeline Moment Detail who’s-on-stage still resets per scene.
 
 ---
 
@@ -59,14 +59,14 @@ Indexes are 0-based positions on the show-wide moment spine (act sort, scene sor
 
 ### Interval rules
 
-Walk each scene’s moments in order (reset the on-stage set at every scene):
+Walk the show-wide moment spine (entrances before exits on each moment):
 
-1. Apply all **entrances** on a moment, then all **exits** (same as `on_stage.py`).
-2. Opening an interval: character not currently on → start at this moment’s spine index.
-3. Closing on an **exit**: `end_index` = that moment’s index (bar’s right edge is the exit). Same-moment enter+exit → one-moment-wide bar (`end_index = start_index + 1`).
-4. Still on at scene end → close at the first index of the next scene (or `moment_count`), `ends_at_scene_boundary: true`, no exit ref.
+1. Opening an interval: subject not currently on → start at this moment’s spine index.
+2. Closing on an **exit**: `end_index` = that moment’s index (bar’s right edge is the exit). Same-moment enter+exit → one-moment-wide bar (`end_index = start_index + 1`).
+3. Still on when the **act** changes (or at end of show) → close at that boundary index, `ends_at_scene_boundary: true` (legacy flag name; means “closed without an exit”), no exit ref.
+4. Presence **carries across scene breaks** within the same act.
 
-Unmatched exits (exit without a prior entrance in that scene) are ignored, same as Timeline.
+Unmatched exits (exit without a prior open interval) are ignored.
 
 ### UI
 

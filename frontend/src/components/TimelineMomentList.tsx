@@ -9,6 +9,7 @@ import SceneSummaryStrip from "@/components/SceneSummaryStrip";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  ALL_MOMENT_ATTACHMENT_KINDS,
   domainIcon,
   momentAttachmentChipClass,
   type MomentAttachmentKind,
@@ -65,6 +66,8 @@ export interface TimelineMomentListProps {
   onSelectMoment: (momentId: number) => void;
   isHighlighted: (moment: MomentSummary) => boolean;
   showPrepBadges?: boolean;
+  /** When prep badges are on, only show these kinds (default: all). */
+  prepBadgeKinds?: MomentAttachmentKind[];
   showSequenceNumbers?: boolean;
   showTypeBadge?: boolean;
   blurMyLines?: boolean;
@@ -265,6 +268,7 @@ function MomentRow({
   onSelectMoment,
   isHighlighted,
   showPrepBadges,
+  prepBadgeKinds,
   showSequenceNumbers,
   showTypeBadge,
   blurMyLines,
@@ -293,6 +297,7 @@ function MomentRow({
   onSelectMoment: (momentId: number) => void;
   isHighlighted: (moment: MomentSummary) => boolean;
   showPrepBadges: boolean;
+  prepBadgeKinds: MomentAttachmentKind[];
   showSequenceNumbers: boolean;
   showTypeBadge: boolean;
   blurMyLines: boolean;
@@ -321,10 +326,13 @@ function MomentRow({
 
   const selectedDetail =
     selected && selectedMomentDetail?.id === moment.id ? selectedMomentDetail : null;
+  const enabledKinds = new Set(prepBadgeKinds);
   const attachmentChips = showPrepBadges
-    ? selectedDetail
-      ? buildSelectedAttachmentChips(selectedDetail)
-      : buildSummaryAttachmentChips(moment, propsCatalog, setPiecesCatalog)
+    ? (
+        selectedDetail
+          ? buildSelectedAttachmentChips(selectedDetail)
+          : buildSummaryAttachmentChips(moment, propsCatalog, setPiecesCatalog)
+      ).filter((chip) => enabledKinds.has(chip.kind))
     : [];
 
   function handleRowKeyDown(event: React.KeyboardEvent) {
@@ -509,6 +517,7 @@ export default function TimelineMomentList({
   onSelectMoment,
   isHighlighted,
   showPrepBadges = true,
+  prepBadgeKinds,
   showSequenceNumbers = true,
   showTypeBadge = true,
   blurMyLines = false,
@@ -526,6 +535,8 @@ export default function TimelineMomentList({
   listRef,
   onScrollAnchorChange,
 }: TimelineMomentListProps) {
+  const resolvedPrepBadgeKinds =
+    prepBadgeKinds ?? ([...ALL_MOMENT_ATTACHMENT_KINDS] as MomentAttachmentKind[]);
   const [revealedBlurLineId, setRevealedBlurLineId] = useState<number | null>(null);
   const [blurRevealMode, setBlurRevealMode] = useState<"hover" | "tap" | null>(null);
   const [selectedOffscreen, setSelectedOffscreen] =
@@ -692,6 +703,7 @@ export default function TimelineMomentList({
                   onSelectMoment={onSelectMoment}
                   isHighlighted={isHighlighted}
                   showPrepBadges={showPrepBadges}
+                  prepBadgeKinds={resolvedPrepBadgeKinds}
                   showSequenceNumbers={showSequenceNumbers}
                   showTypeBadge={showTypeBadge}
                   blurMyLines={blurMyLines}

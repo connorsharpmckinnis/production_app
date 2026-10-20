@@ -104,7 +104,7 @@ def test_same_moment_enter_and_exit_is_one_moment_wide() -> None:
     assert interval.exit_notes == "pop-on"
 
 
-def test_missing_exit_closes_at_scene_boundary() -> None:
+def test_missing_exit_carries_across_scenes_within_act() -> None:
     moments = [
         _moment(1, scene_id=1, scene_number=1, sequence_number=1, entrances=((7, None),)),
         _moment(2, scene_id=1, scene_number=1, sequence_number=2),
@@ -114,7 +114,7 @@ def test_missing_exit_closes_at_scene_boundary() -> None:
     report = assemble_on_stage_chart(moments, {7: "CREAN"}, {})
     interval = report.characters[0].intervals[0]
     assert interval.start_index == 0
-    assert interval.end_index == 2
+    assert interval.end_index == 4
     assert interval.exit is None
     assert interval.ends_at_scene_boundary is True
     assert [scene.scene_number for scene in report.scenes] == [1, 2]
@@ -122,7 +122,7 @@ def test_missing_exit_closes_at_scene_boundary() -> None:
     assert report.scenes[1].start_index == 2
 
 
-def test_presence_does_not_carry_into_the_next_scene() -> None:
+def test_presence_carries_into_the_next_scene_same_act() -> None:
     moments = [
         _moment(1, scene_id=1, scene_number=1, sequence_number=1, entrances=((7, None),)),
         _moment(2, scene_id=1, scene_number=1, sequence_number=2),
@@ -131,7 +131,54 @@ def test_presence_does_not_carry_into_the_next_scene() -> None:
     ]
     report = assemble_on_stage_chart(moments, {7: "CREAN"}, {})
     assert len(report.characters[0].intervals) == 1
-    assert report.characters[0].intervals[0].end_index == 2
+    assert report.characters[0].intervals[0].end_index == 4
+
+
+def test_missing_exit_closes_at_act_boundary() -> None:
+    moments = [
+        _moment(
+            1,
+            scene_id=1,
+            act_id=1,
+            act_number=1,
+            scene_number=1,
+            sequence_number=1,
+            entrances=((7, None),),
+        ),
+        _moment(
+            2,
+            scene_id=1,
+            act_id=1,
+            act_number=1,
+            scene_number=1,
+            sequence_number=2,
+        ),
+        _moment(
+            3,
+            scene_id=3,
+            act_id=2,
+            act_number=2,
+            scene_number=1,
+            sequence_number=1,
+            scene_title="Act 2 open",
+        ),
+        _moment(
+            4,
+            scene_id=3,
+            act_id=2,
+            act_number=2,
+            scene_number=1,
+            sequence_number=2,
+            scene_title="Act 2 open",
+        ),
+    ]
+    report = assemble_on_stage_chart(moments, {7: "CREAN"}, {})
+    interval = report.characters[0].intervals[0]
+    assert interval.start_index == 0
+    assert interval.end_index == 2
+    assert interval.exit is None
+    assert interval.ends_at_scene_boundary is True
+    assert len(report.characters[0].intervals) == 1
 
 
 def test_reenter_after_exit_makes_a_second_interval() -> None:

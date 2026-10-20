@@ -26,8 +26,10 @@ from app.schemas.stage_movements import (
     MomentBlockingUpdate,
     MomentEntranceCreate,
     MomentEntranceResponse,
+    MomentEntranceUpdate,
     MomentExitCreate,
     MomentExitResponse,
+    MomentExitUpdate,
 )
 from app.services.prep_records import (
     assert_can_delete_attachment,
@@ -158,29 +160,55 @@ def _movement_conflict(
     user_id: int | None,
     group_id: int | None,
     kind: str,
+    *,
+    exclude_id: int | None = None,
 ) -> None:
     if character_id is not None:
-        existing = (
-            db.query(model)
-            .filter(model.moment_id == moment_id, model.character_id == character_id)
-            .first()
+        query = db.query(model).filter(
+            model.moment_id == moment_id,
+            model.character_id == character_id,
         )
         detail = f"This character already has an {kind} on this moment"
     elif user_id is not None:
-        existing = (
-            db.query(model)
-            .filter(model.moment_id == moment_id, model.user_id == user_id)
-            .first()
+        query = db.query(model).filter(
+            model.moment_id == moment_id,
+            model.user_id == user_id,
         )
         detail = f"This user already has an {kind} on this moment"
     else:
-        existing = (
-            db.query(model)
-            .filter(model.moment_id == moment_id, model.group_id == group_id)
-            .first()
+        query = db.query(model).filter(
+            model.moment_id == moment_id,
+            model.group_id == group_id,
         )
         detail = f"This group already has an {kind} on this moment"
-    if existing is not None:
+    if exclude_id is not None:
+        query = query.filter(model.id != exclude_id)
+    if query.first() is not None:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
+
+
+def _blocking_conflict(
+    db: Session,
+    moment_id: int,
+    character_id: int | None,
+    user_id: int | None,
+    group_id: int | None,
+    *,
+    exclude_id: int | None = None,
+) -> None:
+    query = db.query(MomentBlocking).filter(MomentBlocking.moment_id == moment_id)
+    if character_id is not None:
+        query = query.filter(MomentBlocking.character_id == character_id)
+        detail = "This character already has blocking on this moment"
+    elif user_id is not None:
+        query = query.filter(MomentBlocking.user_id == user_id)
+        detail = "This user already has blocking on this moment"
+    else:
+        query = query.filter(MomentBlocking.group_id == group_id)
+        detail = "This group already has blocking on this moment"
+    if exclude_id is not None:
+        query = query.filter(MomentBlocking.id != exclude_id)
+    if query.first() is not None:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=detail)
 
 
@@ -275,6 +303,62 @@ def attach_moment_entrance(
         db.query(MomentEntrance)
         .options(*_entrance_load_options())
         .filter(MomentEntrance.id == entrance.id)
+        .one()
+    )
+    return _entrance_response(db, entrance)
+
+
+@router.patch(
+    "/{production_id}/moments/{moment_id}/entrances/{entrance_id}",
+    response_model=MomentEntranceResponse,
+)
+def update_moment_entrance(
+    production_id: int,
+    moment_id: int,
+    entrance_id: int,
+    body: MomentEntranceUpdate,
+    user: User = Depends(require_production_capability("timeline", "update")),
+    db: Session = Depends(get_db),
+) -> MomentEntranceResponse:
+    get_accessible_production(db, user, production_id)
+    _get_moment_in_production_or_404(db, production_id, moment_id)
+    entrance = (
+        db.query(MomentEntrance)
+        .options(*_entrance_load_options())
+        .filter(MomentEntrance.id == entrance_id, MomentEntrance.moment_id == moment_id)
+        .first()
+    )
+    if entrance is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Entrance attachment not found",
+        )
+    _validate_entrance_exit_subject(
+        db,
+        production_id,
+        body.character_id,
+        body.user_id,
+        body.group_id,
+    )
+    _movement_conflict(
+        db,
+        MomentEntrance,
+        moment_id,
+        body.character_id,
+        body.user_id,
+        body.group_id,
+        "entrance",
+        exclude_id=entrance_id,
+    )
+    entrance.character_id = body.character_id
+    entrance.user_id = body.user_id
+    entrance.group_id = body.group_id
+    entrance.notes = body.notes
+    db.commit()
+    entrance = (
+        db.query(MomentEntrance)
+        .options(*_entrance_load_options())
+        .filter(MomentEntrance.id == entrance_id)
         .one()
     )
     return _entrance_response(db, entrance)
@@ -384,6 +468,62 @@ def attach_moment_exit(
     return _exit_response(db, exit_row)
 
 
+@router.patch(
+    "/{production_id}/moments/{moment_id}/exits/{exit_id}",
+    response_model=MomentExitResponse,
+)
+def update_moment_exit(
+    production_id: int,
+    moment_id: int,
+    exit_id: int,
+    body: MomentExitUpdate,
+    user: User = Depends(require_production_capability("timeline", "update")),
+    db: Session = Depends(get_db),
+) -> MomentExitResponse:
+    get_accessible_production(db, user, production_id)
+    _get_moment_in_production_or_404(db, production_id, moment_id)
+    exit_row = (
+        db.query(MomentExit)
+        .options(*_exit_load_options())
+        .filter(MomentExit.id == exit_id, MomentExit.moment_id == moment_id)
+        .first()
+    )
+    if exit_row is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Exit attachment not found",
+        )
+    _validate_entrance_exit_subject(
+        db,
+        production_id,
+        body.character_id,
+        body.user_id,
+        body.group_id,
+    )
+    _movement_conflict(
+        db,
+        MomentExit,
+        moment_id,
+        body.character_id,
+        body.user_id,
+        body.group_id,
+        "exit",
+        exclude_id=exit_id,
+    )
+    exit_row.character_id = body.character_id
+    exit_row.user_id = body.user_id
+    exit_row.group_id = body.group_id
+    exit_row.notes = body.notes
+    db.commit()
+    exit_row = (
+        db.query(MomentExit)
+        .options(*_exit_load_options())
+        .filter(MomentExit.id == exit_id)
+        .one()
+    )
+    return _exit_response(db, exit_row)
+
+
 @router.delete(
     "/{production_id}/moments/{moment_id}/exits/{exit_id}",
     status_code=status.HTTP_204_NO_CONTENT,
@@ -458,24 +598,13 @@ def attach_moment_blocking(
         body.group_id,
     )
 
-    existing_query = db.query(MomentBlocking).filter(MomentBlocking.moment_id == moment_id)
-    if body.character_id is not None:
-        existing_query = existing_query.filter(
-            MomentBlocking.character_id == body.character_id,
-        )
-        conflict_detail = "This character already has blocking on this moment"
-    elif body.user_id is not None:
-        existing_query = existing_query.filter(MomentBlocking.user_id == body.user_id)
-        conflict_detail = "This user already has blocking on this moment"
-    else:
-        existing_query = existing_query.filter(MomentBlocking.group_id == body.group_id)
-        conflict_detail = "This group already has blocking on this moment"
-
-    if existing_query.first() is not None:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=conflict_detail,
-        )
+    _blocking_conflict(
+        db,
+        moment_id,
+        body.character_id,
+        body.user_id,
+        body.group_id,
+    )
 
     blocking = MomentBlocking(
         moment_id=moment_id,
@@ -523,6 +652,32 @@ def update_moment_blocking(
             status_code=status.HTTP_404_NOT_FOUND,
             detail="Blocking attachment not found",
         )
+
+    changing_subject = (
+        body.character_id is not None
+        or body.user_id is not None
+        or body.group_id is not None
+    )
+    if changing_subject:
+        validate_blocking_subject(
+            db,
+            production_id,
+            body.character_id,
+            body.user_id,
+            body.group_id,
+        )
+        _blocking_conflict(
+            db,
+            moment_id,
+            body.character_id,
+            body.user_id,
+            body.group_id,
+            exclude_id=blocking_id,
+        )
+        blocking.character_id = body.character_id
+        blocking.user_id = body.user_id
+        blocking.group_id = body.group_id
+
     blocking.notes = body.notes.strip()
     db.commit()
     blocking = (

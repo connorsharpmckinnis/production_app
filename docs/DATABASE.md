@@ -1370,7 +1370,8 @@ Fields
 * rehearsal_id
 * starts_at / ends_at
 * location_id (optional)
-* label (optional free-text work focus — not typed music/choreo)
+* label (optional short work focus — not typed music/choreo)
+* notes (optional longer free-text for the room/topics)
 
 Junctions
 
@@ -1398,9 +1399,10 @@ Rules
 * Scenes are dialog-only.
 * Songs can be music and/or choreo (separate rows if both).
 * Assigning a song does not auto-add its scenes.
-* On rehearsal complete: bump `scenes.times_rehearsed` for dialog targets,
-  `songs.times_music_rehearsed` / `times_choreo_rehearsed` for song targets
-  (once per distinct target per rehearsal).
+* On rehearsal complete: client may send `worked_on` (list of focus + scene/song
+  refs). Only those confirmed targets bump counters; the saved plan is not
+  rewritten. Omitting `worked_on` keeps legacy behavior (bump every plan target).
+  Empty `worked_on` completes with no bumps.
 
 Migration: `034_rehearsal_block_targets` (replaces `rehearsal_block_scenes`).
 

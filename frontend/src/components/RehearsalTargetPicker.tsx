@@ -17,6 +17,8 @@ export interface RehearsalTargetPickerProps {
   selected: RehearsalBlockTargetWrite[];
   onChange: (targets: RehearsalBlockTargetWrite[]) => void;
   disabled?: boolean;
+  /** When false, hide the selected-target chip row under the button. */
+  showSelectedChips?: boolean;
 }
 
 function targetKey(target: RehearsalBlockTargetWrite): string {
@@ -48,6 +50,7 @@ export default function RehearsalTargetPicker({
   selected,
   onChange,
   disabled = false,
+  showSelectedChips = true,
 }: RehearsalTargetPickerProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -288,7 +291,7 @@ export default function RehearsalTargetPicker({
         )}
       </div>
 
-      {selected.length > 0 && (
+      {showSelectedChips && selected.length > 0 && (
         <ul className="flex flex-wrap gap-1.5">
           {selected.map((target) => (
             <li key={targetKey(target)}>

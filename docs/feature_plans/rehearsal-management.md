@@ -35,7 +35,7 @@ Pam walkthrough target: “this replaces the week-before call email and sticky-n
 | Locations | Org-level room catalog; blocks may override |
 | Soft publish | `scheduled` → `planned` → `published` → `in_progress` → `completed` |
 | Notes | Rehearsal-scoped (not Moment notes) |
-| Times rehearsed | Dialog on Scene; music/choreo on Song; increment on complete (once per rehearsal×target) |
+| Times rehearsed | Dialog on Scene; music/choreo on Song; on complete, director confirms worked-on targets (plan items default-checked; extras optional); only confirmed items bump counters; plan left unchanged |
 | Nav | **Rehearsals** (distinct from **Rehearse** line practice) |
 
 ---

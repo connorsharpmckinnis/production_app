@@ -6,6 +6,7 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
+    Text,
     UniqueConstraint,
     func,
 )
@@ -115,6 +116,7 @@ class RehearsalBlock(Base):
         index=True,
     )
     label: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    notes: Mapped[str | None] = mapped_column(Text, nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     rehearsal: Mapped["Rehearsal"] = relationship(back_populates="blocks")

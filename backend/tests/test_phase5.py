@@ -468,3 +468,97 @@ def test_optional_person_requires_active_production_membership(
         headers=director_headers,
     )
     assert rejected_blocking.status_code == 400
+
+
+def test_entrance_exit_patch_subject_and_notes(
+    seeded_client: TestClient, db_session: Session
+) -> None:
+    production_id = _imported_production(seeded_client, db_session)
+    director_headers = _login(seeded_client, "director", "director")
+    scene_id = _first_scene_id(seeded_client, production_id, director_headers)
+    crean_id = _character_id_by_name(seeded_client, production_id, "CREAN", director_headers)
+    shackleton_id = _character_id_by_name(
+        seeded_client, production_id, "SHACKLETON", director_headers
+    )
+    moment_id = _scene_moments(seeded_client, production_id, scene_id, director_headers)[0][
+        "id"
+    ]
+
+    entrance = seeded_client.post(
+        f"/api/productions/{production_id}/moments/{moment_id}/entrances",
+        json={"character_id": crean_id, "notes": "from SR"},
+        headers=director_headers,
+    )
+    assert entrance.status_code == 201
+    entrance_id = entrance.json()["id"]
+
+    patched_entrance = seeded_client.patch(
+        f"/api/productions/{production_id}/moments/{moment_id}/entrances/{entrance_id}",
+        json={
+            "character_id": shackleton_id,
+            "user_id": None,
+            "group_id": None,
+            "notes": "from SL",
+        },
+        headers=director_headers,
+    )
+    assert patched_entrance.status_code == 200
+    assert patched_entrance.json()["character_id"] == shackleton_id
+    assert patched_entrance.json()["notes"] == "from SL"
+
+    # Same subject again should not 409 against self.
+    same_subject = seeded_client.patch(
+        f"/api/productions/{production_id}/moments/{moment_id}/entrances/{entrance_id}",
+        json={
+            "character_id": shackleton_id,
+            "user_id": None,
+            "group_id": None,
+            "notes": "still SL",
+        },
+        headers=director_headers,
+    )
+    assert same_subject.status_code == 200
+
+    exit_resp = seeded_client.post(
+        f"/api/productions/{production_id}/moments/{moment_id}/exits",
+        json={"character_id": shackleton_id, "notes": "out"},
+        headers=director_headers,
+    )
+    assert exit_resp.status_code == 201
+    exit_id = exit_resp.json()["id"]
+
+    patched_exit = seeded_client.patch(
+        f"/api/productions/{production_id}/moments/{moment_id}/exits/{exit_id}",
+        json={
+            "character_id": crean_id,
+            "user_id": None,
+            "group_id": None,
+            "notes": "early exit",
+        },
+        headers=director_headers,
+    )
+    assert patched_exit.status_code == 200
+    assert patched_exit.json()["character_id"] == crean_id
+    assert patched_exit.json()["notes"] == "early exit"
+
+    blocking = seeded_client.post(
+        f"/api/productions/{production_id}/moments/{moment_id}/blocking",
+        json={"character_id": crean_id, "notes": "Cross DSL"},
+        headers=director_headers,
+    )
+    assert blocking.status_code == 201
+    blocking_id = blocking.json()["id"]
+
+    patched_blocking = seeded_client.patch(
+        f"/api/productions/{production_id}/moments/{moment_id}/blocking/{blocking_id}",
+        json={
+            "character_id": shackleton_id,
+            "user_id": None,
+            "group_id": None,
+            "notes": "Cross DSR",
+        },
+        headers=director_headers,
+    )
+    assert patched_blocking.status_code == 200
+    assert patched_blocking.json()["character_id"] == shackleton_id
+    assert patched_blocking.json()["notes"] == "Cross DSR"

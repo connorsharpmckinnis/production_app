@@ -60,9 +60,9 @@ Respond to director/SM feedback with **general-value** improvements to Timeline 
 | Slice | Themes | Issues |
 | ----- | ------ | ------ |
 | Day 1 | Casting polish | #188, #189 |
-| Day 2–3 | Timeline edit & bulk add | #185 (+ #183), #184, #186 |
-| Day 4 | Timeline / report visibility | #187, #190 |
-| Day 5–6 | Rehearsal builder + print | #196, #194, #192, #195 |
+| Day 2–3 | Timeline edit & bulk add | #185 (+ #183), #184, #186 — **in progress:** notes+subject PATCH (no move-to-moment), soft onstage hint/tint, reusable `SubjectMultiSelect` for entrance/exit bulk add |
+| Day 4 | Timeline / report visibility | #187, #190 — **done:** prep badge kind filters; on-stage chart bars continue across scenes within an act |
+| Day 5–6 | Rehearsal builder + print | #196, #194, #192, #195 — **done:** collapsible blocks; per-block notes; select all recommended + clear; compact multi-column call sheet print; simple drag time strip (manual times tucked under Exact times) |
 | Day 7 | Honest completion | #193 |
 | Days 8–9 | Song/scene/choreo tracking | #182 |
 | Later | Suggestion engine | #191 |

@@ -161,6 +161,7 @@ def test_plan_publish_my_call_and_complete(
                     "starts_at": starts,
                     "ends_at": block_end,
                     "label": "Love scene",
+                    "notes": "Focus on staging the balcony entrance; keep it light.",
                     "sort_order": 0,
                     "scene_ids": [scene_id],
                     "user_ids": [actor_id],
@@ -174,6 +175,9 @@ def test_plan_publish_my_call_and_complete(
     assert plan.json()["status"] == "planned"
     assert len(plan.json()["blocks"]) == 1
     assert plan.json()["blocks"][0]["calls"][0]["user_id"] == actor_id
+    assert plan.json()["blocks"][0]["notes"] == (
+        "Focus on staging the balcony entrance; keep it light."
+    )
     targets = plan.json()["blocks"][0]["targets"]
     assert len(targets) == 1
     assert targets[0]["focus"] == "dialog"
@@ -263,6 +267,155 @@ def test_plan_publish_my_call_and_complete(
     assert dialog_recs
     matched = next(row for row in dialog_recs if row["scene_id"] == scene_id)
     assert matched["times_rehearsed"] >= 1
+
+
+def test_complete_bumps_only_confirmed_worked_on(
+    seeded_client: TestClient,
+    db_session: Session,
+) -> None:
+    from app.models import Song
+
+    production_id = _imported_production(seeded_client, db_session)
+    actor_id = _cast_actor(seeded_client, db_session, production_id)
+    director = _login(seeded_client, "director", "director")
+    starts, ends = _window()
+
+    acts = seeded_client.get(
+        f"/api/productions/{production_id}/acts",
+        headers=director,
+    ).json()
+    scene_id = acts[0]["scenes"][0]["id"]
+    songs = seeded_client.get(
+        f"/api/productions/{production_id}/songs",
+        headers=director,
+    ).json()
+    if songs:
+        song_id = songs[0]["id"]
+    else:
+        created_song = seeded_client.post(
+            f"/api/productions/{production_id}/songs",
+            json={"title": "Test Number"},
+            headers=director,
+        )
+        assert created_song.status_code == 201, created_song.text
+        song_id = created_song.json()["id"]
+
+    create = seeded_client.post(
+        f"/api/productions/{production_id}/rehearsals",
+        json={"starts_at": starts, "ends_at": ends, "kind": "called"},
+        headers=director,
+    )
+    rehearsal_id = create.json()["id"]
+    block_end = (
+        datetime.fromisoformat(starts.replace("Z", "+00:00")) + timedelta(hours=1)
+    ).isoformat()
+
+    plan = seeded_client.put(
+        f"/api/productions/{production_id}/rehearsals/{rehearsal_id}/plan",
+        json={
+            "blocks": [
+                {
+                    "starts_at": starts,
+                    "ends_at": block_end,
+                    "targets": [
+                        {"focus": "dialog", "scene_id": scene_id},
+                        {"focus": "music", "song_id": song_id},
+                        {"focus": "choreo", "song_id": song_id},
+                    ],
+                    "user_ids": [actor_id],
+                }
+            ],
+            "mark_planned": True,
+        },
+        headers=director,
+    )
+    assert plan.status_code == 200, plan.text
+    assert len(plan.json()["blocks"][0]["targets"]) == 3
+
+    seeded_client.post(
+        f"/api/productions/{production_id}/rehearsals/{rehearsal_id}/publish",
+        headers=director,
+    )
+
+    # Confirm only dialog + music — skip choreo.
+    completed = seeded_client.post(
+        f"/api/productions/{production_id}/rehearsals/{rehearsal_id}/complete",
+        json={
+            "worked_on": [
+                {"focus": "dialog", "scene_id": scene_id},
+                {"focus": "music", "song_id": song_id},
+            ]
+        },
+        headers=director,
+    )
+    assert completed.status_code == 200, completed.text
+    assert completed.json()["status"] == "completed"
+    # Plan is unchanged — all three targets remain.
+    assert len(completed.json()["blocks"][0]["targets"]) == 3
+
+    db_session.expire_all()
+    assert db_session.get(Scene, scene_id).times_rehearsed == 1
+    song = db_session.get(Song, song_id)
+    assert song is not None
+    assert song.times_music_rehearsed == 1
+    assert song.times_choreo_rehearsed == 0
+
+
+def test_complete_with_empty_worked_on_bumps_nothing(
+    seeded_client: TestClient,
+    db_session: Session,
+) -> None:
+    production_id = _imported_production(seeded_client, db_session)
+    actor_id = _cast_actor(seeded_client, db_session, production_id)
+    director = _login(seeded_client, "director", "director")
+    starts, ends = _window()
+
+    acts = seeded_client.get(
+        f"/api/productions/{production_id}/acts",
+        headers=director,
+    ).json()
+    scene_id = acts[0]["scenes"][0]["id"]
+
+    create = seeded_client.post(
+        f"/api/productions/{production_id}/rehearsals",
+        json={"starts_at": starts, "ends_at": ends, "kind": "called"},
+        headers=director,
+    )
+    rehearsal_id = create.json()["id"]
+    block_end = (
+        datetime.fromisoformat(starts.replace("Z", "+00:00")) + timedelta(hours=1)
+    ).isoformat()
+
+    seeded_client.put(
+        f"/api/productions/{production_id}/rehearsals/{rehearsal_id}/plan",
+        json={
+            "blocks": [
+                {
+                    "starts_at": starts,
+                    "ends_at": block_end,
+                    "targets": [{"focus": "dialog", "scene_id": scene_id}],
+                    "user_ids": [actor_id],
+                }
+            ],
+            "mark_planned": True,
+        },
+        headers=director,
+    )
+    seeded_client.post(
+        f"/api/productions/{production_id}/rehearsals/{rehearsal_id}/publish",
+        headers=director,
+    )
+
+    completed = seeded_client.post(
+        f"/api/productions/{production_id}/rehearsals/{rehearsal_id}/complete",
+        json={"worked_on": []},
+        headers=director,
+    )
+    assert completed.status_code == 200
+    assert completed.json()["status"] == "completed"
+
+    db_session.expire_all()
+    assert db_session.get(Scene, scene_id).times_rehearsed == 0
 
 
 def test_rehearsal_notes_hidden_from_actors(

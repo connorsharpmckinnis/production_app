@@ -61,6 +61,7 @@ import type {
   ProductionCreate,
   RehearsalCreate,
   RehearsalActivityItem,
+  RehearsalBlockTargetWrite,
   RehearsalDetailResponse,
   RehearsalNoteCreate,
   RehearsalNoteResponse,
@@ -1470,6 +1471,23 @@ export const api = {
     );
   },
 
+  updateMomentEntrance(
+    productionId: number,
+    momentId: number,
+    entranceId: number,
+    body: {
+      character_id?: number | null;
+      user_id?: number | null;
+      group_id?: number | null;
+      notes?: string | null;
+    },
+  ) {
+    return request<MomentEntranceResponse>(
+      `/productions/${productionId}/moments/${momentId}/entrances/${entranceId}`,
+      { method: "PATCH", body: JSON.stringify(body) },
+    );
+  },
+
   detachMomentEntrance(productionId: number, momentId: number, entranceId: number) {
     return request<void>(
       `/productions/${productionId}/moments/${momentId}/entrances/${entranceId}`,
@@ -1491,6 +1509,23 @@ export const api = {
     return request<MomentExitResponse>(
       `/productions/${productionId}/moments/${momentId}/exits`,
       { method: "POST", body: JSON.stringify(body) },
+    );
+  },
+
+  updateMomentExit(
+    productionId: number,
+    momentId: number,
+    exitId: number,
+    body: {
+      character_id?: number | null;
+      user_id?: number | null;
+      group_id?: number | null;
+      notes?: string | null;
+    },
+  ) {
+    return request<MomentExitResponse>(
+      `/productions/${productionId}/moments/${momentId}/exits/${exitId}`,
+      { method: "PATCH", body: JSON.stringify(body) },
     );
   },
 
@@ -1522,7 +1557,12 @@ export const api = {
     productionId: number,
     momentId: number,
     blockingId: number,
-    body: { notes: string },
+    body: {
+      notes: string;
+      character_id?: number | null;
+      user_id?: number | null;
+      group_id?: number | null;
+    },
   ) {
     return request<MomentBlockingResponse>(
       `/productions/${productionId}/moments/${momentId}/blocking/${blockingId}`,
@@ -1675,10 +1715,17 @@ export const api = {
     );
   },
 
-  completeRehearsal(productionId: number, rehearsalId: number) {
+  completeRehearsal(
+    productionId: number,
+    rehearsalId: number,
+    body?: { worked_on: RehearsalBlockTargetWrite[] },
+  ) {
     return request<RehearsalDetailResponse>(
       `/productions/${productionId}/rehearsals/${rehearsalId}/complete`,
-      { method: "POST" },
+      {
+        method: "POST",
+        body: body != null ? JSON.stringify(body) : undefined,
+      },
     );
   },
 

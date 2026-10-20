@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from sqlalchemy.orm import Session, joinedload, selectinload
 
 from app.api.deps import (
@@ -37,6 +37,8 @@ from app.schemas.rehearsals import (
     RehearsalBlockCallResponse,
     RehearsalBlockResponse,
     RehearsalBlockTargetResponse,
+    RehearsalBlockTargetWrite,
+    RehearsalCompleteRequest,
     RehearsalCreate,
     RehearsalDetailResponse,
     RehearsalNoteResponse,
@@ -221,6 +223,7 @@ def _block_response(
         location_id=block.location_id,
         location_name=block.location.name if block.location else None,
         label=block.label,
+        notes=block.notes,
         sort_order=block.sort_order,
         targets=[_target_response(t) for t in targets],
         calls=[
@@ -530,6 +533,7 @@ def list_my_calls(
                         ends_at=block.ends_at,
                         location_name=block.location.name if block.location else None,
                         label=block.label,
+                        notes=block.notes,
                         targets=[_target_response(t) for t in block.targets],
                     )
                 )
@@ -692,12 +696,14 @@ def replace_rehearsal_plan(
     db.flush()
 
     for idx, block_in in enumerate(body.blocks):
+        notes = block_in.notes.strip() if block_in.notes else None
         block = RehearsalBlock(
             rehearsal_id=rehearsal.id,
             starts_at=block_in.starts_at,
             ends_at=block_in.ends_at,
             location_id=block_in.location_id,
             label=block_in.label.strip() if block_in.label else None,
+            notes=notes or None,
             sort_order=block_in.sort_order if block_in.sort_order else idx,
         )
         db.add(block)
@@ -793,6 +799,22 @@ def open_rehearsal(
     )
 
 
+def _collect_progress_ids(
+    targets: list[RehearsalBlockTargetWrite] | list[RehearsalBlockTarget],
+) -> tuple[set[int], set[int], set[int]]:
+    scene_ids: set[int] = set()
+    music_song_ids: set[int] = set()
+    choreo_song_ids: set[int] = set()
+    for target in targets:
+        if target.focus == REHEARSAL_FOCUS_DIALOG and target.scene_id is not None:
+            scene_ids.add(target.scene_id)
+        elif target.focus == REHEARSAL_FOCUS_MUSIC and target.song_id is not None:
+            music_song_ids.add(target.song_id)
+        elif target.focus == REHEARSAL_FOCUS_CHOREO and target.song_id is not None:
+            choreo_song_ids.add(target.song_id)
+    return scene_ids, music_song_ids, choreo_song_ids
+
+
 @router.post(
     "/{production_id}/rehearsals/{rehearsal_id}/complete",
     response_model=RehearsalDetailResponse,
@@ -800,6 +822,7 @@ def open_rehearsal(
 def complete_rehearsal(
     production_id: int,
     rehearsal_id: int,
+    body: RehearsalCompleteRequest | None = Body(default=None),
     user: User = Depends(require_production_capability("rehearsals", "update")),
     db: Session = Depends(get_db),
 ) -> RehearsalDetailResponse:
@@ -817,17 +840,21 @@ def complete_rehearsal(
         )
 
     now = datetime.now(timezone.utc)
-    scene_ids: set[int] = set()
-    music_song_ids: set[int] = set()
-    choreo_song_ids: set[int] = set()
-    for block in rehearsal.blocks:
-        for target in block.targets:
-            if target.focus == REHEARSAL_FOCUS_DIALOG and target.scene_id is not None:
-                scene_ids.add(target.scene_id)
-            elif target.focus == REHEARSAL_FOCUS_MUSIC and target.song_id is not None:
-                music_song_ids.add(target.song_id)
-            elif target.focus == REHEARSAL_FOCUS_CHOREO and target.song_id is not None:
-                choreo_song_ids.add(target.song_id)
+    if body is not None and body.worked_on is not None:
+        scene_ids, music_song_ids, choreo_song_ids = _collect_progress_ids(body.worked_on)
+        try:
+            validate_scenes_in_production(db, production_id, list(scene_ids))
+            validate_songs_in_production(
+                db, production_id, list(music_song_ids | choreo_song_ids)
+            )
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=str(exc),
+            ) from exc
+    else:
+        plan_targets = [target for block in rehearsal.blocks for target in block.targets]
+        scene_ids, music_song_ids, choreo_song_ids = _collect_progress_ids(plan_targets)
 
     bump_rehearsal_progress(
         db,

@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
-import { Plus, Trash2 } from "lucide-react";
+import { ChevronRight, Plus, Trash2 } from "lucide-react";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
+import CompleteRehearsalDialog from "@/components/CompleteRehearsalDialog";
 import NotesPanel from "@/components/notes/NotesPanel";
+import RehearsalBlockTimeStrip from "@/components/RehearsalBlockTimeStrip";
 import RehearsalTargetPicker from "@/components/RehearsalTargetPicker";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -17,16 +19,24 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/context/AuthContext";
 import { useProductionAccess } from "@/context/ProductionAccessContext";
-import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { api, formatApiError } from "@/lib/api";
+import {
+  REHEARSAL_STRIP_NONE_LOCATION,
+  formatMinutesLabel,
+  minutesToTimeInput,
+  nextDefaultRange,
+} from "@/lib/rehearsalTimeStrip";
+import { readSessionNavOpen, writeSessionNavOpen } from "@/lib/sessionNavOpen";
 import type {
   ActSummary,
   CastableUserResponse,
   LocationResponse,
   RehearsalActivityItem,
+  RehearsalBlockTargetResponse,
   RehearsalBlockTargetWrite,
   RehearsalDetailResponse,
   RehearsalRecommendationResponse,
@@ -41,7 +51,7 @@ import {
   toTimeInputValue,
 } from "@/lib/utils";
 
-const NO_LOCATION = "__none__";
+const NO_LOCATION = REHEARSAL_STRIP_NONE_LOCATION;
 
 const PUBLISHED_STATUSES = new Set(["published", "in_progress", "completed"]);
 
@@ -55,11 +65,16 @@ type BlockDraft = {
   end_time: string;
   location_id: string;
   label: string;
+  notes: string;
   sort_order: number;
   targets: RehearsalBlockTargetWrite[];
   user_ids: number[];
   double_book_user_ids: number[];
 };
+
+function blockOpenStorageKey(rehearsalId: number, blockKey: string): string {
+  return `rehearsal.${rehearsalId}.block.${blockKey}.open`;
+}
 
 type RecommendationFilter = "all" | "dialog" | "music" | "choreo";
 
@@ -101,6 +116,7 @@ function blocksFromDetail(detail: RehearsalDetailResponse): BlockDraft[] {
     end_time: toTimeInputValue(block.ends_at),
     location_id: block.location_id != null ? String(block.location_id) : NO_LOCATION,
     label: block.label ?? "",
+    notes: block.notes ?? "",
     sort_order: block.sort_order ?? index,
     targets: block.targets.map((target) => ({
       focus: target.focus,
@@ -112,19 +128,53 @@ function blocksFromDetail(detail: RehearsalDetailResponse): BlockDraft[] {
   }));
 }
 
-function emptyBlock(rehearsal: RehearsalDetailResponse, sortOrder: number): BlockDraft {
+function emptyBlock(
+  rehearsal: RehearsalDetailResponse,
+  sortOrder: number,
+  options?: {
+    start_time?: string;
+    end_time?: string;
+    location_id?: string;
+  },
+): BlockDraft {
   return {
     key: `new-${Date.now()}-${sortOrder}`,
-    start_time: toTimeInputValue(rehearsal.starts_at),
-    end_time: toTimeInputValue(rehearsal.ends_at),
+    start_time: options?.start_time ?? toTimeInputValue(rehearsal.starts_at),
+    end_time: options?.end_time ?? toTimeInputValue(rehearsal.ends_at),
     location_id:
-      rehearsal.location_id != null ? String(rehearsal.location_id) : NO_LOCATION,
+      options?.location_id ??
+      (rehearsal.location_id != null ? String(rehearsal.location_id) : NO_LOCATION),
     label: "",
+    notes: "",
     sort_order: sortOrder,
     targets: [],
     user_ids: [],
     double_book_user_ids: [],
   };
+}
+
+function blockSummaryParts(
+  block: BlockDraft,
+  locations: LocationResponse[],
+): string[] {
+  const parts: string[] = [];
+  if (block.start_time && block.end_time) {
+    parts.push(
+      `${formatMinutesLabel(timeInputToMinutes(block.start_time))} – ${formatMinutesLabel(timeInputToMinutes(block.end_time))}`,
+    );
+  }
+  const location =
+    block.location_id === NO_LOCATION
+      ? null
+      : locations.find((item) => String(item.id) === block.location_id);
+  if (location) parts.push(location.name);
+  if (block.label.trim()) parts.push(block.label.trim());
+  parts.push(
+    `${block.user_ids.length} called`,
+    `${block.targets.length} working`,
+  );
+  if (block.notes.trim()) parts.push("has notes");
+  return parts;
 }
 
 function canPublish(status: string): boolean {
@@ -147,7 +197,6 @@ export default function RehearsalDetailPage() {
   const canManagePreparation = ["create", "update", "delete"].some((action) =>
     hasCapability("rehearsals", action),
   );
-  const confirm = useConfirm();
   const toast = useToast();
 
   const [rehearsal, setRehearsal] = useState<RehearsalDetailResponse | null>(null);
@@ -168,6 +217,9 @@ export default function RehearsalDetailPage() {
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [actionBusy, setActionBusy] = useState(false);
+  const [completeDialogOpen, setCompleteDialogOpen] = useState(false);
+  const [blockOpenByKey, setBlockOpenByKey] = useState<Record<string, boolean>>({});
+  const [focusedBlockKey, setFocusedBlockKey] = useState<string | null>(null);
 
   const editable =
     canManagePreparation &&
@@ -296,6 +348,24 @@ export default function RehearsalDetailPage() {
     );
   }, [rehearsal, user]);
 
+  const plannedTargets = useMemo((): RehearsalBlockTargetResponse[] => {
+    if (!rehearsal) return [];
+    const seen = new Set<string>();
+    const targets: RehearsalBlockTargetResponse[] = [];
+    for (const block of rehearsal.blocks) {
+      for (const target of block.targets) {
+        const key =
+          target.focus === "dialog"
+            ? `dialog:${target.scene_id}`
+            : `${target.focus}:${target.song_id}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        targets.push(target);
+      }
+    }
+    return targets;
+  }, [rehearsal]);
+
   function updateBlock(key: string, patch: Partial<BlockDraft>) {
     setBlocks((prev) =>
       prev.map((block) => (block.key === key ? { ...block, ...patch } : block)),
@@ -307,9 +377,70 @@ export default function RehearsalDetailPage() {
     await loadSuggestions(key, targets);
   }
 
-  function addBlock() {
+  function addBlock(options?: {
+    start_time?: string;
+    end_time?: string;
+    location_id?: string;
+  }) {
     if (!rehearsal) return;
-    setBlocks((prev) => [...prev, emptyBlock(rehearsal, prev.length)]);
+    let start_time = options?.start_time;
+    let end_time = options?.end_time;
+    if (!start_time || !end_time) {
+      const windowStart = timeInputToMinutes(toTimeInputValue(rehearsal.starts_at));
+      const windowEnd = timeInputToMinutes(toTimeInputValue(rehearsal.ends_at));
+      const next = nextDefaultRange(
+        windowStart,
+        windowEnd,
+        blocks.map((block) => ({
+          startMinutes: timeInputToMinutes(block.start_time),
+          endMinutes: timeInputToMinutes(block.end_time),
+        })),
+      );
+      if (next) {
+        start_time = minutesToTimeInput(next.start);
+        end_time = minutesToTimeInput(next.end);
+      }
+    }
+    const draft = emptyBlock(rehearsal, blocks.length, {
+      start_time,
+      end_time,
+      location_id: options?.location_id,
+    });
+    setBlocks((prev) => [...prev, draft]);
+    setBlockOpen(draft.key, true);
+    setFocusedBlockKey(draft.key);
+  }
+
+  function applyBlockDuration(blockKey: string, durationMinutes: number) {
+    const block = blocks.find((item) => item.key === blockKey);
+    if (!block || !rehearsal) return;
+    const windowEnd = timeInputToMinutes(toTimeInputValue(rehearsal.ends_at));
+    const start = timeInputToMinutes(block.start_time);
+    const end = Math.min(windowEnd, start + durationMinutes);
+    if (end - start < 10) return;
+    updateBlock(blockKey, { end_time: minutesToTimeInput(end) });
+  }
+
+  function isBlockOpen(blockKey: string): boolean {
+    if (blockKey in blockOpenByKey) return blockOpenByKey[blockKey];
+    return readSessionNavOpen(
+      blockOpenStorageKey(rehearsalId, blockKey),
+      blocks.length <= 1,
+    );
+  }
+
+  function setBlockOpen(blockKey: string, open: boolean) {
+    setBlockOpenByKey((prev) => ({ ...prev, [blockKey]: open }));
+    writeSessionNavOpen(blockOpenStorageKey(rehearsalId, blockKey), open);
+  }
+
+  function setAllBlocksOpen(open: boolean) {
+    const next: Record<string, boolean> = {};
+    for (const block of blocks) {
+      next[block.key] = open;
+      writeSessionNavOpen(blockOpenStorageKey(rehearsalId, block.key), open);
+    }
+    setBlockOpenByKey(next);
   }
 
   function removeBlock(key: string) {
@@ -346,6 +477,7 @@ export default function RehearsalDetailPage() {
           ends_at: combineRehearsalDateAndTime(rehearsal.starts_at, block.end_time),
           location_id: block.location_id === NO_LOCATION ? null : Number(block.location_id),
           label: block.label.trim() || null,
+          notes: block.notes.trim() || null,
           sort_order: index,
           targets: block.targets,
           user_ids: block.user_ids,
@@ -393,23 +525,27 @@ export default function RehearsalDetailPage() {
     }
   }
 
-  async function handleComplete() {
-    const ok = await confirm({
-      title: "Complete this rehearsal?",
-      description:
-        "Rehearsal counts will increase for each dialog scene, song music, and song choreo on this plan. This cannot be undone from the planner.",
-      confirmLabel: "Complete",
-    });
-    if (!ok) return;
-    await runStatusAction("Rehearsal completed", () =>
-      api.completeRehearsal(productionId, rehearsalId),
-    );
-    if (canManagePreparation) {
-      try {
-        setRecommendations(await api.listRehearsalRecommendations(productionId));
-      } catch {
-        // Soft failure
+  async function handleConfirmComplete(workedOn: RehearsalBlockTargetWrite[]) {
+    setActionBusy(true);
+    try {
+      const detail = await api.completeRehearsal(productionId, rehearsalId, {
+        worked_on: workedOn,
+      });
+      setRehearsal(detail);
+      setBlocks(blocksFromDetail(detail));
+      setCompleteDialogOpen(false);
+      toast.success("Rehearsal completed");
+      if (canManagePreparation) {
+        try {
+          setRecommendations(await api.listRehearsalRecommendations(productionId));
+        } catch {
+          // Soft failure
+        }
       }
+    } catch (err) {
+      toast.error(formatApiError(err, "Failed to complete rehearsal"));
+    } finally {
+      setActionBusy(false);
     }
   }
 
@@ -425,7 +561,7 @@ export default function RehearsalDetailPage() {
     );
   }
 
-  function applySuggestedCalls(blockKey: string) {
+  function selectRecommendedCalls(blockKey: string) {
     const suggestions = suggestionsByBlock[blockKey] ?? [];
     if (suggestions.length === 0) return;
     setBlocks((prev) =>
@@ -437,6 +573,20 @@ export default function RehearsalDetailPage() {
         };
       }),
     );
+  }
+
+  function selectAllCalls(blockKey: string) {
+    if (castOptions.length === 0) return;
+    setBlocks((prev) =>
+      prev.map((block) => {
+        if (block.key !== blockKey) return block;
+        return { ...block, user_ids: castOptions.map((person) => person.id) };
+      }),
+    );
+  }
+
+  function clearCalledUsers(blockKey: string) {
+    updateBlock(blockKey, { user_ids: [] });
   }
 
   if (loading) {
@@ -536,6 +686,9 @@ export default function RehearsalDetailPage() {
                     {block.label && (
                       <p className="text-sm text-muted-foreground">{block.label}</p>
                     )}
+                    {block.notes && (
+                      <p className="mt-1 whitespace-pre-wrap text-sm">{block.notes}</p>
+                    )}
                     {block.targets.length > 0 && (
                       <p className="mt-1 text-sm">
                         Working: {targetListLabel(block.targets)}
@@ -601,7 +754,7 @@ export default function RehearsalDetailPage() {
             type="button"
             variant="outline"
             disabled={actionBusy || rehearsal.status === "completed"}
-            onClick={() => void handleComplete()}
+            onClick={() => setCompleteDialogOpen(true)}
           >
             Complete
           </Button>
@@ -619,197 +772,358 @@ export default function RehearsalDetailPage() {
             <div>
               <h2 className="text-lg font-medium">Blocks</h2>
               <p className="text-sm text-muted-foreground">
-                Time blocks with scenes/songs and who is called. Prefer 30-minute increments.
+                Time blocks with scenes/songs and who is called. Prefer 10-minute increments.
               </p>
             </div>
-            {editable && (
-              <Button type="button" variant="outline" size="sm" onClick={addBlock}>
-                <Plus className="mr-1 size-4" />
-                Add block
-              </Button>
-            )}
+            <div className="flex flex-wrap items-center gap-2">
+              {blocks.length > 1 && (
+                <>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto px-0"
+                    onClick={() => setAllBlocksOpen(true)}
+                  >
+                    Expand all
+                  </Button>
+                  <Button
+                    type="button"
+                    variant="link"
+                    size="sm"
+                    className="h-auto px-0"
+                    onClick={() => setAllBlocksOpen(false)}
+                  >
+                    Collapse all
+                  </Button>
+                </>
+              )}
+              {editable && (
+                <Button type="button" variant="outline" size="sm" onClick={() => addBlock()}>
+                  <Plus className="mr-1 size-4" />
+                  Add block
+                </Button>
+              )}
+            </div>
           </div>
+
+          <RehearsalBlockTimeStrip
+            windowStartTime={toTimeInputValue(rehearsal.starts_at)}
+            windowEndTime={toTimeInputValue(rehearsal.ends_at)}
+            locations={locations.map((location) => ({
+              id: String(location.id),
+              name: location.name,
+              sort_order: location.sort_order,
+            }))}
+            blocks={blocks.map((block) => ({
+              key: block.key,
+              start_time: block.start_time,
+              end_time: block.end_time,
+              label: block.label,
+              location_id: block.location_id,
+            }))}
+            selectedKey={
+              focusedBlockKey && blocks.some((block) => block.key === focusedBlockKey)
+                ? focusedBlockKey
+                : (blocks.find((block) => isBlockOpen(block.key))?.key ?? null)
+            }
+            disabled={!editable}
+            onSelectBlock={(key) => {
+              setFocusedBlockKey(key);
+              setBlockOpen(key, true);
+            }}
+            onCreateRange={(start_time, end_time, location_id) => {
+              addBlock({ start_time, end_time, location_id });
+            }}
+            onChangeRange={(key, start_time, end_time, location_id) => {
+              updateBlock(key, { start_time, end_time, location_id });
+              setFocusedBlockKey(key);
+            }}
+          />
 
           {blocks.length === 0 ? (
             <p className="text-sm text-muted-foreground">
-              No blocks yet. Add a block to plan this rehearsal.
+              No blocks yet. Drag on the strip above, or use Add block.
             </p>
           ) : (
-            <ul className="space-y-4">
+            <ul className="space-y-3">
               {blocks.map((block, index) => {
                 const suggestions = suggestionsByBlock[block.key] ?? [];
                 const suggestedIds = new Set(suggestions.map((item) => item.user_id));
                 const doubleBookNames = castOptions
                   .filter((person) => block.double_book_user_ids.includes(person.id))
                   .map((person) => person.display_name);
+                const open = isBlockOpen(block.key);
+                const summary = blockSummaryParts(block, locations).join(" · ");
 
                 return (
-                  <li
-                    key={block.key}
-                    className="space-y-3 rounded-lg border border-border p-4"
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <h3 className="font-medium">Block {index + 1}</h3>
-                      {editable && (
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          onClick={() => removeBlock(block.key)}
-                          aria-label={`Remove block ${index + 1}`}
-                          title="Remove block"
-                        >
-                          <Trash2 />
-                        </Button>
-                      )}
-                    </div>
-
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label htmlFor={`block-start-${block.key}`}>Starts</Label>
-                        <Input
-                          id={`block-start-${block.key}`}
-                          type="time"
-                          value={block.start_time}
-                          disabled={!editable}
-                          step={1800}
-                          onChange={(e) =>
-                            updateBlock(block.key, { start_time: e.target.value })
-                          }
+                  <li key={block.key} className="rounded-lg border border-border">
+                    <details
+                      className="group"
+                      open={open}
+                      onToggle={(event) => {
+                        setBlockOpen(block.key, event.currentTarget.open);
+                      }}
+                    >
+                      <summary className="flex cursor-pointer list-none items-start gap-2 px-4 py-3 marker:content-none [&::-webkit-details-marker]:hidden">
+                        <ChevronRight
+                          className="mt-0.5 size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
+                          aria-hidden
                         />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor={`block-end-${block.key}`}>Ends</Label>
-                        <Input
-                          id={`block-end-${block.key}`}
-                          type="time"
-                          value={block.end_time}
-                          disabled={!editable}
-                          step={1800}
-                          onChange={(e) =>
-                            updateBlock(block.key, { end_time: e.target.value })
-                          }
-                        />
-                      </div>
-                    </div>
+                        <div className="min-w-0 flex-1">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
+                            <h3 className="font-medium">Block {index + 1}</h3>
+                            {editable && (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                className="-mt-1"
+                                onClick={(event) => {
+                                  event.preventDefault();
+                                  event.stopPropagation();
+                                  removeBlock(block.key);
+                                }}
+                                aria-label={`Remove block ${index + 1}`}
+                                title="Remove block"
+                              >
+                                <Trash2 />
+                              </Button>
+                            )}
+                          </div>
+                          <p className="mt-0.5 text-sm text-muted-foreground">{summary}</p>
+                        </div>
+                      </summary>
 
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <div className="space-y-2">
-                        <Label>Location</Label>
-                        <Select
-                          value={block.location_id}
-                          disabled={!editable}
-                          onValueChange={(value) =>
-                            updateBlock(block.key, { location_id: value })
-                          }
-                        >
-                          <SelectTrigger className="w-full">
-                            <SelectValue placeholder="Optional" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value={NO_LOCATION}>No location</SelectItem>
-                            {locations.map((location) => (
-                              <SelectItem key={location.id} value={String(location.id)}>
-                                {location.name}
-                              </SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor={`block-label-${block.key}`}>Label</Label>
-                        <Input
-                          id={`block-label-${block.key}`}
-                          value={block.label}
-                          disabled={!editable}
-                          placeholder="Optional (e.g. Stumble-through)"
-                          onChange={(e) =>
-                            updateBlock(block.key, { label: e.target.value })
-                          }
-                        />
-                      </div>
-                    </div>
+                      <div className="space-y-3 border-t border-border px-4 py-3">
+                        <details className="rounded-md border border-border/60 px-3 py-2">
+                          <summary className="cursor-pointer text-sm text-muted-foreground">
+                            Exact times
+                            {block.start_time && block.end_time
+                              ? ` · ${formatMinutesLabel(timeInputToMinutes(block.start_time))} – ${formatMinutesLabel(timeInputToMinutes(block.end_time))}`
+                              : ""}
+                          </summary>
+                          <div className="mt-3 space-y-3">
+                            <div className="grid gap-3 sm:grid-cols-2">
+                              <div className="space-y-2">
+                                <Label htmlFor={`block-start-${block.key}`}>Starts</Label>
+                                <Input
+                                  id={`block-start-${block.key}`}
+                                  type="time"
+                                  value={block.start_time}
+                                  disabled={!editable}
+                                  step={600}
+                                  onChange={(e) =>
+                                    updateBlock(block.key, {
+                                      start_time: e.target.value,
+                                    })
+                                  }
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label htmlFor={`block-end-${block.key}`}>Ends</Label>
+                                <Input
+                                  id={`block-end-${block.key}`}
+                                  type="time"
+                                  value={block.end_time}
+                                  disabled={!editable}
+                                  step={600}
+                                  onChange={(e) =>
+                                    updateBlock(block.key, {
+                                      end_time: e.target.value,
+                                    })
+                                  }
+                                />
+                              </div>
+                            </div>
+                            {editable && (
+                              <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-xs text-muted-foreground">
+                                  Duration
+                                </span>
+                                {[10, 30, 60, 90].map((minutes) => (
+                                  <Button
+                                    key={minutes}
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() =>
+                                      applyBlockDuration(block.key, minutes)
+                                    }
+                                  >
+                                    {minutes}m
+                                  </Button>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </details>
 
-                    <div className="space-y-2">
-                      <Label>Working on</Label>
-                      <RehearsalTargetPicker
-                        acts={acts}
-                        songs={songs}
-                        selected={block.targets}
-                        disabled={!editable}
-                        onChange={(targets) =>
-                          void handleTargetsChange(block.key, targets)
-                        }
-                      />
-                    </div>
+                        <div className="grid gap-3 sm:grid-cols-2">
+                          <div className="space-y-2">
+                            <Label>Location</Label>
+                            <Select
+                              value={block.location_id}
+                              disabled={!editable}
+                              onValueChange={(value) =>
+                                updateBlock(block.key, { location_id: value })
+                              }
+                            >
+                              <SelectTrigger className="w-full">
+                                <SelectValue placeholder="Optional" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value={NO_LOCATION}>No location</SelectItem>
+                                {locations.map((location) => (
+                                  <SelectItem
+                                    key={location.id}
+                                    value={String(location.id)}
+                                  >
+                                    {location.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`block-label-${block.key}`}>Label</Label>
+                            <Input
+                              id={`block-label-${block.key}`}
+                              value={block.label}
+                              disabled={!editable}
+                              placeholder="Optional (e.g. Stumble-through)"
+                              onChange={(e) =>
+                                updateBlock(block.key, { label: e.target.value })
+                              }
+                            />
+                          </div>
+                        </div>
 
-                    <div className="space-y-2">
-                      <div className="flex flex-wrap items-center justify-between gap-2">
-                        <Label>Called</Label>
-                        {editable && suggestions.length > 0 && (
-                          <Button
-                            type="button"
-                            variant="link"
-                            size="sm"
-                            className="h-auto px-0"
-                            onClick={() => applySuggestedCalls(block.key)}
-                          >
-                            Use suggested ({suggestions.length})
-                          </Button>
+                        <div className="space-y-2">
+                          <Label htmlFor={`block-notes-${block.key}`}>Notes</Label>
+                          <Textarea
+                            id={`block-notes-${block.key}`}
+                            value={block.notes}
+                            disabled={!editable}
+                            placeholder="Optional longer notes for the room or topics"
+                            rows={3}
+                            onChange={(e) =>
+                              updateBlock(block.key, { notes: e.target.value })
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label>Working on</Label>
+                          <RehearsalTargetPicker
+                            acts={acts}
+                            songs={songs}
+                            selected={block.targets}
+                            disabled={!editable}
+                            onChange={(targets) =>
+                              void handleTargetsChange(block.key, targets)
+                            }
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
+                            <Label>Called</Label>
+                            {editable && castOptions.length > 0 && (
+                              <div className="flex flex-wrap items-center gap-3">
+                                <Button
+                                  type="button"
+                                  variant="link"
+                                  size="sm"
+                                  className="h-auto px-0"
+                                  disabled={suggestions.length === 0}
+                                  onClick={() => selectRecommendedCalls(block.key)}
+                                >
+                                  Select all recommended
+                                  {suggestions.length > 0
+                                    ? ` (${suggestions.length})`
+                                    : ""}
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="link"
+                                  size="sm"
+                                  className="h-auto px-0"
+                                  onClick={() => selectAllCalls(block.key)}
+                                >
+                                  Select all ({castOptions.length})
+                                </Button>
+                                <Button
+                                  type="button"
+                                  variant="link"
+                                  size="sm"
+                                  className="h-auto px-0"
+                                  disabled={block.user_ids.length === 0}
+                                  onClick={() => clearCalledUsers(block.key)}
+                                >
+                                  Clear
+                                </Button>
+                              </div>
+                            )}
+                          </div>
+                          {castOptions.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                              No castable users yet. Assign actors to characters first.
+                            </p>
+                          ) : (
+                            <ul className="grid gap-1 sm:grid-cols-2">
+                              {castOptions.map((person) => {
+                                const checked = block.user_ids.includes(person.id);
+                                const suggested = suggestedIds.has(person.id);
+                                const id = `call-${block.key}-${person.id}`;
+                                return (
+                                  <li key={person.id}>
+                                    <Label
+                                      htmlFor={id}
+                                      className="flex cursor-pointer items-center gap-2 font-normal"
+                                    >
+                                      <Checkbox
+                                        id={id}
+                                        checked={checked}
+                                        disabled={!editable}
+                                        onCheckedChange={(value) =>
+                                          toggleUser(
+                                            block.key,
+                                            person.id,
+                                            value === true,
+                                          )
+                                        }
+                                      />
+                                      <span className="text-sm">
+                                        {person.display_name}
+                                        {suggested ? (
+                                          <span className="text-muted-foreground">
+                                            {" "}
+                                            (suggested)
+                                          </span>
+                                        ) : null}
+                                      </span>
+                                    </Label>
+                                  </li>
+                                );
+                              })}
+                            </ul>
+                          )}
+                        </div>
+
+                        {block.double_book_user_ids.length > 0 && (
+                          <Alert variant="warning">
+                            <AlertDescription>
+                              Double-booked on overlapping blocks
+                              {doubleBookNames.length > 0
+                                ? `: ${doubleBookNames.join(", ")}`
+                                : ""}
+                              .
+                            </AlertDescription>
+                          </Alert>
                         )}
                       </div>
-                      {castOptions.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                          No castable users yet. Assign actors to characters first.
-                        </p>
-                      ) : (
-                        <ul className="grid gap-1 sm:grid-cols-2">
-                          {castOptions.map((person) => {
-                            const checked = block.user_ids.includes(person.id);
-                            const suggested = suggestedIds.has(person.id);
-                            const id = `call-${block.key}-${person.id}`;
-                            return (
-                              <li key={person.id}>
-                                <Label
-                                  htmlFor={id}
-                                  className="flex cursor-pointer items-center gap-2 font-normal"
-                                >
-                                  <Checkbox
-                                    id={id}
-                                    checked={checked}
-                                    disabled={!editable}
-                                    onCheckedChange={(value) =>
-                                      toggleUser(block.key, person.id, value === true)
-                                    }
-                                  />
-                                  <span className="text-sm">
-                                    {person.display_name}
-                                    {suggested ? (
-                                      <span className="text-muted-foreground">
-                                        {" "}
-                                        (suggested)
-                                      </span>
-                                    ) : null}
-                                  </span>
-                                </Label>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </div>
-
-                    {block.double_book_user_ids.length > 0 && (
-                      <Alert variant="warning">
-                        <AlertDescription>
-                          Double-booked on overlapping blocks
-                          {doubleBookNames.length > 0
-                            ? `: ${doubleBookNames.join(", ")}`
-                            : ""}
-                          .
-                        </AlertDescription>
-                      </Alert>
-                    )}
+                    </details>
                   </li>
                 );
               })}
@@ -895,6 +1209,16 @@ export default function RehearsalDetailPage() {
             canApprove={hasCapability("timeline", "approve")}
           />
         </section>
+
+      <CompleteRehearsalDialog
+        open={completeDialogOpen}
+        onOpenChange={setCompleteDialogOpen}
+        acts={acts}
+        songs={songs}
+        plannedTargets={plannedTargets}
+        busy={actionBusy}
+        onConfirm={(workedOn) => void handleConfirmComplete(workedOn)}
+      />
     </div>
   );
 }

@@ -4,9 +4,13 @@ import { ChevronDown, X } from "lucide-react";
 import CharacterMultiSelect from "@/components/CharacterMultiSelect";
 import EmptyState from "@/components/EmptyState";
 import MomentDetailSheet from "@/components/MomentDetailSheet";
+import PrepBadgeKindFilters, {
+  ensurePrepBadgeKinds,
+} from "@/components/PrepBadgeKindFilters";
 import RehearseModeControls from "@/components/RehearseModeControls";
 import SceneMultiSelect from "@/components/SceneMultiSelect";
 import TimelineMomentList, { type TimelineSection } from "@/components/TimelineMomentList";
+import type { MomentAttachmentKind } from "@/lib/domainIcons";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -129,6 +133,9 @@ export default function TimelinePage() {
     storedPrefs.showSequenceNumbers,
   );
   const [showPrepBadges, setShowPrepBadges] = useState(storedPrefs.showPrepBadges);
+  const [prepBadgeKinds, setPrepBadgeKinds] = useState<MomentAttachmentKind[]>(
+    ensurePrepBadgeKinds(storedPrefs.prepBadgeKinds),
+  );
 
   const [rehearseMode, setRehearseMode] = useState(
     () => searchParams.get("rehearse") === "1",
@@ -237,6 +244,7 @@ export default function TimelinePage() {
     setSetPieceFilter(prefs.setPieceFilter);
     setShowSequenceNumbers(prefs.showSequenceNumbers);
     setShowPrepBadges(prefs.showPrepBadges);
+    setPrepBadgeKinds(ensurePrepBadgeKinds(prefs.prepBadgeKinds));
     setEditTimeline(false);
     latestAnchorRef.current = prefs.anchor;
     pendingScrollRestoreRef.current = prefs.anchor;
@@ -272,6 +280,7 @@ export default function TimelinePage() {
     if (!prefsReadyRef.current) return;
     const prefs: StoredTimelinePrefs = {
       showPrepBadges,
+      prepBadgeKinds,
       showSequenceNumbers,
       searchInput,
       selectedCharacterIds,
@@ -293,6 +302,7 @@ export default function TimelinePage() {
   }, [
     productionId,
     showPrepBadges,
+    prepBadgeKinds,
     showSequenceNumbers,
     searchInput,
     selectedCharacterIds,
@@ -562,6 +572,9 @@ export default function TimelinePage() {
   function handleRehearseToggleChange(field: keyof RehearseDisplayToggles, value: boolean) {
     const nextToggles = { ...rehearseToggles, [field]: value };
     setRehearseToggles(nextToggles);
+    if (field === "showPrepBadges" && value) {
+      setPrepBadgeKinds((kinds) => ensurePrepBadgeKinds(kinds));
+    }
     if (rehearsePreset !== "custom" && field !== "blurMyLines") {
       if (!togglesMatchPreset(rehearsePreset, nextToggles)) {
         setRehearsePreset("custom");
@@ -1013,13 +1026,28 @@ export default function TimelinePage() {
                           />
                           Moment numbers
                         </Label>
-                        <Label className="flex items-center gap-2 font-normal">
-                          <Checkbox
-                            checked={showPrepBadges}
-                            onCheckedChange={(value) => setShowPrepBadges(value === true)}
-                          />
-                          Prep badges
-                        </Label>
+                        <div className="space-y-1.5">
+                          <Label className="flex items-center gap-2 font-normal">
+                            <Checkbox
+                              checked={showPrepBadges}
+                              onCheckedChange={(value) => {
+                                const next = value === true;
+                                setShowPrepBadges(next);
+                                if (next) {
+                                  setPrepBadgeKinds((kinds) => ensurePrepBadgeKinds(kinds));
+                                }
+                              }}
+                            />
+                            Prep badges
+                          </Label>
+                          {showPrepBadges && (
+                            <PrepBadgeKindFilters
+                              enabledKinds={prepBadgeKinds}
+                              onChange={setPrepBadgeKinds}
+                              className="ml-6"
+                            />
+                          )}
+                        </div>
                       </>
                     )}
                   </div>
@@ -1047,6 +1075,8 @@ export default function TimelinePage() {
             toggles={rehearseToggles}
             onPresetChange={handleRehearsePresetChange}
             onToggleChange={handleRehearseToggleChange}
+            prepBadgeKinds={prepBadgeKinds}
+            onPrepBadgeKindsChange={setPrepBadgeKinds}
             className="shrink-0"
           />
         )}
@@ -1132,13 +1162,28 @@ export default function TimelinePage() {
                       />
                       Moment numbers
                     </Label>
-                    <Label className="flex items-center gap-2 font-normal">
-                      <Checkbox
-                        checked={showPrepBadges}
-                        onCheckedChange={(value) => setShowPrepBadges(value === true)}
-                      />
-                      Prep badges
-                    </Label>
+                    <div className="space-y-1.5">
+                      <Label className="flex items-center gap-2 font-normal">
+                        <Checkbox
+                          checked={showPrepBadges}
+                          onCheckedChange={(value) => {
+                            const next = value === true;
+                            setShowPrepBadges(next);
+                            if (next) {
+                              setPrepBadgeKinds((kinds) => ensurePrepBadgeKinds(kinds));
+                            }
+                          }}
+                        />
+                        Prep badges
+                      </Label>
+                      {showPrepBadges && (
+                        <PrepBadgeKindFilters
+                          enabledKinds={prepBadgeKinds}
+                          onChange={setPrepBadgeKinds}
+                          className="ml-6"
+                        />
+                      )}
+                    </div>
                     <Label className="flex items-center gap-2 font-normal">
                       <Switch
                         checked={rehearseMode}
@@ -1279,6 +1324,7 @@ export default function TimelinePage() {
                   )
             }
             showPrepBadges={rehearseMode ? rehearseToggles.showPrepBadges : showPrepBadges}
+            prepBadgeKinds={prepBadgeKinds}
             showSequenceNumbers={rehearseMode ? false : showSequenceNumbers}
             showTypeBadge={!rehearseMode && showStructuralControls}
             blurMyLines={rehearseMode ? rehearseToggles.blurMyLines : false}
