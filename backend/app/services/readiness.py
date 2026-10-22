@@ -126,7 +126,7 @@ def compute_readiness(db: Session, production_id: int) -> ReadinessResult:
         ),
         _soft_catalog_dimension(
             key="lav_chart",
-            label="Lav chart",
+            label="Lavs",
             href_hint="lav-chart",
             catalog_count=lav_catalog_count,
             scenes_with_use=len(lav_scenes),
@@ -140,7 +140,7 @@ def compute_readiness(db: Session, production_id: int) -> ReadinessResult:
         ),
         _soft_catalog_dimension(
             key="set_pieces",
-            label="Set pieces",
+            label="Set",
             href_hint="set-pieces",
             catalog_count=_count_for_production(db, SetPiece, production_id),
             scenes_with_use=len(set_piece_scenes),

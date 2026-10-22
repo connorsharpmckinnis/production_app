@@ -74,11 +74,11 @@ describe("previousSpotlightIndex", () => {
 describe("dimensionHref", () => {
   it("maps known hints to production routes", () => {
     expect(dimensionHref(9, "costumes")).toBe("/productions/9/costumes");
-    expect(dimensionHref(9, "cue-categories")).toBe(
-      "/productions/9/cue-categories",
-    );
-    expect(dimensionHref(9, "lav_chart")).toBe("/productions/9/lav-chart");
-    expect(dimensionHref(9, "microphones")).toBe("/productions/9/lav-chart");
+    expect(dimensionHref(9, "cue-categories")).toBe("/productions/9/cues");
+    expect(dimensionHref(9, "lav_chart")).toBe("/productions/9/lavs");
+    expect(dimensionHref(9, "lav-chart")).toBe("/productions/9/lavs");
+    expect(dimensionHref(9, "microphones")).toBe("/productions/9/lavs");
+    expect(dimensionHref(9, "set-pieces")).toBe("/productions/9/set");
   });
 
   it("falls back to the production overview for unknown hints", () => {

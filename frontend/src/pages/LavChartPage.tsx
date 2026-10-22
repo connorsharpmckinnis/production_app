@@ -413,7 +413,7 @@ export default function LavChartPage() {
     try {
       const data = await api.saveLavChart(productionId, serializeCells());
       applyChart(data);
-      toast.success("Lav chart saved");
+      toast.success("Lavs saved");
     } catch (err) {
       toast.error(formatApiError(err, "Failed to save lav chart"));
     } finally {
@@ -665,7 +665,7 @@ export default function LavChartPage() {
   if (error || !chart) {
     return (
       <div className="p-6">
-        <p className="text-destructive">{error ?? "Lav chart unavailable"}</p>
+        <p className="text-destructive">{error ?? "Lavs unavailable"}</p>
         <Button className="mt-4" variant="outline" onClick={() => void loadChart()}>
           Retry
         </Button>
@@ -685,7 +685,7 @@ export default function LavChartPage() {
       <div className="lav-print-hide space-y-3">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-semibold tracking-tight">Lav chart</h1>
+            <h1 className="text-2xl font-semibold tracking-tight">Lavs</h1>
             <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
               Assign wires and packs by scene. Run Propose once for a full-sheet starting chart, then
               tweak with fill-row and cell edits. Lock rows to prevent accidental edits (Propose still

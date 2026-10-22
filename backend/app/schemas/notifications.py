@@ -22,13 +22,17 @@ ALLOWED_ROUTE_FILTERS = {
     "songs",
     "props",
     "costumes",
-    "set-pieces",
-    "cue-categories",
+    "set",
+    "cues",
     "groups",
     "people",
-    "lav-chart",
+    "lavs",
     "rehearsals",
     "reports",
+    # Legacy UI path segments (kept so existing announcements still validate).
+    "set-pieces",
+    "cue-categories",
+    "lav-chart",
 }
 
 

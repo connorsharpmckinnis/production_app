@@ -1,16 +1,16 @@
 import type { LucideIcon } from "lucide-react";
 import {
+  Blocks,
   Bookmark,
-  Layers,
+  Castle,
   LogIn,
   LogOut,
   Mic,
   Move,
   Music,
-  Package,
-  Shapes,
   Shirt,
   StickyNote,
+  Swords,
   VenetianMask,
   Zap,
 } from "lucide-react";
@@ -53,8 +53,8 @@ export type MomentAttachmentKind = Extract<
  * Change an entry here when you settle on preferred icons.
  */
 export const DOMAIN_ICONS: Record<DomainIconKind, LucideIcon> = {
-  prop: Package,
-  set_piece: Layers,
+  prop: Swords,
+  set_piece: Castle,
   costume: Shirt,
   cue: Zap,
   entrance: LogIn,
@@ -62,7 +62,7 @@ export const DOMAIN_ICONS: Record<DomainIconKind, LucideIcon> = {
   blocking: Move,
   song: Music,
   character: VenetianMask,
-  group: Shapes,
+  group: Blocks,
   lav: Mic,
   notes: StickyNote,
   bookmark: Bookmark,

@@ -1751,17 +1751,17 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                 </Link>
                 ,{" "}
                 <Link
-                  to={`/productions/${productionId}/cue-categories`}
+                  to={`/productions/${productionId}/cues`}
                   className="underline hover:text-foreground"
                 >
-                  Cue Categories
+                  Cues
                 </Link>
                 ,{" "}
                 <Link
-                  to={`/productions/${productionId}/set-pieces`}
+                  to={`/productions/${productionId}/set`}
                   className="underline hover:text-foreground"
                 >
-                  Set Pieces
+                  Set
                 </Link>
                 , or{" "}
                 <Link

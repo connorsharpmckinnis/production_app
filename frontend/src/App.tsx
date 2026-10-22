@@ -54,12 +54,24 @@ export default function App() {
           <Route path="productions/:id/songs" element={<SongsPage />} />
           <Route path="productions/:id/props" element={<PropsPage />} />
           <Route path="productions/:id/costumes" element={<CostumesPage />} />
-          <Route path="productions/:id/set-pieces" element={<SetPiecesPage />} />
-          <Route path="productions/:id/cue-categories" element={<CueCategoriesPage />} />
+          <Route path="productions/:id/set" element={<SetPiecesPage />} />
+          <Route path="productions/:id/cues" element={<CueCategoriesPage />} />
+          <Route
+            path="productions/:id/set-pieces"
+            element={<Navigate to="../set" replace />}
+          />
+          <Route
+            path="productions/:id/cue-categories"
+            element={<Navigate to="../cues" replace />}
+          />
 
           <Route path="productions/:id/people" element={<PeoplePage />} />
           <Route path="productions/:id/groups" element={<GroupsPage />} />
-          <Route path="productions/:id/lav-chart" element={<LavChartPage />} />
+          <Route path="productions/:id/lavs" element={<LavChartPage />} />
+          <Route
+            path="productions/:id/lav-chart"
+            element={<Navigate to="../lavs" replace />}
+          />
           <Route path="productions/:id/reports" element={<ReportsPage />} />
 
           <Route element={<ProtectedRoute adminOnly />}>

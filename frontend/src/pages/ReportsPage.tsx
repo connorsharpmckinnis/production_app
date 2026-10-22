@@ -115,10 +115,10 @@ export default function ReportsPage() {
             <p className="text-sm text-muted-foreground">
               Read-only views derived from timeline and preparation data.{" "}
               <Link
-                to={`/productions/${productionId}/lav-chart`}
+                to={`/productions/${productionId}/lavs`}
                 className="reports-print-hide text-foreground underline-offset-4 hover:underline"
               >
-                Open lav chart
+                Open Lavs
               </Link>{" "}
               for editable wire/pack assignments.
             </p>

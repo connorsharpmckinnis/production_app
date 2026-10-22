@@ -57,13 +57,26 @@ _PRODUCTION_CTA_RESOURCES = {
     "songs": "songs",
     "props": "props",
     "costumes": "costumes",
+    "set": "set_pieces",
     "set-pieces": "set_pieces",
+    "cues": "cue_categories",
     "cue-categories": "cue_categories",
     "people": "people",
     "groups": "groups",
+    "lavs": "lav_chart",
     "lav-chart": "lav_chart",
     "reports": "reports",
     "rehearse": "rehearse",
+}
+
+# Route-filter keys that refer to the same page after UI path renames.
+_ROUTE_FILTER_ALIASES: dict[str, frozenset[str]] = {
+    "set": frozenset({"set", "set-pieces"}),
+    "set-pieces": frozenset({"set", "set-pieces"}),
+    "cues": frozenset({"cues", "cue-categories"}),
+    "cue-categories": frozenset({"cues", "cue-categories"}),
+    "lavs": frozenset({"lavs", "lav-chart"}),
+    "lav-chart": frozenset({"lavs", "lav-chart"}),
 }
 
 
@@ -742,6 +755,9 @@ def _route_matches(route_filter: str | None, current_route_key: str | None) -> b
         return True
     if not current_route_key:
         return False
+    aliases = _ROUTE_FILTER_ALIASES.get(route_filter)
+    if aliases is not None:
+        return current_route_key in aliases
     return route_filter == current_route_key
 
 

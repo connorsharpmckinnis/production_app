@@ -7,14 +7,14 @@ import {
   ChevronRight,
   Drama,
   FileUp,
+  House,
   Info,
-  LayoutDashboard,
   PanelLeft,
   PanelLeftClose,
   Scroll,
   Settings,
+  SquareUser,
   User,
-  UserRoundCog,
   UsersRound,
   X,
   type LucideIcon,
@@ -104,6 +104,43 @@ function SidebarSectionLabel({
   return (
     <div className="pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
       {label}
+    </div>
+  );
+}
+
+function ProductionSectionHeader({
+  productionId,
+  title,
+  collapsed,
+}: {
+  productionId: string;
+  title: string | null;
+  collapsed: boolean;
+}) {
+  if (collapsed) {
+    return (
+      <div
+        className="my-2 border-t border-border"
+        role="separator"
+        aria-label={title ? `Production / ${title}` : "Production"}
+      />
+    );
+  }
+  return (
+    <div className="pt-3 pb-1 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+      Production
+      {title ? (
+        <>
+          {" / "}
+          <Link
+            to={`/productions/${productionId}`}
+            className="normal-case tracking-normal text-primary hover:underline"
+            title={title}
+          >
+            <span className="truncate">{title}</span>
+          </Link>
+        </>
+      ) : null}
     </div>
   );
 }
@@ -304,8 +341,8 @@ function AppShellInner() {
       )}
       {canRead("lav_chart") && (
         <SidebarNavLink
-          to={`/productions/${productionId}/lav-chart`}
-          label="Lav chart"
+          to={`/productions/${productionId}/lavs`}
+          label="Lavs"
           icon={domainIcon("lav")}
           collapsed={navCollapsed}
           onNavigate={closeMobileNav}
@@ -313,8 +350,8 @@ function AppShellInner() {
       )}
       {canRead("set_pieces") && (
         <SidebarNavLink
-          to={`/productions/${productionId}/set-pieces`}
-          label="Set Pieces"
+          to={`/productions/${productionId}/set`}
+          label="Set"
           icon={domainIcon("set_piece")}
           collapsed={navCollapsed}
           onNavigate={closeMobileNav}
@@ -333,8 +370,8 @@ function AppShellInner() {
           )}
           {canRead("cue_categories") && (
             <SidebarNavLink
-              to={`/productions/${productionId}/cue-categories`}
-              label="Cue Categories"
+              to={`/productions/${productionId}/cues`}
+              label="Cues"
               icon={domainIcon("cue")}
               collapsed={navCollapsed}
               onNavigate={closeMobileNav}
@@ -380,19 +417,6 @@ function AppShellInner() {
             <AppMark className="h-6 w-6 shrink-0" />
             <span className="truncate">The Theater Thing</span>
           </Link>
-          {productionId && displayProductionTitle && (
-            <>
-              <span className="hidden text-muted-foreground sm:inline" aria-hidden>
-                /
-              </span>
-              <span
-                className="hidden max-w-[12rem] truncate text-sm font-semibold sm:inline md:max-w-xs"
-                title={displayProductionTitle}
-              >
-                {displayProductionTitle}
-              </span>
-            </>
-          )}
         </div>
 
         <div className="flex shrink-0 items-center gap-1">
@@ -666,13 +690,17 @@ function AppShellInner() {
 
             {productionId && (
               <>
-                <SidebarSectionLabel label="Production" collapsed={navCollapsed} />
+                <ProductionSectionHeader
+                  productionId={productionId}
+                  title={displayProductionTitle}
+                  collapsed={navCollapsed}
+                />
                 {canRead("overview") && (
                   <SidebarNavLink
                     to={`/productions/${productionId}`}
                     end
                     label="Overview"
-                    icon={LayoutDashboard}
+                    icon={House}
                     collapsed={navCollapsed}
                     onNavigate={closeMobileNav}
                   />
@@ -738,8 +766,8 @@ function AppShellInner() {
                 <SidebarSectionLabel label="Administration" collapsed={navCollapsed} />
                 <SidebarNavLink
                   to="/users"
-                  label="User Management"
-                  icon={UserRoundCog}
+                  label="Users"
+                  icon={SquareUser}
                   collapsed={navCollapsed}
                   onNavigate={closeMobileNav}
                 />

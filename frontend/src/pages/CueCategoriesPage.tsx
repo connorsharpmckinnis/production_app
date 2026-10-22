@@ -183,7 +183,7 @@ export default function CueCategoriesPage() {
         >
           ← Overview
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight">Cue Categories</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Cues</h1>
       </div>
 
       {error && (

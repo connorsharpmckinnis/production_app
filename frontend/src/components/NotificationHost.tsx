@@ -222,8 +222,14 @@ export function NotificationBell() {
             aria-label="Close notifications"
             onClick={() => setPanelOpen(false)}
           />
-          <div className="absolute right-0 z-40 mt-1 w-[22rem] max-w-[calc(100vw-2rem)] rounded-md border border-border bg-card">
-            <div className="flex items-center justify-between border-b border-border px-3 py-2">
+          <div
+            className={cn(
+              "z-40 flex flex-col overflow-hidden rounded-md border border-border bg-card",
+              "fixed inset-x-3 top-14 max-h-[calc(100dvh-5rem)]",
+              "sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-1 sm:w-[22rem] sm:max-w-[calc(100vw-2rem)] sm:max-h-[min(24rem,calc(100dvh-5rem))]",
+            )}
+          >
+            <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2">
               <h2 className="text-sm font-medium">Notifications</h2>
               {unreadCount > 0 && (
                 <Button
@@ -238,9 +244,9 @@ export function NotificationBell() {
               )}
             </div>
             {error && (
-              <p className="border-b border-border px-3 py-2 text-xs text-destructive">{error}</p>
+              <p className="shrink-0 border-b border-border px-3 py-2 text-xs text-destructive">{error}</p>
             )}
-            <ul className="max-h-96 overflow-y-auto">
+            <ul className="min-h-0 flex-1 overflow-y-auto">
               {!inbox || inbox.items.length === 0 ? (
                 <li className="px-3 py-6 text-center text-sm text-muted-foreground">
                   You&apos;re all caught up

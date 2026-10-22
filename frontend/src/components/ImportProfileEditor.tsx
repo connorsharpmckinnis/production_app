@@ -638,35 +638,99 @@ export function ImportProfileEditor({
 
             <div className="grid gap-3 sm:grid-cols-3">
               {(rule.action.type === "set_act" || rule.action.type === "set_scene") && (
-                <div className="space-y-1.5">
-                  <Label>Regex group for the number</Label>
-                  <Input
-                    value={rule.action.number_capture ?? ""}
-                    placeholder="number or 1"
-                    onChange={(event) =>
-                      replaceRule(ruleIndex, {
-                        ...rule,
-                        action: {
-                          ...rule.action,
-                          number_capture: event.target.value || null,
-                        },
-                      })
-                    }
-                  />
-                </div>
+                <>
+                  <div className="space-y-1.5">
+                    <Label>Regex group for the number</Label>
+                    <Input
+                      value={rule.action.number_capture ?? ""}
+                      placeholder="number or 1"
+                      onChange={(event) =>
+                        replaceRule(ruleIndex, {
+                          ...rule,
+                          action: {
+                            ...rule.action,
+                            number_capture: event.target.value || null,
+                          },
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Fixed number (optional)</Label>
+                    <Input
+                      type="number"
+                      min={1}
+                      value={rule.action.literal_number ?? ""}
+                      placeholder="e.g. 1"
+                      onChange={(event) => {
+                        const raw = event.target.value.trim();
+                        const parsed = raw === "" ? null : Number(raw);
+                        replaceRule(ruleIndex, {
+                          ...rule,
+                          action: {
+                            ...rule.action,
+                            literal_number:
+                              parsed != null && Number.isFinite(parsed) && parsed >= 1
+                                ? Math.floor(parsed)
+                                : null,
+                          },
+                        });
+                      }}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      If set, used instead of the regex capture.
+                    </p>
+                  </div>
+                </>
               )}
               {rule.action.type === "set_scene" && (
+                <>
+                  <div className="space-y-1.5">
+                    <Label>Regex group for the title</Label>
+                    <Input
+                      value={rule.action.title_capture ?? ""}
+                      placeholder="title or 2"
+                      onChange={(event) =>
+                        replaceRule(ruleIndex, {
+                          ...rule,
+                          action: {
+                            ...rule.action,
+                            title_capture: event.target.value || null,
+                          },
+                        })
+                      }
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Fixed title (optional)</Label>
+                    <Input
+                      value={rule.action.literal_title ?? ""}
+                      placeholder="e.g. Prologue"
+                      onChange={(event) =>
+                        replaceRule(ruleIndex, {
+                          ...rule,
+                          action: {
+                            ...rule.action,
+                            literal_title: event.target.value || null,
+                          },
+                        })
+                      }
+                    />
+                  </div>
+                </>
+              )}
+              {rule.action.type === "set_act" && (
                 <div className="space-y-1.5">
-                  <Label>Regex group for the title</Label>
+                  <Label>Fixed title (optional)</Label>
                   <Input
-                    value={rule.action.title_capture ?? ""}
-                    placeholder="title or 2"
+                    value={rule.action.literal_title ?? ""}
+                    placeholder="e.g. Act I"
                     onChange={(event) =>
                       replaceRule(ruleIndex, {
                         ...rule,
                         action: {
                           ...rule.action,
-                          title_capture: event.target.value || null,
+                          literal_title: event.target.value || null,
                         },
                       })
                     }

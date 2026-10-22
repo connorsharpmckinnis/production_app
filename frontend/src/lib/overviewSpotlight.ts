@@ -61,14 +61,17 @@ export function dimensionHref(
     case "costumes":
       return `${base}/costumes`;
     case "cue-categories":
-      return `${base}/cue-categories`;
+    case "cues":
+      return `${base}/cues`;
     case "props":
       return `${base}/props`;
     case "microphones":
     case "lav_chart":
-      return `${base}/lav-chart`;
+    case "lav-chart":
+      return `${base}/lavs`;
     case "set-pieces":
-      return `${base}/set-pieces`;
+    case "set":
+      return `${base}/set`;
     case "timeline":
       return `${base}/timeline`;
     case "reports":

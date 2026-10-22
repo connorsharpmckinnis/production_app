@@ -24,10 +24,19 @@ class Character(Base):
     )
 
     production: Mapped["Production"] = relationship(back_populates="characters")
-    dialogue_lines: Mapped[list["Dialogue"]] = relationship(back_populates="character")
-    lyric_lines: Mapped[list["LyricLine"]] = relationship(back_populates="character")
+    # passive_deletes: catalog delete remaps these FKs in SQL first. Without it,
+    # ORM parent-delete sync NULLs nullable XOR character_ids and violates CHECK.
+    dialogue_lines: Mapped[list["Dialogue"]] = relationship(
+        back_populates="character",
+        passive_deletes=True,
+    )
+    lyric_lines: Mapped[list["LyricLine"]] = relationship(
+        back_populates="character",
+        passive_deletes=True,
+    )
     song_attribution_characters: Mapped[list["SongAttributionCharacter"]] = relationship(
         back_populates="character",
+        passive_deletes=True,
     )
     actor_assignment: Mapped["UserCharacterAssignment | None"] = relationship(
         back_populates="character",
@@ -44,18 +53,29 @@ class Character(Base):
     )
     moment_prop_events: Mapped[list["MomentPropEvent"]] = relationship(
         back_populates="character",
+        passive_deletes=True,
     )
     moment_set_piece_events: Mapped[list["MomentSetPieceEvent"]] = relationship(
         back_populates="character",
+        passive_deletes=True,
     )
     moment_costume_events: Mapped[list["MomentCostumeEvent"]] = relationship(
         back_populates="character",
+        passive_deletes=True,
     )
-    costumes: Mapped[list["Costume"]] = relationship(back_populates="character")
+    costumes: Mapped[list["Costume"]] = relationship(
+        back_populates="character",
+        passive_deletes=True,
+    )
     moment_entrances: Mapped[list["MomentEntrance"]] = relationship(
         back_populates="character",
+        passive_deletes=True,
     )
-    moment_exits: Mapped[list["MomentExit"]] = relationship(back_populates="character")
+    moment_exits: Mapped[list["MomentExit"]] = relationship(
+        back_populates="character",
+        passive_deletes=True,
+    )
     moment_blocking: Mapped[list["MomentBlocking"]] = relationship(
         back_populates="character",
+        passive_deletes=True,
     )

@@ -212,6 +212,220 @@ def test_delete_group_reassigns_to_character(
     )
 
 
+def test_delete_character_reassigns_to_character_with_overlap(
+    seeded_client: TestClient, db_session: Session
+) -> None:
+    """Character→character merge with shared moments (Tiny Tim → Tim style)."""
+    production_id = _imported_production(seeded_client, db_session)
+    headers = _login(seeded_client, "director", "director")
+
+    characters = seeded_client.get(
+        f"/api/productions/{production_id}/characters", headers=headers
+    ).json()
+    crean_id = next(c["id"] for c in characters if c["name"] == "CREAN")
+
+    tiny = seeded_client.post(
+        f"/api/productions/{production_id}/characters",
+        json={"name": "TINY TIM"},
+        headers=headers,
+    )
+    assert tiny.status_code == 201
+    tiny_id = tiny.json()["id"]
+
+    scene = (
+        db_session.query(Scene)
+        .join(Act, Act.id == Scene.act_id)
+        .filter(Act.production_id == production_id)
+        .first()
+    )
+    assert scene is not None
+    moment = (
+        db_session.query(Moment).filter(Moment.scene_id == scene.id).order_by(Moment.id).first()
+    )
+    assert moment is not None
+
+    # Overlapping dialogue on the same moment — collision path must drop Tiny's row.
+    existing = (
+        db_session.query(Dialogue)
+        .filter(Dialogue.moment_id == moment.id, Dialogue.character_id == crean_id)
+        .first()
+    )
+    if existing is None:
+        db_session.add(
+            Dialogue(moment_id=moment.id, character_id=crean_id, dialogue_text="God bless us")
+        )
+    db_session.add(
+        Dialogue(moment_id=moment.id, character_id=tiny_id, dialogue_text="every one!")
+    )
+    db_session.commit()
+
+    deleted = seeded_client.request(
+        "DELETE",
+        f"/api/productions/{production_id}/characters/{tiny_id}",
+        headers=headers,
+        json={"reassign_to": {"type": "character", "id": crean_id}},
+    )
+    assert deleted.status_code == 204, deleted.text
+    assert db_session.get(Character, tiny_id) is None
+    leftover = (
+        db_session.query(Dialogue).filter(Dialogue.character_id == tiny_id).count()
+    )
+    assert leftover == 0
+    assert (
+        db_session.query(Dialogue)
+        .filter(Dialogue.moment_id == moment.id, Dialogue.character_id == crean_id)
+        .count()
+        == 1
+    )
+
+
+def test_delete_character_reassigns_non_colliding_dialogue_to_character(
+    seeded_client: TestClient, db_session: Session
+) -> None:
+    """Non-overlapping dialogue must MOVE (not get NULLed) on character→character.
+
+    This is the production failure mode: SQLAlchemy parent-delete sync would
+    SET character_id=NULL on remapped XOR rows, violating the exactly-one-subject
+    CHECK and returning 500. Collision-only tests miss this path.
+    """
+    production_id = _imported_production(seeded_client, db_session)
+    headers = _login(seeded_client, "director", "director")
+
+    characters = seeded_client.get(
+        f"/api/productions/{production_id}/characters", headers=headers
+    ).json()
+    crean_id = next(c["id"] for c in characters if c["name"] == "CREAN")
+
+    tiny = seeded_client.post(
+        f"/api/productions/{production_id}/characters",
+        json={"name": "TINY TIM"},
+        headers=headers,
+    )
+    assert tiny.status_code == 201
+    tiny_id = tiny.json()["id"]
+
+    scenes = (
+        db_session.query(Scene)
+        .join(Act, Act.id == Scene.act_id)
+        .filter(Act.production_id == production_id)
+        .order_by(Scene.id)
+        .all()
+    )
+    assert scenes
+    moments = (
+        db_session.query(Moment)
+        .filter(Moment.scene_id == scenes[0].id)
+        .order_by(Moment.id)
+        .all()
+    )
+    assert len(moments) >= 2
+    moment_a, moment_b = moments[0], moments[1]
+
+    # Crean speaks on moment A; Tiny alone on moment B (must be remapped, not dropped).
+    if (
+        db_session.query(Dialogue)
+        .filter(Dialogue.moment_id == moment_a.id, Dialogue.character_id == crean_id)
+        .first()
+        is None
+    ):
+        db_session.add(
+            Dialogue(
+                moment_id=moment_a.id,
+                character_id=crean_id,
+                dialogue_text="God bless us",
+            )
+        )
+    db_session.add(
+        Dialogue(
+            moment_id=moment_b.id,
+            character_id=tiny_id,
+            dialogue_text="every one!",
+        )
+    )
+    db_session.commit()
+
+    deleted = seeded_client.request(
+        "DELETE",
+        f"/api/productions/{production_id}/characters/{tiny_id}",
+        headers=headers,
+        json={"reassign_to": {"type": "character", "id": crean_id}},
+    )
+    assert deleted.status_code == 204, deleted.text
+    assert db_session.get(Character, tiny_id) is None
+    assert (
+        db_session.query(Dialogue).filter(Dialogue.character_id == tiny_id).count() == 0
+    )
+    moved = (
+        db_session.query(Dialogue)
+        .filter(
+            Dialogue.moment_id == moment_b.id,
+            Dialogue.character_id == crean_id,
+            Dialogue.dialogue_text == "every one!",
+        )
+        .one()
+    )
+    assert moved.group_id is None
+
+
+def test_delete_character_reassigns_to_character_with_costume_and_cast(
+    seeded_client: TestClient, db_session: Session
+) -> None:
+    """Character→character with character-only rows + casting (delete-orphan stress)."""
+    from app.models import Costume, User, UserCharacterAssignment
+
+    production_id = _imported_production(seeded_client, db_session)
+    headers = _login(seeded_client, "director", "director")
+
+    characters = seeded_client.get(
+        f"/api/productions/{production_id}/characters", headers=headers
+    ).json()
+    crean_id = next(c["id"] for c in characters if c["name"] == "CREAN")
+
+    tiny = seeded_client.post(
+        f"/api/productions/{production_id}/characters",
+        json={"name": "TINY TIM"},
+        headers=headers,
+    )
+    tiny_id = tiny.json()["id"]
+
+    costume = seeded_client.post(
+        f"/api/productions/{production_id}/costumes",
+        json={"name": "Crutch", "character_id": tiny_id},
+        headers=headers,
+    )
+    assert costume.status_code == 201
+
+    actor = db_session.query(User).filter(User.username == "actor").first()
+    assert actor is not None
+    db_session.add(UserCharacterAssignment(user_id=actor.id, character_id=tiny_id))
+    db_session.commit()
+
+    deleted = seeded_client.request(
+        "DELETE",
+        f"/api/productions/{production_id}/characters/{tiny_id}",
+        headers=headers,
+        json={"reassign_to": {"type": "character", "id": crean_id}},
+    )
+    assert deleted.status_code == 204, deleted.text
+    assert db_session.get(Character, tiny_id) is None
+    moved = db_session.get(Costume, costume.json()["id"])
+    assert moved is not None
+    assert moved.character_id == crean_id
+    # Source cast remapped when target has none.
+    assert (
+        db_session.query(UserCharacterAssignment)
+        .filter(UserCharacterAssignment.character_id == crean_id)
+        .count()
+        == 1
+    )
+    assert (
+        db_session.query(UserCharacterAssignment)
+        .filter(UserCharacterAssignment.character_id == tiny_id)
+        .count()
+        == 0
+    )
+
+
 def test_actor_cannot_delete_character(seeded_client: TestClient, db_session: Session) -> None:
     production_id = _imported_production(seeded_client, db_session)
     director = _login(seeded_client, "director", "director")

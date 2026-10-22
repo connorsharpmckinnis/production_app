@@ -4,6 +4,12 @@ Moment subjects (dialogue, lyrics, song attribution, entrances/exits, blocking)
 use Character XOR Group. When the deleted subject is still referenced, callers
 must supply a same-production reassignment target. Character-only rows
 (costumes, lav, etc.) can move to another Character but not to a Group.
+
+Reassignment uses bulk SQL (not ORM attribute writes). Session autoflush is
+False, and Character relationships for XOR tables use nullable FKs without
+cascade: on ``db.delete(character)`` SQLAlchemy would otherwise emit
+``UPDATE … SET character_id = NULL``, undoing a character→character remap and
+violating the XOR CHECK constraints (Postgres 500).
 """
 
 from __future__ import annotations
@@ -12,7 +18,9 @@ from dataclasses import dataclass, field
 from typing import Literal
 
 from fastapi import HTTPException, status
+from sqlalchemy import delete as sa_delete
 from sqlalchemy import func, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from app.models import (
@@ -211,29 +219,29 @@ def _reassign_xor_rows(
     target_type: SubjectType,
     target_id: int,
 ) -> None:
-    """Move XOR subject rows to the target, dropping source rows that would collide."""
+    """Move XOR subject rows to the target via bulk SQL; drop collisions."""
     source_col = "character_id" if source_type == "character" else "group_id"
     target_col = "character_id" if target_type == "character" else "group_id"
     target_values = _target_filters(target_type, target_id)
 
     for model in _XOR_MODELS:
-        source_rows = (
-            db.query(model).filter(getattr(model, source_col) == source_id).all()
+        source_attr = getattr(model, source_col)
+        target_attr = getattr(model, target_col)
+
+        # Materialize ids first — SQLite rejects DELETE … IN (same-table subquery).
+        colliding_moment_ids = [
+            mid
+            for (mid,) in db.query(model.moment_id).filter(target_attr == target_id).all()
+        ]
+        if colliding_moment_ids:
+            db.query(model).filter(
+                source_attr == source_id,
+                model.moment_id.in_(colliding_moment_ids),
+            ).delete(synchronize_session=False)
+
+        db.execute(
+            update(model).where(source_attr == source_id).values(**target_values)
         )
-        for row in source_rows:
-            collision = (
-                db.query(model.id)
-                .filter(
-                    model.moment_id == row.moment_id,
-                    getattr(model, target_col) == target_id,
-                )
-                .first()
-            )
-            if collision is not None:
-                db.delete(row)
-                continue
-            row.character_id = target_values["character_id"]
-            row.group_id = target_values["group_id"]
 
 
 def _reassign_character_only_to_character(
@@ -244,7 +252,6 @@ def _reassign_character_only_to_character(
 ) -> None:
     """Move character-only FKs to another character; drop rows that would collide."""
 
-    # Costumes: always remappable (no uniqueness on character).
     db.execute(
         update(Costume)
         .where(Costume.character_id == source_id)
@@ -252,42 +259,43 @@ def _reassign_character_only_to_character(
     )
 
     # Costume events: unique (moment_id, character_id)
-    for row in (
-        db.query(MomentCostumeEvent)
-        .filter(MomentCostumeEvent.character_id == source_id)
+    colliding_moment_ids = [
+        mid
+        for (mid,) in db.query(MomentCostumeEvent.moment_id)
+        .filter(MomentCostumeEvent.character_id == target_id)
         .all()
-    ):
-        collision = (
-            db.query(MomentCostumeEvent.id)
-            .filter(
-                MomentCostumeEvent.moment_id == row.moment_id,
-                MomentCostumeEvent.character_id == target_id,
-            )
-            .first()
-        )
-        if collision is not None:
-            db.delete(row)
-        else:
-            row.character_id = target_id
+    ]
+    if colliding_moment_ids:
+        db.query(MomentCostumeEvent).filter(
+            MomentCostumeEvent.character_id == source_id,
+            MomentCostumeEvent.moment_id.in_(colliding_moment_ids),
+        ).delete(synchronize_session=False)
+    db.execute(
+        update(MomentCostumeEvent)
+        .where(MomentCostumeEvent.character_id == source_id)
+        .values(character_id=target_id)
+    )
 
     # Lav pack/wire: unique (production_id, scene_id, character_id)
     for model in (LavPackAssignment, LavWireAssignment):
-        for row in db.query(model).filter(model.character_id == source_id).all():
-            collision = (
-                db.query(model.id)
-                .filter(
-                    model.production_id == row.production_id,
-                    model.scene_id == row.scene_id,
-                    model.character_id == target_id,
-                )
-                .first()
-            )
-            if collision is not None:
-                db.delete(row)
-            else:
-                row.character_id = target_id
+        colliding = (
+            db.query(model.production_id, model.scene_id)
+            .filter(model.character_id == target_id)
+            .all()
+        )
+        if colliding:
+            for production_id, scene_id in colliding:
+                db.query(model).filter(
+                    model.character_id == source_id,
+                    model.production_id == production_id,
+                    model.scene_id == scene_id,
+                ).delete(synchronize_session=False)
+        db.execute(
+            update(model)
+            .where(model.character_id == source_id)
+            .values(character_id=target_id)
+        )
 
-    # Prop / set events: soft affiliation; remapping is fine (no unique on character).
     db.execute(
         update(MomentPropEvent)
         .where(MomentPropEvent.character_id == source_id)
@@ -299,27 +307,46 @@ def _reassign_character_only_to_character(
         .values(character_id=target_id)
     )
 
-    # Notes: optional character target — move rather than drop when remapping.
     db.execute(
         update(Note).where(Note.character_id == source_id).values(character_id=target_id)
     )
 
     # Casting: one actor per character. Prefer keeping the target's cast if both exist.
-    source_cast = (
-        db.query(UserCharacterAssignment)
-        .filter(UserCharacterAssignment.character_id == source_id)
+    target_has_cast = (
+        db.query(UserCharacterAssignment.id)
+        .filter(UserCharacterAssignment.character_id == target_id)
         .first()
+        is not None
     )
-    if source_cast is not None:
-        target_cast = (
-            db.query(UserCharacterAssignment)
-            .filter(UserCharacterAssignment.character_id == target_id)
-            .first()
+    if target_has_cast:
+        db.query(UserCharacterAssignment).filter(
+            UserCharacterAssignment.character_id == source_id
+        ).delete(synchronize_session=False)
+    else:
+        db.execute(
+            update(UserCharacterAssignment)
+            .where(UserCharacterAssignment.character_id == source_id)
+            .values(character_id=target_id)
         )
-        if target_cast is not None:
-            db.delete(source_cast)
-        else:
-            source_cast.character_id = target_id
+
+
+def _commit_catalog_delete(db: Session, *, entity: str) -> None:
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "code": "delete_constraint_violation",
+                "message": (
+                    f"Could not delete this {entity} because related records "
+                    "could not be reassigned or removed cleanly. "
+                    "Choose a different reassignment target, or clear "
+                    "remaining affiliations and try again."
+                ),
+            },
+        ) from exc
 
 
 def delete_character(
@@ -380,7 +407,9 @@ def delete_character(
                 target_type=reassign_to_type,
                 target_id=reassign_to_id,
             )
-        if impact.blocker_total and reassign_to_type == "character":
+        if reassign_to_type == "character":
+            # Always remap character-only FKs (including notes/cast) for a
+            # character target — not only when impact counted blockers.
             _reassign_character_only_to_character(
                 db,
                 source_id=character_id,
@@ -409,8 +438,10 @@ def delete_character(
             .values(character_id=None)
         )
 
-    db.delete(character)
-    db.commit()
+    # SQL DELETE avoids ORM relationship sync that NULLs nullable XOR FKs.
+    db.expunge(character)
+    db.execute(sa_delete(Character).where(Character.id == character_id))
+    _commit_catalog_delete(db, entity="character")
 
 
 def delete_group(
@@ -464,5 +495,6 @@ def delete_group(
         synchronize_session=False
     )
 
-    db.delete(group)
-    db.commit()
+    db.expunge(group)
+    db.execute(sa_delete(Group).where(Group.id == group_id))
+    _commit_catalog_delete(db, entity="group")

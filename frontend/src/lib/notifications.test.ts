@@ -5,7 +5,9 @@ describe("notification route helpers", () => {
   it("maps production overview and catalog routes", () => {
     expect(routeKeyFromPath("/productions/12")).toBe("overview");
     expect(routeKeyFromPath("/productions/12/people")).toBe("people");
-    expect(routeKeyFromPath("/productions/12/cue-categories")).toBe("cue-categories");
+    expect(routeKeyFromPath("/productions/12/cues")).toBe("cues");
+    expect(routeKeyFromPath("/productions/12/set")).toBe("set");
+    expect(routeKeyFromPath("/productions/12/lavs")).toBe("lavs");
   });
 
   it("keeps Rehearse as a route-filter key after canonical redirect", () => {

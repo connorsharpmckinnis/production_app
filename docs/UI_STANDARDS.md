@@ -36,7 +36,7 @@ Visibility is capability-driven (`read` on each resource). Seeded defaults rough
 | People | Yes | Yes | Yes (read roster) |
 | Characters | Yes | Yes | Yes (read-only casting column) |
 | Songs / Props / Costumes / Set pieces | Yes | Yes | Yes (read) |
-| Groups / Cue Categories / Lav chart | Yes | Yes | Hidden unless matrix grants `read` |
+| Groups / Cues / Lavs | Yes | Yes | Hidden unless matrix grants `read` |
 | Rehearse / Rehearsals / Reports | Yes | Yes | Per matrix |
 
 Global nav: Productions; Users + Settings (Admin only). A future **Casting** nav item is reserved for [casting-and-auditions.md](feature_plans/casting-and-auditions.md) and is not present yet.
@@ -162,7 +162,7 @@ Moments listed in sequence order; click row → detail inspector (co-planar on d
 * **Director/Admin:** CRUD prop catalog.
 * Attach props to moments from the timeline moment sheet (optional carrier character, notes).
 
-### Cue Categories (Preparation — Director/Admin)
+### Cues (Preparation — Director/Admin)
 
 * Table: name, description.
 * CRUD categories (Lighting, Sound, etc.).
@@ -238,9 +238,9 @@ Semantic action colors:
 | Import | Yes | Hidden | Hidden |
 | User management | Yes | Hidden | Hidden |
 | Casting controls | Yes | Yes | Hidden |
-| Groups / Cue Categories | Yes | Yes | Hidden |
-| Costumes / Set Pieces catalog | Yes | Yes | Read-only |
-| Lav chart (wires/packs) | Yes | Yes | Hidden (Director/Admin) |
+| Groups / Cues | Yes | Yes | Hidden |
+| Costumes / Set catalog | Yes | Yes | Read-only |
+| Lavs (wires/packs) | Yes | Yes | Hidden (Director/Admin) |
 | App Settings | Yes | Hidden | Hidden |
 | Reports | Yes | Yes | Hidden |
 | Songs / Props catalog edit | Yes | Yes | Hidden (read-only) |
@@ -267,7 +267,7 @@ Semantic action colors:
 * Parsed-data correction collapsed behind pencil toggle; global App Settings for original/parsed text visibility
 * Prose-like timeline rows with optional dialogue character column; song/lyric rows use a soft `moment-song` background tint for glanceability
 * Structural editing: insert (inline form), delete (confirm), move up/down
-* Prep catalog pages: Costumes (scene+character), Set Pieces; Lav chart for wires/packs
+* Prep catalog pages: Costumes (scene+character), Set; Lavs for wires/packs
 * Moment detail sections for set pieces (mirror props); lav change Moments are a Phase 13 follow-on
 * Timeline filters: microphone, set piece, `costume_only` checkbox
 * Reports page: prop sheet, cue sheet, costumes-by-scene

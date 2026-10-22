@@ -163,7 +163,7 @@ export default function SetPiecesPage() {
         >
           ← Overview
         </Link>
-        <h1 className="text-2xl font-semibold tracking-tight">Set Pieces</h1>
+        <h1 className="text-2xl font-semibold tracking-tight">Set</h1>
       </div>
 
       {error && (

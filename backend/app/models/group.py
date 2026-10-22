@@ -29,9 +29,11 @@ class Group(Base):
     )
     moment_entrances: Mapped[list["MomentEntrance"]] = relationship(
         back_populates="group",
+        passive_deletes=True,
     )
     moment_exits: Mapped[list["MomentExit"]] = relationship(
         back_populates="group",
+        passive_deletes=True,
     )
 
 

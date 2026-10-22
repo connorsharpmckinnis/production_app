@@ -36,10 +36,10 @@ export const ROUTE_FILTER_OPTIONS = [
   { value: "songs", label: "Songs" },
   { value: "props", label: "Props" },
   { value: "costumes", label: "Costumes" },
-  { value: "set-pieces", label: "Set Pieces" },
-  { value: "cue-categories", label: "Cue Categories" },
+  { value: "set", label: "Set" },
+  { value: "cues", label: "Cues" },
   { value: "people", label: "People" },
   { value: "groups", label: "Groups" },
-  { value: "lav-chart", label: "Lav Chart" },
+  { value: "lavs", label: "Lavs" },
   { value: "reports", label: "Reports" },
 ] as const;

@@ -399,8 +399,8 @@ function ActorOverview({
             description="Schedule and call sheets"
           />
           <ShortcutCard
-            to={`/productions/${productionId}/lav-chart`}
-            label="Lav chart"
+            to={`/productions/${productionId}/lavs`}
+            label="Lavs"
             description="Mic and pack assignments"
           />
           <ShortcutCard

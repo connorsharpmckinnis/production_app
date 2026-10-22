@@ -178,7 +178,7 @@ export default function UsersPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">User Management</h1>
+          <h1 className="text-2xl font-semibold tracking-tight">Users</h1>
         </div>
         <Button type="button" onClick={() => setCreateDialogOpen(true)}>
           Create User
