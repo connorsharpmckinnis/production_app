@@ -1,6 +1,6 @@
 # UI Standards
 
-**Version:** 0.7 (reader Timeline + co-planar inspector + domainIcons; 2026-09-23)
+**Version:** 0.8 (Timeline density prefs + inspector sidebar collapse + hide empty detail sections; 2026-10-24)
 
 Minimum UI conventions for the Theater App. Slice 1 covers import and read-only timeline; Slice 2 adds casting, filters, notes, and bookmarks; Slice 3 adds import-review editing, songs, props, and cues.
 
@@ -109,6 +109,7 @@ Moments listed in sequence order; click row → detail inspector (co-planar on d
 **Moment list:**
 
 * Script-page gutter: character name (uppercase sans) + optional `L.{n}`; dialogue/stage direction body in **Libre Baskerville** (`font-script`). Stage directions leave the name blank (no “Dir.” label).
+* Default reading density: **13px** script, compact row padding (CSS vars `--timeline-script-size` / `--timeline-row-*`). User-local overrides via account menu or App Settings → Reading density.
 * No per-row divider lines (script feel, not spreadsheet).
 * When **Prep badges** is on: domain-icon chips in the gutter for props/cues/entrances/exits/blocking/set/costume (`domainIcon()` from [domainIcons.ts](../frontend/src/lib/domainIcons.ts)). Selected rows upgrade chip labels from loaded moment detail when available.
 * Selected row: 2px outline only (layout-neutral reserved border). When the selected moment scrolls fully out of view, a matching chevron at the top or bottom of the list recenters it.
@@ -119,10 +120,11 @@ Moments listed in sequence order; click row → detail inspector (co-planar on d
 
 **Moment detail (inspector):**
 
-* **Desktop (≥1024px):** co-planar right column beside the Timeline — same hierarchy, no dimming overlay; Timeline stays scrollable.
+* **Desktop (≥1024px):** co-planar right column beside the Timeline — same hierarchy, no dimming overlay; Timeline stays scrollable. Opening the inspector **temporarily collapses** the left nav (icon rail) and restores the prior expanded/collapsed preference on close.
 * **Mobile:** full-height bottom `Sheet`.
 * Close via header X or Escape; switching rows updates selection.
 * Does **not** repeat the line/lyric/direction already visible on the selected Timeline row (script edit fields still show for Admin).
+* Empty attachment sections (Props, Costumes, Entrances, etc.) are **omitted** until they have content or in-play/wearing state; attach via **Add to moment**.
 * **Notes** list + add form; Director/Admin can choose public/private visibility.
 * Catalog object names (entrances, props, etc.) use **ObjectLink** where the user has `read` — opens the shared object detail Sheet (not a new nav route).
 * Domain icons on attachment type picker and section headers come from the same `domainIcons` registry as Timeline chips and prep nav.
@@ -136,8 +138,8 @@ Moments listed in sequence order; click row → detail inspector (co-planar on d
 
 **Typography:**
 
-* UI chrome (nav, buttons, badges, character names, line numbers): system sans.
-* Script body (Timeline dialogue / lyrics / stage directions, and matching edit fields): Libre Baskerville via `font-script`.
+* UI chrome (nav, buttons, badges, character names, line numbers): system sans. Optional user-local **Interface text** scale (`--app-ui-font-size`) via Reading density prefs.
+* Script body (Timeline dialogue / lyrics / stage directions, and matching edit fields): Libre Baskerville via `font-script`; Timeline list size follows `--timeline-script-size`.
 
 **Bookmarks (user menu):**
 
@@ -295,8 +297,10 @@ Semantic action colors:
 * Shared `TimelineMomentList` — full-row click targets, keyboard accessible, shared highlight styles
 * Timeline **Advanced filters** disclosure for director prep controls; cue-only checkbox removed; Sheet on small screens
 * Timeline **live search** (debounce ~275ms; Enter commits immediately) and **multi-select character filter** (OR within characters; AND with other filters). Rehearse has live search only
-* Moment detail: **Imported data** label; **Add to moment** menu; on-stage block removed; irrelevant fields hidden
+* Moment detail: **Imported data** label; **Add to moment** menu; on-stage block removed; empty attachment sections omitted; irrelevant fields hidden
 * **Theme** — light/dark/system plus Warm and Stage palette presets (Settings + user menu); tokens in `index.css`
+* **Reading density** — user-local `display.prefs` (script px, Timeline row spacing, UI chrome scale); App Settings + account menu; defaults 13px / compact
+* Desktop moment inspector temporarily collapses the left sidebar without rewriting the persisted `sidebar.collapsed` preference
 
 ---
 

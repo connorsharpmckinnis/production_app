@@ -6,6 +6,7 @@ import { Sheet, SheetContent, SheetTitle } from "@/components/ui/sheet";
 import MomentDetailPanel, {
   type MomentDetailPanelHandle,
 } from "@/components/MomentDetailPanel";
+import { useSidebarCollapse } from "@/context/SidebarCollapseContext";
 import { useIsLargeScreen } from "@/hooks/useIsLargeScreen";
 import { useDetailPanelWidth } from "@/hooks/useDetailPanelWidth";
 import type {
@@ -80,9 +81,23 @@ export default function MomentDetailSheet({
   const isInline = presentation === "inline";
   const { width: detailPanelWidth, persistWidth: persistDetailPanelWidth } =
     useDetailPanelWidth();
+  const sidebarCollapse = useSidebarCollapse();
+  const beginTemporaryCollapse = sidebarCollapse?.beginTemporaryCollapse;
+  const endTemporaryCollapse = sidebarCollapse?.endTemporaryCollapse;
   const detailPanelRef = useRef<MomentDetailPanelHandle>(null);
   const [scriptDirty, setScriptDirty] = useState(false);
   const [footerBusy, setFooterBusy] = useState(false);
+
+  // Free horizontal space while the co-planar inspector is open; restore after.
+  useEffect(() => {
+    if (!isInline || !open || !beginTemporaryCollapse || !endTemporaryCollapse) {
+      return;
+    }
+    beginTemporaryCollapse();
+    return () => {
+      endTemporaryCollapse();
+    };
+  }, [open, isInline, beginTemporaryCollapse, endTemporaryCollapse]);
 
   useEffect(() => {
     if (!open) {

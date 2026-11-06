@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import AnnouncementManager from "@/components/AnnouncementManager";
 import CatalogPageSkeleton from "@/components/CatalogPageSkeleton";
+import DisplayPrefsControls from "@/components/DisplayPrefsControls";
 import ProductionRolePermissionsSection from "@/components/ProductionRolePermissionsSection";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -150,8 +151,8 @@ export default function SettingsPage() {
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">App Settings</h1>
         <p className="text-sm text-muted-foreground">
-          Global display options, Overview rotating messages, production roles, and
-          org-wide announcements.
+          Global display options, reading density (this browser), Overview rotating
+          messages, production roles, and org-wide announcements.
         </p>
       </div>
 
@@ -259,6 +260,10 @@ export default function SettingsPage() {
       />
 
       <AnnouncementManager productionId={null} />
+
+      <div className="rounded-lg border border-border p-4">
+        <DisplayPrefsControls />
+      </div>
 
       <div className="rounded-lg border border-border p-4">
         <ThemeToggle />

@@ -35,7 +35,8 @@ export function momentHighlightRowClass(
 ): string {
   const isSong = momentType != null && isSongMomentType(momentType);
   return cn(
-    "relative flex w-full min-h-[2.5rem] cursor-pointer items-stretch gap-3 rounded-md border-2 border-transparent px-3 py-2.5 text-left text-sm transition-colors",
+    "relative flex w-full cursor-pointer items-stretch rounded-md border-2 border-transparent px-3 text-left text-sm transition-colors",
+    "min-h-[var(--timeline-row-min-h)] gap-[length:var(--timeline-row-gap)] py-[length:var(--timeline-row-py)]",
     // Half-strength tint — glanceable like Excel zebra rows, not a highlighter.
     isSong && !isSelected && "bg-moment-song/30",
     isSelected && "border-foreground/80 bg-background",

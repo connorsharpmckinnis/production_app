@@ -451,7 +451,7 @@ function MomentRow({
       <div className="min-w-0 flex-1 self-stretch">
         <p
           className={cn(
-            "font-script whitespace-pre-wrap break-words text-[15px] leading-relaxed text-foreground",
+            "font-script whitespace-pre-wrap break-words text-[length:var(--timeline-script-size)] leading-snug text-foreground",
             moment.moment_type === "stage_direction" && "italic text-muted-foreground",
             momentTextBlurClass(!!shouldBlur, revealed),
           )}

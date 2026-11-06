@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { Link, NavLink, Outlet, useLocation, useParams } from "react-router-dom";
 import {
   ArrowLeft,
@@ -29,11 +29,16 @@ import {
   NotificationProvider,
 } from "@/components/NotificationHost";
 import ObjectDetailHost from "@/components/object-detail/ObjectDetailHost";
+import DisplayPrefsControls from "@/components/DisplayPrefsControls";
 import ThemeToggle from "@/components/ThemeToggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { ObjectDetailProvider } from "@/context/ObjectDetailContext";
+import {
+  SidebarCollapseContext,
+  type SidebarCollapseContextValue,
+} from "@/context/SidebarCollapseContext";
 import { domainIcon } from "@/lib/domainIcons";
 import {
   ProductionAccessProvider,
@@ -217,6 +222,8 @@ function AppShellInner() {
   const isMediumScreen = useIsMediumScreen();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => readSidebarCollapsed(false));
+  /** True when we collapsed for moment detail without rewriting localStorage. */
+  const temporaryCollapseActiveRef = useRef(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [productionTitle, setProductionTitle] = useState<string | null>(null);
   const [productionHasScript, setProductionHasScript] = useState(true);
@@ -247,13 +254,43 @@ function AppShellInner() {
     setSidebarOpen(false);
   }
 
-  function toggleSidebarCollapsed() {
+  const toggleSidebarCollapsed = useCallback(() => {
+    temporaryCollapseActiveRef.current = false;
     setSidebarCollapsed((prev) => {
       const next = !prev;
       writeSidebarCollapsed(next);
       return next;
     });
-  }
+  }, []);
+
+  const beginTemporaryCollapse = useCallback(() => {
+    setSidebarCollapsed((prev) => {
+      if (prev) return prev;
+      temporaryCollapseActiveRef.current = true;
+      return true;
+    });
+  }, []);
+
+  const endTemporaryCollapse = useCallback(() => {
+    if (!temporaryCollapseActiveRef.current) return;
+    temporaryCollapseActiveRef.current = false;
+    setSidebarCollapsed(false);
+  }, []);
+
+  const sidebarCollapseValue = useMemo<SidebarCollapseContextValue>(
+    () => ({
+      collapsed: sidebarCollapsed,
+      toggleCollapsed: toggleSidebarCollapsed,
+      beginTemporaryCollapse,
+      endTemporaryCollapse,
+    }),
+    [
+      sidebarCollapsed,
+      toggleSidebarCollapsed,
+      beginTemporaryCollapse,
+      endTemporaryCollapse,
+    ],
+  );
 
   useEffect(() => {
     if (!productionId) {
@@ -383,6 +420,7 @@ function AppShellInner() {
   ) : null;
 
   return (
+    <SidebarCollapseContext.Provider value={sidebarCollapseValue}>
     <div className="flex h-dvh flex-col overflow-hidden bg-background">
       <a
         href="#main-content"
@@ -498,8 +536,9 @@ function AppShellInner() {
                   >
                     Send feedback
                   </Button>
-                  <div className="border-t border-border px-3 py-2">
+                  <div className="space-y-3 border-t border-border px-3 py-2">
                     <ThemeToggle compact />
+                    <DisplayPrefsControls compact />
                   </div>
                   <Button
                     type="button"
@@ -798,5 +837,6 @@ function AppShellInner() {
       <NotificationModal />
       <ObjectDetailHost />
     </div>
+    </SidebarCollapseContext.Provider>
   );
 }

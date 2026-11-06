@@ -2518,6 +2518,11 @@ function AttachmentSection({
   const hasContent = items.length > 0;
   const Icon = iconKind ? domainIcon(iconKind) : null;
 
+  // Hide empty sections — attach via "Add to moment" instead of empty headers.
+  if (!hasContent) {
+    return null;
+  }
+
   return (
     <div className="border-t border-border pt-4">
       <button
@@ -2530,7 +2535,7 @@ function AttachmentSection({
           {title}
         </h3>
         <span className="text-xs text-muted-foreground">
-          {hasContent ? `${items.length}` : "—"} {expanded ? "▾" : "▸"}
+          {items.length} {expanded ? "▾" : "▸"}
         </span>
       </button>
       {expanded && (
@@ -2822,6 +2827,12 @@ function AssetEventSection({
     if (expandSignal > 0) setExpanded(true);
   }, [expandSignal]);
   const Icon = iconKind ? domainIcon(iconKind) : null;
+  const hasSectionContent = events.length > 0 || inPlay.length > 0;
+
+  // Hide when this moment has no events and nothing currently in play.
+  if (!hasSectionContent) {
+    return null;
+  }
 
   return (
     <div className="border-t border-border pt-4">
@@ -3242,6 +3253,12 @@ function CostumeEventSection({
   }, [defaultExpanded]);
 
   const CostumeIcon = domainIcon("costume");
+  const hasSectionContent = events.length > 0 || wearing.length > 0;
+
+  // Hide when this moment has no costume events and nobody currently wearing.
+  if (!hasSectionContent) {
+    return null;
+  }
 
   return (
     <div className="border-t border-border pt-4">

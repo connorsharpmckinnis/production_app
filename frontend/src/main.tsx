@@ -6,23 +6,29 @@ import { BrowserRouter } from "react-router-dom";
 import App from "./App";
 import { AuthProvider } from "@/context/AuthContext";
 import { ConfirmProvider } from "@/context/ConfirmContext";
+import { DisplayPrefsProvider } from "@/context/DisplayPrefsContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ToastProvider } from "@/context/ToastContext";
+import { initDisplayPrefsFromStorage } from "@/lib/displayPrefs";
 import { queryClient } from "@/lib/queryClient";
 import "./index.css";
+
+initDisplayPrefsFromStorage();
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
         <ThemeProvider>
-          <AuthProvider>
-            <ToastProvider>
-              <ConfirmProvider>
-                <App />
-              </ConfirmProvider>
-            </ToastProvider>
-          </AuthProvider>
+          <DisplayPrefsProvider>
+            <AuthProvider>
+              <ToastProvider>
+                <ConfirmProvider>
+                  <App />
+                </ConfirmProvider>
+              </ToastProvider>
+            </AuthProvider>
+          </DisplayPrefsProvider>
         </ThemeProvider>
       </BrowserRouter>
       {import.meta.env.DEV ? (

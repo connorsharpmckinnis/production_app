@@ -40,6 +40,14 @@
   --moment-song-foreground: oklch(0.38 0.14 300);
   --highlight: oklch(0.62 0.19 255);
   --highlight-muted: oklch(0.96 0.03 250);
+
+  /* Timeline density — overridden by display prefs (this browser). */
+  --timeline-script-size: 13px;
+  --timeline-row-py: 0.375rem;
+  --timeline-row-gap: 0.5rem;
+  --timeline-row-min-h: 2rem;
+  /* UI chrome scale (headers/buttons); 100% = browser default rem. */
+  --app-ui-font-size: 100%;
 }
 
 .dark {
@@ -323,6 +331,10 @@
   --radius-xl: calc(var(--radius) + 4px);
   /* Script body — printed-play feel; UI chrome stays system sans */
   --font-script: "Libre Baskerville", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+}
+
+html {
+  font-size: var(--app-ui-font-size);
 }
 
 body {
