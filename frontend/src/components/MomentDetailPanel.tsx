@@ -2208,7 +2208,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         )}
 
         <AttachmentSection
-          productionId={productionId}
           title="Entrances"
           iconKind="entrance"
           emptyMessage="No entrances recorded."
@@ -2258,7 +2257,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         />
 
         <AttachmentSection
-          productionId={productionId}
           title="Exits"
           iconKind="exit"
           emptyMessage="No exits recorded."
@@ -2308,7 +2306,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         />
 
         <AttachmentSection
-          productionId={productionId}
           title="Blocking"
           iconKind="blocking"
           emptyMessage="No blocking notes."
@@ -2350,7 +2347,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
         />
 
         <AttachmentSection
-          productionId={productionId}
           title="Cues"
           iconKind="cue"
           emptyMessage="No cues attached."
@@ -2483,7 +2479,6 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
 );
 
 function AttachmentSection({
-  productionId,
   title,
   iconKind,
   emptyMessage,
@@ -2496,7 +2491,6 @@ function AttachmentSection({
   defaultExpanded = true,
   attachForm,
 }: {
-  productionId: number;
   title: string;
   /** When set, section header uses the shared domain icon. */
   iconKind?: MomentAttachmentKind;

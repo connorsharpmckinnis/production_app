@@ -2,6 +2,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } fr
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { ChevronDown, X } from "lucide-react";
 import CharacterMultiSelect from "@/components/CharacterMultiSelect";
+import CatalogMultiSelect from "@/components/CatalogMultiSelect";
 import EmptyState from "@/components/EmptyState";
 import MomentDetailSheet from "@/components/MomentDetailSheet";
 import PrepBadgeKindFilters, {
@@ -79,7 +80,7 @@ import type {
 import { momentTypeLabel, sortByName, cn } from "@/lib/utils";
 
 type GroupFilterValue = "all" | string;
-type ResourceFilterValue = "all" | string;
+type ResourceFilterValue = number[];
 
 function prefsOrDefault(productionId: number): StoredTimelinePrefs {
   return loadTimelinePrefs(productionId) ?? DEFAULT_TIMELINE_PREFS;
@@ -174,11 +175,11 @@ export default function TimelinePage() {
             entranceOnly: false,
             exitOnly: false,
             blockingOnly: false,
-            blockingCharacterFilter: "all" as const,
-            songFilter: "all" as const,
-            propFilter: "all" as const,
-            cueCategoryFilter: "all" as const,
-            setPieceFilter: "all" as const,
+            blockingCharacterFilter: [],
+            songFilter: [],
+            propFilter: [],
+            cueCategoryFilter: [],
+            setPieceFilter: [],
           }
         : {
             characterIds: selectedCharacterIds,
@@ -470,11 +471,11 @@ export default function TimelinePage() {
     entranceOnly,
     exitOnly,
     blockingOnly,
-    blockingCharacterFilter !== "all",
-    songFilter !== "all",
-    propFilter !== "all",
-    cueCategoryFilter !== "all",
-    setPieceFilter !== "all",
+    blockingCharacterFilter.length > 0,
+    songFilter.length > 0,
+    propFilter.length > 0,
+    cueCategoryFilter.length > 0,
+    setPieceFilter.length > 0,
   ].filter(Boolean).length;
 
   const hasActiveFilters =
@@ -682,56 +683,26 @@ export default function TimelinePage() {
       });
     }
 
-    if (blockingCharacterFilter !== "all") {
-      const character = scene.characters.find(
-        (item) => String(item.id) === blockingCharacterFilter,
-      );
-      chips.push({
-        key: `blocking-character-${blockingCharacterFilter}`,
-        label: `Blocking: ${character?.name ?? "Character"}`,
-        onDismiss: () => setBlockingCharacterFilter("all"),
-      });
-    }
-
-    if (songFilter !== "all") {
-      const song = scene.songs.find((item) => String(item.id) === songFilter);
-      chips.push({
-        key: `song-${songFilter}`,
-        label: song?.title ?? "Song",
-        onDismiss: () => setSongFilter("all"),
-      });
-    }
-
-    if (propFilter !== "all") {
-      const prop = scene.propsCatalog.find((item) => String(item.id) === propFilter);
-      chips.push({
-        key: `prop-${propFilter}`,
-        label: prop?.name ?? "Prop",
-        onDismiss: () => setPropFilter("all"),
-      });
-    }
-
-    if (cueCategoryFilter !== "all") {
-      const category = scene.cueCategories.find(
-        (item) => String(item.id) === cueCategoryFilter,
-      );
-      chips.push({
-        key: `cue-${cueCategoryFilter}`,
-        label: category?.name ?? "Cue category",
-        onDismiss: () => setCueCategoryFilter("all"),
-      });
-    }
-
-    if (setPieceFilter !== "all") {
-      const piece = scene.setPiecesCatalog.find(
-        (item) => String(item.id) === setPieceFilter,
-      );
-      chips.push({
-        key: `set-piece-${setPieceFilter}`,
-        label: piece?.name ?? "Set piece",
-        onDismiss: () => setSetPieceFilter("all"),
-      });
-    }
+    blockingCharacterFilter.forEach((id) => {
+      const character = scene.characters.find((item) => item.id === id);
+      chips.push({ key: `blocking-character-${id}`, label: `Blocking: ${character?.name ?? "Character"}`, onDismiss: () => setBlockingCharacterFilter(blockingCharacterFilter.filter((value) => value !== id)) });
+    });
+    songFilter.forEach((id) => {
+      const song = scene.songs.find((item) => item.id === id);
+      chips.push({ key: `song-${id}`, label: song?.title ?? "Song", onDismiss: () => setSongFilter(songFilter.filter((value) => value !== id)) });
+    });
+    propFilter.forEach((id) => {
+      const prop = scene.propsCatalog.find((item) => item.id === id);
+      chips.push({ key: `prop-${id}`, label: prop?.name ?? "Prop", onDismiss: () => setPropFilter(propFilter.filter((value) => value !== id)) });
+    });
+    cueCategoryFilter.forEach((id) => {
+      const category = scene.cueCategories.find((item) => item.id === id);
+      chips.push({ key: `cue-${id}`, label: category?.name ?? "Cue category", onDismiss: () => setCueCategoryFilter(cueCategoryFilter.filter((value) => value !== id)) });
+    });
+    setPieceFilter.forEach((id) => {
+      const piece = scene.setPiecesCatalog.find((item) => item.id === id);
+      chips.push({ key: `set-piece-${id}`, label: piece?.name ?? "Set piece", onDismiss: () => setSetPieceFilter(setPieceFilter.filter((value) => value !== id)) });
+    });
 
     return chips;
   }, [
@@ -773,11 +744,11 @@ export default function TimelinePage() {
     setEntranceOnly(false);
     setExitOnly(false);
     setBlockingOnly(false);
-    setBlockingCharacterFilter("all");
-    setSongFilter("all");
-    setPropFilter("all");
-    setCueCategoryFilter("all");
-    setSetPieceFilter("all");
+    setBlockingCharacterFilter([]);
+    setSongFilter([]);
+    setPropFilter([]);
+    setCueCategoryFilter([]);
+    setSetPieceFilter([]);
   }
 
   function resetInsertForm() {
@@ -1575,16 +1546,16 @@ function AdvancedFiltersPanel({
   setExitOnly: (value: boolean) => void;
   blockingOnly: boolean;
   setBlockingOnly: (value: boolean) => void;
-  blockingCharacterFilter: ResourceFilterValue;
-  setBlockingCharacterFilter: (value: ResourceFilterValue) => void;
-  songFilter: ResourceFilterValue;
-  setSongFilter: (value: ResourceFilterValue) => void;
-  propFilter: ResourceFilterValue;
-  setPropFilter: (value: ResourceFilterValue) => void;
-  cueCategoryFilter: ResourceFilterValue;
-  setCueCategoryFilter: (value: ResourceFilterValue) => void;
-  setPieceFilter: ResourceFilterValue;
-  setSetPieceFilter: (value: ResourceFilterValue) => void;
+  blockingCharacterFilter: number[];
+  setBlockingCharacterFilter: (value: number[]) => void;
+  songFilter: number[];
+  setSongFilter: (value: number[]) => void;
+  propFilter: number[];
+  setPropFilter: (value: number[]) => void;
+  cueCategoryFilter: number[];
+  setCueCategoryFilter: (value: number[]) => void;
+  setPieceFilter: number[];
+  setSetPieceFilter: (value: number[]) => void;
   characters: CharacterDetailResponse[];
   songs: { id: number; title: string }[];
   propsCatalog: { id: number; name: string }[];
@@ -1659,98 +1630,33 @@ function AdvancedFiltersPanel({
       )}
 
       {canManagePreparation && (
-        <Select
-          value={blockingCharacterFilter}
-          onValueChange={(value) => setBlockingCharacterFilter(value as ResourceFilterValue)}
-        >
-          <SelectTrigger className="w-fit" aria-label="Filter by blocking character">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All blocking characters</SelectItem>
-            {characters.map((character) => (
-              <SelectItem key={character.id} value={String(character.id)}>
-                Blocking: {character.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <CatalogMultiSelect
+          label="blocking characters"
+          items={characters}
+          selectedIds={blockingCharacterFilter}
+          onChange={setBlockingCharacterFilter}
+        />
       )}
 
       {songs.length > 0 && (
-        <Select
-          value={songFilter}
-          onValueChange={(value) => setSongFilter(value as ResourceFilterValue)}
-        >
-          <SelectTrigger className="w-fit" aria-label="Filter by song">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All songs</SelectItem>
-            {songs.map((song) => (
-              <SelectItem key={song.id} value={String(song.id)}>
-                {song.title}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <CatalogMultiSelect
+          label="songs"
+          items={songs.map((song) => ({ id: song.id, name: song.title }))}
+          selectedIds={songFilter}
+          onChange={setSongFilter}
+        />
       )}
 
       {canManagePreparation && propsCatalog.length > 0 && (
-        <Select
-          value={propFilter}
-          onValueChange={(value) => setPropFilter(value as ResourceFilterValue)}
-        >
-          <SelectTrigger className="w-fit" aria-label="Filter by prop">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All props</SelectItem>
-            {propsCatalog.map((prop) => (
-              <SelectItem key={prop.id} value={String(prop.id)}>
-                {prop.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <CatalogMultiSelect label="props" items={propsCatalog} selectedIds={propFilter} onChange={setPropFilter} />
       )}
 
       {canManagePreparation && cueCategories.length > 0 && (
-        <Select
-          value={cueCategoryFilter}
-          onValueChange={(value) => setCueCategoryFilter(value as ResourceFilterValue)}
-        >
-          <SelectTrigger className="w-fit" aria-label="Filter by cue category">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All cue categories</SelectItem>
-            {cueCategories.map((category) => (
-              <SelectItem key={category.id} value={String(category.id)}>
-                {category.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <CatalogMultiSelect label="cue categories" items={cueCategories} selectedIds={cueCategoryFilter} onChange={setCueCategoryFilter} />
       )}
 
       {canManagePreparation && setPiecesCatalog.length > 0 && (
-        <Select
-          value={setPieceFilter}
-          onValueChange={(value) => setSetPieceFilter(value as ResourceFilterValue)}
-        >
-          <SelectTrigger className="w-fit" aria-label="Filter by set piece">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">All set pieces</SelectItem>
-            {setPiecesCatalog.map((piece) => (
-              <SelectItem key={piece.id} value={String(piece.id)}>
-                {piece.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <CatalogMultiSelect label="set pieces" items={setPiecesCatalog} selectedIds={setPieceFilter} onChange={setSetPieceFilter} />
       )}
     </div>
   );

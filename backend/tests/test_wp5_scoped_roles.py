@@ -106,6 +106,34 @@ def test_timeline_filter_uses_active_production_roles(seeded_db) -> None:
     ) == [author_note, dialogue]
 
 
+def test_timeline_catalog_filters_match_any_selected_id(seeded_db) -> None:
+    db = seeded_db
+    admin = db.query(User).filter(User.username == "admin").one()
+    production = _production(db, admin.organization_id)
+    moments = [
+        SimpleNamespace(id=1, moment_type=SimpleNamespace(name="dialogue")),
+        SimpleNamespace(id=2, moment_type=SimpleNamespace(name="dialogue")),
+        SimpleNamespace(id=3, moment_type=SimpleNamespace(name="dialogue")),
+    ]
+
+    assert apply_timeline_filters(
+        moments,
+        db=db,
+        user=admin,
+        production_id=production.id,
+        prop_ids=[10, 20],
+        moment_ids_with_prop={1, 3},
+    ) == [moments[0], moments[2]]
+    assert apply_timeline_filters(
+        moments,
+        db=db,
+        user=admin,
+        production_id=production.id,
+        cue_category_ids=[100, 200],
+        moment_ids_with_cue_category={2, 3},
+    ) == [moments[1], moments[2]]
+
+
 def test_rehearsal_director_visibility_uses_production_membership(
     seeded_db,
 ) -> None:

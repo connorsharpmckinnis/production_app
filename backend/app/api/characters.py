@@ -10,6 +10,7 @@ from app.api.catalog_csv_routes import (
 from app.api.deps import get_production_or_404, require_production_capability
 from app.db.session import get_db
 from app.models import (
+    Act,
     Character,
     Dialogue,
     Moment,
@@ -231,11 +232,37 @@ def list_songs(
     _user: User = Depends(require_production_capability("songs", "read")),
     db: Session = Depends(get_db),
 ) -> list[SongDetailResponse]:
+    """List songs in show order (first Timeline appearance), then title."""
     songs = (
         db.query(Song)
         .filter(Song.production_id == production_id)
-        .order_by(Song.title)
         .all()
+    )
+    appearance_rows = (
+        db.query(
+            Moment.song_id,
+            Act.sort_order,
+            Scene.sort_order,
+            Moment.sequence_number,
+        )
+        .join(Scene, Scene.id == Moment.scene_id)
+        .join(Act, Act.id == Scene.act_id)
+        .filter(Act.production_id == production_id, Moment.song_id.isnot(None))
+        .order_by(Act.sort_order, Scene.sort_order, Moment.sequence_number)
+        .all()
+    )
+    first_appearance: dict[int, tuple[int, int, int]] = {}
+    for song_id, act_order, scene_order, sequence_number in appearance_rows:
+        if song_id is None or song_id in first_appearance:
+            continue
+        first_appearance[song_id] = (act_order, scene_order, sequence_number)
+
+    never_appeared = (10**9, 10**9, 10**9)
+    songs.sort(
+        key=lambda song: (
+            first_appearance.get(song.id, never_appeared),
+            song.title.casefold(),
+        ),
     )
     return [
         SongDetailResponse(

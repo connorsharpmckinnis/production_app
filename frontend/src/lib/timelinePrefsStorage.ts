@@ -27,11 +27,11 @@ export interface StoredTimelinePrefs {
   exitOnly: boolean;
   blockingOnly: boolean;
   groupFilter: string;
-  blockingCharacterFilter: string;
-  songFilter: string;
-  propFilter: string;
-  cueCategoryFilter: string;
-  setPieceFilter: string;
+  blockingCharacterFilter: number[];
+  songFilter: number[];
+  propFilter: number[];
+  cueCategoryFilter: number[];
+  setPieceFilter: number[];
   selectedSceneIds: number[] | null;
   anchor: TimelineScrollAnchor | null;
 }
@@ -47,11 +47,11 @@ export const DEFAULT_TIMELINE_PREFS: StoredTimelinePrefs = {
   exitOnly: false,
   blockingOnly: false,
   groupFilter: "all",
-  blockingCharacterFilter: "all",
-  songFilter: "all",
-  propFilter: "all",
-  cueCategoryFilter: "all",
-  setPieceFilter: "all",
+  blockingCharacterFilter: [],
+  songFilter: [],
+  propFilter: [],
+  cueCategoryFilter: [],
+  setPieceFilter: [],
   selectedSceneIds: null,
   anchor: null,
 };
@@ -91,8 +91,15 @@ function parseAnchor(raw: unknown): TimelineScrollAnchor | null {
 }
 
 function parseNumberArray(raw: unknown): number[] {
-  if (!Array.isArray(raw)) return [];
-  return raw.filter((item): item is number => typeof item === "number" && Number.isFinite(item));
+  if (Array.isArray(raw)) {
+    return raw.filter((item): item is number => typeof item === "number" && Number.isFinite(item));
+  }
+  if (typeof raw === "number" && Number.isFinite(raw)) return [raw];
+  if (typeof raw === "string" && raw !== "all") {
+    const value = Number(raw);
+    return Number.isFinite(value) ? [value] : [];
+  }
+  return [];
 }
 
 export function loadTimelinePrefs(productionId: number): StoredTimelinePrefs | null {
@@ -114,18 +121,11 @@ export function loadTimelinePrefs(productionId: number): StoredTimelinePrefs | n
       blockingOnly: Boolean(parsed.blockingOnly),
       groupFilter:
         typeof parsed.groupFilter === "string" ? parsed.groupFilter : "all",
-      blockingCharacterFilter:
-        typeof parsed.blockingCharacterFilter === "string"
-          ? parsed.blockingCharacterFilter
-          : "all",
-      songFilter: typeof parsed.songFilter === "string" ? parsed.songFilter : "all",
-      propFilter: typeof parsed.propFilter === "string" ? parsed.propFilter : "all",
-      cueCategoryFilter:
-        typeof parsed.cueCategoryFilter === "string"
-          ? parsed.cueCategoryFilter
-          : "all",
-      setPieceFilter:
-        typeof parsed.setPieceFilter === "string" ? parsed.setPieceFilter : "all",
+      blockingCharacterFilter: parseNumberArray(parsed.blockingCharacterFilter),
+      songFilter: parseNumberArray(parsed.songFilter),
+      propFilter: parseNumberArray(parsed.propFilter),
+      cueCategoryFilter: parseNumberArray(parsed.cueCategoryFilter),
+      setPieceFilter: parseNumberArray(parsed.setPieceFilter),
       selectedSceneIds: Array.isArray(parsed.selectedSceneIds)
         ? parseNumberArray(parsed.selectedSceneIds)
         : null,

@@ -1014,15 +1014,15 @@ export interface MomentListFilters {
   groupId?: number;
   search?: string;
   cueOnly?: boolean;
-  songId?: number;
-  propId?: number;
-  cueCategoryId?: number;
-  setPieceId?: number;
+  songIds?: number[];
+  propIds?: number[];
+  cueCategoryIds?: number[];
+  setPieceIds?: number[];
   costumeOnly?: boolean;
   entranceOnly?: boolean;
   exitOnly?: boolean;
   blockingOnly?: boolean;
-  blockingCharacterId?: number;
+  blockingCharacterIds?: number[];
 }
 
 export interface CreateUserRequest {

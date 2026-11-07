@@ -37,11 +37,11 @@ export interface TimelineFilterInput {
   entranceOnly: boolean;
   exitOnly: boolean;
   blockingOnly: boolean;
-  blockingCharacterFilter: "all" | string;
-  songFilter: "all" | string;
-  propFilter: "all" | string;
-  cueCategoryFilter: "all" | string;
-  setPieceFilter: "all" | string;
+  blockingCharacterFilter: number[];
+  songFilter: number[];
+  propFilter: number[];
+  cueCategoryFilter: number[];
+  setPieceFilter: number[];
 }
 
 export interface UseTimelineSceneOptions {
@@ -70,20 +70,12 @@ function buildMomentFilters(
     costumeOnly: filterInput.costumeOnly || undefined,
     entranceOnly: filterInput.entranceOnly || undefined,
     exitOnly: filterInput.exitOnly || undefined,
-    blockingOnly:
-      filterInput.blockingOnly || filterInput.blockingCharacterFilter !== "all" || undefined,
-    blockingCharacterId:
-      filterInput.blockingCharacterFilter === "all"
-        ? undefined
-        : Number(filterInput.blockingCharacterFilter),
-    songId: filterInput.songFilter === "all" ? undefined : Number(filterInput.songFilter),
-    propId: filterInput.propFilter === "all" ? undefined : Number(filterInput.propFilter),
-    cueCategoryId:
-      filterInput.cueCategoryFilter === "all"
-        ? undefined
-        : Number(filterInput.cueCategoryFilter),
-    setPieceId:
-      filterInput.setPieceFilter === "all" ? undefined : Number(filterInput.setPieceFilter),
+    blockingOnly: filterInput.blockingOnly || filterInput.blockingCharacterFilter.length > 0 || undefined,
+    blockingCharacterIds: filterInput.blockingCharacterFilter,
+    songIds: filterInput.songFilter,
+    propIds: filterInput.propFilter,
+    cueCategoryIds: filterInput.cueCategoryFilter,
+    setPieceIds: filterInput.setPieceFilter,
   };
 }
 

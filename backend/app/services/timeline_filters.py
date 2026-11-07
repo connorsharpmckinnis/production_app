@@ -47,6 +47,22 @@ def parse_character_ids(raw: str | None) -> list[int] | None:
     return ids or None
 
 
+def parse_filter_ids(raw: str | None, parameter_name: str) -> list[int] | None:
+    """Parse a comma-separated catalog filter, preserving the empty-as-unset behavior."""
+    if not raw:
+        return None
+    ids: list[int] = []
+    for part in raw.split(","):
+        part = part.strip()
+        if not part:
+            continue
+        try:
+            ids.append(int(part))
+        except ValueError as exc:
+            raise ValueError(f"Invalid {parameter_name} value: {part!r}") from exc
+    return ids or None
+
+
 def get_actor_character_ids(db: Session, user: User, production_id: int) -> list[int]:
     """Return character IDs this actor is cast to in the given production."""
     from app.models import Character, UserCharacterAssignment
@@ -185,12 +201,15 @@ def moment_ids_with_cues(db: Session, scene_id: int) -> set[int]:
     return {row[0] for row in rows}
 
 
-def moment_ids_with_prop(db: Session, scene_id: int, prop_id: int) -> set[int]:
+def moment_ids_with_prop(db: Session, scene_id: int, prop_id: int | list[int]) -> set[int]:
     """Return moment IDs in this scene that have an on/off event for the given prop."""
     rows = (
         db.query(MomentPropEvent.moment_id)
         .join(Moment, Moment.id == MomentPropEvent.moment_id)
-        .filter(Moment.scene_id == scene_id, MomentPropEvent.prop_id == prop_id)
+        .filter(
+            Moment.scene_id == scene_id,
+            MomentPropEvent.prop_id.in_([prop_id] if isinstance(prop_id, int) else prop_id),
+        )
         .all()
     )
     return {row[0] for row in rows}
@@ -199,25 +218,37 @@ def moment_ids_with_prop(db: Session, scene_id: int, prop_id: int) -> set[int]:
 def moment_ids_with_cue_category(
     db: Session,
     scene_id: int,
-    cue_category_id: int,
+    cue_category_id: int | list[int],
 ) -> set[int]:
     """Return moment IDs in this scene that have a cue in the given category."""
     rows = (
         db.query(Cue.moment_id)
         .join(Moment, Moment.id == Cue.moment_id)
-        .filter(Moment.scene_id == scene_id, Cue.cue_category_id == cue_category_id)
+        .filter(
+            Moment.scene_id == scene_id,
+            Cue.cue_category_id.in_(
+                [cue_category_id] if isinstance(cue_category_id, int) else cue_category_id
+            ),
+        )
         .distinct()
         .all()
     )
     return {row[0] for row in rows}
 
 
-def moment_ids_with_set_piece(db: Session, scene_id: int, set_piece_id: int) -> set[int]:
+def moment_ids_with_set_piece(
+    db: Session, scene_id: int, set_piece_id: int | list[int]
+) -> set[int]:
     """Return moment IDs in this scene that have an on/off event for the given set piece."""
     rows = (
         db.query(MomentSetPieceEvent.moment_id)
         .join(Moment, Moment.id == MomentSetPieceEvent.moment_id)
-        .filter(Moment.scene_id == scene_id, MomentSetPieceEvent.set_piece_id == set_piece_id)
+        .filter(
+            Moment.scene_id == scene_id,
+            MomentSetPieceEvent.set_piece_id.in_(
+                [set_piece_id] if isinstance(set_piece_id, int) else set_piece_id
+            ),
+        )
         .all()
     )
     return {row[0] for row in rows}
@@ -337,6 +368,10 @@ def apply_timeline_filters(
     character_names: list[str] | None = None,
     search: str | None = None,
     cue_only: bool = False,
+    song_ids: list[int] | None = None,
+    prop_ids: list[int] | None = None,
+    cue_category_ids: list[int] | None = None,
+    set_piece_ids: list[int] | None = None,
     song_id: int | None = None,
     prop_id: int | None = None,
     cue_category_id: int | None = None,
@@ -369,18 +404,27 @@ def apply_timeline_filters(
             if moment.moment_type.name in CUE_ONLY_TYPES or moment.id in cued_ids
         ]
 
-    if song_id is not None:
-        filtered = [moment for moment in filtered if moment.song_id == song_id]
+    effective_song_ids = song_ids or ([song_id] if song_id is not None else None)
+    effective_prop_ids = prop_ids or ([prop_id] if prop_id is not None else None)
+    effective_category_ids = cue_category_ids or (
+        [cue_category_id] if cue_category_id is not None else None
+    )
+    effective_set_piece_ids = set_piece_ids or (
+        [set_piece_id] if set_piece_id is not None else None
+    )
 
-    if prop_id is not None:
-        prop_ids = moment_ids_with_prop or set()
-        filtered = [moment for moment in filtered if moment.id in prop_ids]
+    if effective_song_ids:
+        filtered = [moment for moment in filtered if moment.song_id in effective_song_ids]
 
-    if cue_category_id is not None:
+    if effective_prop_ids:
+        prop_moment_ids = moment_ids_with_prop or set()
+        filtered = [moment for moment in filtered if moment.id in prop_moment_ids]
+
+    if effective_category_ids:
         category_ids = moment_ids_with_cue_category or set()
         filtered = [moment for moment in filtered if moment.id in category_ids]
 
-    if set_piece_id is not None:
+    if effective_set_piece_ids:
         piece_ids = moment_ids_with_set_piece or set()
         filtered = [moment for moment in filtered if moment.id in piece_ids]
 

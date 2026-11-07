@@ -108,6 +108,7 @@ from app.services.timeline_filters import (
     moment_speaking_character_ids,
     moment_speaking_group_ids,
     parse_character_ids,
+    parse_filter_ids,
     is_actor_only_production_member,
 )
 
@@ -637,6 +638,10 @@ def list_scene_moments(
     production_id: int,
     scene_id: int,
     character_ids: str | None = Query(default=None),
+    prop_ids: str | None = Query(default=None),
+    cue_category_ids: str | None = Query(default=None),
+    set_piece_ids: str | None = Query(default=None),
+    song_ids: str | None = Query(default=None),
     group_id: int | None = Query(default=None),
     search: str | None = Query(default=None),
     cue_only: bool = Query(default=False),
@@ -649,6 +654,7 @@ def list_scene_moments(
     exit_only: bool = Query(default=False),
     blocking_only: bool = Query(default=False),
     blocking_character_id: int | None = Query(default=None),
+    blocking_character_ids: str | None = Query(default=None),
     user: User = Depends(require_production_capability("timeline", "read")),
     db: Session = Depends(get_db),
 ) -> list[MomentSummary]:
@@ -664,6 +670,13 @@ def list_scene_moments(
 
     try:
         parsed_character_ids = parse_character_ids(character_ids)
+        parsed_prop_ids = parse_filter_ids(prop_ids, "prop_ids")
+        parsed_category_ids = parse_filter_ids(cue_category_ids, "cue_category_ids")
+        parsed_set_piece_ids = parse_filter_ids(set_piece_ids, "set_piece_ids")
+        parsed_song_ids = parse_filter_ids(song_ids, "song_ids")
+        parsed_blocking_character_ids = parse_filter_ids(
+            blocking_character_ids, "blocking_character_ids"
+        )
     except ValueError as exc:
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
@@ -693,50 +706,61 @@ def list_scene_moments(
         )
         character_names = [row[0] for row in rows]
 
-    if song_id is not None:
-        song = (
+    effective_song_ids = parsed_song_ids or ([song_id] if song_id is not None else None)
+    if effective_song_ids:
+        songs = (
             db.query(Song)
-            .filter(Song.id == song_id, Song.production_id == production_id)
-            .first()
+            .filter(Song.id.in_(effective_song_ids), Song.production_id == production_id)
+            .all()
         )
-        if song is None:
+        if len(songs) != len(set(effective_song_ids)):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Song not found")
 
-    if prop_id is not None:
+    effective_prop_ids = parsed_prop_ids or ([prop_id] if prop_id is not None else None)
+    if effective_prop_ids:
         from app.models import Prop
 
-        prop = (
+        props = (
             db.query(Prop)
-            .filter(Prop.id == prop_id, Prop.production_id == production_id)
-            .first()
+            .filter(Prop.id.in_(effective_prop_ids), Prop.production_id == production_id)
+            .all()
         )
-        if prop is None:
+        if len(props) != len(set(effective_prop_ids)):
             raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prop not found")
 
-    if cue_category_id is not None:
+    effective_category_ids = parsed_category_ids or (
+        [cue_category_id] if cue_category_id is not None else None
+    )
+    if effective_category_ids:
         from app.models import CueCategory
 
-        category = (
+        categories = (
             db.query(CueCategory)
             .filter(
-                CueCategory.id == cue_category_id,
+                CueCategory.id.in_(effective_category_ids),
                 CueCategory.production_id == production_id,
             )
-            .first()
+            .all()
         )
-        if category is None:
+        if len(categories) != len(set(effective_category_ids)):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Cue category not found",
             )
 
-    if set_piece_id is not None:
-        set_piece = (
+    effective_set_piece_ids = parsed_set_piece_ids or (
+        [set_piece_id] if set_piece_id is not None else None
+    )
+    if effective_set_piece_ids:
+        set_pieces = (
             db.query(SetPiece)
-            .filter(SetPiece.id == set_piece_id, SetPiece.production_id == production_id)
-            .first()
+            .filter(
+                SetPiece.id.in_(effective_set_piece_ids),
+                SetPiece.production_id == production_id,
+            )
+            .all()
         )
-        if set_piece is None:
+        if len(set_pieces) != len(set(effective_set_piece_ids)):
             raise HTTPException(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail="Set piece not found",
@@ -744,21 +768,25 @@ def list_scene_moments(
 
     cued_moment_ids = moment_ids_with_cues(db, scene_id)
     prop_moment_ids = (
-        moment_ids_with_prop(db, scene_id, prop_id) if prop_id is not None else None
+        moment_ids_with_prop(db, scene_id, effective_prop_ids)
+        if effective_prop_ids is not None
+        else None
     )
     category_moment_ids = (
-        moment_ids_with_cue_category(db, scene_id, cue_category_id)
-        if cue_category_id is not None
+        moment_ids_with_cue_category(db, scene_id, effective_category_ids)
+        if effective_category_ids is not None
         else None
     )
     set_piece_moment_ids = (
-        moment_ids_with_set_piece(db, scene_id, set_piece_id)
-        if set_piece_id is not None
+        moment_ids_with_set_piece(db, scene_id, effective_set_piece_ids)
+        if effective_set_piece_ids is not None
         else None
     )
     blocking_char_ids = None
     if blocking_only:
-        if blocking_character_id is not None:
+        if parsed_blocking_character_ids:
+            blocking_char_ids = set(parsed_blocking_character_ids)
+        elif blocking_character_id is not None:
             blocking_char_ids = {blocking_character_id}
         elif parsed_character_ids:
             blocking_char_ids = set(parsed_character_ids)
@@ -774,10 +802,10 @@ def list_scene_moments(
         character_names=character_names,
         search=search,
         cue_only=cue_only,
-        song_id=song_id,
-        prop_id=prop_id,
-        cue_category_id=cue_category_id,
-        set_piece_id=set_piece_id,
+        song_ids=effective_song_ids,
+        prop_ids=effective_prop_ids,
+        cue_category_ids=effective_category_ids,
+        set_piece_ids=effective_set_piece_ids,
         costume_only=costume_only,
         entrance_only=entrance_only,
         exit_only=exit_only,

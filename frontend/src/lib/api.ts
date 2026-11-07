@@ -219,17 +219,17 @@ function momentQuery(filters?: MomentListFilters): string {
   if (filters.cueOnly) {
     params.set("cue_only", "true");
   }
-  if (filters.songId) {
-    params.set("song_id", String(filters.songId));
+  if (filters.songIds?.length) {
+    params.set("song_ids", filters.songIds.join(","));
   }
-  if (filters.propId) {
-    params.set("prop_id", String(filters.propId));
+  if (filters.propIds?.length) {
+    params.set("prop_ids", filters.propIds.join(","));
   }
-  if (filters.cueCategoryId) {
-    params.set("cue_category_id", String(filters.cueCategoryId));
+  if (filters.cueCategoryIds?.length) {
+    params.set("cue_category_ids", filters.cueCategoryIds.join(","));
   }
-  if (filters.setPieceId) {
-    params.set("set_piece_id", String(filters.setPieceId));
+  if (filters.setPieceIds?.length) {
+    params.set("set_piece_ids", filters.setPieceIds.join(","));
   }
   if (filters.costumeOnly) {
     params.set("costume_only", "true");
@@ -243,8 +243,8 @@ function momentQuery(filters?: MomentListFilters): string {
   if (filters.blockingOnly) {
     params.set("blocking_only", "true");
   }
-  if (filters.blockingCharacterId) {
-    params.set("blocking_character_id", String(filters.blockingCharacterId));
+  if (filters.blockingCharacterIds?.length) {
+    params.set("blocking_character_ids", filters.blockingCharacterIds.join(","));
   }
   const query = params.toString();
   return query ? `?${query}` : "";

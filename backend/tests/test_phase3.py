@@ -354,3 +354,55 @@ def test_song_id_filter(seeded_client: TestClient, db_session: Session) -> None:
         headers=director_headers,
     ).json()
     assert len(unlinked) > len(filtered)
+
+
+def test_songs_list_ordered_by_first_appearance(
+    seeded_client: TestClient, db_session: Session
+) -> None:
+    production_id = _imported_production(seeded_client, db_session)
+    admin_headers = _login(seeded_client, "admin", "admin")
+
+    early = seeded_client.post(
+        f"/api/productions/{production_id}/songs",
+        json={"title": "ZZ Later Alphabet Early Cue"},
+        headers=admin_headers,
+    )
+    assert early.status_code == 201
+    late = seeded_client.post(
+        f"/api/productions/{production_id}/songs",
+        json={"title": "AA Early Alphabet Late Cue"},
+        headers=admin_headers,
+    )
+    assert late.status_code == 201
+    unused = seeded_client.post(
+        f"/api/productions/{production_id}/songs",
+        json={"title": "Middle Unused Song"},
+        headers=admin_headers,
+    )
+    assert unused.status_code == 201
+
+    scene_id = _first_scene_id(seeded_client, production_id, admin_headers)
+    moments = seeded_client.get(
+        f"/api/productions/{production_id}/scenes/{scene_id}/moments",
+        headers=admin_headers,
+    ).json()
+    assert len(moments) >= 2
+
+    first = db_session.get(Moment, moments[0]["id"])
+    second = db_session.get(Moment, moments[1]["id"])
+    assert first is not None and second is not None
+    first.song_id = early.json()["id"]
+    second.song_id = late.json()["id"]
+    db_session.commit()
+
+    titles = [
+        song["title"]
+        for song in seeded_client.get(
+            f"/api/productions/{production_id}/songs",
+            headers=admin_headers,
+        ).json()
+    ]
+    early_idx = titles.index("ZZ Later Alphabet Early Cue")
+    late_idx = titles.index("AA Early Alphabet Late Cue")
+    unused_idx = titles.index("Middle Unused Song")
+    assert early_idx < late_idx < unused_idx
