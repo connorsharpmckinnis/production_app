@@ -419,6 +419,22 @@ export const api = {
     );
   },
 
+  moveMomentAttachment(
+    productionId: number,
+    fromMomentId: number,
+    kind: "prop" | "set_piece" | "costume" | "cue" | "entrance" | "exit" | "blocking",
+    attachmentId: number,
+    toMomentId: number,
+  ) {
+    return request<{ id: number; kind: string; moment_id: number }>(
+      `/productions/${productionId}/moments/${fromMomentId}/${kind}/${attachmentId}/move`,
+      {
+        method: "POST",
+        body: JSON.stringify({ to_moment_id: toMomentId }),
+      },
+    );
+  },
+
   listCharacters(productionId: number) {
     return request<CharacterDetailResponse[]>(`/productions/${productionId}/characters`);
   },

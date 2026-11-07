@@ -1,4 +1,7 @@
+from typing import Literal
+
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from pydantic import BaseModel
 from sqlalchemy.orm import Session, joinedload
 
 from app.api.deps import (
@@ -110,6 +113,47 @@ from app.services.timeline_filters import (
 
 router = APIRouter(prefix="/productions", tags=["timeline"])
 lookup_router = APIRouter(tags=["timeline"])
+
+
+class AttachmentMoveRequest(BaseModel):
+    to_moment_id: int
+
+
+ATTACHMENT_MODELS = {
+    "prop": MomentPropEvent,
+    "set_piece": MomentSetPieceEvent,
+    "costume": MomentCostumeEvent,
+    "cue": Cue,
+    "entrance": MomentEntrance,
+    "exit": MomentExit,
+    "blocking": MomentBlocking,
+}
+
+
+def _destination_attachment_conflict(
+    db: Session,
+    kind: str,
+    attachment: object,
+    to_moment_id: int,
+) -> bool:
+    """Check the destination's existing per-moment uniqueness key."""
+    model = ATTACHMENT_MODELS[kind]
+    query = db.query(model).filter(model.moment_id == to_moment_id)
+    if kind == "prop":
+        query = query.filter(model.prop_id == attachment.prop_id)
+    elif kind == "set_piece":
+        query = query.filter(model.set_piece_id == attachment.set_piece_id)
+    elif kind == "costume":
+        query = query.filter(model.character_id == attachment.character_id)
+    elif kind in {"entrance", "exit", "blocking"}:
+        query = query.filter(
+            model.character_id == attachment.character_id,
+            model.user_id == attachment.user_id,
+            model.group_id == attachment.group_id,
+        )
+    else:
+        return False
+    return query.first() is not None
 
 
 def _get_moment_in_production_or_404(
@@ -1002,6 +1046,55 @@ def get_moment_detail(
         notes=[_note_response(note, user.id) for note in visible_notes],
         is_bookmarked=is_bookmarked,
     )
+
+
+@router.post(
+    "/{production_id}/moments/{from_moment_id}/{kind}/{attachment_id}/move",
+)
+def move_moment_attachment(
+    production_id: int,
+    from_moment_id: int,
+    kind: Literal["prop", "set_piece", "costume", "cue", "entrance", "exit", "blocking"],
+    attachment_id: int,
+    body: AttachmentMoveRequest,
+    _user: User = Depends(require_production_capability("timeline", "update")),
+    db: Session = Depends(get_db),
+) -> dict[str, int | str]:
+    """Move one existing attachment without changing its id or fields."""
+    source = _get_moment_in_production_or_404(db, production_id, from_moment_id)
+    target = _get_moment_in_production_or_404(db, production_id, body.to_moment_id)
+    if source.id == target.id:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Choose a different destination moment",
+        )
+
+    model = ATTACHMENT_MODELS[kind]
+    attachment = (
+        db.query(model)
+        .filter(model.id == attachment_id, model.moment_id == source.id)
+        .first()
+    )
+    if attachment is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Attachment not found")
+
+    if _destination_attachment_conflict(db, kind, attachment, target.id):
+        labels = {
+            "prop": "prop",
+            "set_piece": "set piece",
+            "costume": "costume event",
+            "entrance": "entrance",
+            "exit": "exit",
+            "blocking": "blocking",
+        }
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=f"This {labels.get(kind, kind)} already exists on the destination moment",
+        )
+
+    attachment.moment_id = target.id
+    db.commit()
+    return {"id": attachment.id, "kind": kind, "moment_id": target.id}
 
 
 @router.patch("/{production_id}/moments/{moment_id}", response_model=MomentDetailResponse)

@@ -686,11 +686,6 @@ export default function LavChartPage() {
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">Lavs</h1>
-            <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
-              Assign wires and packs by scene. Run Propose once for a full-sheet starting chart, then
-              tweak with fill-row and cell edits. Lock rows to prevent accidental edits (Propose still
-              overwrites locked rows).
-            </p>
           </div>
           <Link
             to={`/productions/${productionId}/reports`}

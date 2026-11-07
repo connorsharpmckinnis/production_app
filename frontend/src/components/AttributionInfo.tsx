@@ -54,7 +54,7 @@ export default function AttributionInfo({
     <Fragment>
       <button
         type="button"
-        className="inline-flex size-6 shrink-0 items-center justify-center rounded-full text-muted-foreground hover:bg-muted hover:text-foreground"
+        className="inline-flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-accent-foreground"
         aria-label={createdLine ?? "Attribution"}
         aria-expanded={open}
         onClick={(event) => {
@@ -62,7 +62,7 @@ export default function AttributionInfo({
           setOpen((value) => !value);
         }}
       >
-        <InfoIcon className="size-3.5" />
+        <InfoIcon className="size-4" />
       </button>
       {open && (
         <span className="basis-full rounded-md border border-border bg-muted/40 p-2 text-left text-xs text-foreground">

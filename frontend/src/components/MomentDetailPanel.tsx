@@ -1,11 +1,12 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { Check, Pencil, Trash2 } from "lucide-react";
 import AttributionSubjectMultiSelect, {
   decodeAttributionSubjects,
   encodeAttributionSubject,
 } from "@/components/AttributionSubjectMultiSelect";
-import AttributionInfo from "@/components/AttributionInfo";
+import AttachmentRowActions, {
+  attachmentAttributionDetails,
+} from "@/components/AttachmentRowActions";
 import NotesPanel from "@/components/notes/NotesPanel";
 import SearchableSelect from "@/components/SearchableSelect";
 import type { SearchableSelectOption } from "@/components/SearchableSelect";
@@ -398,6 +399,11 @@ interface MomentDetailPanelProps {
   appSettings: AppSettingsResponse;
   onDetailUpdate: (detail: MomentDetailResponse) => void;
   onChanged: () => void | Promise<void>;
+  onStartMove?: (
+    kind: MomentAttachmentKind,
+    attachmentId: number,
+    label: string,
+  ) => void;
   momentBadgeClass: (type: string) => string;
   onScriptDirtyChange?: (dirty: boolean) => void;
   /**
@@ -426,6 +432,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       appSettings,
       onDetailUpdate,
       onChanged,
+      onStartMove,
       momentBadgeClass,
       onScriptDirtyChange,
       hideScriptPreview = false,
@@ -1710,7 +1717,16 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
               <>
             {availableAttachmentTypes.length > 0 ? (
               <div
-                className="mt-2 grid grid-cols-4 gap-1.5 sm:grid-cols-7"
+                className={cn(
+                  "mt-2 grid w-full gap-1.5",
+                  // Equal-width cells that fill the inspector; wrap to ~2–3 rows.
+                  // Only visible types are rendered — no ghost columns for hidden catalogs.
+                  availableAttachmentTypes.length <= 3
+                    ? "grid-cols-3"
+                    : availableAttachmentTypes.length === 4
+                      ? "grid-cols-2 sm:grid-cols-4"
+                      : "grid-cols-3 sm:grid-cols-4",
+                )}
                 role="group"
                 aria-label="Attachment type"
               >
@@ -1726,7 +1742,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                       aria-pressed={selected}
                       onClick={() => selectAttachmentType(option.value)}
                       className={cn(
-                        "flex min-w-0 flex-col items-center gap-1 rounded-md border px-1 py-2 text-[10px] font-medium outline-none transition-colors focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
+                        "flex w-full min-w-0 flex-col items-center gap-1 rounded-md border px-1 py-2 text-[10px] font-medium outline-none transition-colors focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring",
                         selected
                           ? "border-primary bg-primary/10 text-foreground"
                           : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
@@ -2088,6 +2104,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           castableUsers={sortedCastableUsers}
           onUpdate={handleUpdateMomentProp}
           onDetach={handleDetachProp}
+          onMove={(id, label) => onStartMove?.("prop", id, label)}
           catalogLength={propsCatalog.length}
           inPlay={detail.props_in_play
             .filter((item) => item.source_moment_id !== detail.id)
@@ -2141,6 +2158,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           castableUsers={sortedCastableUsers}
           onUpdate={handleUpdateMomentSetPiece}
           onDetach={handleDetachSetPiece}
+          onMove={(id, label) => onStartMove?.("set_piece", id, label)}
           catalogLength={setPiecesCatalog.length}
           inPlay={detail.set_pieces_in_play
             .filter((item) => item.source_moment_id !== detail.id)
@@ -2171,6 +2189,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
           costumesCatalog={costumesCatalog}
           onUpdate={handleUpdateMomentCostume}
           onDetach={handleDetachCostume}
+          onMove={(id, label) => onStartMove?.("costume", id, label)}
           onApprove={(eventId) => void handleApprove("costume_event", eventId)}
           wearing={detail.costumes_wearing.filter(
             (item) => item.source_moment_id !== detail.id,
@@ -2234,6 +2253,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             };
           })}
           onDetach={handleDetachEntrance}
+          onMove={(id, label) => onStartMove?.("entrance", id, label)}
           catalogLength={characters.length + castableUsers.length + groups.length}
         />
 
@@ -2283,6 +2303,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             };
           })}
           onDetach={handleDetachExit}
+          onMove={(id, label) => onStartMove?.("exit", id, label)}
           catalogLength={characters.length + castableUsers.length + groups.length}
         />
 
@@ -2324,6 +2345,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
             },
           }))}
           onDetach={handleDetachBlocking}
+          onMove={(id, label) => onStartMove?.("blocking", id, label)}
           catalogLength={characters.length + castableUsers.length + groups.length}
         />
 
@@ -2356,6 +2378,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                 : undefined,
           }))}
           onDetach={handleDeleteCue}
+          onMove={(id, label) => onStartMove?.("cue", id, label)}
           catalogLength={cueCategories.length}
         />
 
@@ -2468,6 +2491,7 @@ function AttachmentSection({
   saving,
   items,
   onDetach,
+  onMove,
   catalogLength,
   defaultExpanded = true,
   attachForm,
@@ -2506,6 +2530,7 @@ function AttachmentSection({
     };
   }[];
   onDetach: (id: number) => void;
+  onMove?: (id: number, label: string) => void;
   catalogLength: number;
   defaultExpanded?: boolean;
   attachForm?: React.ReactNode;
@@ -2550,14 +2575,14 @@ function AttachmentSection({
                 <li
                   key={item.id}
                   className={cn(
-                    "rounded-md border px-2 py-1.5 text-sm",
+                    "group/attach-row rounded-md border px-2 py-1.5 text-sm",
                     item.status === "suggested"
                       ? "border-dashed border-amber-500"
                       : "border-border",
                     item.rowClassName,
                   )}
                 >
-                  <div className="flex flex-wrap items-start gap-x-1 gap-y-1">
+                  <div className="flex items-start gap-2">
                     <div className="min-w-0 flex-1 leading-snug">
                       <DetailObjectLabel
                         label={item.label}
@@ -2596,55 +2621,59 @@ function AttachmentSection({
                         />
                       ) : null}
                     </div>
-                    <AttributionInfo
-                      createdBy={item.createdBy}
-                      createdAt={item.createdAt}
-                      updatedBy={item.updatedBy}
-                      updatedAt={item.updatedAt}
-                      rehearsalId={item.rehearsalId}
-                      rehearsalLabel={item.rehearsalLabel}
-                      productionId={productionId}
-                    />
-                    {item.onApprove && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        onClick={item.onApprove}
-                        aria-label="Approve suggestion"
-                        title="Approve"
-                        className="shrink-0 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700"
-                      >
-                        <Check />
-                      </Button>
-                    )}
-                    {canEdit && item.subjectEdit && !editing && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        disabled={saving}
-                        onClick={() => setEditingId(item.id)}
-                        aria-label={`Edit ${title.toLowerCase()}`}
-                        title={`Edit ${title.toLowerCase()}`}
-                        className="shrink-0"
-                      >
-                        <Pencil />
-                      </Button>
-                    )}
-                    {canEdit && (
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        disabled={saving}
-                        onClick={() => onDetach(item.id)}
-                        aria-label={`Remove ${title.toLowerCase()}`}
-                        title={`Remove ${title.toLowerCase()}`}
-                        className="shrink-0 text-destructive hover:text-destructive"
-                      >
-                        <Trash2 />
-                      </Button>
+                    {!editing && (
+                      <AttachmentRowActions
+                        label={item.label}
+                        details={attachmentAttributionDetails({
+                          createdBy: item.createdBy,
+                          createdAt: item.createdAt,
+                          updatedBy: item.updatedBy,
+                          updatedAt: item.updatedAt,
+                          rehearsalLabel: item.rehearsalLabel,
+                        })}
+                        actions={[
+                          ...(item.onApprove
+                            ? [
+                                {
+                                  key: "approve",
+                                  label: "Approve",
+                                  onSelect: () => item.onApprove?.(),
+                                },
+                              ]
+                            : []),
+                          ...(canEdit && item.subjectEdit
+                            ? [
+                                {
+                                  key: "edit",
+                                  label: "Edit",
+                                  disabled: saving,
+                                  onSelect: () => setEditingId(item.id),
+                                },
+                              ]
+                            : []),
+                          ...(canEdit && onMove
+                            ? [
+                                {
+                                  key: "move",
+                                  label: "Move to moment…",
+                                  disabled: saving,
+                                  onSelect: () => onMove(item.id, item.label),
+                                },
+                              ]
+                            : []),
+                          ...(canEdit
+                            ? [
+                                {
+                                  key: "remove",
+                                  label: "Remove",
+                                  disabled: saving,
+                                  destructive: true,
+                                  onSelect: () => onDetach(item.id),
+                                },
+                              ]
+                            : []),
+                        ]}
+                      />
                     )}
                   </div>
                 </li>
@@ -2790,6 +2819,7 @@ function AssetEventSection({
   castableUsers,
   onUpdate,
   onDetach,
+  onMove,
   catalogLength,
   defaultExpanded = true,
   expandSignal = 0,
@@ -2814,6 +2844,7 @@ function AssetEventSection({
     },
   ) => void | Promise<void>;
   onDetach: (eventId: number) => void;
+  onMove?: (eventId: number, label: string) => void;
   catalogLength: number;
   defaultExpanded?: boolean;
   expandSignal?: number;
@@ -2949,6 +2980,7 @@ function AssetEventSection({
                   castableUsers={castableUsers}
                   onUpdate={onUpdate}
                   onDetach={onDetach}
+                  onMove={onMove}
                 />
               ))}
             </ul>
@@ -2974,6 +3006,7 @@ function AssetEventRow({
   castableUsers,
   onUpdate,
   onDetach,
+  onMove,
 }: {
   event: AssetEventItem;
   canEdit: boolean;
@@ -2991,6 +3024,7 @@ function AssetEventRow({
     },
   ) => void | Promise<void>;
   onDetach: (eventId: number) => void;
+  onMove?: (eventId: number, label: string) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const [kind, setKind] = useState<AssetEventKind>(event.kind);
@@ -3055,11 +3089,11 @@ function AssetEventRow({
   return (
     <li
       className={cn(
-        "rounded-md border px-2 py-1.5 text-sm",
+        "group/attach-row rounded-md border px-2 py-1.5 text-sm",
         event.status === "suggested" ? "border-dashed border-amber-500" : "border-border",
       )}
     >
-      <div className="flex flex-wrap items-start gap-x-1 gap-y-1">
+      <div className="flex items-start gap-2">
         <div
           className={cn(
             "min-w-0 flex-1 leading-snug",
@@ -3172,47 +3206,58 @@ function AssetEventRow({
           )}
         </div>
         {!editing && (
-          <>
-            <AttributionInfo
-              createdBy={event.createdBy}
-              createdAt={event.createdAt}
-              updatedBy={event.updatedBy}
-              updatedAt={event.updatedAt}
-              rehearsalId={event.rehearsalId}
-              rehearsalLabel={event.rehearsalLabel}
-              productionId={productionId}
-            />
-            {event.onApprove && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  event.onApprove?.();
-                }}
-                aria-label="Approve suggestion"
-                title="Approve"
-                className="shrink-0 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700"
-              >
-                <Check />
-              </Button>
-            )}
-            {canEdit && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                disabled={saving}
-                onClick={() => onDetach(event.id)}
-                aria-label={`Remove ${event.assetName} event`}
-                title="Remove"
-                className="shrink-0 text-destructive hover:text-destructive"
-              >
-                <Trash2 />
-              </Button>
-            )}
-          </>
+          <AttachmentRowActions
+            label={event.assetName}
+            details={attachmentAttributionDetails({
+              createdBy: event.createdBy,
+              createdAt: event.createdAt,
+              updatedBy: event.updatedBy,
+              updatedAt: event.updatedAt,
+              rehearsalLabel: event.rehearsalLabel,
+            })}
+            actions={[
+              ...(event.onApprove
+                ? [
+                    {
+                      key: "approve",
+                      label: "Approve",
+                      onSelect: () => event.onApprove?.(),
+                    },
+                  ]
+                : []),
+              ...(canEdit
+                ? [
+                    {
+                      key: "edit",
+                      label: "Edit",
+                      disabled: saving,
+                      onSelect: () => setEditing(true),
+                    },
+                  ]
+                : []),
+              ...(canEdit && onMove
+                ? [
+                    {
+                      key: "move",
+                      label: "Move to moment…",
+                      disabled: saving,
+                      onSelect: () => onMove(event.id, event.assetName),
+                    },
+                  ]
+                : []),
+              ...(canEdit
+                ? [
+                    {
+                      key: "remove",
+                      label: "Remove",
+                      disabled: saving,
+                      destructive: true,
+                      onSelect: () => onDetach(event.id),
+                    },
+                  ]
+                : []),
+            ]}
+          />
         )}
       </div>
     </li>
@@ -3228,6 +3273,7 @@ function CostumeEventSection({
   costumesCatalog,
   onUpdate,
   onDetach,
+  onMove,
   onApprove,
   defaultExpanded = true,
   wearing,
@@ -3243,6 +3289,7 @@ function CostumeEventSection({
     body: { kind: AssetEventKind; costume_id: number | null; notes: string | null },
   ) => void | Promise<void>;
   onDetach: (eventId: number) => void;
+  onMove?: (eventId: number, label: string) => void;
   onApprove: (eventId: number) => void;
   defaultExpanded?: boolean;
   wearing: CostumeWearingResponse[];
@@ -3375,6 +3422,7 @@ function CostumeEventSection({
                   costumesCatalog={costumesCatalog}
                   onUpdate={onUpdate}
                   onDetach={onDetach}
+                  onMove={onMove}
                   onApprove={
                     canApprove && event.status === "suggested"
                       ? () => onApprove(event.id)
@@ -3404,6 +3452,7 @@ function CostumeEventRow({
   costumesCatalog,
   onUpdate,
   onDetach,
+  onMove,
   onApprove,
 }: {
   event: MomentCostumeEventResponse;
@@ -3416,6 +3465,7 @@ function CostumeEventRow({
     body: { kind: AssetEventKind; costume_id: number | null; notes: string | null },
   ) => void | Promise<void>;
   onDetach: (eventId: number) => void;
+  onMove?: (eventId: number, label: string) => void;
   onApprove?: () => void;
 }) {
   const [editing, setEditing] = useState(false);
@@ -3468,11 +3518,11 @@ function CostumeEventRow({
   return (
     <li
       className={cn(
-        "rounded-md border px-2 py-1.5 text-sm",
+        "group/attach-row rounded-md border px-2 py-1.5 text-sm",
         event.status === "suggested" ? "border-dashed border-amber-500" : "border-border",
       )}
     >
-      <div className="flex flex-wrap items-start gap-x-1 gap-y-1">
+      <div className="flex items-start gap-2">
         <div
           className={cn(
             "min-w-0 flex-1 leading-snug",
@@ -3597,47 +3647,59 @@ function CostumeEventRow({
           )}
         </div>
         {!editing && (
-          <>
-            <AttributionInfo
-              createdBy={event.created_by_display_name}
-              createdAt={event.created_at}
-              updatedBy={event.updated_by_display_name}
-              updatedAt={event.updated_at}
-              rehearsalId={event.rehearsal_id}
-              rehearsalLabel={event.rehearsal_label}
-              productionId={productionId}
-            />
-            {onApprove && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onApprove();
-                }}
-                aria-label="Approve suggestion"
-                title="Approve"
-                className="shrink-0 text-emerald-600 hover:bg-emerald-500/10 hover:text-emerald-700"
-              >
-                <Check />
-              </Button>
-            )}
-            {canEdit && (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                disabled={saving}
-                onClick={() => onDetach(event.id)}
-                aria-label={`Remove ${event.character_name} costume event`}
-                title="Remove"
-                className="shrink-0 text-destructive hover:text-destructive"
-              >
-                <Trash2 />
-              </Button>
-            )}
-          </>
+          <AttachmentRowActions
+            label={event.character_name}
+            details={attachmentAttributionDetails({
+              createdBy: event.created_by_display_name,
+              createdAt: event.created_at,
+              updatedBy: event.updated_by_display_name,
+              updatedAt: event.updated_at,
+              rehearsalLabel: event.rehearsal_label,
+            })}
+            actions={[
+              ...(onApprove
+                ? [
+                    {
+                      key: "approve",
+                      label: "Approve",
+                      onSelect: () => onApprove(),
+                    },
+                  ]
+                : []),
+              ...(canEdit
+                ? [
+                    {
+                      key: "edit",
+                      label: "Edit",
+                      disabled: saving,
+                      onSelect: () => setEditing(true),
+                    },
+                  ]
+                : []),
+              ...(canEdit && onMove
+                ? [
+                    {
+                      key: "move",
+                      label: "Move to moment…",
+                      disabled: saving,
+                      onSelect: () =>
+                        onMove(event.id, event.costume_name ?? "costume event"),
+                    },
+                  ]
+                : []),
+              ...(canEdit
+                ? [
+                    {
+                      key: "remove",
+                      label: "Remove",
+                      disabled: saving,
+                      destructive: true,
+                      onSelect: () => onDetach(event.id),
+                    },
+                  ]
+                : []),
+            ]}
+          />
         )}
       </div>
     </li>

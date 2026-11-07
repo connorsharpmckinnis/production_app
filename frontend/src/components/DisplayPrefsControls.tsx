@@ -17,15 +17,7 @@ export default function DisplayPrefsControls({
 
   return (
     <div className={compact ? "space-y-3" : "space-y-5"}>
-      {!compact && (
-        <div>
-          <h2 className="text-sm font-medium">Reading density</h2>
-          <p className="mt-1 text-sm text-muted-foreground">
-            Adjust Timeline script size and spacing, plus overall UI chrome size.
-            Saved in this browser only.
-          </p>
-        </div>
-      )}
+      {!compact && <h2 className="text-sm font-medium">Reading density</h2>}
 
       <div className="space-y-1.5">
         <span
@@ -51,11 +43,6 @@ export default function DisplayPrefsControls({
             </Button>
           ))}
         </div>
-        {!compact && (
-          <p className="text-sm text-muted-foreground">
-            Dialogue, lyrics, and stage directions on the Timeline (px).
-          </p>
-        )}
       </div>
 
       <div className="space-y-1.5">
@@ -83,11 +70,6 @@ export default function DisplayPrefsControls({
             </Button>
           ))}
         </div>
-        {!compact && (
-          <p className="text-sm text-muted-foreground">
-            Vertical padding between Timeline moments.
-          </p>
-        )}
       </div>
 
       <div className="space-y-1.5">
@@ -114,11 +96,6 @@ export default function DisplayPrefsControls({
             </Button>
           ))}
         </div>
-        {!compact && (
-          <p className="text-sm text-muted-foreground">
-            Headers, buttons, and other UI chrome (not Timeline script).
-          </p>
-        )}
       </div>
     </div>
   );

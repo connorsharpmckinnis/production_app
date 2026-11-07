@@ -156,6 +156,12 @@ export default function TimelinePage() {
   const [insertCharacterId, setInsertCharacterId] = useState("");
   const [structuralSaving, setStructuralSaving] = useState(false);
   const [defaultInsertTypeReady, setDefaultInsertTypeReady] = useState(false);
+  const [moveRequest, setMoveRequest] = useState<{
+    kind: MomentAttachmentKind;
+    attachmentId: number;
+    sourceMomentId: number;
+    label: string;
+  } | null>(null);
 
   const filterInput = useMemo(
     () =>
@@ -363,6 +369,18 @@ export default function TimelinePage() {
       }
     };
   }, [searchInput]);
+
+  useEffect(() => {
+    if (!moveRequest) return;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setMoveRequest(null);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [moveRequest]);
 
   useEffect(() => {
     if (defaultInsertTypeReady || scene.momentTypes.length === 0) return;
@@ -856,6 +874,38 @@ export default function TimelinePage() {
     }
   }
 
+  function startAttachmentMove(
+    kind: MomentAttachmentKind,
+    attachmentId: number,
+    label: string,
+  ) {
+    if (scene.selectedMomentId == null) return;
+    setMoveRequest({ kind, attachmentId, sourceMomentId: scene.selectedMomentId, label });
+  }
+
+  async function handleMoveDestination(destinationMomentId: number) {
+    if (!moveRequest) return;
+    if (destinationMomentId === moveRequest.sourceMomentId) {
+      toast.error("Pick a different moment as the destination.");
+      return;
+    }
+    try {
+      await api.moveMomentAttachment(
+        productionId,
+        moveRequest.sourceMomentId,
+        moveRequest.kind,
+        moveRequest.attachmentId,
+        destinationMomentId,
+      );
+      setMoveRequest(null);
+      await scene.refreshMomentDetail();
+      scene.refreshMomentsList();
+      toast.success(`Moved ${moveRequest.label}`);
+    } catch (err) {
+      toast.error(formatApiError(err, "Could not move attachment"));
+    }
+  }
+
   if (scene.loading) {
     return (
       <div className="space-y-4">
@@ -1083,6 +1133,24 @@ export default function TimelinePage() {
             onPrepBadgeKindsChange={setPrepBadgeKinds}
             className="shrink-0"
           />
+        )}
+
+        {moveRequest && (
+          <Alert variant="info" className="shrink-0">
+            <AlertDescription className="flex items-center justify-between gap-3">
+              <span>
+                Click a Timeline moment to move <strong>{moveRequest.label}</strong>.
+              </span>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setMoveRequest(null)}
+              >
+                Cancel
+              </Button>
+            </AlertDescription>
+          </Alert>
         )}
 
         {!rehearseMode && advancedOpen && isMediumScreen && (
@@ -1318,6 +1386,7 @@ export default function TimelinePage() {
             propsCatalog={scene.propsCatalog}
             setPiecesCatalog={scene.setPiecesCatalog}
             onSelectMoment={scene.setSelectedMomentId}
+            onMoveToMoment={moveRequest ? handleMoveDestination : undefined}
             isHighlighted={(moment) =>
               rehearseMode
                 ? rehearseToggles.highlightMyLines &&
@@ -1452,6 +1521,7 @@ export default function TimelinePage() {
         momentTypes={scene.momentTypes}
         appSettings={scene.appSettings}
         onDetailUpdate={scene.setMomentDetail}
+        onStartMove={startAttachmentMove}
         onChanged={async () => {
           await scene.refreshMomentDetail();
           scene.refreshMomentsList();

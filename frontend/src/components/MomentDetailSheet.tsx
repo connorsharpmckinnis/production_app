@@ -24,6 +24,7 @@ import type {
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { momentBadgeClass } from "@/lib/momentStyles";
+import type { MomentAttachmentKind } from "@/lib/domainIcons";
 
 interface MomentDetailSheetProps {
   productionId: number;
@@ -45,6 +46,11 @@ interface MomentDetailSheetProps {
   appSettings: AppSettingsResponse;
   onDetailUpdate: (detail: MomentDetailResponse) => void;
   onChanged: () => void | Promise<void>;
+  onStartMove?: (
+    kind: MomentAttachmentKind,
+    attachmentId: number,
+    label: string,
+  ) => void;
   /**
    * `inline` — desktop inspector as a flex sibling (Timeline stays fully readable).
    * `overlay` — Sheet (right on large screens, bottom on small).
@@ -73,6 +79,7 @@ export default function MomentDetailSheet({
   appSettings,
   onDetailUpdate,
   onChanged,
+  onStartMove,
   presentation: presentationProp,
 }: MomentDetailSheetProps) {
   const isLargeScreen = useIsLargeScreen();
@@ -203,6 +210,7 @@ export default function MomentDetailSheet({
             momentBadgeClass={momentBadgeClass}
             onDetailUpdate={onDetailUpdate}
             onChanged={onChanged}
+            onStartMove={onStartMove}
             onScriptDirtyChange={setScriptDirty}
             hideScriptPreview
           />

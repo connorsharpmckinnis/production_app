@@ -153,10 +153,6 @@ export default function CharacterDetailPanel({
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
           My highlight color
         </p>
-        <p className="text-xs text-muted-foreground">
-          Personal only — marks this character in Timeline and Rehearse for you
-          in this browser.
-        </p>
         <CharacterColorPicker
           label={character.name}
           value={characterColors[character.id] ?? null}

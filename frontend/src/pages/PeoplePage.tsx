@@ -455,10 +455,6 @@ export default function PeoplePage() {
         <section className="space-y-4 rounded-lg border border-border bg-card p-4">
           <div>
             <h2 className="text-sm font-medium">Add existing users</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Select one or more people from this organization, then choose the
-              production roles to give all of them.
-            </p>
           </div>
 
           <div className="space-y-2">

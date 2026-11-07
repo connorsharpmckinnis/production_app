@@ -334,9 +334,6 @@ export default function GroupsPage() {
 
               <div>
                 <p className="text-sm font-medium">Actors in this group</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  Useful for ensemble members who are not cast to a specific character.
-                </p>
                 {castableUsers.length === 0 ? (
                   <p className="mt-2 text-sm text-muted-foreground">No actor users available.</p>
                 ) : filteredUsers.length === 0 ? (

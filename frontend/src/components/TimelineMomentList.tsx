@@ -71,6 +71,7 @@ export interface TimelineMomentListProps {
   propsCatalog?: PropResponse[];
   setPiecesCatalog?: SetPieceResponse[];
   onSelectMoment: (momentId: number) => void;
+  onMoveToMoment?: (momentId: number) => void;
   isHighlighted: (moment: MomentSummary) => boolean;
   /** Personal per-character highlight colors (this browser). */
   characterColors?: CharacterColorMap;
@@ -275,6 +276,7 @@ function MomentRow({
   propsCatalog,
   setPiecesCatalog,
   onSelectMoment,
+  onMoveToMoment,
   isHighlighted,
   characterColors,
   showPrepBadges,
@@ -305,6 +307,7 @@ function MomentRow({
   propsCatalog: PropResponse[];
   setPiecesCatalog: SetPieceResponse[];
   onSelectMoment: (momentId: number) => void;
+  onMoveToMoment?: (momentId: number) => void;
   isHighlighted: (moment: MomentSummary) => boolean;
   characterColors: CharacterColorMap;
   showPrepBadges: boolean;
@@ -351,10 +354,18 @@ function MomentRow({
       ).filter((chip) => enabledKinds.has(chip.kind))
     : [];
 
+  function chooseMoment() {
+    if (onMoveToMoment) {
+      onMoveToMoment(moment.id);
+      return;
+    }
+    onSelectMoment(moment.id);
+  }
+
   function handleRowKeyDown(event: React.KeyboardEvent) {
     if (event.key === "Enter" || event.key === " ") {
       event.preventDefault();
-      onSelectMoment(moment.id);
+      chooseMoment();
     }
   }
 
@@ -363,14 +374,15 @@ function MomentRow({
       role="button"
       tabIndex={0}
       onClick={() => {
-        if (shouldBlur && !revealed) {
+        if (shouldBlur && !revealed && !onMoveToMoment) {
           setRevealedBlurLineId(moment.id);
           setBlurRevealMode("tap");
           return;
         }
-        onSelectMoment(moment.id);
+        chooseMoment();
       }}
       onKeyDown={handleRowKeyDown}
+      data-move-target={onMoveToMoment ? "true" : undefined}
       onMouseEnter={
         shouldBlur
           ? () => {
@@ -389,11 +401,14 @@ function MomentRow({
             }
           : undefined
       }
-      className={momentHighlightRowClass(
-        highlighted,
-        selected,
-        moment.moment_type,
-        characterColor,
+      className={cn(
+        momentHighlightRowClass(
+          highlighted,
+          selected,
+          moment.moment_type,
+          characterColor,
+        ),
+        onMoveToMoment && "cursor-copy hover:bg-info/15",
       )}
     >
       {showStructuralControls && (
@@ -539,6 +554,7 @@ export default function TimelineMomentList({
   propsCatalog = [],
   setPiecesCatalog = [],
   onSelectMoment,
+  onMoveToMoment,
   isHighlighted,
   characterColors = {},
   showPrepBadges = true,
@@ -668,7 +684,12 @@ export default function TimelineMomentList({
   }
 
   return (
-    <div className="relative min-h-0 flex-1">
+    <div
+      className={cn(
+        "relative min-h-0 flex-1",
+        onMoveToMoment && "rounded-md ring-2 ring-inset ring-info/50",
+      )}
+    >
       {selectedOffscreen === "above" && (
         <button
           type="button"
@@ -738,6 +759,7 @@ export default function TimelineMomentList({
                   propsCatalog={propsCatalog}
                   setPiecesCatalog={setPiecesCatalog}
                   onSelectMoment={onSelectMoment}
+                  onMoveToMoment={onMoveToMoment}
                   isHighlighted={isHighlighted}
                   characterColors={characterColors}
                   showPrepBadges={showPrepBadges}

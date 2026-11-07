@@ -245,9 +245,6 @@ export default function GroupDetailPanel({ groupId }: GroupDetailPanelProps) {
           )}
         </div>
 
-        <p className="text-xs text-muted-foreground">
-          Membership is edited on the Groups catalog page.
-        </p>
       </div>
     </div>
   );

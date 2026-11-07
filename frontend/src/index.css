@@ -41,22 +41,30 @@
   --highlight: oklch(0.62 0.19 255);
   --highlight-muted: oklch(0.96 0.03 250);
 
-  /* Personal character highlight presets — stable across brand themes. */
-  --char-sky: oklch(0.55 0.14 240);
+  /*
+   * Personal character highlight presets (tweak here).
+   * Preset ids: sky | teal | green | amber | orange | rose | violet | pink
+   *   --char-*       = accent (row border, speaker text, picker chips, badge text)
+   *   --char-*-muted = soft row / badge fill
+   * Light mode accents stay bright (highlighter-like) so chips match the highlight.
+   * JS preset list: frontend/src/lib/characterColorPrefs.ts
+   * Class map: frontend/src/lib/momentStyles.ts (CHARACTER_COLOR_ROW_CLASS)
+   */
+  --char-sky: oklch(0.62 0.14 240);
   --char-sky-muted: oklch(0.95 0.03 240);
-  --char-teal: oklch(0.55 0.11 195);
+  --char-teal: oklch(0.62 0.11 195);
   --char-teal-muted: oklch(0.95 0.03 195);
-  --char-green: oklch(0.55 0.13 145);
+  --char-green: oklch(0.62 0.13 145);
   --char-green-muted: oklch(0.95 0.04 145);
-  --char-amber: oklch(0.68 0.14 85);
+  --char-amber: oklch(0.72 0.14 85);
   --char-amber-muted: oklch(0.96 0.04 85);
-  --char-orange: oklch(0.62 0.16 50);
+  --char-orange: oklch(0.68 0.16 50);
   --char-orange-muted: oklch(0.96 0.04 50);
-  --char-rose: oklch(0.58 0.16 15);
+  --char-rose: oklch(0.65 0.16 15);
   --char-rose-muted: oklch(0.96 0.03 15);
-  --char-violet: oklch(0.55 0.16 300);
+  --char-violet: oklch(0.62 0.16 300);
   --char-violet-muted: oklch(0.95 0.04 300);
-  --char-pink: oklch(0.6 0.17 350);
+  --char-pink: oklch(0.66 0.17 350);
   --char-pink-muted: oklch(0.96 0.03 350);
 
   /* Timeline density — overridden by display prefs (this browser). */

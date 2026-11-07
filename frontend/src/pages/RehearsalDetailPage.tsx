@@ -771,9 +771,6 @@ export default function RehearsalDetailPage() {
           <div className="flex flex-wrap items-center justify-between gap-2">
             <div>
               <h2 className="text-lg font-medium">Blocks</h2>
-              <p className="text-sm text-muted-foreground">
-                Time blocks with scenes/songs and who is called. Prefer 10-minute increments.
-              </p>
             </div>
             <div className="flex flex-wrap items-center gap-2">
               {blocks.length > 1 && (
@@ -1134,9 +1131,6 @@ export default function RehearsalDetailPage() {
         <aside className="space-y-3 lg:sticky lg:top-4 lg:self-start">
           <div>
             <h2 className="text-lg font-medium">Recommendations</h2>
-            <p className="text-sm text-muted-foreground">
-              Least rehearsed first — dialog, music, and choreo.
-            </p>
           </div>
           <div className="flex flex-wrap gap-1">
             {(

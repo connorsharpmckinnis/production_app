@@ -47,7 +47,8 @@ export default function CharacterColorPicker({
             aria-label={`${preset.label}${selected ? " (selected)" : ""}`}
             aria-pressed={selected}
             className={cn(
-              "rounded-full border border-border/80 shadow-sm transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
+              // Crisp edge: solid 1px outline beats soft shadow (which reads as blur).
+              "rounded-full border border-foreground/35 transition-transform hover:scale-110 focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
               swatchSize,
               characterColorSwatchClass(preset.id),
               selected && "ring-2 ring-foreground ring-offset-1 ring-offset-background",

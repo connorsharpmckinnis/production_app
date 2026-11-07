@@ -150,10 +150,6 @@ export default function SettingsPage() {
           ← Productions
         </Link>
         <h1 className="text-2xl font-semibold tracking-tight">App Settings</h1>
-        <p className="text-sm text-muted-foreground">
-          Global display options, reading density (this browser), Overview rotating
-          messages, production roles, and org-wide announcements.
-        </p>
       </div>
 
       {error && (
@@ -175,9 +171,6 @@ export default function SettingsPage() {
             />
             <Label htmlFor="show-original-text" className="block items-start font-normal">
               <span className="block text-sm font-medium">Show original text</span>
-              <span className="mt-1 block text-sm font-normal text-muted-foreground">
-                Display imported script text in moment detail panels.
-              </span>
             </Label>
           </div>
 
@@ -191,9 +184,6 @@ export default function SettingsPage() {
             />
             <Label htmlFor="show-parsed-text" className="block items-start font-normal">
               <span className="block text-sm font-medium">Show imported text</span>
-              <span className="mt-1 block text-sm font-normal text-muted-foreground">
-                Display imported script text overrides in moment detail panels.
-              </span>
             </Label>
           </div>
         </section>
@@ -201,13 +191,7 @@ export default function SettingsPage() {
 
       {settings && (
         <section className="space-y-4 rounded-lg border border-border p-4">
-          <div>
-            <h2 className="text-sm font-medium">Overview rotating messages</h2>
-            <p className="mt-1 text-sm text-muted-foreground">
-              One message per line. Every N seconds the Overview spotlight shows the next line.
-              Productions can add their own scripture/announcements and override the interval.
-            </p>
-          </div>
+          <h2 className="text-sm font-medium">Overview rotating messages</h2>
           <div className="flex flex-wrap items-end gap-3">
             <div className="space-y-2">
               <Label htmlFor="rotation-seconds" className="text-muted-foreground">
@@ -271,9 +255,6 @@ export default function SettingsPage() {
 
       <div className="rounded-lg border border-border p-4">
         <h2 className="text-sm font-medium">Developer</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Review shared UI primitives across theme modes.
-        </p>
         <Button type="button" variant="outline" className="mt-3" asChild>
           <Link to="/dev/ui">Open component gallery</Link>
         </Button>
