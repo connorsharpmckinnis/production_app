@@ -34,6 +34,7 @@ import ThemeToggle from "@/components/ThemeToggle";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { CharacterColorPrefsProvider } from "@/context/CharacterColorPrefsContext";
 import { ObjectDetailProvider } from "@/context/ObjectDetailContext";
 import {
   SidebarCollapseContext,
@@ -157,9 +158,11 @@ export default function AppShell() {
   return (
     <NotificationProvider>
       <ProductionAccessProvider>
-        <ObjectDetailProvider>
-          <AppShellInner />
-        </ObjectDetailProvider>
+        <CharacterColorPrefsProvider>
+          <ObjectDetailProvider>
+            <AppShellInner />
+          </ObjectDetailProvider>
+        </CharacterColorPrefsProvider>
       </ProductionAccessProvider>
     </NotificationProvider>
   );
@@ -656,8 +659,9 @@ function AppShellInner() {
 
         <aside
           className={cn(
-            "app-shell-sidebar shrink-0 overflow-y-auto border-r border-border bg-card",
-            "fixed inset-y-14 left-0 z-40 transition-[transform,width] md:static md:translate-x-0",
+            "app-shell-sidebar shrink-0 overflow-x-hidden overflow-y-auto border-r border-border bg-card",
+            // Mobile drawer may slide; desktop width always snaps so labels never wrap mid-expand.
+            "fixed inset-y-14 left-0 z-40 transition-transform md:static md:translate-x-0 md:transition-none",
             navCollapsed ? "w-16 p-2" : "w-56 p-3",
             sidebarOpen ? "translate-x-0" : "-translate-x-full",
           )}

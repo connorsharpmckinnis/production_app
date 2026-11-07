@@ -194,8 +194,8 @@ These are already captured in [PROJECT.md](PROJECT.md) and feature plans; listed
 
 ### Filters & views
 - **Saved named views** (filter + Rehearse preset combos; tech-night modes).
-- Character colors for highlighting.
-- Split / merge moments during structural edit.
+- ~~Character colors for highlighting~~ — shipped MVP 2026-11-06 (personal presets; Timeline/Rehearse).
+- Split / merge moments during structural edit (parked).
 
 ### Production & reports (post-MVP product)
 - Richer production home / readiness dashboard.

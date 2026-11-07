@@ -21,6 +21,8 @@ import {
   scrollListToMomentCentered,
   type SelectedMomentOffscreen,
 } from "@/lib/timelineScrollAnchor";
+import type { CharacterColorMap } from "@/lib/characterColorPrefs";
+import { characterColorForMoment } from "@/lib/characterColorResolve";
 import type { SceneSummaryData } from "@/lib/sceneSummary";
 import type {
   CharacterDetailResponse,
@@ -30,7 +32,12 @@ import type {
   SetPieceResponse,
 } from "@/lib/types";
 import { cn, momentTypeLabel } from "@/lib/utils";
-import { momentBadgeClass, momentHighlightRowClass, momentTextBlurClass } from "@/lib/momentStyles";
+import {
+  characterColorTextClass,
+  momentBadgeClass,
+  momentHighlightRowClass,
+  momentTextBlurClass,
+} from "@/lib/momentStyles";
 
 export interface TimelineSection {
   sceneId: number;
@@ -57,7 +64,7 @@ export interface TimelineMomentListProps {
   sections?: TimelineSection[];
   characters: CharacterDetailResponse[];
   /** Optional groups for resolving speaking_group_ids on dialogue/lyric rows. */
-  groups?: { id: number; name: string }[];
+  groups?: { id: number; name: string; character_ids?: number[] }[];
   selectedMomentId: number | null;
   /** Loaded detail for the selected moment — upgrades gutter chips with names. */
   selectedMomentDetail?: MomentDetailResponse | null;
@@ -65,6 +72,8 @@ export interface TimelineMomentListProps {
   setPiecesCatalog?: SetPieceResponse[];
   onSelectMoment: (momentId: number) => void;
   isHighlighted: (moment: MomentSummary) => boolean;
+  /** Personal per-character highlight colors (this browser). */
+  characterColors?: CharacterColorMap;
   showPrepBadges?: boolean;
   /** When prep badges are on, only show these kinds (default: all). */
   prepBadgeKinds?: MomentAttachmentKind[];
@@ -267,6 +276,7 @@ function MomentRow({
   setPiecesCatalog,
   onSelectMoment,
   isHighlighted,
+  characterColors,
   showPrepBadges,
   prepBadgeKinds,
   showSequenceNumbers,
@@ -289,13 +299,14 @@ function MomentRow({
   sectionLength: number;
   sceneId: number;
   characters: CharacterDetailResponse[];
-  groups: { id: number; name: string }[];
+  groups: { id: number; name: string; character_ids?: number[] }[];
   selectedMomentId: number | null;
   selectedMomentDetail?: MomentDetailResponse | null;
   propsCatalog: PropResponse[];
   setPiecesCatalog: SetPieceResponse[];
   onSelectMoment: (momentId: number) => void;
   isHighlighted: (moment: MomentSummary) => boolean;
+  characterColors: CharacterColorMap;
   showPrepBadges: boolean;
   prepBadgeKinds: MomentAttachmentKind[];
   showSequenceNumbers: boolean;
@@ -316,6 +327,11 @@ function MomentRow({
   const speaker = speakingCharacterName(moment, characters, groups);
   const highlighted = isHighlighted(moment);
   const selected = selectedMomentId === moment.id;
+  const characterColor = characterColorForMoment(
+    moment,
+    characterColors,
+    characters,
+  );
   const shouldBlur = blurMyLines && isMyLine?.(moment);
   const revealed = revealedBlurLineId === moment.id;
 
@@ -373,7 +389,12 @@ function MomentRow({
             }
           : undefined
       }
-      className={momentHighlightRowClass(highlighted, selected, moment.moment_type)}
+      className={momentHighlightRowClass(
+        highlighted,
+        selected,
+        moment.moment_type,
+        characterColor,
+      )}
     >
       {showStructuralControls && (
         <div
@@ -414,7 +435,10 @@ function MomentRow({
       >
         {speaker && (
           <span
-            className="truncate text-xs font-semibold tracking-wide text-foreground uppercase"
+            className={cn(
+              "truncate text-xs font-semibold tracking-wide uppercase",
+              characterColorTextClass(characterColor) ?? "text-foreground",
+            )}
             title={speaker}
           >
             {speaker}
@@ -516,6 +540,7 @@ export default function TimelineMomentList({
   setPiecesCatalog = [],
   onSelectMoment,
   isHighlighted,
+  characterColors = {},
   showPrepBadges = true,
   prepBadgeKinds,
   showSequenceNumbers = true,
@@ -598,20 +623,32 @@ export default function TimelineMomentList({
       return;
     }
 
+    // Ignore resize noise while the inspector / sidebar layout is settling.
+    const quietUntil = performance.now() + 300;
+
     const publish = () => {
       offscreenRafRef.current = null;
       setSelectedOffscreen(getSelectedMomentOffscreen(listEl, selectedMomentId));
     };
 
-    const onScroll = () => {
+    const schedulePublish = () => {
       if (offscreenRafRef.current != null) return;
       offscreenRafRef.current = window.requestAnimationFrame(publish);
     };
 
+    const onScroll = () => {
+      schedulePublish();
+    };
+
+    const onResize = () => {
+      if (performance.now() < quietUntil) return;
+      schedulePublish();
+    };
+
     listEl.addEventListener("scroll", onScroll, { passive: true });
     // Selection change or list rebuild may move the row without a scroll event.
-    publish();
-    const resizeObserver = new ResizeObserver(onScroll);
+    schedulePublish();
+    const resizeObserver = new ResizeObserver(onResize);
     resizeObserver.observe(listEl);
 
     return () => {
@@ -702,6 +739,7 @@ export default function TimelineMomentList({
                   setPiecesCatalog={setPiecesCatalog}
                   onSelectMoment={onSelectMoment}
                   isHighlighted={isHighlighted}
+                  characterColors={characterColors}
                   showPrepBadges={showPrepBadges}
                   prepBadgeKinds={resolvedPrepBadgeKinds}
                   showSequenceNumbers={showSequenceNumbers}

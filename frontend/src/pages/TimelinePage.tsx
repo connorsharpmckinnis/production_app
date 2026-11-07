@@ -33,6 +33,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
+import { useCharacterColorPrefs } from "@/context/CharacterColorPrefsContext";
 import { useConfirm } from "@/context/ConfirmContext";
 import { useToast } from "@/context/ToastContext";
 import { useAuth } from "@/context/AuthContext";
@@ -91,6 +92,7 @@ export default function TimelinePage() {
   const confirm = useConfirm();
   const toast = useToast();
   const { isAdmin } = useAuth();
+  const { colors: characterColors, setCharacterColor } = useCharacterColorPrefs();
   const isMediumScreen = useIsMediumScreen();
   const isLargeScreen = useIsLargeScreen();
   const pendingDeepLinkRef = useRef<PendingDeepLink | null>(null);
@@ -888,7 +890,7 @@ export default function TimelinePage() {
 
   return (
     <div className="flex h-full min-h-0 gap-0">
-      {/* Middle column: toolbar + timeline (detail sits as sibling for full height) */}
+      {/* Middle column shrinks for the inspector; sidebar snap keeps the reflow as one step. */}
       <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-1.5">
         <div className="flex shrink-0 flex-wrap items-baseline gap-x-3 gap-y-0.5">
           <Link
@@ -950,6 +952,8 @@ export default function TimelinePage() {
                   characters={scene.characters}
                   selectedIds={selectedCharacterIds}
                   myCharacterIds={myCharacterIds}
+                  characterColors={characterColors}
+                  onCharacterColorChange={setCharacterColor}
                   onChange={(ids) => {
                     setSelectedCharacterIds(ids);
                     setGroupFilter("all");
@@ -1137,6 +1141,8 @@ export default function TimelinePage() {
                       characters={scene.characters}
                       selectedIds={selectedCharacterIds}
                       myCharacterIds={myCharacterIds}
+                      characterColors={characterColors}
+                      onCharacterColorChange={setCharacterColor}
                       onChange={(ids) => {
                         setSelectedCharacterIds(ids);
                         setGroupFilter("all");
@@ -1323,6 +1329,7 @@ export default function TimelinePage() {
                     groups,
                   )
             }
+            characterColors={characterColors}
             showPrepBadges={rehearseMode ? rehearseToggles.showPrepBadges : showPrepBadges}
             prepBadgeKinds={prepBadgeKinds}
             showSequenceNumbers={rehearseMode ? false : showSequenceNumbers}

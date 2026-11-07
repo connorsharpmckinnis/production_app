@@ -113,16 +113,17 @@ Moments listed in sequence order; click row → detail inspector (co-planar on d
 * No per-row divider lines (script feel, not spreadsheet).
 * When **Prep badges** is on: domain-icon chips in the gutter for props/cues/entrances/exits/blocking/set/costume (`domainIcon()` from [domainIcons.ts](../frontend/src/lib/domainIcons.ts)). Selected rows upgrade chip labels from loaded moment detail when available.
 * Selected row: 2px outline only (layout-neutral reserved border). When the selected moment scrolls fully out of view, a matching chevron at the top or bottom of the list recenters it.
-* Highlighted rows (blue left border) for filtered character dialogue and referenced stage directions.
+* Highlighted rows (default left border) for filtered character dialogue and referenced stage directions.
+* **Personal character colors** (browser-local presets): optional highlighter color per character for the signed-in user; tints that character’s Timeline/Rehearse rows (direct dialogue/lyrics and name hits in stage directions — not group-attributed lines) and **ObjectLink** character badges app-wide. Set from the character filter swatches or Character detail (“My highlight color”). Does not change production data.
 * Click row → moment inspector (desktop co-planar column; mobile bottom `Sheet`).
-* Scene summary strip: character/song names use **ObjectLink** chips (secondary + arrow icon) → object detail sheet. Dialogue speaker column stays plain text.
+* Scene summary strip: character/song names use **ObjectLink** chips (may tint when a personal character color is set) → object detail sheet. Dialogue speaker column stays plain text (may tint when a personal color is set).
 * Compact toolbar (search + scene/character/advanced + **View** menu) lives in the Timeline middle column only so the inspector can use full height.
 
 **Moment detail (inspector):**
 
-* **Desktop (≥1024px):** co-planar right column beside the Timeline — same hierarchy, no dimming overlay; Timeline stays scrollable. Opening the inspector **temporarily collapses** the left nav (icon rail) and restores the prior expanded/collapsed preference on close.
+* **Desktop (≥1024px):** co-planar right column beside the Timeline (script stays fully readable). Opening temporarily collapses the left nav to the icon rail and restores the prior preference on close; desktop nav width always **snaps** (no mid-expand label wrap). Default inspector width is compact (~expanded nav width) and resizable. Escape and header X both deselect and close.
 * **Mobile:** full-height bottom `Sheet`.
-* Close via header X or Escape; switching rows updates selection.
+* Close via header X or Escape (same deselection path); switching rows updates selection.
 * Does **not** repeat the line/lyric/direction already visible on the selected Timeline row (script edit fields still show for Admin).
 * Empty attachment sections (Props, Costumes, Entrances, etc.) are **omitted** until they have content or in-play/wearing state; attach via **Add to moment**.
 * **Notes** list + add form; Director/Admin can choose public/private visibility.
