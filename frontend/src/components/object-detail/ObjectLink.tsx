@@ -10,6 +10,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
+import { useOptionalCharacterColorPrefs } from "@/context/CharacterColorPrefsContext";
 import { useObjectDetail } from "@/context/ObjectDetailContext";
 import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useObjectPeekData } from "@/hooks/queries/useObjectPeekData";
@@ -18,6 +19,7 @@ import {
   OBJECT_DETAIL_TYPE_META,
   type ObjectDetailType,
 } from "@/lib/objectDetail";
+import { characterColorBadgeClass } from "@/lib/momentStyles";
 import { cn } from "@/lib/utils";
 
 export interface ObjectLinkProps
@@ -63,9 +65,13 @@ const ObjectLink = forwardRef<HTMLButtonElement, ObjectLinkProps>(
   ) {
     const { openDetail, productionId } = useObjectDetail();
     const { hasCapability } = useProductionAccess();
+    const { colors: characterColors } = useOptionalCharacterColorPrefs();
     const meta = OBJECT_DETAIL_TYPE_META[objectType];
     const canRead = hasCapability(meta.resource, "read");
     const content = children ?? label;
+    const characterColor =
+      objectType === "character" ? characterColors[objectId] : undefined;
+    const colorBadgeClass = characterColorBadgeClass(characterColor);
     // Skip peek/prefetch fetches when the user cannot open this object.
     const peekProductionId = canRead ? productionId : null;
     const { prefetch, cancelPrefetch } = usePrefetchObjectDetail(peekProductionId);
@@ -77,6 +83,19 @@ const ObjectLink = forwardRef<HTMLButtonElement, ObjectLinkProps>(
     );
 
     if (!canRead) {
+      if (colorBadgeClass) {
+        return (
+          <span
+            className={cn(
+              "inline-flex max-w-full items-center rounded-md px-1.5 py-0.5 align-baseline font-medium",
+              colorBadgeClass,
+              className,
+            )}
+          >
+            {content}
+          </span>
+        );
+      }
       return <>{content}</>;
     }
 
@@ -89,8 +108,10 @@ const ObjectLink = forwardRef<HTMLButtonElement, ObjectLinkProps>(
             disabled={disabled}
             title={`Open ${meta.typeLabel.toLowerCase()} details`}
             className={cn(
-              "inline-flex max-w-full items-center gap-1 rounded-md bg-secondary px-1.5 py-0.5 align-baseline font-medium text-secondary-foreground",
-              "hover:bg-secondary/80",
+              "inline-flex max-w-full items-center gap-1 rounded-md px-1.5 py-0.5 align-baseline font-medium",
+              colorBadgeClass
+                ? colorBadgeClass
+                : "bg-secondary text-secondary-foreground hover:bg-secondary/80",
               "focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring",
               "disabled:pointer-events-none disabled:opacity-50",
               className,

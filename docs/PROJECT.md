@@ -1184,8 +1184,8 @@ These bullets remain for lighter capture so good ideas are not lost:
 - **Bookmark create/toggle UI** — moment-inspector bookmark button removed (2026-09-23) to reclaim inspector space; API + “My bookmarks” list remain. Redesign when settled.
 - ~~**Live search**~~ — **Shipped 2026-08-13:** Timeline + Rehearse debounce (~275ms); Enter still commits immediately.
 - ~~**Multi-select character filter**~~ — **Shipped 2026-08-13:** Timeline OR within selected characters; Mine pre-checks cast ids; exclusive with group. Prop/cue multi-select still deferred.
-- **Character colors** — assign colors to characters for auto-highlighting (Actors and other roles).
-- **Split / merge moments** — divide one moment into two or combine adjacent moments during structural editing.
+- ~~**Character colors**~~ — **Shipped 2026-11-06 (MVP):** per-user, per-production preset colors in this browser; Timeline + Rehearse row/speaker tint. Call sheets / reports / cross-device sync still open.
+- **Split / merge moments** — divide one moment into two or combine adjacent moments during structural editing. (Parked — conflicts with script sanctity for imported Moments; revisit only if needed for director-added Moments.)
 - **Costume pieces / outfits** — Phase 14 WP5 shipped a thin on/off slice for whole costumes (`moment_costume_events`), replacing scene-level assignment. Tracking individual costume **pieces** and outfit combinations stays a later wish-list item.
 - **Rich reports** — PDF export, print layouts, cross-production analytics, preparation progress dashboards. *(On-stage presence chart prototype on Reports, 2026-08-18 — see [character-onstage-chart.md](feature_plans/character-onstage-chart.md).)*
 - **Production-level settings** — per-production overrides for display and workflow flags (if global App Settings prove insufficient).

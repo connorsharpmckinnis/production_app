@@ -1,10 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import CharacterColorPicker from "@/components/CharacterColorPicker";
 import CharacterSceneContext from "@/components/object-detail/CharacterSceneContext";
 import ObjectLink from "@/components/object-detail/ObjectLink";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useRegisterObjectDetailPanel } from "@/components/object-detail/useRegisterObjectDetailPanel";
+import { useOptionalCharacterColorPrefs } from "@/context/CharacterColorPrefsContext";
 import { useObjectDetailInternal } from "@/context/ObjectDetailContext";
 import { useProductionAccess } from "@/context/ProductionAccessContext";
 import { useToast } from "@/context/ToastContext";
@@ -31,6 +33,8 @@ export default function CharacterDetailPanel({
   const { productionId, target } = useObjectDetailInternal();
   const { hasCapability } = useProductionAccess();
   const toast = useToast();
+  const { colors: characterColors, setCharacterColor } =
+    useOptionalCharacterColorPrefs();
   const canUpdate = hasCapability("characters", "update");
 
   // Prefer explicit props; fall back to open target context (host remounts on key).
@@ -143,6 +147,21 @@ export default function CharacterDetailPanel({
           Name
         </p>
         <p className="text-sm font-medium">{character.name}</p>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+          My highlight color
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Personal only — marks this character in Timeline and Rehearse for you
+          in this browser.
+        </p>
+        <CharacterColorPicker
+          label={character.name}
+          value={characterColors[character.id] ?? null}
+          onChange={(preset) => setCharacterColor(character.id, preset)}
+        />
       </div>
 
       <div className="space-y-1">

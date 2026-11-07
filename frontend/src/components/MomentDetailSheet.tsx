@@ -46,7 +46,7 @@ interface MomentDetailSheetProps {
   onDetailUpdate: (detail: MomentDetailResponse) => void;
   onChanged: () => void | Promise<void>;
   /**
-   * `inline` — co-planar desktop column (no overlay/scrim).
+   * `inline` — desktop inspector as a flex sibling (Timeline stays fully readable).
    * `overlay` — Sheet (right on large screens, bottom on small).
    * Default follows viewport: inline on large, overlay on small.
    */
@@ -85,10 +85,12 @@ export default function MomentDetailSheet({
   const beginTemporaryCollapse = sidebarCollapse?.beginTemporaryCollapse;
   const endTemporaryCollapse = sidebarCollapse?.endTemporaryCollapse;
   const detailPanelRef = useRef<MomentDetailPanelHandle>(null);
+  const closingRef = useRef(false);
   const [scriptDirty, setScriptDirty] = useState(false);
   const [footerBusy, setFooterBusy] = useState(false);
 
-  // Free horizontal space while the co-planar inspector is open; restore after.
+  // Collapse the nav rail while the inspector is open; restore after.
+  // Sidebar snaps (no width animation) so the flex-shrink of the Timeline is a single step, not a stutter.
   useEffect(() => {
     if (!isInline || !open || !beginTemporaryCollapse || !endTemporaryCollapse) {
       return;
@@ -103,6 +105,7 @@ export default function MomentDetailSheet({
     if (!open) {
       setScriptDirty(false);
       setFooterBusy(false);
+      closingRef.current = false;
     }
   }, [open]);
 
@@ -111,27 +114,34 @@ export default function MomentDetailSheet({
   }, [momentDetail?.id]);
 
   const requestClose = useCallback(() => {
+    if (closingRef.current) return;
+    closingRef.current = true;
     setFooterBusy(true);
     void detailPanelRef.current?.flushPendingSaves().finally(() => {
       setFooterBusy(false);
+      // Drop focus so the timeline row does not keep a focus ring that looks like selection.
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
       onOpenChange(false);
+      closingRef.current = false;
     });
   }, [onOpenChange]);
 
-  // Escape closes the co-planar inspector (Sheet handles this for overlay).
+  // Escape matches the X button (Sheet handles this for overlay presentation).
   useEffect(() => {
     if (!open || !isInline) return;
 
     function onKeyDown(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
       event.preventDefault();
+      event.stopPropagation();
       requestClose();
     }
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => window.removeEventListener("keydown", onKeyDown, true);
   }, [open, isInline, requestClose]);
-
   function bindResizeHandle(event: React.MouseEvent) {
     event.preventDefault();
     const startX = event.clientX;

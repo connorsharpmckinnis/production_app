@@ -1,8 +1,9 @@
 import { useState } from "react";
 
 const DETAIL_PANEL_WIDTH_KEY = "timelineDetailPanelWidth";
-const DEFAULT_DETAIL_PANEL_WIDTH = 384;
-const MIN_DETAIL_PANEL_WIDTH = 320;
+/** Compact default (~expanded nav width) so more Timeline script stays visible. */
+const DEFAULT_DETAIL_PANEL_WIDTH = 224;
+const MIN_DETAIL_PANEL_WIDTH = 200;
 const MAX_DETAIL_PANEL_WIDTH = 720;
 
 export function useDetailPanelWidth() {

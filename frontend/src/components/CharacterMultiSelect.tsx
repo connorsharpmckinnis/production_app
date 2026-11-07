@@ -1,13 +1,24 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import CharacterColorPicker from "@/components/CharacterColorPicker";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
+import type {
+  CharacterColorMap,
+  CharacterColorPreset,
+} from "@/lib/characterColorPrefs";
+import { characterColorSwatchClass } from "@/lib/momentStyles";
 import { cn } from "@/lib/utils";
 
 export interface CharacterMultiSelectProps {
   characters: { id: number; name: string }[];
   selectedIds: number[];
   myCharacterIds?: number[];
+  characterColors?: CharacterColorMap;
+  onCharacterColorChange?: (
+    characterId: number,
+    preset: CharacterColorPreset | null,
+  ) => void;
   onChange: (ids: number[]) => void;
   disabled?: boolean;
 }
@@ -22,10 +33,13 @@ export default function CharacterMultiSelect({
   characters,
   selectedIds,
   myCharacterIds = [],
+  characterColors = {},
+  onCharacterColorChange,
   onChange,
   disabled = false,
 }: CharacterMultiSelectProps) {
   const [open, setOpen] = useState(false);
+  const [colorEditId, setColorEditId] = useState<number | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
   const allCharacterIds = useMemo(
@@ -40,6 +54,10 @@ export default function CharacterMultiSelect({
   useEffect(() => {
     if (disabled) setOpen(false);
   }, [disabled]);
+
+  useEffect(() => {
+    if (!open) setColorEditId(null);
+  }, [open]);
 
   const buttonLabel = (() => {
     if (noneSelected) return "All characters";
@@ -127,20 +145,61 @@ export default function CharacterMultiSelect({
               {characters.map((character) => {
                 const checked = selectedSet.has(character.id);
                 const id = `character-filter-${character.id}`;
+                const color = characterColors[character.id];
+                const editingColor = colorEditId === character.id;
                 return (
-                  <li key={character.id}>
-                    <Label
-                      htmlFor={id}
-                      className="flex cursor-pointer items-start gap-2 rounded-sm px-1 py-1 font-normal hover:bg-accent"
-                    >
-                      <Checkbox
-                        id={id}
-                        className="mt-0.5"
-                        checked={checked}
-                        onCheckedChange={() => toggleCharacter(character.id)}
+                  <li key={character.id} className="space-y-1">
+                    <div className="flex items-start gap-1 rounded-sm px-1 py-1 hover:bg-accent">
+                      <Label
+                        htmlFor={id}
+                        className="flex min-w-0 flex-1 cursor-pointer items-start gap-2 font-normal"
+                      >
+                        <Checkbox
+                          id={id}
+                          className="mt-0.5"
+                          checked={checked}
+                          onCheckedChange={() => toggleCharacter(character.id)}
+                        />
+                        <span className="text-sm leading-snug">{character.name}</span>
+                      </Label>
+                      {onCharacterColorChange && (
+                        <button
+                          type="button"
+                          className={cn(
+                            "mt-0.5 size-4 shrink-0 rounded-full border border-border",
+                            color
+                              ? characterColorSwatchClass(color)
+                              : "bg-muted",
+                          )}
+                          title={
+                            color
+                              ? "Change highlight color"
+                              : "Set highlight color"
+                          }
+                          aria-label={`Highlight color for ${character.name}`}
+                          aria-expanded={editingColor}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            event.stopPropagation();
+                            setColorEditId((current) =>
+                              current === character.id ? null : character.id,
+                            );
+                          }}
+                        />
+                      )}
+                    </div>
+                    {editingColor && onCharacterColorChange && (
+                      <CharacterColorPicker
+                        size="sm"
+                        className="px-1 pb-1"
+                        label={character.name}
+                        value={color ?? null}
+                        onChange={(preset) => {
+                          onCharacterColorChange(character.id, preset);
+                          if (preset == null) setColorEditId(null);
+                        }}
                       />
-                      <span className="text-sm leading-snug">{character.name}</span>
-                    </Label>
+                    )}
                   </li>
                 );
               })}
