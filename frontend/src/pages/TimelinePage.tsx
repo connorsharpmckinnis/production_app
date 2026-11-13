@@ -1356,6 +1356,11 @@ export default function TimelinePage() {
             selectedMomentDetail={scene.momentDetail}
             propsCatalog={scene.propsCatalog}
             setPiecesCatalog={scene.setPiecesCatalog}
+            suggestionMomentIds={
+              !rehearseMode && scene.canSeeSuggestions
+                ? scene.suggestionMomentIds
+                : undefined
+            }
             onSelectMoment={scene.setSelectedMomentId}
             onMoveToMoment={moveRequest ? handleMoveDestination : undefined}
             isHighlighted={(moment) =>
@@ -1493,6 +1498,11 @@ export default function TimelinePage() {
         appSettings={scene.appSettings}
         onDetailUpdate={scene.setMomentDetail}
         onStartMove={startAttachmentMove}
+        suggestions={
+          !rehearseMode && scene.canSeeSuggestions
+            ? scene.selectedMomentSuggestions
+            : []
+        }
         onChanged={async () => {
           await scene.refreshMomentDetail();
           scene.refreshMomentsList();

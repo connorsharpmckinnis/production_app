@@ -1,4 +1,5 @@
 from app.models.act import Act
+from app.models.analytics_event import AnalyticsEvent
 from app.models.announcement import (
     Announcement,
     AnnouncementAudienceRole,
@@ -52,12 +53,14 @@ from app.models.set_piece import SetPiece
 from app.models.song import Song
 from app.models.song_attribution_character import SongAttributionCharacter
 from app.models.stage_direction import StageDirection
+from app.models.suggestion_dismissal import SuggestionDismissal
 from app.models.user import User
 from app.models.user_character_assignment import UserCharacterAssignment
 from app.models.wire import Wire
 
 __all__ = [
     "Act",
+    "AnalyticsEvent",
     "Announcement",
     "AnnouncementAudienceRole",
     "AnnouncementCta",
@@ -107,6 +110,7 @@ __all__ = [
     "Song",
     "SongAttributionCharacter",
     "StageDirection",
+    "SuggestionDismissal",
     "User",
     "UserAppRole",
     "UserCharacterAssignment",

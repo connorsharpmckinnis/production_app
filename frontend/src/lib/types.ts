@@ -540,6 +540,42 @@ export interface MomentEntranceResponse extends PrepRecordFields {
   notes: string | null;
 }
 
+/** Rules-engine suggestion (ephemeral; not a prep attachment). */
+export interface SuggestionSubject {
+  kind: "character" | "group" | string;
+  id: number;
+  name: string;
+}
+
+export interface SuggestionAction {
+  kind: string;
+  moment_id: number;
+  character_id?: number | null;
+  group_id?: number | null;
+  user_id?: number | null;
+  notes?: string | null;
+}
+
+export interface SuggestionResponse {
+  fingerprint: string;
+  rule_id: string;
+  severity: string;
+  title: string;
+  rationale: string;
+  anchor_moment_id: number;
+  speaking_moment_id: number | null;
+  scene_id: number;
+  subject: SuggestionSubject;
+  actions: SuggestionAction[];
+  dismissed?: boolean;
+}
+
+export interface SuggestionAcceptResponse {
+  fingerprint: string;
+  applied: boolean;
+  detail: string | null;
+}
+
 export interface MomentExitResponse extends PrepRecordFields {
   id: number;
   character_id: number | null;

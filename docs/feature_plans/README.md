@@ -38,6 +38,8 @@ Authoritative product/schema docs win on conflict: [PROJECT.md](../PROJECT.md), 
 
 | Plan | Status | One-liner |
 | ---- | ------ | --------- |
+| [suggestion-engine.md](suggestion-engine.md) | Roadmap (in progress) | Rules-based nudges (entrance imminence first); Accept → official; #191 / later #68 |
+| [analytics-events.md](analytics-events.md) | Roadmap (in progress) | Append-only `analytics_events` spine; suggestion accept/dismiss first |
 | [timeline-prep-polish-nov-2026.md](timeline-prep-polish-nov-2026.md) | Roadmap (in progress) | Move attachments, Moment Detail density, color chips, Object Detail shell + migration milestone |
 | [emmy-directors-feedback-sept-2026.md](emmy-directors-feedback-sept-2026.md) | Roadmap | Emmy/SM walkthrough backlog: Timeline edit, rehearsal builder, progress tracking (#182–#196) |
 | [print-and-call-sheets.md](print-and-call-sheets.md) | Roadmap | Call sheet polish + optional scene-select Reports shortcut |

@@ -21,6 +21,7 @@ import type {
   PropResponse,
   SetPieceResponse,
   SongDetailResponse,
+  SuggestionResponse,
 } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { momentBadgeClass } from "@/lib/momentStyles";
@@ -57,6 +58,7 @@ interface MomentDetailSheetProps {
    * Default follows viewport: inline on large, overlay on small.
    */
   presentation?: "inline" | "overlay";
+  suggestions?: SuggestionResponse[];
 }
 
 export default function MomentDetailSheet({
@@ -81,6 +83,7 @@ export default function MomentDetailSheet({
   onChanged,
   onStartMove,
   presentation: presentationProp,
+  suggestions = [],
 }: MomentDetailSheetProps) {
   const isLargeScreen = useIsLargeScreen();
   const presentation =
@@ -213,6 +216,7 @@ export default function MomentDetailSheet({
             onStartMove={onStartMove}
             onScriptDirtyChange={setScriptDirty}
             hideScriptPreview
+            suggestions={suggestions}
           />
         ) : (
           <DetailPanelSkeleton />

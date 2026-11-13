@@ -2,6 +2,7 @@ import { Fragment, useEffect, useRef, useState, type RefObject } from "react";
 import {
   ChevronDown,
   ChevronUp,
+  CircleAlert,
   Plus,
   Trash2,
 } from "lucide-react";
@@ -97,6 +98,8 @@ export interface TimelineMomentListProps {
   listRef?: RefObject<HTMLUListElement | null>;
   /** Fires (throttled) with the first fully visible moment as the user scrolls. */
   onScrollAnchorChange?: (anchor: TimelineScrollAnchor | null) => void;
+  /** Moment ids that are anchors for engine suggestions (quest-marker icons). */
+  suggestionMomentIds?: ReadonlySet<number>;
 }
 
 type AttachmentChip = {
@@ -295,6 +298,7 @@ function MomentRow({
   setRevealedBlurLineId,
   blurRevealMode,
   setBlurRevealMode,
+  hasSuggestionMarker = false,
 }: {
   moment: MomentSummary;
   index: number;
@@ -326,6 +330,7 @@ function MomentRow({
   setRevealedBlurLineId: (id: number | null) => void;
   blurRevealMode: "hover" | "tap" | null;
   setBlurRevealMode: (mode: "hover" | "tap" | null) => void;
+  hasSuggestionMarker?: boolean;
 }) {
   const speaker = speakingCharacterName(moment, characters, groups);
   const highlighted = isHighlighted(moment);
@@ -499,6 +504,16 @@ function MomentRow({
         </p>
       </div>
 
+      {hasSuggestionMarker && (
+        <span
+          className="flex shrink-0 self-center text-sky-600 dark:text-sky-400"
+          title="Suggestion available"
+          aria-label="Suggestion available"
+        >
+          <CircleAlert className="size-4" strokeWidth={2} />
+        </span>
+      )}
+
       {showTypeBadge && (
         <div
           className="flex shrink-0 self-start"
@@ -575,6 +590,7 @@ export default function TimelineMomentList({
   footerSlot,
   listRef,
   onScrollAnchorChange,
+  suggestionMomentIds,
 }: TimelineMomentListProps) {
   const resolvedPrepBadgeKinds =
     prepBadgeKinds ?? ([...ALL_MOMENT_ATTACHMENT_KINDS] as MomentAttachmentKind[]);
@@ -778,6 +794,7 @@ export default function TimelineMomentList({
                   setRevealedBlurLineId={setRevealedBlurLineId}
                   blurRevealMode={blurRevealMode}
                   setBlurRevealMode={setBlurRevealMode}
+                  hasSuggestionMarker={suggestionMomentIds?.has(moment.id) ?? false}
                 />
                 {insertFormSlot &&
                   insertAfterSequence === moment.sequence_number &&

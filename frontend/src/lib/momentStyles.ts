@@ -96,15 +96,17 @@ export function momentHighlightRowClass(
   return cn(
     "relative flex w-full cursor-pointer items-stretch rounded-md border-2 border-transparent px-3 text-left text-sm transition-colors",
     "min-h-[var(--timeline-row-min-h)] gap-[length:var(--timeline-row-gap)] py-[length:var(--timeline-row-py)]",
+    // Subtle hover so the active row is obvious while scanning (selected stays firm).
+    !isSelected && "hover:bg-muted/55",
     // Half-strength tint — glanceable like Excel zebra rows, not a highlighter.
-    isSong && !isSelected && !colorClasses && "bg-moment-song/30",
+    isSong && !isSelected && !colorClasses && "bg-moment-song/30 hover:bg-moment-song/45",
     isSelected && "border-foreground/80 bg-background",
     colorClasses && !isSelected && cn("border-l-4", colorClasses.border, colorClasses.muted),
     colorClasses && isSelected && colorClasses.border,
     !colorClasses &&
       isHighlighted &&
       !isSelected &&
-      "border-l-4 border-l-highlight bg-highlight-muted",
+      "border-l-4 border-l-highlight bg-highlight-muted hover:bg-highlight-muted/80",
     !colorClasses && isHighlighted && isSelected && "border-l-highlight",
   );
 }

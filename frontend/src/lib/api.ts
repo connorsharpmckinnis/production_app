@@ -72,6 +72,8 @@ import type {
   RehearsalSummaryResponse,
   RehearsalUpdate,
   SuggestedCallResponse,
+  SuggestionAcceptResponse,
+  SuggestionResponse,
   ProductionOverviewMessageItem,
   ProductionOverviewMessageResponse,
   ProductionOverviewResponse,
@@ -1468,6 +1470,39 @@ export const api = {
       `/productions/${productionId}/moments/${momentId}/set-pieces/${momentSetPieceId}`,
       { method: "DELETE" },
     );
+  },
+
+  listSuggestions(
+    productionId: number,
+    params: {
+      scene_id: number;
+      moment_id?: number;
+      rule_id?: string;
+      include_dismissed?: boolean;
+    },
+  ) {
+    const search = new URLSearchParams();
+    search.set("scene_id", String(params.scene_id));
+    if (params.moment_id != null) search.set("moment_id", String(params.moment_id));
+    if (params.rule_id) search.set("rule_id", params.rule_id);
+    if (params.include_dismissed) search.set("include_dismissed", "true");
+    return request<SuggestionResponse[]>(
+      `/productions/${productionId}/suggestions?${search.toString()}`,
+    );
+  },
+
+  acceptSuggestion(productionId: number, fingerprint: string) {
+    return request<SuggestionAcceptResponse>(
+      `/productions/${productionId}/suggestions/accept`,
+      { method: "POST", body: JSON.stringify({ fingerprint }) },
+    );
+  },
+
+  dismissSuggestion(productionId: number, fingerprint: string) {
+    return request<void>(`/productions/${productionId}/suggestions/dismiss`, {
+      method: "POST",
+      body: JSON.stringify({ fingerprint }),
+    });
   },
 
   attachMomentEntrance(
