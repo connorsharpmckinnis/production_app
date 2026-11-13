@@ -5,7 +5,7 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
 from app.auth.dependencies import require_role
-from app.models import Organization, User
+from app.models import AnalyticsEvent, Organization, User
 from scoped_test_helpers import seed_database_with_test_users
 
 
@@ -16,7 +16,7 @@ def seeded_client(client: TestClient, db_session, test_settings) -> TestClient:
     return client
 
 
-def test_login_success(seeded_client: TestClient) -> None:
+def test_login_success(seeded_client: TestClient, db_session) -> None:
     response = seeded_client.post(
         "/api/auth/login",
         json={"username": "admin", "password": "admin"},
@@ -25,13 +25,27 @@ def test_login_success(seeded_client: TestClient) -> None:
     data = response.json()
     assert "access_token" in data
 
+    admin = db_session.query(User).filter(User.username == "admin").one()
+    event = (
+        db_session.query(AnalyticsEvent)
+        .filter(AnalyticsEvent.event_name == "auth.login")
+        .order_by(AnalyticsEvent.id.desc())
+        .first()
+    )
+    assert event is not None
+    assert event.actor_user_id == admin.id
+    assert event.organization_id == admin.organization_id
+    assert event.production_id is None
 
-def test_login_failure(seeded_client: TestClient) -> None:
+
+def test_login_failure(seeded_client: TestClient, db_session) -> None:
+    before = db_session.query(AnalyticsEvent).count()
     response = seeded_client.post(
         "/api/auth/login",
         json={"username": "admin", "password": "wrong"},
     )
     assert response.status_code == 401
+    assert db_session.query(AnalyticsEvent).count() == before
 
 
 def test_me_requires_auth(seeded_client: TestClient) -> None:
@@ -184,9 +198,8 @@ def test_act_as_requires_admin(seeded_client: TestClient, db_session) -> None:
 
 
 def test_act_as_and_stop_act_as(seeded_client: TestClient, db_session) -> None:
-    from app.models import User
-
     ordinary_user = db_session.query(User).filter(User.username == "actor").one()
+    admin = db_session.query(User).filter(User.username == "admin").one()
     admin_token = _login(seeded_client, "admin", "admin")
 
     act = seeded_client.post(
@@ -206,6 +219,16 @@ def test_act_as_and_stop_act_as(seeded_client: TestClient, db_session) -> None:
     assert body["username"] == "actor"
     assert body["roles"] == []
     assert body["impersonation"]["original_username"] == "admin"
+
+    start_event = (
+        db_session.query(AnalyticsEvent)
+        .filter(AnalyticsEvent.event_name == "auth.act_as_start")
+        .order_by(AnalyticsEvent.id.desc())
+        .first()
+    )
+    assert start_event is not None
+    assert start_event.actor_user_id == admin.id
+    assert start_event.properties.get("target_user_id") == ordinary_user.id
 
     # Nested act-as must be blocked while impersonating.
     nested = seeded_client.post(
@@ -230,6 +253,37 @@ def test_act_as_and_stop_act_as(seeded_client: TestClient, db_session) -> None:
     restored_body = me_again.json()
     assert restored_body["username"] == "admin"
     assert restored_body["impersonation"] is None
+
+    stop_event = (
+        db_session.query(AnalyticsEvent)
+        .filter(AnalyticsEvent.event_name == "auth.act_as_stop")
+        .order_by(AnalyticsEvent.id.desc())
+        .first()
+    )
+    assert stop_event is not None
+    assert stop_event.actor_user_id == admin.id
+    assert stop_event.properties.get("target_user_id") == ordinary_user.id
+
+
+def test_org_analytics_lists_auth_events(seeded_client: TestClient) -> None:
+    token = _login(seeded_client, "admin", "admin")
+    response = seeded_client.get(
+        "/api/analytics/events",
+        headers={"Authorization": f"Bearer {token}"},
+        params={"event_name_prefix": "auth.", "limit": 50},
+    )
+    assert response.status_code == 200
+    rows = response.json()
+    assert any(row["event_name"] == "auth.login" for row in rows)
+
+
+def test_org_analytics_requires_admin(seeded_client: TestClient) -> None:
+    token = _login(seeded_client, "director", "director")
+    response = seeded_client.get(
+        "/api/analytics/events",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert response.status_code == 403
 
 
 def test_stop_act_as_without_impersonation(seeded_client: TestClient) -> None:

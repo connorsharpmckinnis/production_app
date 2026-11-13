@@ -14,6 +14,7 @@ from app.schemas.auth import (
     TokenResponse,
     UserResponse,
 )
+from app.services.analytics import record_event
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -59,6 +60,13 @@ def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid username or password",
         )
+    record_event(
+        db,
+        event_name="auth.login",
+        user=user,
+        organization_id=user.organization_id,
+    )
+    db.commit()
     return TokenResponse(access_token=create_access_token(user.id))
 
 
@@ -111,6 +119,14 @@ def act_as(
             detail="User not found or inactive",
         )
 
+    record_event(
+        db,
+        event_name="auth.act_as_start",
+        user=admin,
+        organization_id=admin.organization_id,
+        properties={"target_user_id": target.id},
+    )
+    db.commit()
     return TokenResponse(
         access_token=create_access_token(target.id, impersonator_id=admin.id),
     )
@@ -134,6 +150,14 @@ def stop_act_as(
             detail="Original admin session is no longer valid",
         )
 
+    record_event(
+        db,
+        event_name="auth.act_as_stop",
+        user=original,
+        organization_id=original.organization_id,
+        properties={"target_user_id": claims.user_id},
+    )
+    db.commit()
     return TokenResponse(access_token=create_access_token(original.id))
 
 

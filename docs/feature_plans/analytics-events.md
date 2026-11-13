@@ -1,6 +1,6 @@
 # Feature plan — Analytics events
 
-**Status:** Roadmap (in progress — suggestion accept/dismiss spine shipping with suggestion-engine v1)  
+**Status:** Roadmap (in progress — suggestion outcomes + auth events)  
 **Created:** 2026-11-11  
 **Related:** [suggestion-engine.md](suggestion-engine.md), [DATABASE.md](../DATABASE.md) (Audit Logs / FUTURE TABLES), Issue #46 (rich reports / analytics wish), announcements CTA analytics (deferred)
 
@@ -55,7 +55,21 @@ Production-scoped, Timeline editors + App Admin:
 - `GET /api/productions/{id}/analytics/suggestions/summary` — counts accepted / dismissed / total by `rule_id` (and overall)
 - `GET /api/productions/{id}/analytics/events?event_name_prefix=suggestion.&limit=100` — recent raw events for inspection
 
+Org-scoped (App Admin only) — for events with no `production_id` (auth):
+
+- `GET /api/analytics/events?event_name_prefix=auth.&limit=100` — recent org events; omit prefix to pull all and filter externally
+
 No charts UI in this slice.
+
+### Auth instrumentation (WP2 partial)
+
+| Event | When | Key properties |
+| ----- | ---- | -------------- |
+| `auth.login` | Successful password login | (none; actor + org + `created_at`) |
+| `auth.act_as_start` | Admin starts act-as | `target_user_id` |
+| `auth.act_as_stop` | Admin stops act-as | `target_user_id` (who they were acting as) |
+
+Failed logins are not recorded. Actor is always the real admin for act-as start/stop.
 
 ---
 
@@ -81,7 +95,7 @@ Prioritized for a follow-on branch; emit into the **same** table.
 | Rehearsal planner | `rehearsal.suggest_calls_applied`, `rehearsal.plan_saved`, `rehearsal.published` | Call-list automation quality |
 | Readiness / Overview | `readiness.gap_clicked` (CTA) | Which gaps drive action |
 | Script import | `import.completed`, `import.failed` (+ profile id, counts) | Pipeline reliability |
-| Auth | `auth.login`, `auth.act_as_start`, `auth.act_as_stop` | Access + impersonation audit |
+| Auth | ~~`auth.login`, `auth.act_as_start`, `auth.act_as_stop`~~ (done) | Access + impersonation audit |
 | Announcements | `announcement.cta_clicked`, `announcement.dismissed` | Was deferred; fits this spine |
 | Reports / print | `report.viewed`, `call_sheet.printed` | Booth workflow adoption |
 | Catalog | `catalog.item_created`, `catalog.csv_imported` | Prep velocity |
@@ -112,11 +126,12 @@ Events spine + suggestion accept/dismiss + retrieve API; impressions deferred; A
 
 **Done when:** accepts and dismisses appear as distinct events; summary endpoint returns counts by rule; pytest covers record + summary.
 
-### WP2 — (later branch) Broader instrumentation pass
+### WP2 — Broader instrumentation pass
 
-Pick 2–3 rows from the wishlist table; document event_name conventions in this file’s decision log.
+**Status:** Partial — auth events + org list API (2026-11-13). Remaining wishlist rows still later.
 
 ---
+
 
 ## Event naming convention
 
@@ -134,3 +149,5 @@ Pick 2–3 rows from the wishlist table; document event_name conventions in this
 | 2026-11-11 | Track `suggestion.accepted` / `suggestion.dismissed` only for v1; skip impressions |
 | 2026-11-11 | Keep `suggestion_dismissals` as suppress list; analytics is source of truth for outcomes |
 | 2026-11-11 | Retrieve via API first; no charts UI; expand broader tracking in a later branch |
+| 2026-11-13 | Instrument `auth.login` / `auth.act_as_start` / `auth.act_as_stop`; Admin `GET /api/analytics/events` for org-scoped rows (auth has no production_id) |
+| 2026-11-13 | Defer attachment create/edit and other prep events until owner picks next slice |

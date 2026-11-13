@@ -36,6 +36,19 @@ def record_event(
     return row
 
 
+def _apply_event_name_filters(
+    query,
+    *,
+    event_name: str | None = None,
+    event_name_prefix: str | None = None,
+):
+    if event_name is not None:
+        query = query.filter(AnalyticsEvent.event_name == event_name)
+    if event_name_prefix is not None:
+        query = query.filter(AnalyticsEvent.event_name.like(f"{event_name_prefix}%"))
+    return query
+
+
 def list_production_events(
     db: Session,
     *,
@@ -47,10 +60,31 @@ def list_production_events(
     query = db.query(AnalyticsEvent).filter(
         AnalyticsEvent.production_id == production_id
     )
-    if event_name is not None:
-        query = query.filter(AnalyticsEvent.event_name == event_name)
-    if event_name_prefix is not None:
-        query = query.filter(AnalyticsEvent.event_name.like(f"{event_name_prefix}%"))
+    query = _apply_event_name_filters(
+        query, event_name=event_name, event_name_prefix=event_name_prefix
+    )
+    return (
+        query.order_by(AnalyticsEvent.created_at.desc(), AnalyticsEvent.id.desc())
+        .limit(max(1, min(limit, 500)))
+        .all()
+    )
+
+
+def list_organization_events(
+    db: Session,
+    *,
+    organization_id: int,
+    event_name: str | None = None,
+    event_name_prefix: str | None = None,
+    limit: int = 100,
+) -> list[AnalyticsEvent]:
+    """Org-scoped events (auth, etc.) — includes rows with or without production_id."""
+    query = db.query(AnalyticsEvent).filter(
+        AnalyticsEvent.organization_id == organization_id
+    )
+    query = _apply_event_name_filters(
+        query, event_name=event_name, event_name_prefix=event_name_prefix
+    )
     return (
         query.order_by(AnalyticsEvent.created_at.desc(), AnalyticsEvent.id.desc())
         .limit(max(1, min(limit, 500)))
