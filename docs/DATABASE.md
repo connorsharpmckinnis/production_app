@@ -1115,6 +1115,44 @@ Fields
 
 ---
 
+# SUGGESTION_DISMISSALS
+
+Purpose
+
+Persist **instance** dismissals for the rules-based suggestion engine (see [suggestion-engine.md](feature_plans/suggestion-engine.md)). Engine suggestions are ephemeral computed DTOs; accepting creates normal **official** prep attachments. Dismissing stores a fingerprint so that instance does not reappear. This is separate from attachment `status='suggested'` (human rehearsal capture).
+
+Fields
+
+* id
+* production_id (CASCADE delete with production)
+* fingerprint (stable string from rule + scene + subject + anchor moment)
+* dismissed_by_user_id (nullable, SET NULL on user delete)
+* created_at
+
+**Decision:** Unique per `(production_id, fingerprint)`. Shared among editors of the production (not per-user). No blanket “dismiss this rule” row in v1. **Outcomes for analytics** (accepted vs dismissed) live in `ANALYTICS_EVENTS`, not here — Accept still inserts a dismissal so the nudge stops showing.
+
+---
+
+# ANALYTICS_EVENTS
+
+Purpose
+
+Append-only product / usefulness event log. First consumers: suggestion accept vs dismiss. Same table is the intended spine for later auth, import, lav Propose, announcement CTA, and audit-style events — see [analytics-events.md](feature_plans/analytics-events.md).
+
+Fields
+
+* id
+* created_at
+* organization_id (nullable, CASCADE)
+* production_id (nullable, CASCADE)
+* actor_user_id (nullable, SET NULL)
+* event_name (indexed string, e.g. `suggestion.accepted`)
+* properties (JSON object)
+
+**Decision:** Never update/delete rows for corrections; emit a new event if needed. `record_event()` does not commit — callers flush with their mutation. Suggestion impressions deferred (noisy).
+
+---
+
 # SET_PIECES
 
 Fields
@@ -1306,7 +1344,7 @@ rows, not a replacement for the relational model.
 
 AI Conversations
 
-Audit Logs
+Audit Logs — *partially started as `ANALYTICS_EVENTS` (product events); expand coverage later*
 
 Version History
 

@@ -81,6 +81,14 @@ class Production(Base):
         back_populates="production",
         cascade="all, delete-orphan",
     )
+    suggestion_dismissals: Mapped[list["SuggestionDismissal"]] = relationship(
+        back_populates="production",
+        cascade="all, delete-orphan",
+    )
+    analytics_events: Mapped[list["AnalyticsEvent"]] = relationship(
+        back_populates="production",
+        cascade="all, delete-orphan",
+    )
     set_pieces: Mapped[list["SetPiece"]] = relationship(
         back_populates="production",
         cascade="all, delete-orphan",

@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from app.api import (
+    analytics,
     auth,
     characters,
     costumes,
@@ -21,6 +22,7 @@ from app.api import (
     set_pieces,
     settings,
     stage_movements,
+    suggestions,
     timeline,
     users,
     wires,
@@ -49,5 +51,8 @@ api_router.include_router(packs.router)
 api_router.include_router(lav_chart.router)
 api_router.include_router(set_pieces.router)
 api_router.include_router(stage_movements.router)
+api_router.include_router(suggestions.router)
+api_router.include_router(analytics.router)
+api_router.include_router(analytics.org_router)
 api_router.include_router(rehearsals.router)
 api_router.include_router(reports.router)

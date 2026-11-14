@@ -26,6 +26,7 @@ import type {
   MomentSummary,
   MomentTypeResponse,
   SceneSummary,
+  SuggestionResponse,
 } from "@/lib/types";
 import { formatSceneSectionLabel, sortByName } from "@/lib/utils";
 
@@ -110,6 +111,10 @@ export function useTimelineScene({
       hasCapability(resource, action),
     ),
   );
+  const canSeeSuggestions =
+    hasCapability("timeline", "create") ||
+    hasCapability("timeline", "update") ||
+    hasCapability("timeline", "approve");
 
   const charactersQuery = useCharactersCatalog(productionId);
   const songsQuery = useSongsCatalog(productionId);
@@ -144,6 +149,7 @@ export function useTimelineScene({
   const [momentsLoading, setMomentsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [momentsRefreshKey, setMomentsRefreshKey] = useState(0);
+  const [suggestions, setSuggestions] = useState<SuggestionResponse[]>([]);
   const silentRefreshRef = useRef(false);
   const shellLoadIdRef = useRef(0);
 
@@ -369,6 +375,52 @@ export function useTimelineScene({
     setPiecesCatalog,
   ]);
 
+  useEffect(() => {
+    if (!canSeeSuggestions || selectedSceneIds.length === 0) {
+      setSuggestions([]);
+      return;
+    }
+
+    const orderedSceneIds = allSceneIdsFromActs(acts).filter((id) =>
+      selectedSceneIds.includes(id),
+    );
+    let cancelled = false;
+
+    void Promise.all(
+      orderedSceneIds.map((sceneId) =>
+        api.listSuggestions(productionId, { scene_id: sceneId }).catch(() => [] as SuggestionResponse[]),
+      ),
+    ).then((results) => {
+      if (cancelled) return;
+      setSuggestions(results.flat());
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    productionId,
+    selectedSceneIds,
+    momentsRefreshKey,
+    acts,
+    canSeeSuggestions,
+  ]);
+
+  const suggestionMomentIds = useMemo(() => {
+    const ids = new Set<number>();
+    for (const suggestion of suggestions) {
+      ids.add(suggestion.anchor_moment_id);
+    }
+    return ids;
+  }, [suggestions]);
+
+  const selectedMomentSuggestions = useMemo(() => {
+    if (selectedMomentId == null) return [];
+    return suggestions.filter(
+      (suggestion) => suggestion.anchor_moment_id === selectedMomentId,
+    );
+  }, [suggestions, selectedMomentId]);
+
   const selectSceneById = useCallback(
     (sceneId: number): boolean => {
       if (!sceneLookup.has(sceneId)) return false;
@@ -454,6 +506,10 @@ export function useTimelineScene({
     error: displayError,
     myCharacterIds,
     canManagePreparation,
+    canSeeSuggestions,
+    suggestions,
+    suggestionMomentIds,
+    selectedMomentSuggestions,
     selectSceneById,
     sceneIdForMoment,
     refreshMomentDetail,

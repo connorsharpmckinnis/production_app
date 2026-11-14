@@ -1,4 +1,5 @@
 import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { X } from "lucide-react";
 import { Link } from "react-router-dom";
 import AttributionSubjectMultiSelect, {
   decodeAttributionSubjects,
@@ -54,6 +55,7 @@ import type {
   PropResponse,
   SetPieceResponse,
   SongDetailResponse,
+  SuggestionResponse,
 } from "@/lib/types";
 import { cn, momentTypeLabel, sortByName } from "@/lib/utils";
 
@@ -411,6 +413,8 @@ interface MomentDetailPanelProps {
    * row (dialogue / lyric / stage direction / song text). Edit fields remain.
    */
   hideScriptPreview?: boolean;
+  /** Engine suggestions anchored on this moment (editors only). */
+  suggestions?: SuggestionResponse[];
 }
 
 const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelProps>(
@@ -436,6 +440,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
       momentBadgeClass,
       onScriptDirtyChange,
       hideScriptPreview = false,
+      suggestions = [],
     },
     ref,
   ) {
@@ -446,6 +451,33 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
     const canPublishNotes = hasCapability("notes", "publish");
     const canAttach =
       canEdit || hasCapability("timeline", "suggest") || canApprove;
+    const [suggestionBusy, setSuggestionBusy] = useState<string | null>(null);
+
+    async function handleAcceptSuggestion(fingerprint: string) {
+      setSuggestionBusy(fingerprint);
+      try {
+        await api.acceptSuggestion(productionId, fingerprint);
+        await onChanged();
+        toast.success("Suggestion applied");
+      } catch (err) {
+        toast.error(formatApiError(err, "Failed to apply suggestion"));
+      } finally {
+        setSuggestionBusy(null);
+      }
+    }
+
+    async function handleDismissSuggestion(fingerprint: string) {
+      setSuggestionBusy(fingerprint);
+      try {
+        await api.dismissSuggestion(productionId, fingerprint);
+        await onChanged();
+        toast.message("Suggestion dismissed");
+      } catch (err) {
+        toast.error(formatApiError(err, "Failed to dismiss suggestion"));
+      } finally {
+        setSuggestionBusy(null);
+      }
+    }
 
     async function handleApprove(kind: string, id: number) {
       try {
@@ -1748,7 +1780,7 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                           : "border-border text-muted-foreground hover:bg-muted hover:text-foreground",
                       )}
                     >
-                      <Icon className="size-4 shrink-0" />
+                      <Icon className="size-4 shrink-0" strokeWidth={2} />
                       <span className="w-full text-center leading-tight break-words">
                         {option.label}
                       </span>
@@ -1788,6 +1820,74 @@ const MomentDetailPanel = forwardRef<MomentDetailPanelHandle, MomentDetailPanelP
                 </Link>{" "}
                 first.
               </p>
+            )}
+
+            {suggestions.length > 0 && (
+              <div className="mt-3 space-y-1.5">
+                <p className="text-[10px] font-medium uppercase tracking-wide text-muted-foreground">
+                  Suggested
+                </p>
+                <div
+                  className={cn(
+                    "grid w-full gap-1.5",
+                    suggestions.length === 1
+                      ? "grid-cols-1"
+                      : suggestions.length === 2
+                        ? "grid-cols-2"
+                        : "grid-cols-2 sm:grid-cols-3",
+                  )}
+                  role="group"
+                  aria-label="Suggested additions"
+                >
+                  {suggestions.map((suggestion) => {
+                    const busy = suggestionBusy === suggestion.fingerprint;
+                    const EntranceIcon = domainIcon("entrance");
+                    const label =
+                      suggestion.actions[0]?.kind === "create_entrance"
+                        ? `${suggestion.subject.name}`
+                        : suggestion.title;
+                    return (
+                      <div
+                        key={suggestion.fingerprint}
+                        className="relative min-w-0"
+                      >
+                        <button
+                          type="button"
+                          title={suggestion.rationale}
+                          aria-label={`Accept: ${suggestion.title}`}
+                          disabled={busy || saving}
+                          onClick={() =>
+                            void handleAcceptSuggestion(suggestion.fingerprint)
+                          }
+                          className={cn(
+                            "flex w-full min-w-0 flex-col items-center gap-1 rounded-md border border-dashed border-sky-600/50 bg-sky-500/5 px-1 py-2 pr-5 text-[10px] font-medium text-foreground outline-none transition-colors hover:bg-sky-500/10 focus-visible:border-ring focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60",
+                          )}
+                        >
+                          <EntranceIcon className="size-4 shrink-0" strokeWidth={2} />
+                          <span className="w-full text-center leading-tight break-words">
+                            {label}
+                          </span>
+                          <span className="w-full text-center text-[9px] font-normal leading-tight text-muted-foreground">
+                            Entrance
+                          </span>
+                        </button>
+                        <button
+                          type="button"
+                          title="Dismiss suggestion"
+                          aria-label={`Dismiss suggestion for ${suggestion.subject.name}`}
+                          disabled={busy || saving}
+                          onClick={() =>
+                            void handleDismissSuggestion(suggestion.fingerprint)
+                          }
+                          className="absolute right-0.5 top-0.5 rounded p-0.5 text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-1 focus-visible:ring-ring disabled:opacity-60"
+                        >
+                          <X className="size-3" strokeWidth={2} />
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
             )}
 
             {addAttachmentType === "prop" && propsCatalog.length > 0 && (

@@ -65,7 +65,7 @@ Respond to director/SM feedback with **general-value** improvements to Timeline 
 | Day 5–6 | Rehearsal builder + print | #196, #194, #192, #195 — **done:** collapsible blocks; per-block notes; select all recommended + clear; compact multi-column call sheet print; simple drag time strip (manual times tucked under Exact times) |
 | Day 7 | Honest completion | #193 |
 | Days 8–9 | Song/scene/choreo tracking | #182 |
-| Later | Suggestion engine | #191 |
+| Later | Suggestion engine | #191 — shaped in [suggestion-engine.md](suggestion-engine.md) (2026-11-10) |
 
 ---
 
